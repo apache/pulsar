@@ -78,73 +78,85 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The function's name")
             final @PathParam("functionName") String functionName,
+            @ApiParam(value = "Uploads Pulsar Functions file data")
             final @FormDataParam("data") InputStream uploadedInputStream,
+            @ApiParam(value = "The instance file detail")
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
+            @ApiParam(value = "Uploads Pulsar Function by URL")
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
                     value = "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \n" +
-                            "--auto-ack  \n" +
+                            "autoAck  \n" +
                             "  Whether or not the framework will automatically acknowledge messages  \n" +
-                            "--classname  \n" +
+                            "runtime  \n" +
+                            "  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \n" +
+                            "resources  \n" +
+                            "  The size of the system resources allowed by the function runtime, include: cpu, ram, disk.  \n" +
+                            "className  \n" +
                             "  The function's class name  \n" +
-                            "--cpu  \n" +
-                            "  The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)  \n" +
-                            "--custom-schema-inputs  \n" +
+                            "tenant  \n" +
+                            "  The function's tenant  \n" +
+                            "namespace  \n" +
+                            "  The function's namespace  \n" +
+                            "name  \n" +
+                            "  The function's name  \n" +
+                            "customSchemaInputs  \n" +
                             "  The map of input topics to Schema class names (as a JSON string)  \n" +
-                            "--custom-serde-inputs  \n" +
+                            "customSerdeInputs  \n" +
                             "  The map of input topics to SerDe class names (as a JSON string)  \n" +
-                            "--dead-letter-topic  \n" +
+                            "deadLetterTopic  \n" +
                             "  The topic where all messages which could not be processed successfully are sent  \n" +
-                            "--disk  \n" +
-                            "  The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)  \n" +
-                            "--fqfn  \n" +
+                            "runtimeFlags  \n" +
+                            "  Any flags that you want to pass to the runtime. note that in thread mode, these flags will have no impact  \n" +
+                            "fqfn  \n" +
                             "  The Fully Qualified Function Name (FQFN) for the function  \n" +
-                            "--function-config-file  \n" +
-                            "  The path to a YAML config file specifying the function's configuration  \n" +
-                            "--inputs  \n" +
+                            "inputSpecs  \n" +
+                            "  A generalized way of specifying inputs  \n" +
+                            "inputs  \n" +
                             "  The function's input topic or topics (multiple topics can be specified as a comma-separated list)  \n" +
-                            "--jar  \n" +
+                            "jar  \n" +
                             "  Path to the jar file for the function (if the function is written in Java). " +
                             "  It also supports url-path [http/https/file (file protocol assumes that file " +
                             "  already exists on worker host)] from which worker can download the package.  \n" +
-                            "--log-topic  \n" +
+                            "py  \n" +
+                            "  Path to the main Python file/Python Wheel file for the function (if the function is written in Python)  \n" +
+                            "go  \n" +
+                            "  Path to the main Go executable binary for the function (if the function is written in Go)  \n" +
+                            "logTopic  \n" +
                             "  The topic to which the function's logs are produced  \n" +
-                            "--max-message-retries  \n" +
+                            "maxMessageRetries  \n" +
                             "  How many times should we try to process a message before giving up  \n" +
-                            "--output  \n" +
+                            "output  \n" +
                             "  The function's output topic (If none is specified, no output is written)  \n" +
-                            "--output-serde-classname  \n" +
+                            "outputSerdeClassName  \n" +
                             "  The SerDe class to be used for messages output by the function  \n" +
-                            "--parallelism  \n" +
+                            "parallelism  \n" +
                             "  The function's parallelism factor (i.e. the number of function instances to run)  \n" +
-                            "--processing-guarantees  \n" +
+                            "processingGuarantees  \n" +
                             "  The processing guarantees (aka delivery semantics) applied to the function" +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
-                            "--ram  \n" +
-                            "  The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)  \n" +
-                            "--retain-ordering  \n" +
+                            "retainOrdering  \n" +
                             "  Function consumes and processes messages in order  \n" +
-                            "--schema-type  \n" +
-                            "  The builtin schema type or custom schema class name to be used for messages output by the function" +
-                            "  Default: <empty string>  \n" +
-                            "--sliding-interval-count  \n" +
-                            "  The number of messages after which the window slides  \n" +
-                            "--sliding-interval-duration-ms  \n" +
-                            "  The time duration after which the window slides  \n" +
-                            "--subs-name  \n" +
+                            "outputSchemaType  \n" +
+                            "   Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema implementation" +
+                            "subName  \n" +
                             "  Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer  \n" +
-                            "--timeout-ms  \n" +
+                            "windowConfig  \n" +
+                            "  The window functions config  \n" +
+                            "timeoutMs  \n" +
                             "  The message timeout in milliseconds  \n" +
-                            "--topics-pattern  \n" +
+                            "topicsPattern  \n" +
                             "  The topic pattern to consume from list of topics under a namespace that match the pattern." +
                             "  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a " +
                             "  pattern in --custom-serde-inputs (supported for java fun only)  \n" +
-                            "--user-config  \n" +
+                            "userConfig  \n" +
                             "  User-defined config key/values  \n" +
-                            "--window-length-count  \n" +
-                            "  The number of messages per window  \n" +
-                            "--window-length-duration-ms  \n" +
-                            "  The time duration of the window in milliseconds  \n",
+                            "secrets  \n" +
+                            "  This is a map of secretName(aka how the secret is going to be accessed in the function via context) to an object that" +
+                            "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
+                            "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
+                            "cleanupSubscription  \n" +
+                            "  Whether the subscriptions the functions created/used should be deleted when the functions is deleted  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -179,75 +191,85 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The function's name")
             final @PathParam("functionName") String functionName,
+            @ApiParam(value = "Uploads Pulsar Functions file data")
             final @FormDataParam("data") InputStream uploadedInputStream,
+            @ApiParam(value = "The instance file detail")
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
+            @ApiParam(value = "Uploads Pulsar Function by URL")
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
                     value = "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \n" +
-                            "--auto-ack  \n" +
+                            "autoAck  \n" +
                             "  Whether or not the framework will automatically acknowledge messages  \n" +
-                            "--classname  \n" +
+                            "runtime  \n" +
+                            "  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \n" +
+                            "resources  \n" +
+                            "  The size of the system resources allowed by the function runtime, include: cpu, ram, disk.  \n" +
+                            "className  \n" +
                             "  The function's class name  \n" +
-                            "--cpu  \n" +
-                            "  The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)  \n" +
-                            "--custom-schema-inputs  \n" +
+                            "tenant  \n" +
+                            "  The function's tenant  \n" +
+                            "namespace  \n" +
+                            "  The function's namespace  \n" +
+                            "name  \n" +
+                            "  The function's name  \n" +
+                            "customSchemaInputs  \n" +
                             "  The map of input topics to Schema class names (as a JSON string)  \n" +
-                            "--custom-serde-inputs  \n" +
+                            "customSerdeInputs  \n" +
                             "  The map of input topics to SerDe class names (as a JSON string)  \n" +
-                            "--dead-letter-topic  \n" +
+                            "deadLetterTopic  \n" +
                             "  The topic where all messages which could not be processed successfully are sent  \n" +
-                            "--disk  \n" +
-                            "  The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)  \n" +
-                            "--fqfn  \n" +
+                            "runtimeFlags  \n" +
+                            "  Any flags that you want to pass to the runtime. note that in thread mode, these flags will have no impact  \n" +
+                            "fqfn  \n" +
                             "  The Fully Qualified Function Name (FQFN) for the function  \n" +
-                            "--function-config-file  \n" +
-                            "  The path to a YAML config file specifying the function's configuration  \n" +
-                            "--inputs  \n" +
+                            "inputSpecs  \n" +
+                            "  A generalized way of specifying inputs  \n" +
+                            "inputs  \n" +
                             "  The function's input topic or topics (multiple topics can be specified as a comma-separated list)  \n" +
-                            "--jar  \n" +
+                            "jar  \n" +
                             "  Path to the jar file for the function (if the function is written in Java). " +
                             "  It also supports url-path [http/https/file (file protocol assumes that file " +
                             "  already exists on worker host)] from which worker can download the package.  \n" +
-                            "--log-topic  \n" +
+                            "py  \n" +
+                            "  Path to the main Python file/Python Wheel file for the function (if the function is written in Python)  \n" +
+                            "go  \n" +
+                            "  Path to the main Go executable binary for the function (if the function is written in Go)  \n" +
+                            "logTopic  \n" +
                             "  The topic to which the function's logs are produced  \n" +
-                            "--max-message-retries  \n" +
+                            "maxMessageRetries  \n" +
                             "  How many times should we try to process a message before giving up  \n" +
-                            "--output  \n" +
+                            "output  \n" +
                             "  The function's output topic (If none is specified, no output is written)  \n" +
-                            "--output-serde-classname  \n" +
+                            "outputSerdeClassName  \n" +
                             "  The SerDe class to be used for messages output by the function  \n" +
-                            "--parallelism  \n" +
+                            "parallelism  \n" +
                             "  The function's parallelism factor (i.e. the number of function instances to run)  \n" +
-                            "--processing-guarantees  \n" +
+                            "processingGuarantees  \n" +
                             "  The processing guarantees (aka delivery semantics) applied to the function" +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
-                            "--ram  \n" +
-                            "  The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)  \n" +
-                            "--retain-ordering  \n" +
+                            "retainOrdering  \n" +
                             "  Function consumes and processes messages in order  \n" +
-                            "--schema-type  \n" +
-                            "  The builtin schema type or custom schema class name to be used for messages output by the function" +
-                            "  Default: <empty string>  \n" +
-                            "--sliding-interval-count  \n" +
-                            "  The number of messages after which the window slides  \n" +
-                            "--sliding-interval-duration-ms  \n" +
-                            "  The time duration after which the window slides  \n" +
-                            "--subs-name  \n" +
+                            "outputSchemaType  \n" +
+                            "   Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema implementation" +
+                            "subName  \n" +
                             "  Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer  \n" +
-                            "--timeout-ms  \n" +
+                            "windowConfig  \n" +
+                            "  The window functions config  \n" +
+                            "timeoutMs  \n" +
                             "  The message timeout in milliseconds  \n" +
-                            "--topics-pattern  \n" +
+                            "topicsPattern  \n" +
                             "  The topic pattern to consume from list of topics under a namespace that match the pattern." +
                             "  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a " +
                             "  pattern in --custom-serde-inputs (supported for java fun only)  \n" +
-                            "--update-auth-data  \n" +
-                            "  Whether or not to update the auth data. Default: false  \n" +
-                            "--user-config  \n" +
+                            "userConfig  \n" +
                             "  User-defined config key/values  \n" +
-                            "--window-length-count  \n" +
-                            "  The number of messages per window  \n" +
-                            "--window-length-duration-ms  \n" +
-                            "  The time duration of the window in milliseconds  \n",
+                            "secrets  \n" +
+                            "  This is a map of secretName(aka how the secret is going to be accessed in the function via context) to an object that" +
+                            "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
+                            "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
+                            "cleanupSubscription  \n" +
+                            "  Whether the subscriptions the functions created/used should be deleted when the functions is deleted  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -261,6 +283,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                     )
             )
             final @FormDataParam("functionConfig") String functionConfigJson,
+            @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
