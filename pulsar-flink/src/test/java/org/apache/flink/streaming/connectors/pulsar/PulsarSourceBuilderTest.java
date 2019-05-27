@@ -228,18 +228,4 @@ public class PulsarSourceBuilderTest {
                 .build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSubscriptionInitialPositionWithConfPojo() throws PulsarClientException {
-        ClientConfigurationData clientConf = ClientConfigurationData.builder().serviceUrl("testServiceUrl").build();
-        ConsumerConfigurationData consumerConf = ConsumerConfigurationData.builder()
-                .topicNames(new HashSet<String>(Arrays.asList("testTopic")))
-                .subscriptionName("testSubscriptionName")
-                .subscriptionInitialPosition(null)
-                .build();
-
-        pulsarSourceBuilder
-                .pulsarAllClientConf(clientConf)
-                .pulsarAllConsumerConf(consumerConf)
-                .build();
-    }
 }
