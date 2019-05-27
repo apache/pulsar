@@ -410,6 +410,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         }
 
         sendMessagesToConsumers(readType, entries);
+        readMoreEntries();
     }
 
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
@@ -481,7 +482,6 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 entry.release();
             });
         }
-        readMoreEntries();
     }
 
     @Override
