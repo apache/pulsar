@@ -28,7 +28,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.SinkImpl;
+import org.apache.pulsar.functions.worker.rest.api.SinksImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -47,12 +47,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class SinkBase extends AdminResource implements Supplier<WorkerService> {
+public class SinksBase extends AdminResource implements Supplier<WorkerService> {
 
-    private final SinkImpl sink;
+    private final SinksImpl sink;
 
-    public SinkBase() {
-        this.sink = new SinkImpl(this);
+    public SinksBase() {
+        this.sink = new SinksImpl(this);
     }
 
     @Override
