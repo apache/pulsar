@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -31,6 +32,8 @@ import lombok.Data;
 public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private String topicName;
+
+    @JsonIgnore
     private MessageId startMessageId;
 
     private int receiverQueueSize = 1000;
