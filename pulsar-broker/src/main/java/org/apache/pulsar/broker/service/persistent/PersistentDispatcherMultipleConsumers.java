@@ -352,11 +352,17 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     @Override
-    public synchronized CompletableFuture<Void> close() {
+    public CompletableFuture<Void> close() {
         IS_CLOSED_UPDATER.set(this, TRUE);
+
+        Optional<DelayedDeliveryTracker> delayedDeliveryTracker;
+        synchronized (this) {
+            delayedDeliveryTracker = this.delayedDeliveryTracker;
+            this.delayedDeliveryTracker = Optional.empty();
+        }
+
         if (delayedDeliveryTracker.isPresent()) {
             delayedDeliveryTracker.get().close();
-            delayedDeliveryTracker = Optional.empty();
         }
         return disconnectAllConsumers();
     }
