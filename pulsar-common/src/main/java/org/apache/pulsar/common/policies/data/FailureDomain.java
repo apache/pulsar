@@ -27,7 +27,7 @@ import java.util.Set;
 
 @ApiModel(
     value = "FailureDomain",
-    description = "The configuration data for a Failure Domain in a cluster"
+    description = "The data of a failure domain configuration in a cluster"
 )
 public class FailureDomain {
 

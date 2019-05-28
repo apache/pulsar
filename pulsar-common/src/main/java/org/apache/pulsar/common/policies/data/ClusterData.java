@@ -40,7 +40,7 @@ public class ClusterData {
     private String serviceUrl;
     @ApiModelProperty(
         name = "serviceUrlTls",
-        value = "The https rest service url (for admin operations)",
+        value = "The https rest service URL (for admin operations)",
         example = "https://pulsar.example.com:8443"
     )
     private String serviceUrlTls;
