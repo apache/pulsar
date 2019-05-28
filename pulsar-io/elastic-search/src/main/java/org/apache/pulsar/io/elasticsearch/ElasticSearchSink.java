@@ -61,7 +61,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 )
 public class ElasticSearchSink implements Sink<byte[]> {
 
-    protected static final String DOCUMENT = "doc";
+    protected static final String DOCUMENT = "_doc";
 
     private URL url;
     private RestHighLevelClient client;

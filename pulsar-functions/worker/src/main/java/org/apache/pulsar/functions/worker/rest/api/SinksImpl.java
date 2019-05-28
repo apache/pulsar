@@ -44,7 +44,7 @@ import java.util.function.Supplier;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
-public class SinkImpl extends ComponentImpl {
+public class SinksImpl extends ComponentImpl {
 
     private class GetSinkStatus extends GetStatus<SinkStatus, SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> {
 
@@ -206,7 +206,7 @@ public class SinkImpl extends ComponentImpl {
         return exceptionInformation;
     }
 
-    public SinkImpl(Supplier<WorkerService> workerServiceSupplier) {
+    public SinksImpl(Supplier<WorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.SINK);
     }
 
