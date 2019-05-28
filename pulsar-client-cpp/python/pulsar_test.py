@@ -918,9 +918,9 @@ class PulsarTest(TestCase):
         consumer = client.subscribe('my-python-topic-producer-consumer-snappy',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-producer-consumer-snappy',
-                                          compression_type=CompressionType.SNAPPY)
         try:
+            producer = client.create_producer('my-python-topic-producer-consumer-snappy',
+                                              compression_type=CompressionType.SNAPPY)
             producer.send(b'hello')
         except:
             pass  # Exception is expected
