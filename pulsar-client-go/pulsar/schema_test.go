@@ -62,7 +62,7 @@ func TestJsonSchema(t *testing.T) {
 	defer client.Close()
 
 	jsonSchema := NewJsonSchema(exampleSchemaDef, nil)
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "jsonTopic",
 	}, jsonSchema)
 	err = producer.Send(context.Background(), ProducerMessage{
@@ -79,7 +79,7 @@ func TestJsonSchema(t *testing.T) {
 	properties := make(map[string]string)
 	properties["pulsar"]="hello"
 	jsonSchemaWithProperties := NewJsonSchema(exampleSchemaDef, properties)
-	producer1, err := client.CreateTypedProducer(ProducerOptions{
+	producer1, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "jsonTopic",
 	}, jsonSchemaWithProperties)
 	err = producer1.Send(context.Background(), ProducerMessage{
@@ -118,7 +118,7 @@ func TestProtoSchema(t *testing.T) {
 
 	// create producer
 	psProducer := NewProtoSchema(protoSchemaDef, nil)
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "proto",
 	}, psProducer)
 	if err := producer.Send(context.Background(), ProducerMessage{
@@ -154,7 +154,7 @@ func TestAvroSchema(t *testing.T) {
 
 	// create producer
 	asProducer := NewAvroSchema(exampleSchemaDef, nil)
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "avro-topic",
 	}, asProducer)
 	assert.Nil(t, err)
@@ -191,7 +191,7 @@ func TestStringSchema(t *testing.T) {
 	defer client.Close()
 
 	ssProducer := NewStringSchema(nil)
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "strTopic",
 	}, ssProducer)
 	assert.Nil(t, err)
@@ -222,7 +222,7 @@ func TestBytesSchema(t *testing.T) {
 	defer client.Close()
 
 	bytes := []byte{121, 110, 121, 110}
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "bytesTopic",
 	}, NewBytesSchema(nil))
 	assert.Nil(t, err)
@@ -253,7 +253,7 @@ func TestInt8Schema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "int8Topic1",
 	}, NewInt8Schema(nil))
 	assert.Nil(t, err)
@@ -285,7 +285,7 @@ func TestInt16Schema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "int16Topic",
 	}, NewInt16Schema(nil))
 	assert.Nil(t, err)
@@ -316,7 +316,7 @@ func TestInt32Schema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "int32Topic1",
 	}, NewInt32Schema(nil))
 	assert.Nil(t, err)
@@ -347,7 +347,7 @@ func TestInt64Schema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "int64Topic",
 	}, NewInt64Schema(nil))
 	assert.Nil(t, err)
@@ -378,7 +378,7 @@ func TestFloatSchema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "floatTopic",
 	}, NewFloatSchema(nil))
 	assert.Nil(t, err)
@@ -408,7 +408,7 @@ func TestDoubleSchema(t *testing.T) {
 	client := createClient()
 	defer client.Close()
 
-	producer, err := client.CreateTypedProducer(ProducerOptions{
+	producer, err := client.CreateProducerWithSchema(ProducerOptions{
 		Topic: "doubleTopic",
 	}, NewDoubleSchema(nil))
 	assert.Nil(t, err)

@@ -62,13 +62,13 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         assertEquals(cursorInfo.markDelete.ledgerId, 3);
         assertEquals(cursorInfo.markDelete.entryId, -1);
 
-        assertEquals(cursorInfo.individualDeletedMessages.size(), 1);
+        assertEquals(cursorInfo.individualDeletedMessages.size(), 2);
 
         MessageRangeInfo mri = cursorInfo.individualDeletedMessages.get(0);
-        assertEquals(mri.from.ledgerId, p1.getLedgerId());
-        assertEquals(mri.from.entryId, p1.getEntryId());
-        assertEquals(mri.to.ledgerId, p3.getLedgerId());
-        assertEquals(mri.to.entryId, p3.getEntryId());
+        assertEquals(mri.from.ledgerId, p2.getLedgerId());
+        assertEquals(mri.from.entryId, -1);
+        assertEquals(mri.to.ledgerId, p2.getLedgerId());
+        assertEquals(mri.to.entryId, 0);
     }
 
 }

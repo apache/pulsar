@@ -574,7 +574,7 @@ public abstract class NamespacesBase extends AdminResource {
             }
         }
 
-        log.info("[{}] Successfully unloaded all the bundles in namespace {}/{}/{}", clientAppId(), namespaceName);
+        log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(), namespaceName);
     }
 
     @SuppressWarnings("deprecation")
@@ -1217,13 +1217,13 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update subscription auth mode for namespace {}/{}/{}: concurrent modification",
+            log.warn("[{}] Failed to update subscription auth mode for namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update subscription auth mode for namespace {}/{}/{}", clientAppId(),
+            log.error("[{}] Failed to update subscription auth mode for namespace {}", clientAppId(),
                     namespaceName, e);
             throw new RestException(e);
         }

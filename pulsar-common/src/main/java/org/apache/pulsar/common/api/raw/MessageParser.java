@@ -69,6 +69,11 @@ public class MessageParser {
                 return;
             }
 
+            if (msgMetadata.hasMarkerType()) {
+                // Ignore marker messages as they don't contain user data
+                return;
+            }
+
             if (msgMetadata.getEncryptionKeysCount() > 0) {
                 throw new IOException("Cannot parse encrypted message " + msgMetadata + " on topic " + topicName);
             }
