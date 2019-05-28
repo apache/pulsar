@@ -330,7 +330,7 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public String getProperty(String name) {
-        return properties.get(name);
+        return this.getProperties().get(name);
     }
 
     public MessageMetadata.Builder getMessageBuilder() {
