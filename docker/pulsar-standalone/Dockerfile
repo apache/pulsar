@@ -17,13 +17,18 @@
 # under the License.
 #
 
-FROM apachepulsar/pulsar-all:latest
+FROM apachepulsar/pulsar-all:latest as pulsar
+
+# Restart from
+FROM openjdk:8-jdk
+
+COPY --from=pulsar /pulsar /pulsar
 
 RUN apt-get update
-RUN apt-get -y install postgresql-9.6 sudo nginx supervisor
+RUN apt-get -y install python2.7 python-pip postgresql-9.6 sudo nginx supervisor
 
 # Python dependencies
-RUN pip -qq install uwsgi 'Django<2.0' 'psycopg2==2.7.7' pytz requests
+RUN pip2 -qq install uwsgi 'Django<2.0' 'psycopg2==2.7.7' pytz requests
 
 # Postgres configuration
 COPY conf/postgresql.conf /etc/postgresql/9.6/main/

@@ -45,10 +45,13 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
+import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.slf4j.Logger;
@@ -103,6 +106,11 @@ public class PulsarBrokerStarter {
             log.error("Malformed configuration file: {}", bookieConfigFile, e);
             throw new IllegalArgumentException("Malformed configuration file");
         }
+
+        if (bookieConf.getMaxPendingReadRequestPerThread() < bookieConf.getRereplicationEntryBatchSize()) {
+            throw new IllegalArgumentException(
+                "rereplicationEntryBatchSize should be smaller than " + "maxPendingReadRequestPerThread");
+        }
         return bookieConf;
     }
 
@@ -137,6 +145,11 @@ public class PulsarBrokerStarter {
                 throw new IllegalArgumentException("Need to specify a configuration file for broker");
             } else {
                 brokerConfig = loadConfig(starterArguments.brokerConfigFile);
+            }
+
+            int maxFrameSize = brokerConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING;
+            if (maxFrameSize >= DirectMemoryUtils.maxDirectMemory()) {
+                throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
             }
 
             // init functions worker

@@ -527,6 +527,12 @@ public class PulsarCluster {
             "--clusters", clusterName);
     }
 
+    public ContainerExecResult createPartitionedTopic(String topicName, int partitions) throws Exception {
+        return runAdminCommandOnAnyBroker(
+                "topics", "create-partitioned-topic", topicName,
+                "-p", String.valueOf(partitions));
+    }
+
     public ContainerExecResult enableDeduplication(String nsName, boolean enabled) throws Exception {
         return runAdminCommandOnAnyBroker(
             "namespaces", "set-deduplication", "public/" + nsName,

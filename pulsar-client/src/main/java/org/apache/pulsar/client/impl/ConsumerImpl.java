@@ -66,7 +66,6 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
-import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
@@ -527,7 +526,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             si = null;
         }
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData, metadata, readCompacted, InitialPosition.valueOf(subscriptionInitialPosition.getValue()), si);
+                consumerName, isDurable, startMessageIdData, metadata, readCompacted,
+                conf.isReplicateSubscriptionState(), InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
+                si);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }
@@ -746,17 +747,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     messageId.getEntryId());
         }
 
-        MessageMetadata msgMetadata = null;
-        ByteBuf payload = headersAndPayload;
-
         if (!verifyChecksum(headersAndPayload, messageId)) {
             // discard message with checksum error
             discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
             return;
         }
 
+        MessageMetadata msgMetadata;
         try {
-            msgMetadata = Commands.parseMessageMetadata(payload);
+            msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         } catch (Throwable t) {
             discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
             return;
@@ -767,15 +766,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
         if (acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
-                        topic, subscription, msgId);
+                log.debug("[{}] [{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
+                        topic, subscription, consumerName, msgId);
             }
 
             increaseAvailablePermits(cnx, numMessages);
             return;
         }
 
-        ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, msgMetadata, payload, cnx);
+        ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, msgMetadata, headersAndPayload, cnx);
 
         boolean isMessageUndecryptable = isMessageUndecryptable(msgMetadata);
 
@@ -949,6 +948,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         log.debug("[{}] [{}] Ignoring message from before the startMessageId", subscription,
                                 consumerName);
                     }
+                    singleMessagePayload.release();
+                    singleMessageMetadataBuilder.recycle();
 
                     ++skippedMessages;
                     continue;
@@ -1141,10 +1142,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
-        if (payloadSize > PulsarDecoder.MaxMessageSize) {
+        if (payloadSize > ClientCnx.getMaxMessageSize()) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
             log.error("[{}][{}] Got corrupted payload message size {} at {}", topic, subscription, payloadSize,
-                    messageId);
+                      messageId);
             discardCorruptedMessage(messageId, currentCnx, ValidationError.UncompressedSizeCorruption);
             return null;
         }
@@ -1252,7 +1253,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
 
-        if (conf.getSubscriptionType() != SubscriptionType.Shared) {
+        if (conf.getSubscriptionType() != SubscriptionType.Shared
+                && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
             return;

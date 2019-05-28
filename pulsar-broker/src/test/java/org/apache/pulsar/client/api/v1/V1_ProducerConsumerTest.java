@@ -73,6 +73,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -607,10 +608,10 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         // Messages are allowed up to MaxMessageSize
-        producer.newMessage().value(new byte[PulsarDecoder.MaxMessageSize]);
+        producer.newMessage().value(new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE]);
 
         try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+            producer.send(new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE + 1]);
             fail("Should have thrown exception");
         } catch (PulsarClientException.InvalidMessageException e) {
             // OK

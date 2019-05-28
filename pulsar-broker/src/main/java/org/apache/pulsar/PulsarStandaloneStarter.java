@@ -53,6 +53,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             }
         } catch (Exception e) {
             jcommander.usage();
+            log.error(e.getMessage());
             return;
         }
 

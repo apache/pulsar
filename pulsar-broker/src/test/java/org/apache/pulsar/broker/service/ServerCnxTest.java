@@ -46,12 +46,11 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
-import javax.naming.AuthenticationException;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -1275,7 +1274,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1303,7 +1302,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1333,7 +1332,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1368,7 +1367,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1485,11 +1484,32 @@ public class ServerCnxTest {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Thread.sleep(300);
+                ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
+                return null;
+            }
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
+                any(OpenCursorCallback.class), anyObject());
+
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Thread.sleep(300);
                 ((OpenCursorCallback) invocationOnMock.getArguments()[2])
                         .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
                 return null;
             }
         }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), anyObject());
+
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Thread.sleep(300);
+                ((OpenCursorCallback) invocationOnMock.getArguments()[3])
+                        .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
+                return null;
+            }
+        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(Map.class),
+                any(OpenCursorCallback.class), anyObject());
 
         doAnswer(new Answer<Object>() {
             @Override

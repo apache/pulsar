@@ -21,6 +21,8 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
 
+import java.util.Optional;
+
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -47,7 +49,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
-        proxyConfig.setServicePort(PortManager.nextFreePort());
+        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);

@@ -28,6 +28,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.URL;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -117,15 +118,15 @@ public class ReplicatorTestBase {
         // independent config objects instead of referring to the same properties object
         config1.setClusterName("r1");
         config1.setAdvertisedAddress("localhost");
-        config1.setWebServicePort(webServicePort1);
-        config1.setWebServicePortTls(webServicePortTls1);
+        config1.setWebServicePort(Optional.ofNullable(webServicePort1));
+        config1.setWebServicePortTls(Optional.ofNullable(webServicePortTls1));
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
         config1.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
-        config1.setBrokerServicePort(PortManager.nextFreePort());
-        config1.setBrokerServicePortTls(PortManager.nextFreePort());
+        config1.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        config1.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
         config1.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config1.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config1.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
@@ -150,15 +151,15 @@ public class ReplicatorTestBase {
         int webServicePortTls2 = PortManager.nextFreePort();
         config2.setClusterName("r2");
         config2.setAdvertisedAddress("localhost");
-        config2.setWebServicePort(webServicePort2);
-        config2.setWebServicePortTls(webServicePortTls2);
+        config2.setWebServicePort(Optional.ofNullable(webServicePort2));
+        config2.setWebServicePortTls(Optional.ofNullable(webServicePortTls2));
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
         config2.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
-        config2.setBrokerServicePort(PortManager.nextFreePort());
-        config2.setBrokerServicePortTls(PortManager.nextFreePort());
+        config2.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        config2.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
         config2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config2.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
@@ -183,15 +184,15 @@ public class ReplicatorTestBase {
         int webServicePortTls3 = PortManager.nextFreePort();
         config3.setClusterName("r3");
         config3.setAdvertisedAddress("localhost");
-        config3.setWebServicePort(webServicePort3);
-        config3.setWebServicePortTls(webServicePortTls3);
+        config3.setWebServicePort(Optional.ofNullable(webServicePort3));
+        config3.setWebServicePortTls(Optional.ofNullable(webServicePortTls3));
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);
         config3.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
-        config3.setBrokerServicePort(PortManager.nextFreePort());
-        config3.setBrokerServicePortTls(PortManager.nextFreePort());
+        config3.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        config3.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
         config3.setTlsEnabled(true);
         config3.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config3.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);

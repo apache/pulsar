@@ -22,6 +22,7 @@ import static org.mockito.Mockito.spy;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -58,8 +59,8 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     }
 
     protected void internalSetUpForBroker() throws Exception {
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
+        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
