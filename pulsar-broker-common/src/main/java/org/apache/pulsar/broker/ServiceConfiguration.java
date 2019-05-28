@@ -201,7 +201,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
-    private boolean backlogQuotaCheckEnabled = true;
+    private boolean backlogQuotaCheckEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How often to check for topics that have reached the quota."
@@ -215,13 +215,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long backlogQuotaDefaultLimitGB = 50;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default backlog quota retention policy. Default is consumer_backlog_eviction\n\n"
+        doc = "Default backlog quota retention policy. Default is producer_request_hold\n\n"
             + "'producer_request_hold' Policy which holds producer's send request until the"
             + "resource becomes available (or holding times out)\n"
             + "'producer_exception' Policy which throws javax.jms.ResourceAllocationException to the producer\n"
             + "'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog"
     )
-    private BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy = BacklogQuota.RetentionPolicy.consumer_backlog_eviction;
+    private BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy = BacklogQuota.RetentionPolicy.producer_request_hold;
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Default ttl for namespaces if ttl is not already configured at namespace policies. "
