@@ -283,7 +283,7 @@ saslJaasBrokerSectionName=PulsarBroker
 
 For Kerberos authentication, the authenticated principal is used as the role token for Pulsar authorization.  For more information of authorization in Pulsar, see [security authorization](security-authorization.md).
 
-If you enabled authorizationEnabled you need set `superUserRoles` that corresponding to the name registered in kdc
+If you enabled authorizationEnabled you need set `superUserRoles` in `broker.conf` that corresponding to the name registered in kdc
 
 For example:
 ```bash
