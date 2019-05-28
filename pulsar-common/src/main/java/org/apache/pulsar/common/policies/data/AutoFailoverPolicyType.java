@@ -22,7 +22,7 @@ import io.swagger.annotations.ApiModel;
 
 @ApiModel(
     value = "AutoFailoverPolicyType",
-    description = "The auto failover policy type"
+    description = "The policy type of auto failover."
 )
 public enum AutoFailoverPolicyType {
     min_available

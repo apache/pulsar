@@ -29,7 +29,7 @@ import com.google.common.base.Objects;
 
 @ApiModel(
     value = "NamespaceIsolationData",
-    description = "The namespace isolation configuration data"
+    description = "The data of namespace isolation configuration"
 )
 public class NamespaceIsolationData {
 
@@ -50,7 +50,7 @@ public class NamespaceIsolationData {
     public List<String> secondary = new ArrayList<String>();
     @ApiModelProperty(
         name = "auto_failover_policy",
-        value = "The auto failover policy configuration data",
+        value = "The data of auto-failover policy configuration",
         example =
               "{"
             + "  \"policy_type\": \"min_available\""
