@@ -26,7 +26,7 @@ $ openssl pkcs8 -topk8 -inform PEM -outform PEM \
       -in admin.key.pem -out admin.key-pk8.pem -nocrypt
 ```
 
-Generate the certificate request. When asked for a **common name**, enter the **role token** which you want this key pair to authenticate a client as. 
+Generate the certificate request. When asked for a **common name**, enter the **role token** which you want this key pair to authenticate a client as.
 
 ```bash
 $ openssl req -config openssl.cnf \
