@@ -112,7 +112,7 @@ Here is a simple example to store MySQL change data using above example config.
 
 - Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path `connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar`.
 ```$bash
- bin/pulsar-admin source localrun  --sourceConfigFile debezium-mysql-source-config.yaml
+ bin/pulsar-admin sources localrun  --sourceConfigFile debezium-mysql-source-config.yaml
 ```
 
 - Subscribe the topic for table `inventory.products`.
