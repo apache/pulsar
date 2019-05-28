@@ -370,7 +370,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalCreatePartitionedTopic(int numPartitions, boolean authoritative) {
+    protected void internalCreatePartitionedTopic(int numPartitions) {
         validateAdminAccessForTenant(topicName.getTenant());
         if (numPartitions <= 1) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
