@@ -115,7 +115,7 @@ public class PulsarBrokerStarterTest {
         Assert.assertEquals(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger(), 50);
         Assert.assertTrue(serviceConfig.isClientLibraryVersionCheckEnabled());
         Assert.assertEquals(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(), 34);
-        Assert.assertEquals(serviceConfig.isBacklogQuotaCheckEnabled(), true);
+        Assert.assertEquals(serviceConfig.isBacklogQuotaCheckEnabled(), false);
         Assert.assertEquals(serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit(), 5.0);
         Assert.assertEquals(serviceConfig.getReplicationProducerQueueSize(), 50);
         Assert.assertEquals(serviceConfig.isReplicationMetricsEnabled(), false);
