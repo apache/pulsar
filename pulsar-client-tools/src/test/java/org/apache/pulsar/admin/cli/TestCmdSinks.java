@@ -38,7 +38,7 @@ import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.client.admin.Sink;
+import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -94,7 +94,7 @@ public class TestCmdSinks {
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 0000 2018\"}";
 
     private PulsarAdmin pulsarAdmin;
-    private Sink sink;
+    private Sinks sink;
     private CmdSinks cmdSinks;
     private CmdSinks.CreateSink createSink;
     private CmdSinks.UpdateSink updateSink;
@@ -105,8 +105,8 @@ public class TestCmdSinks {
     public void setup() throws Exception {
 
         pulsarAdmin = mock(PulsarAdmin.class);
-        sink = mock(Sink.class);
-        when(pulsarAdmin.sink()).thenReturn(sink);
+        sink = mock(Sinks.class);
+        when(pulsarAdmin.sinks()).thenReturn(sink);
 
         cmdSinks = spy(new CmdSinks(pulsarAdmin));
         createSink = spy(cmdSinks.getCreateSink());

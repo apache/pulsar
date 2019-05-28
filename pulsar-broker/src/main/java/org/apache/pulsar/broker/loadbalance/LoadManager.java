@@ -143,7 +143,7 @@ public interface LoadManager {
                 return casted;
             }
         } catch (Exception e) {
-            log.warn("Error when trying to create load manager: {}");
+            log.warn("Error when trying to create load manager: ", e);
         }
         // If we failed to create a load manager, default to SimpleLoadManagerImpl.
         return new SimpleLoadManagerImpl(pulsar);

@@ -49,7 +49,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.RestException;
-import org.apache.pulsar.functions.worker.rest.api.SinkImpl;
+import org.apache.pulsar.functions.worker.rest.api.SinksImpl;
 import org.apache.pulsar.io.cassandra.CassandraStringSink;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.api.mockito.PowerMockito;
@@ -88,7 +88,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Unit test of {@link SinkApiV3Resource}.
+ * Unit test of {@link SinksApiV3Resource}.
  */
 @PrepareForTest({WorkerUtils.class, SinkConfigUtils.class, ConnectorUtils.class, FunctionCommon.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*", "java.io.*" })
@@ -125,7 +125,7 @@ public class SinkApiV3ResourceTest {
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
     private RuntimeFactory mockedRuntimeFactory;
     private Namespace mockedNamespace;
-    private SinkImpl resource;
+    private SinksImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
@@ -175,7 +175,7 @@ public class SinkApiV3ResourceTest {
             .setPulsarServiceUrl("pulsar://localhost:6650/");
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
-        this.resource = spy(new SinkImpl(() -> mockedWorkerService));
+        this.resource = spy(new SinksImpl(() -> mockedWorkerService));
         mockStatic(InstanceUtils.class);
         PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.SINK);
     }

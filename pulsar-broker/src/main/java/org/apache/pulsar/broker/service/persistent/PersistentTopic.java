@@ -83,6 +83,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
@@ -191,6 +192,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private volatile boolean schemaValidationEnforced = false;
     private final StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
+
+    private volatile Optional<ReplicatedSubscriptionsController> replicatedSubscriptionsController = Optional.empty();
+
     private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
         protected TopicStatsHelper initialValue() {
@@ -275,6 +279,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
         }
+
+        checkReplicatedSubscriptionControllerState();
     }
 
     private void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
@@ -596,6 +602,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     future.completeExceptionally(
                             new BrokerServiceException("Connection was closed while the opening the cursor "));
                 } else {
+                    checkReplicatedSubscriptionControllerState();
                     log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                     future.complete(consumer);
                 }
@@ -697,7 +704,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return subscriptionFuture;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition, boolean replicateSubscriptionState) {
         return getDurableSubscription(subscriptionName, initialPosition, replicateSubscriptionState);
@@ -750,11 +756,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      */
     @Override
     public CompletableFuture<Void> delete() {
-        return delete(false);
+        return delete(false, false);
     }
 
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions) {
-        return delete(failIfHasSubscriptions, false);
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean deleteSchema) {
+        return delete(failIfHasSubscriptions, false, deleteSchema);
     }
 
     /**
@@ -766,7 +772,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
-        return delete(false, true);
+        return delete(false, true, false);
     }
 
     /**
@@ -779,11 +785,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      * @param closeIfClientsConnected
      *            Flag indicate whether explicitly close connected producers/consumers/replicators before trying to delete topic. If
      *            any client is connected to a topic and if this flag is disable then this operation fails.
+     * @param deleteSchema
+     *            Flag indicating whether delete the schema defined for topic if exist.
      *
      * @return Completable future indicating completion of delete operation Completed exceptionally with:
      *         IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
      */
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
+                                           boolean closeIfClientsConnected,
+                                           boolean deleteSchema) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -825,6 +835,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         }
                     } else {
                         subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
+                    }
+                    if (deleteSchema) {
+                        futures.add(deleteSchema().thenApply(schemaVersion -> null));
                     }
 
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
@@ -906,6 +919,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
                     brokerService.removeTopicFromCache(topic);
+
+                    ReplicatedSubscriptionsController ctrl = replicatedSubscriptionsController.get();
+                    if (ctrl != null) {
+                        ctrl.close();
+                    }
 
                     log.info("[{}] Topic closed", topic);
                     closeFuture.complete(null);
@@ -1411,7 +1429,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getEstimatedBacklogSize());
         topicStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
-        
+
         nsStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
         nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
@@ -1426,7 +1444,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         // Close topic object
         topicStatsStream.endObject();
-        
+
         // add publish-latency metrics
         this.addEntryLatencyStatsUsec.refresh();
         NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
@@ -1481,7 +1499,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         stats.storageSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
-        
+
         return stats;
     }
 
@@ -1503,7 +1521,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         stats.pendingAddEntriesCount = ml.getPendingAddEntriesCount();
 
         stats.lastConfirmedEntry = ml.getLastConfirmedEntry().toString();
-        stats.state = ml.getState().toString();
+        stats.state = ml.getState();
 
         stats.ledgers = Lists.newArrayList();
         ml.getLedgersInfo().forEach((id, li) -> {
@@ -1594,7 +1612,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 replCloseFuture.complete(null);
             }
 
-            replCloseFuture.thenCompose(v -> delete(true))
+            replCloseFuture.thenCompose(v -> delete(true, true))
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
                         if (e.getCause() instanceof TopicBusyException) {
@@ -1950,6 +1968,21 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     @Override
+    public CompletableFuture<SchemaVersion> deleteSchema() {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
+        return schemaRegistryService.getSchema(id)
+                .thenCompose(schema -> {
+                    if (schema != null) {
+                        return schemaRegistryService.deleteSchema(id, "");
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
+    }
+
+    @Override
     public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
@@ -1970,8 +2003,49 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 });
     }
 
+
     @Override
     public void recordAddLatency(long latencyUSec) {
         addEntryLatencyStatsUsec.addValue(latencyUSec);
     }
+
+    private synchronized void checkReplicatedSubscriptionControllerState() {
+        AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
+        subscriptions.forEach((name, subscription) -> {
+            if (subscription.isReplicated()) {
+                shouldBeEnabled.set(true);
+            }
+        });
+
+        if (shouldBeEnabled.get() == false) {
+            log.info("[{}] There are no replicated subscriptions on the topic", topic);
+        }
+
+        checkReplicatedSubscriptionControllerState(shouldBeEnabled.get());
+    }
+
+    private synchronized void checkReplicatedSubscriptionControllerState(boolean shouldBeEnabled) {
+        boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
+
+        if (shouldBeEnabled && !isCurrentlyEnabled) {
+            log.info("[{}] Enabling replicated subscriptions controller", topic);
+            replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
+                    brokerService.pulsar().getConfiguration().getClusterName()));
+        } else if (isCurrentlyEnabled && !shouldBeEnabled) {
+            log.info("[{}] Disabled replicated subscriptions controller", topic);
+            replicatedSubscriptionsController.get().close();
+            replicatedSubscriptionsController = Optional.empty();
+        }
+    }
+
+    void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
+        ReplicatedSubscriptionsController ctrl = replicatedSubscriptionsController.orElse(null);
+        if (ctrl == null) {
+            // Force to start the replication controller
+            checkReplicatedSubscriptionControllerState(true /* shouldBeEnabled */);
+            ctrl = replicatedSubscriptionsController.get();
+        }
+
+        ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);;
+     }
 }

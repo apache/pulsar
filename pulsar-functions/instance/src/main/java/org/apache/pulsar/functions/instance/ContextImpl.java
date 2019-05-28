@@ -320,7 +320,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object) {
         return publish(topicName, object, "");
@@ -332,7 +331,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
         MessageBuilderImpl<O> messageBuilder = new MessageBuilderImpl<>();
@@ -341,7 +339,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         return messageBuilder;
     }
 
-    @SuppressWarnings("unchecked")
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
         try {
             return newOutputMessage(topicName, schema).value(object).sendAsync().thenApply(msgId -> null);
