@@ -409,7 +409,6 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         }
 
         sendMessagesToConsumers(readType, entries);
-
         readMoreEntries();
     }
 
