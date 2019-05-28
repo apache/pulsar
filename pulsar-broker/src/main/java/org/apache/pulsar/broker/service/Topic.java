@@ -92,9 +92,11 @@ public interface Topic {
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition);
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            boolean replicateSubscriptionState);
 
-    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition);
+    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
+            boolean replicateSubscriptionState);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
@@ -154,6 +156,11 @@ public interface Topic {
      * schema.
      */
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
+
+    /**
+     * Delete the schema if this topic has a schema defined for it.
+     */
+    CompletableFuture<SchemaVersion> deleteSchema();
 
     /**
      * Check if schema is compatible with current topic schema.

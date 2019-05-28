@@ -131,6 +131,12 @@ public abstract class StructSchema<T> implements Schema<T> {
         this.schemaInfoProvider = schemaInfoProvider;
     }
 
+    /**
+     * Load the schema reader for reading messages encoded by the given schema version.
+     *
+     * @param schemaVersion the provided schema version
+     * @return the schema reader for decoding messages encoded by the provided schema version.
+     */
     protected abstract SchemaReader<T> loadReader(byte[] schemaVersion);
 
     protected void setWriter(SchemaWriter<T> writer) {

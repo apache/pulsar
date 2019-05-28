@@ -37,6 +37,10 @@ const std::string& MessageImpl::getPartitionKey() const { return metadata.partit
 
 bool MessageImpl::hasPartitionKey() const { return metadata.has_partition_key(); }
 
+const std::string& MessageImpl::getOrderingKey() const { return metadata.ordering_key(); }
+
+bool MessageImpl::hasOrderingKey() const { return metadata.has_ordering_key(); }
+
 uint64_t MessageImpl::getPublishTimestamp() const {
     if (metadata.has_publish_time()) {
         return metadata.publish_time();
@@ -76,6 +80,8 @@ void MessageImpl::setProperty(const std::string& name, const std::string& value)
 void MessageImpl::setPartitionKey(const std::string& partitionKey) {
     metadata.set_partition_key(partitionKey);
 }
+
+void MessageImpl::setOrderingKey(const std::string& orderingKey) { metadata.set_ordering_key(orderingKey); }
 
 void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) { metadata.set_event_time(eventTimestamp); }
 

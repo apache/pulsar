@@ -134,9 +134,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 409, message = "Partitioned topic already exist") })
     public void createPartitionedTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            int numPartitions, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            int numPartitions) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalCreatePartitionedTopic(numPartitions, authoritative);
+        internalCreatePartitionedTopic(numPartitions);
     }
 
     /**
@@ -292,7 +292,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(property, cluster, namespace, encodedTopic);
         return internalGetPartitionedStatsInternal(authoritative);
     }
-    
+
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/{topic}/subscription/{subName}")
     @ApiOperation(hidden = true, value = "Delete a subscription.", notes = "There should not be any active consumers on the subscription.")
@@ -397,9 +397,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void createSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String topic,
            @PathParam("subscriptionName") String encodedSubName,
-           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId, @QueryParam("replicated") boolean replicated) {
         validateTopicName(property, cluster, namespace, topic);
-        internalCreateSubscription(decode(encodedSubName), messageId, authoritative);
+        internalCreateSubscription(decode(encodedSubName), messageId, authoritative, replicated);
     }
 
     @GET

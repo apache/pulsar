@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -89,23 +90,27 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) {
-        Integer removeRange = consumerRange.get(consumer);
+        Integer removeRange = consumerRange.remove(consumer);
         if (removeRange != null) {
             if (removeRange == rangeSize && rangeMap.size() > 1) {
-                Consumer lowerConsumer = rangeMap.lowerEntry(removeRange).getValue();
-                rangeMap.put(removeRange, lowerConsumer);
-                consumerRange.put(lowerConsumer, removeRange);
+                Map.Entry<Integer, Consumer> lowerEntry = rangeMap.lowerEntry(removeRange);
+                rangeMap.put(removeRange, lowerEntry.getValue());
+                rangeMap.remove(lowerEntry.getKey());
+                consumerRange.put(lowerEntry.getValue(), removeRange);
             } else {
                 rangeMap.remove(removeRange);
-                consumerRange.remove(consumer);
             }
         }
     }
 
     @Override
     public Consumer select(byte[] stickyKey) {
+        return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
+    }
+
+    public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
-            int slot = Murmur3_32Hash.getInstance().makeHash(stickyKey) % rangeSize;
+            int slot = hash % rangeSize;
             return rangeMap.ceilingEntry(slot).getValue();
         } else {
             return null;
@@ -145,5 +150,13 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
     private boolean is2Power(int num) {
         if(num < 2) return false;
         return (num & num - 1) == 0;
+    }
+
+    Map<Consumer, Integer> getConsumerRange() {
+        return Collections.unmodifiableMap(consumerRange);
+    }
+
+    Map<Integer, Consumer> getRangeConsumer() {
+        return Collections.unmodifiableMap(rangeMap);
     }
 }

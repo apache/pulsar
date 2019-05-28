@@ -95,6 +95,9 @@ public class PerformanceConsumer {
         @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
+        @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
+        public boolean replicatedSubscription = false;
+
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowlegments grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
@@ -253,7 +256,8 @@ public class PerformanceConsumer {
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
                 .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
-                .subscriptionType(arguments.subscriptionType);
+                .subscriptionType(arguments.subscriptionType)
+                .replicateSubscriptionState(arguments.replicatedSubscription);
 
         if (arguments.encKeyName != null) {
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));

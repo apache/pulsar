@@ -30,6 +30,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -91,8 +92,10 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected void resetConfig() {
         this.conf = new ServiceConfiguration();
-        this.conf.setBrokerServicePort(BROKER_PORT);
-        this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
+        this.conf.setAdvertisedAddress("localhost");
+        this.conf.setBrokerServicePort(Optional.ofNullable(BROKER_PORT));
+        this.conf.setAdvertisedAddress("localhost");
+        this.conf.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
         this.conf.setClusterName(configClusterName);
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
         this.conf.setManagedLedgerCacheSizeMB(8);

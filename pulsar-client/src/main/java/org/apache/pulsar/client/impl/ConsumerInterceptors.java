@@ -140,6 +140,27 @@ public class ConsumerInterceptors<T> implements Closeable {
         }
     }
 
+    /**
+     * This is called when a redelivery from an acknowledge timeout occurs.
+     * <p>
+     * This method calls {@link ConsumerInterceptor#onAckTimeoutSend(Consumer, Set)
+     * onAckTimeoutSend(Consumer, Set&lt;MessageId&gt;)} method for each interceptor.
+     * <p>
+     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
+     *
+     * @param consumer the consumer which contains the interceptors.
+     * @param messageIds set of message IDs being redelivery due an acknowledge timeout.
+     */
+    public void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds) {
+        for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
+            try {
+                interceptors.get(i).onAckTimeoutSend(consumer, messageIds);
+            } catch (Exception e) {
+                log.warn("Error executing interceptor onAckTimeoutSend callback", e);
+            }
+        }
+    }
+
     @Override
     public void close() throws IOException {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {

@@ -57,11 +57,11 @@ public class FunctionsImplV2 {
         this.delegate = delegate;
     }
 
-    public Response getFunctionInfo(final String tenant, final String namespace, final String functionName)
+    public Response getFunctionInfo(final String tenant, final String namespace, final String functionName, String clientRole)
             throws IOException {
 
         // run just for parameter checks
-        delegate.getFunctionInfo(tenant, namespace, functionName, null, null);
+        delegate.getFunctionInfo(tenant, namespace, functionName, clientRole, null);
 
         FunctionMetaDataManager functionMetaDataManager = delegate.worker().getFunctionMetaDataManager();
 
@@ -72,18 +72,18 @@ public class FunctionsImplV2 {
     }
 
     public Response getFunctionInstanceStatus(final String tenant, final String namespace, final String functionName,
-                                              final String instanceId, URI uri) throws IOException {
+                                              final String instanceId, URI uri, String clientRole) throws IOException {
 
         org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
-                functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri, null, null);
+                functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri, clientRole, null);
 
         String jsonResponse = FunctionCommon.printJson(toProto(functionInstanceStatus, instanceId));
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 
-    public Response getFunctionStatusV2(String tenant, String namespace, String functionName, URI requestUri) throws
+    public Response getFunctionStatusV2(String tenant, String namespace, String functionName, URI requestUri, String clientRole) throws
             IOException {
-        FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace, functionName, requestUri, null, null);
+        FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace, functionName, requestUri, clientRole, null);
         InstanceCommunication.FunctionStatusList.Builder functionStatusList = InstanceCommunication.FunctionStatusList.newBuilder();
         functionStatus.instances.forEach(functionInstanceStatus -> functionStatusList.addFunctionStatusList(
                 toProto(functionInstanceStatus.getStatus(),
@@ -142,20 +142,20 @@ public class FunctionsImplV2 {
         return Response.ok().build();
     }
 
-    public Response listFunctions(String tenant, String namespace) {
-        Collection<String> functionStateList = delegate.listFunctions( tenant, namespace, null, null);
+    public Response listFunctions(String tenant, String namespace, String clientRole) {
+        Collection<String> functionStateList = delegate.listFunctions( tenant, namespace, clientRole, null);
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
     public Response triggerFunction(String tenant, String namespace, String functionName, String triggerValue,
-                                    InputStream triggerStream, String topic) {
-        String result = delegate.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, null, null);
+                                    InputStream triggerStream, String topic, String clientRole) {
+        String result = delegate.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientRole, null);
         return Response.status(Response.Status.OK).entity(result).build();
     }
 
-    public Response getFunctionState(String tenant, String namespace, String functionName, String key) {
+    public Response getFunctionState(String tenant, String namespace, String functionName, String key, String clientRole) {
         FunctionState functionState = delegate.getFunctionState(
-                tenant, namespace, functionName, key, null, null);
+                tenant, namespace, functionName, key, clientRole, null);
 
         String value;
         if (functionState.getNumberValue() != null) {
@@ -169,24 +169,24 @@ public class FunctionsImplV2 {
     }
 
     public Response restartFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
-            uri) {
-        delegate.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri, null, null);
+            uri, String clientRole) {
+        delegate.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri, clientRole, null);
         return Response.ok().build();
     }
 
-    public Response restartFunctionInstances(String tenant, String namespace, String functionName) {
-        delegate.restartFunctionInstances(tenant, namespace, functionName, null, null);
+    public Response restartFunctionInstances(String tenant, String namespace, String functionName, String clientRole) {
+        delegate.restartFunctionInstances(tenant, namespace, functionName, clientRole, null);
         return Response.ok().build();
     }
 
     public Response stopFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
-            uri) {
-        delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, null ,null);
+            uri, String clientRole) {
+        delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, clientRole ,null);
         return Response.ok().build();
     }
 
-    public Response stopFunctionInstances(String tenant, String namespace, String functionName) {
-        delegate.stopFunctionInstances(tenant, namespace, functionName, null, null);
+    public Response stopFunctionInstances(String tenant, String namespace, String functionName, String clientRole) {
+        delegate.stopFunctionInstances(tenant, namespace, functionName, clientRole, null);
         return Response.ok().build();
     }
 
@@ -195,7 +195,7 @@ public class FunctionsImplV2 {
         return Response.ok().build();
     }
 
-    public Response downloadFunction(String path) {
+    public Response downloadFunction(String path, String clientRole) {
         return Response.status(Response.Status.OK).entity(delegate.downloadFunction(path)).build();
     }
 

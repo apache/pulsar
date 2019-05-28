@@ -263,11 +263,11 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testConsumerGroupChangesWithOldNewConsumers() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         int partitionIndex = 0;
         PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
-                SubType.Failover, partitionIndex, topic);
+                SubType.Failover, partitionIndex, topic, sub);
 
         // 1. Verify no consumers connected
         assertFalse(pdfc.isConsumerConnected());
@@ -302,11 +302,11 @@ public class PersistentDispatcherFailoverConsumerTest {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         int partitionIndex = 0;
         PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
-                SubType.Failover, partitionIndex, topic);
+                SubType.Failover, partitionIndex, topic, sub);
 
         // 1. Verify no consumers connected
         assertFalse(pdfc.isConsumerConnected());
@@ -421,7 +421,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testMultipleDispatcherGetNextConsumerWithDifferentPriorityLevel() throws Exception {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(0, 2, false, 1);
         Consumer consumer2 = createConsumer(0, 2, false, 2);
         Consumer consumer3 = createConsumer(0, 2, false, 3);
@@ -465,7 +465,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testFewBlockedConsumerSamePriority() throws Exception{
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(0, 2, false, 1);
         Consumer consumer2 = createConsumer(0, 2, false, 2);
         Consumer consumer3 = createConsumer(0, 2, false, 3);
@@ -492,7 +492,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testFewBlockedConsumerDifferentPriority() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(0, 2, false, 1);
         Consumer consumer2 = createConsumer(0, 2, false, 2);
         Consumer consumer3 = createConsumer(0, 2, false, 3);
@@ -546,7 +546,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testFewBlockedConsumerDifferentPriority2() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(0, 2, true, 1);
         Consumer consumer2 = createConsumer(0, 2, true, 2);
         Consumer consumer3 = createConsumer(0, 2, true, 3);
