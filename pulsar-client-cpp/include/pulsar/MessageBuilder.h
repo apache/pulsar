@@ -62,11 +62,17 @@ class PULSAR_PUBLIC MessageBuilder {
      */
     MessageBuilder& setProperties(const StringMap& properties);
 
-    /*
+    /**
      * set partition key for the message routing
      * @param hash of this key is used to determine message's topic partition
      */
     MessageBuilder& setPartitionKey(const std::string& partitionKey);
+
+    /**
+     * set ordering key for the message routing
+     * @param the ordering key for the message
+     */
+    MessageBuilder& setOrderingKey(const std::string& orderingKey);
 
     /**
      * Set the event timestamp for the message.
