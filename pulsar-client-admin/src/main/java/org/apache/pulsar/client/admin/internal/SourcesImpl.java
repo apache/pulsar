@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Source;
+import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -48,12 +49,12 @@ import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
 
 @Slf4j
-public class SourceImpl extends ComponentResource implements Source {
+public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     private final WebTarget source;
     private final AsyncHttpClient asyncHttpClient;
 
-    public SourceImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
+    public SourcesImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
         super(auth);
         this.source = web.path("/admin/v3/source");
         this.asyncHttpClient = asyncHttpClient;
