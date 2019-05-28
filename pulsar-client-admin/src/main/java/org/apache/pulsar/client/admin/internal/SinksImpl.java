@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Sink;
+import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -48,12 +49,12 @@ import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
 
 @Slf4j
-public class SinkImpl extends ComponentResource implements Sink {
+public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     private final WebTarget sink;
     private final AsyncHttpClient asyncHttpClient;
 
-    public SinkImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
+    public SinksImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
         super(auth);
         this.sink = web.path("/admin/v3/sink");
         this.asyncHttpClient = asyncHttpClient;

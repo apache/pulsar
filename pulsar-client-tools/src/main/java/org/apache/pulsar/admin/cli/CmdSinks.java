@@ -70,7 +70,7 @@ public class CmdSinks extends CmdBase {
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
-        super("sink", admin);
+        super("sinks", admin);
         createSink = new CreateSink();
         updateSink = new UpdateSink();
         deleteSink = new DeleteSink();
@@ -202,9 +202,9 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.sink().createSinkWithUrl(sinkConfig, sinkConfig.getArchive());
+                admin.sinks().createSinkWithUrl(sinkConfig, sinkConfig.getArchive());
             } else {
-                admin.sink().createSink(sinkConfig, sinkConfig.getArchive());
+                admin.sinks().createSink(sinkConfig, sinkConfig.getArchive());
             }
             print("Created successfully");
         }
@@ -221,9 +221,9 @@ public class CmdSinks extends CmdBase {
             UpdateOptions updateOptions = new UpdateOptions();
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.sink().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive(), updateOptions);
+                admin.sinks().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive(), updateOptions);
             } else {
-                admin.sink().updateSink(sinkConfig, sinkConfig.getArchive(), updateOptions);
+                admin.sinks().updateSink(sinkConfig, sinkConfig.getArchive(), updateOptions);
             }
             print("Updated successfully");
         }
@@ -465,7 +465,7 @@ public class CmdSinks extends CmdBase {
         protected String validateSinkType(String sinkType) throws IOException {
             Set<String> availableSinks;
             try {
-                availableSinks = admin.sink().getBuiltInSinks().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
+                availableSinks = admin.sinks().getBuiltInSinks().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
             } catch (PulsarAdminException e) {
                 throw new IOException(e);
             }
@@ -515,7 +515,7 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.sink().deleteSink(tenant, namespace, sinkName);
+            admin.sinks().deleteSink(tenant, namespace, sinkName);
             print("Deleted successfully");
         }
     }
@@ -525,7 +525,7 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            SinkConfig sinkConfig = admin.sink().getSink(tenant, namespace, sinkName);
+            SinkConfig sinkConfig = admin.sinks().getSink(tenant, namespace, sinkName);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sinkConfig));
         }
@@ -554,7 +554,7 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            List<String> sinks = admin.sink().listSinks(tenant, namespace);
+            List<String> sinks = admin.sinks().listSinks(tenant, namespace);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sinks));
         }
@@ -569,9 +569,9 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (isBlank(instanceId)) {
-                print(admin.sink().getSinkStatus(tenant, namespace, sinkName));
+                print(admin.sinks().getSinkStatus(tenant, namespace, sinkName));
             } else {
-                print(admin.sink().getSinkStatus(tenant, namespace, sinkName, Integer.parseInt(instanceId)));
+                print(admin.sinks().getSinkStatus(tenant, namespace, sinkName, Integer.parseInt(instanceId)));
             }
         }
     }
@@ -586,12 +586,12 @@ public class CmdSinks extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sink().restartSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                    admin.sinks().restartSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sink().restartSink(tenant, namespace, sinkName);
+                admin.sinks().restartSink(tenant, namespace, sinkName);
             }
             System.out.println("Restarted successfully");
         }
@@ -607,12 +607,12 @@ public class CmdSinks extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sink().stopSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                    admin.sinks().stopSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sink().stopSink(tenant, namespace, sinkName);
+                admin.sinks().stopSink(tenant, namespace, sinkName);
             }
             System.out.println("Stopped successfully");
         }
@@ -628,12 +628,12 @@ public class CmdSinks extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sink().startSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                    admin.sinks().startSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sink().startSink(tenant, namespace, sinkName);
+                admin.sinks().startSink(tenant, namespace, sinkName);
             }
             System.out.println("Started successfully");
         }
@@ -643,7 +643,7 @@ public class CmdSinks extends CmdBase {
     public class ListBuiltInSinks extends BaseCommand {
         @Override
         void runCmd() throws Exception {
-            admin.sink().getBuiltInSinks().stream().filter(x -> isNotBlank(x.getSinkClass()))
+            admin.sinks().getBuiltInSinks().stream().filter(x -> isNotBlank(x.getSinkClass()))
                     .forEach(connector -> {
                         System.out.println(connector.getName());
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));
