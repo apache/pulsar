@@ -367,13 +367,19 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private void receiveAndCheck(List<KeyValue<Consumer<Integer>, Integer>> checkList) throws PulsarClientException {
         Map<Consumer, Set<String>> consumerKeys = new HashMap<>();
         for (KeyValue<Consumer<Integer>, Integer> check : checkList) {
+            if (check.getValue() % 2 != 0) {
+                throw new IllegalArgumentException();
+            }
             int received = 0;
             Map<String, Message<Integer>> lastMessageForKey = new HashMap<>();
             for (Integer i = 0; i < check.getValue(); i++) {
                 Message<Integer> message = check.getKey().receive();
+                if (i % 2 == 0) {
+                    check.getKey().acknowledge(message);
+                }
                 String key = message.hasOrderingKey() ? new String(message.getOrderingKey()) : message.getKey();
-                log.info("[{}] Receive message key: {} value: {}",
-                    check.getKey().getConsumerName(), key, message.getValue());
+                log.info("[{}] Receive message key: {} value: {} messageId: {}",
+                    check.getKey().getConsumerName(), key, message.getValue(), message.getMessageId());
                 // check messages is order by key
                 if (lastMessageForKey.get(key) == null) {
                     Assert.assertNotNull(message);
@@ -387,19 +393,29 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 received++;
             }
             Assert.assertEquals(check.getValue().intValue(), received);
-            log.info("[{}] Consumer wait for message redelivery ...");
+            int redeliveryCount = check.getValue() / 2;
+            log.info("[{}] Consumer wait for {} messages redelivery ...", redeliveryCount);
             // messages not acked, test redelivery
-            for (Integer i = 0; i < check.getValue(); i++) {
+            for (int i = 0; i < redeliveryCount; i++) {
                 Message<Integer> message = check.getKey().receive();
                 received++;
                 check.getKey().acknowledge(message);
+                String key = message.hasOrderingKey() ? new String(message.getOrderingKey()) : message.getKey();
+                log.info("[{}] Receive redeliver message key: {} value: {} messageId: {}",
+                        check.getKey().getConsumerName(), key, message.getValue(), message.getMessageId());
             }
-            Assert.assertEquals(check.getValue() * 2, received);
+            Message noMessages = null;
+            try {
+                noMessages = check.getKey().receive(100, TimeUnit.MILLISECONDS);
+            } catch (PulsarClientException ignore) {
+            }
+            Assert.assertNull(noMessages, "redeliver too many messages.");
+            Assert.assertEquals((check.getValue() + redeliveryCount), received);
         }
         Set<String> allKeys = Sets.newHashSet();
         consumerKeys.forEach((k, v) -> v.forEach(key -> {
             assertTrue(allKeys.add(key),
-                "Key "+ key +  "is distributed to multiple consumers" );
+                "Key "+ key +  "is distributed to multiple consumers." );
         }));
     }
 }
