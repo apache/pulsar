@@ -123,11 +123,7 @@ public class PulsarAdminTool {
             adminBuilder.authentication(authPluginClassName, authParams);
             PulsarAdmin admin = adminFactory.apply(adminBuilder);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
-                if (admin != null) {
-                    addCommand(c, admin);
-                } else {
-                    addCommand(c, admin);
-                }
+                addCommand(c, admin);
             }
         } catch (Exception e) {
             Throwable cause;
@@ -213,7 +209,6 @@ public class PulsarAdminTool {
             } else if (cmd.equals("sink")) {
                 cmd = "sinks";
             }
-            System.out.println(jcommander.getCommands());
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
 
