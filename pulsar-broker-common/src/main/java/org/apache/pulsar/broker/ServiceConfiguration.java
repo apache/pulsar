@@ -155,6 +155,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // waiting for another HTTP call to complete in same thread.
     private int numHttpServerThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
+    private boolean delayedDeliveryEnabled = true;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Class name of the factory that implements the delayed deliver tracker")
+    private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory";
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Control the tick time for when retrying on delayed delivery, "
+            + " affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second.")
+    private long delayedDeliveryTickTimeMillis = 1000;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Enable the WebSocket API service in broker"
@@ -209,9 +219,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int backlogQuotaCheckIntervalInSeconds = 60;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default per-topic backlog quota limit. Increase it if you want to allow larger msg backlog"
+        doc = "Default per-topic backlog quota limit, less than 0 means no limitation. default is -1."
+                + " Increase it if you want to allow larger msg backlog"
     )
-    private long backlogQuotaDefaultLimitGB = 50;
+    private long backlogQuotaDefaultLimitGB = -1;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default backlog quota retention policy. Default is producer_request_hold\n\n"

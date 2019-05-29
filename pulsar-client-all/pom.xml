@@ -151,6 +151,7 @@
                   <include>org.xerial.snappy:snappy-java</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
+                  <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -171,6 +172,10 @@
                 <relocation>
                   <pattern>org.asynchttpclient</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.bookkeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons</pattern>

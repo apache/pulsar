@@ -34,12 +34,10 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -96,6 +94,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -2173,7 +2172,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         int msgMetadataSize = messageData.getSerializedSize();
         int headersSize = 4 + msgMetadataSize;
-        ByteBuf headers = PooledByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
+        ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
         ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
         headers.writeInt(msgMetadataSize);
         messageData.writeTo(outStream);

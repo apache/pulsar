@@ -51,6 +51,10 @@ public interface Subscription {
 
     long getNumberOfEntriesInBacklog();
 
+    default long getNumberOfEntriesDelayed() {
+        return 0;
+    }
+
     List<Consumer> getConsumers();
 
     CompletableFuture<Void> close();

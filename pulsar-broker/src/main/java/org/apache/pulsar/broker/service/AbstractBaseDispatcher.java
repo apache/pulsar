@@ -35,7 +35,7 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsS
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
 @Slf4j
-public abstract class AbstractBaseDispatcher {
+public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final Subscription subscription;
 
@@ -89,6 +89,12 @@ public abstract class AbstractBaseDispatcher {
                     entry.release();
                     subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
                             Collections.emptyMap());
+                    continue;
+                } else if (msgMetadata.hasDeliverAtTime()
+                        && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+                    // The message is marked for delayed delivery. Ignore for now.
+                    entries.set(i, null);
+                    entry.release();
                     continue;
                 }
 

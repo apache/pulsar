@@ -23,20 +23,20 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
-import org.testng.annotations.Test;
-
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.testng.annotations.Test;
 
 public class ByteBufPairTest {
 
     @Test
     public void testDoubleByteBuf() throws Exception {
-        ByteBuf b1 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
+        ByteBuf b1 = PulsarByteBufAllocator.DEFAULT.heapBuffer(128, 128);
         b1.writerIndex(b1.capacity());
-        ByteBuf b2 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
+        ByteBuf b2 = PulsarByteBufAllocator.DEFAULT.heapBuffer(128, 128);
         b2.writerIndex(b2.capacity());
         ByteBufPair buf = ByteBufPair.get(b1, b2);
 
