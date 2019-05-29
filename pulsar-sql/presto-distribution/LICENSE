@@ -517,7 +517,6 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-media-jaxb-2.26.jar
     - jersey-server-2.26.jar
     - jersey-common-2.26.jar
- * JavaBeans(TM) Activation Framework -- activation-1.1.1.jar
  * JAXB
     - jaxb-api-2.2.6.jar
     - jaxb-api-2.3.1.jar
