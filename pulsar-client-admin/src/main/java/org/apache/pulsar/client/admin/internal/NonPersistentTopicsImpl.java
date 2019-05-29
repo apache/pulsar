@@ -57,7 +57,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -77,7 +77,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -110,7 +110,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -143,7 +143,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -176,7 +176,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -195,7 +195,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -226,7 +226,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
