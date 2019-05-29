@@ -34,7 +34,7 @@ public abstract class FileSystemEntryBytesReader {
     // Payload use this as the start offset.
     protected static final int HEADER_SIZE = 128;
 
-    protected static final int HEADER_UN_USE_SIZE = HEADER_SIZE - 4;
+    protected static final byte[] HEADER_UN_USE_BYTES = new byte[HEADER_SIZE - 4];
 
     // buf the entry size and entry id.
     protected static final int ENTRY_HEADER_SIZE = 4 /* entry size */ + 8 /* entry id */;
@@ -71,8 +71,8 @@ public abstract class FileSystemEntryBytesReader {
         return DATA_FILE_MAGIC_WORD;
     }
 
-    public static int getHeaderUnUseSize() {
-        return HEADER_UN_USE_SIZE;
+    public static byte[] getHeaderUnUseBytes() {
+        return HEADER_UN_USE_BYTES;
     }
 
     public long getDataObjectLength() {

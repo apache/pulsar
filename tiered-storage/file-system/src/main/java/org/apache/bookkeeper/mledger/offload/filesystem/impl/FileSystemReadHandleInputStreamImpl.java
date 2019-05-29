@@ -104,11 +104,13 @@ public class FileSystemReadHandleInputStreamImpl extends FileSystemReadHandleInp
         }
 
     }
+
     @Override
     public void close() throws IOException {
         byteBuf.release();
         inputStream.close();
     }
+
     @Override
     public void skipLength(long length) throws IOException {
         seek(readPos + length);

@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -83,20 +82,11 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
         configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
         try {
-            this.fileSystem = this.userName == null ? FileSystem.get(new URI(accessUri), configuration) :
-                    FileSystem.get(new URI(accessUri), configuration, userName);
-        } catch (InterruptedException | IOException | URISyntaxException | NullPointerException e) {
-            if (userName == null ) {
-                throw new IOException("HDFS user name is null");
-            }
-            if (accessUri == null ) {
-                throw new IOException("HDFS uri can't be null");
-            }
-            if (e instanceof URISyntaxException) {
-                throw new IOException("File system's uri is wrong");
-            } else {
-                throw new IOException(e);
-            }
+            this.fileSystem = this.userName == null ? FileSystem.get(URI.create(accessUri), configuration) :
+                    FileSystem.get(URI.create(accessUri), configuration, userName);
+        } catch (InterruptedException e) {
+            log.error("File system offloader init fail, execute thread was interrupted");
+            throw new IOException(e);
         }
     }
 
@@ -117,9 +107,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
             long ledgerId = readHandle.getId();
-            String storagePath = createStoragePath(storageBasePath, extraMetadata.get("ManagedLedgerName"));
-            String indexFilePath = createIndexFilePath(storagePath, ledgerId, uid);
-            String dataFilePath = createDataFilePath(storagePath, ledgerId, uid);
+            String storagePath = getStoragePath(storageBasePath, extraMetadata.get("ManagedLedgerName"));
+            String indexFilePath = getIndexFilePath(storagePath, ledgerId, uid);
+            String dataFilePath = getDataFilePath(storagePath, ledgerId, uid);
 
             OffloadIndexFileBuilder indexFileBuilder = OffloadIndexFileBuilder.create()
                     .withLedgerMetadata(readHandle.getLedgerMetadata())
@@ -130,11 +120,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
                 FileSystemEntryBytesReader reader = new FileSystemEntryBytesReaderImpl(readHandle, configMap, indexFileBuilder);
                 dataOutputStream.writeInt(FileSystemEntryBytesReader.getDataFileMagicWord());
-                byte[] headerUnUse = new byte[FileSystemEntryBytesReader.getHeaderUnUseSize()];
-                for (int i = 0; i<FileSystemEntryBytesReader.getHeaderUnUseSize(); i++) {
-                    headerUnUse[i] = 0;
-                }
-                dataOutputStream.write(headerUnUse);
+                dataOutputStream.write(FileSystemEntryBytesReader.getHeaderUnUseBytes());
                 do {
                     //every time read 100 entry
                     ByteBuf entryBuf = reader.readEntries();
@@ -158,9 +144,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid, Map<String, String> offloadDriverMetadata) {
 
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
-        String storagePath = createStoragePath(storageBasePath, offloadDriverMetadata.get("ManagedLedgerName"));
-        String indexFilePath = createIndexFilePath(storagePath, ledgerId, uuid);
-        String dataFilePath = createDataFilePath(storagePath, ledgerId, uuid);
+        String storagePath = getStoragePath(storageBasePath, offloadDriverMetadata.get("ManagedLedgerName"));
+        String indexFilePath = getIndexFilePath(storagePath, ledgerId, uuid);
+        String dataFilePath = getDataFilePath(storagePath, ledgerId, uuid);
         scheduler.chooseThread(ledgerId).submit(() -> {
             try {
                 promise.complete(FileStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
@@ -174,22 +160,22 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         return promise;
     }
 
-    private static String createStoragePath(String storageBasePath, String managedLedgerName) {
+    private static String getStoragePath(String storageBasePath, String managedLedgerName) {
         return storageBasePath + "/" + managedLedgerName + "/";
     }
 
-    private static String createIndexFilePath(String storagePath, long ledgerId, UUID uuid) {
+    private static String getIndexFilePath(String storagePath, long ledgerId, UUID uuid) {
         return storagePath + ledgerId + "-" + uuid + ".index";
     }
 
-    private static String createDataFilePath(String storagePath, long ledgerId, UUID uuid) {
+    private static String getDataFilePath(String storagePath, long ledgerId, UUID uuid) {
         return storagePath + ledgerId + "-" + uuid + ".log";
     }
     @Override
     public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
-        String storagePath = createStoragePath(storageBasePath, offloadDriverMetadata.get("ManagedLedgerName"));
-        String indexFilePath = createIndexFilePath(storagePath, ledgerId, uid);
-        String dataFilePath = createDataFilePath(storagePath, ledgerId, uid);
+        String storagePath = getStoragePath(storageBasePath, offloadDriverMetadata.get("ManagedLedgerName"));
+        String indexFilePath = getIndexFilePath(storagePath, ledgerId, uid);
+        String dataFilePath = getDataFilePath(storagePath, ledgerId, uid);
         CompletableFuture<Void> promise = new CompletableFuture<>();
         try {
             fileSystem.delete(new Path(indexFilePath), false);
