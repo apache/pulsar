@@ -108,7 +108,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, map).get();
         Configuration configuration = new Configuration();
-        FileSystem fileSystem = FileSystem.get(new URI(getURI()), configuration, getUserName());
+        FileSystem fileSystem = FileSystem.get(new URI(getURI()), configuration);
         FileStatus fileStatus = fileSystem.getFileStatus(new Path(createDataFilePath(storagePath, lh.getId(), uuid)));
         Assert.assertEquals(objectLength, fileStatus.getLen());
     }
@@ -165,7 +165,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, map).get();
         Configuration configuration = new Configuration();
-        FileSystem fileSystem = FileSystem.get(new URI(getURI()), configuration, getUserName());
+        FileSystem fileSystem = FileSystem.get(new URI(getURI()), configuration);
         Assert.assertEquals(true, fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
         Assert.assertEquals(true, fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
         offloader.deleteOffloaded(lh.getId(), uuid, map);

@@ -40,7 +40,6 @@ public class FileStoreTestBase {
     protected final String basePath = "test_hdfs";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
-    private static final String USER_NAME = "root";
     private static final String READ_BUFFER_SIZE = "100";
 
     @BeforeMethod
@@ -57,7 +56,6 @@ public class FileStoreTestBase {
         properties.put("hdfsFileSystemManagedLedgerOffloadAccessUri", hdfsURI);
         properties.put("hdfsFileSystemManagedLedgerOffloadStorageBasePath", basePath);
         properties.put("managedLedgerOffloadDriver", "hdfs");
-        properties.put("hdfsFileSystemManagedLedgerOffloadUserName", USER_NAME);
         properties.put("hdfsFileSystemReadHandleReadBufferSize", READ_BUFFER_SIZE);
         Map<String, String> map = new HashMap<>();
         fileSystemManagedLedgerOffloader = factory.create(properties, map,OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build());
@@ -71,10 +69,6 @@ public class FileStoreTestBase {
 
     public String getURI() {
         return hdfsURI;
-    }
-
-    public String getUserName() {
-        return USER_NAME;
     }
 
     public long getReadBufferSize() {
