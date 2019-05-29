@@ -39,6 +39,5 @@
   <modules>
     <module>jcloud</module>
     <module>file-system</module>
-    <module>common</module>
   </modules>
 </project>

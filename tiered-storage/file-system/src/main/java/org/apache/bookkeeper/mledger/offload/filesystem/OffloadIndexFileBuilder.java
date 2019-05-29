@@ -24,7 +24,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 import org.apache.bookkeeper.mledger.offload.filesystem.impl.OffloadIndexFileBuilderImpl;
 
 /**
- * Interface for builder of index block used for offload a ledger to long term storage.
+ * Interface for builder of index file used for offload a ledger to long term storage.
  */
 @Unstable
 @LimitedPrivate
@@ -39,13 +39,7 @@ public interface OffloadIndexFileBuilder {
     OffloadIndexFileBuilder addIndex(long entryId, int haveWrittenSize);
 
     /**
-     * The path of index file
-     * @param indexFilePath The path of index file
-     */
-    OffloadIndexFileBuilder withIndexFilePath(String indexFilePath);
-
-    /**
-     * Build index block with the passed in ledger metadata.
+     * Build index file with the passed in ledger metadata.
      *
      * @param metadata the ledger metadata
      */
@@ -58,7 +52,7 @@ public interface OffloadIndexFileBuilder {
     OffloadIndexFileBuilder withDataObjectLength(long dataObjectLength);
 
     /**
-     * Specify the length of the block headers in the data object.
+     * Specify the length of the data headers in the data object.
      * @param dataHeaderLength the length of the headers
      */
     OffloadIndexFileBuilder withDataHeaderLength(int dataHeaderLength);
@@ -69,11 +63,10 @@ public interface OffloadIndexFileBuilder {
     OffloadIndexFile build();
 
     /**
-     * create an OffloadIndexBlockBuilder
+     * create an offloadIndexFile
      */
     static OffloadIndexFileBuilder create() {
         return new OffloadIndexFileBuilderImpl();
     }
-
 
 }

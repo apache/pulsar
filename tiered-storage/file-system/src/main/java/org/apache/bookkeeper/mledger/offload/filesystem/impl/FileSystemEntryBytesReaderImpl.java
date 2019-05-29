@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 import io.netty.buffer.ByteBuf;
@@ -39,7 +57,7 @@ public class FileSystemEntryBytesReaderImpl extends FileSystemEntryBytesReader {
             int reachAddIndexCount = 0;
             //when this reach ADD_INDEX_PER_WRITTEN_BYTES_SIZE, add index
             int reachAddIndexBytesSize = 0;
-            ByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.directBuffer(1024 * 1024, 1024 * 1024 * 64);
+            ByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.buffer(1024 * 1024, 1024 * 1024 * 64);
             while (iterator.hasNext()) {
                 LedgerEntry entry = iterator.next();
                 ByteBuf buf = entry.getEntryBuffer().retain();
@@ -48,7 +66,6 @@ public class FileSystemEntryBytesReaderImpl extends FileSystemEntryBytesReader {
                 entryBuf.writeInt(entryLength).writeLong(entryId);
                 entryBuf.writeBytes(buf);
                 int entryWrittenSize = ENTRY_HEADER_SIZE + entryLength;
-
                 reachAddIndexCount++;
                 reachAddIndexBytesSize += entryWrittenSize;
                 if (reachAddIndexBytesSize >= ADD_INDEX_PER_WRITTEN_BYTES_SIZE || reachAddIndexCount >= ADD_INDEX_PER_WRITTEN_COUNT) {
@@ -58,7 +75,6 @@ public class FileSystemEntryBytesReaderImpl extends FileSystemEntryBytesReader {
                 }
                 haveWrittenBytes += entryWrittenSize;
             }
-
             return entryBuf;
         } catch (InterruptedException | ExecutionException e) {
             log.error("Exception when get CompletableFuture<LedgerEntries>. ", e);
@@ -68,20 +84,5 @@ public class FileSystemEntryBytesReaderImpl extends FileSystemEntryBytesReader {
             throw new IOException(e);
         }
 
-    }
-
-    @Override
-    public int getEntryCount() {
-        return 0;
-    }
-
-    @Override
-    public long getEndEntryId() {
-        return 0;
-    }
-
-    @Override
-    public int getEntryBytesCount() {
-        return 0;
     }
 }

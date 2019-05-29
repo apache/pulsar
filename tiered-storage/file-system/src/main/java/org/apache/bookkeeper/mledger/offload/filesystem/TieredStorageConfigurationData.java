@@ -44,6 +44,7 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable {
     private String hdfsFileSystemManagedLedgerOffloadUserName = null;
     // The uri of file system
     private String hdfsFileSystemManagedLedgerOffloadAccessUri = null;
+    private int hdfsFileSystemReadHandleReadBufferSize = 1024 * 1024;
 
     /**
      * Create a tiered storage configuration from the provided <tt>properties</tt>.

@@ -18,28 +18,13 @@
  */
 package org.apache.bookkeeper.mledger.offload.filesystem;
 
-import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
-import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
+import io.netty.buffer.ByteBuf;
 
-/**
- *
- * The Index Entry in OffloadIndexBlock.
- * It consists of the message entry id, the code storage block part id for this message entry,
- * and the offset in code storage block for this message id.
- *
- */
-@Unstable
-@LimitedPrivate
-public interface OffloadIndexEntry {
+import java.io.IOException;
+import java.io.InputStream;
 
-    /**
-     * Get the entryId that this entry contains.
-     */
-    long getEntryId();
-
-    /**
-     * Get the offset of this file within the object.
-     */
-    int getOffset();
+public abstract class FileSystemReadHandleInputStream extends InputStream {
+    public abstract void seek(long offset) throws IOException;
+    public abstract void readByteBuf(ByteBuf byteBuf) throws IOException;
+    public abstract void skipLength(long length) throws IOException;
 }
-

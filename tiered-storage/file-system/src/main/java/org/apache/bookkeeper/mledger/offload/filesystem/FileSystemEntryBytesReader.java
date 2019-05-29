@@ -24,12 +24,6 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import java.io.IOException;
 import java.util.Map;
 
-/**
- * The BlockAwareSegmentInputStream for each cold storage data block.
- * This interface should be implemented while extends InputStream.
- * It gets data from ledger, and will be read out the content for a data block.
- * DataBlockHeader + entries(each with format[[entry_size -- int][entry_id -- long][entry_data]]) + padding
- */
 public abstract class FileSystemEntryBytesReader {
 
     protected final ReadHandle readHandle;
@@ -50,63 +44,44 @@ public abstract class FileSystemEntryBytesReader {
 
     protected static final int ADD_INDEX_PER_WRITTEN_COUNT = 100;
 
-    protected static final int ADD_INDEX_PER_WRITTEN_BYTES_SIZE = 1024*1024;
+    protected static final int ADD_INDEX_PER_WRITTEN_BYTES_SIZE = 1024 * 1024;
 
     protected long haveOffloadEntryCount;
 
     // have written byte size into file
     protected int haveWrittenBytes = HEADER_SIZE;
 
-
     protected boolean canContinueRead = true;
-
-        public abstract ByteBuf readEntries() throws IOException;
+    /**
+     * Read ENTRIES_PER_READ entries from readHandle
+     *
+     * @return the entries byte[] for once read
+     */
+    public abstract ByteBuf readEntries() throws IOException;
 
     protected FileSystemEntryBytesReader(ReadHandle readHandle, Map<String, String> configMap) {
         this.readHandle = readHandle;
     }
 
-    public int getHeaderSize() {
-        return HEADER_SIZE;
+    public static int getEntryHeaderSize() {
+        return ENTRY_HEADER_SIZE;
     }
 
-    public int getDataFileMagicWord() {
+    public static int getDataFileMagicWord() {
         return DATA_FILE_MAGIC_WORD;
     }
 
-    public int getHeaderUnUseSize() {
+    public static int getHeaderUnUseSize() {
         return HEADER_UN_USE_SIZE;
     }
 
     public long getDataObjectLength() {
-        return haveWrittenBytes - HEADER_SIZE;
+        return haveWrittenBytes;
     }
 
     public static int getDataHeaderLength() {
         return HEADER_SIZE;
     }
-
-
-    /**
-     * Get entry count that read out from this InputStream
-     *
-     * @return the block entry count
-     */
-    public abstract int getEntryCount();
-
-    /**
-     * Get end entry id contained in this InputStream.
-     *
-     * @return the end entry id
-     */
-    public abstract long getEndEntryId();
-
-    /**
-     * Get sum of entries data size read from the this InputStream
-     *
-     * @return the block entry bytes count
-     */
-    public abstract int getEntryBytesCount();
 
     public boolean whetherCanContinueRead() {
         return canContinueRead;

@@ -111,18 +111,6 @@ public class OffloadIndexFileImpl implements OffloadIndexFile {
     }
 
     @Override
-    public OffloadIndexEntry getCeilingIndexEntryByEntryId(long entryId) throws IOException {
-        if (entryId > ledgerMetadata.getLastEntryId()) {
-            log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
-                    entryId, ledgerMetadata.getLastEntryId());
-            throw new IndexOutOfBoundsException("Entry index: " + entryId +
-                    " beyond lastEntryId: " + ledgerMetadata.getLastEntryId());
-        }
-        // find the greatest mapping Id whose entryId <= messageEntryId
-        return this.indexEntries.ceilingEntry(entryId).getValue();
-    }
-
-    @Override
     public int getEntryCount() {
         return this.indexEntries.size();
     }
@@ -166,7 +154,6 @@ public class OffloadIndexFileImpl implements OffloadIndexFile {
         out.readBytes(indexBytes);
         indexFileOutputStream.write(indexBytes);
         indexFileOutputStream.close();
-
     }
 
     @Override
@@ -204,7 +191,7 @@ public class OffloadIndexFileImpl implements OffloadIndexFile {
     }
 
     @Override
-    public long getDataBlockHeaderLength() {
+    public long getDataHeaderLength() {
         return this.dataHeaderLength;
     }
 

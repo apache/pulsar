@@ -41,8 +41,6 @@ public interface OffloadIndex extends Closeable {
      */
     OffloadIndexEntry getFloorIndexEntryByEntryId(long entryId) throws IOException;
 
-    OffloadIndexEntry getCeilingIndexEntryByEntryId(long entryId) throws IOException;
-
     /**
      * Get the entry count that contained in this index Block.
      */
@@ -61,7 +59,7 @@ public interface OffloadIndex extends Closeable {
     /**
      * Get the length of the header in the blocks in the data object.
      */
-    long getDataBlockHeaderLength();
+    long getDataHeaderLength();
 
 }
 

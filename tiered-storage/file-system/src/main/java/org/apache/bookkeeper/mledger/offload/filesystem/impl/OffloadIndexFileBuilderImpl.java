@@ -37,7 +37,6 @@ public class OffloadIndexFileBuilderImpl implements OffloadIndexFileBuilder {
     private long dataObjectLength;
     private int dataHeaderLength;
     private List<OffloadIndexEntryImpl> entries;
-    private String indexFilePath;
 
     public OffloadIndexFileBuilderImpl() {
         this.entries = Lists.newArrayList();
@@ -86,12 +85,6 @@ public class OffloadIndexFileBuilderImpl implements OffloadIndexFileBuilder {
         checkState(dataObjectLength > 0);
         checkState(dataHeaderLength > 0);
         return OffloadIndexFileImpl.get(ledgerMetadata, dataObjectLength, dataHeaderLength, entries);
-    }
-
-    @Override
-    public OffloadIndexFileBuilder withIndexFilePath(String indexFilePath) {
-        this.indexFilePath = indexFilePath;
-        return this;
     }
 
 }

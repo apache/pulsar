@@ -29,6 +29,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 
+import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemReadHandleInputStream;
 import org.apache.bookkeeper.mledger.offload.filesystem.OffloadIndexEntry;
 import org.apache.bookkeeper.mledger.offload.filesystem.OffloadIndexFile;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -37,6 +38,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,14 +51,18 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private final long ledgerId;
     private final ExecutorService executor;
     private final OffloadIndexFile offloadIndexFile;
-    private final FSDataInputStream dataInputStream;
+    private final DataInputStream dataInputStream;
+    private final FileSystemReadHandleInputStream inputStream;
 
     private FileStoreBackedReadHandleImpl(ExecutorService executor, long ledgerId,
-                                          OffloadIndexFile offloadIndexFile, FSDataInputStream dataInputStream) {
+                                          OffloadIndexFile offloadIndexFile, FSDataInputStream fsDataInputStream, int readBufferSize) {
         this.ledgerId = ledgerId;
         this.executor = executor;
         this.offloadIndexFile = offloadIndexFile;
-        this.dataInputStream = dataInputStream;
+        this.inputStream = new FileSystemReadHandleInputStreamImpl(fsDataInputStream,
+                readBufferSize, offloadIndexFile.getDataObjectLength(),
+                offloadIndexFile.getDataHeaderLength());
+        this.dataInputStream = new DataInputStream(this.inputStream);
     }
 
     @Override
@@ -75,6 +81,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         executor.submit(() -> {
                 try {
                     dataInputStream.close();
+                    inputStream.close();
                     promise.complete(null);
                 } catch (IOException t) {
                     promise.completeExceptionally(t);
@@ -99,54 +106,24 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 long nextExpectedId = firstEntry;
                 try {
                     OffloadIndexEntry floorEntry = offloadIndexFile.getFloorIndexEntryByEntryId(firstEntry);
-                    OffloadIndexEntry ceilingEntry = offloadIndexFile.getCeilingIndexEntryByEntryId(lastEntry);
-                    dataInputStream.seek(floorEntry.getOffset());
-                    if (floorEntry.getEntryId() != ceilingEntry.getEntryId()) {
-                        entriesToRead = lastEntry == ceilingEntry.getEntryId() ? entriesToRead - 1 : entriesToRead;
-                        int readBytesSize = ceilingEntry.getOffset() - floorEntry.getOffset();
-                        byte[] readBytes = new byte[readBytesSize];
-                        dataInputStream.read(readBytes);
-                        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(readBytesSize, readBytesSize);
-                        buf.writeBytes(readBytes);
-                        while (entriesToRead > 0) {
-                            int length = buf.readInt();
-                            long entryId = buf.readLong();
-                            if (entryId == nextExpectedId) {
-                                ByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
-                                entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, entryBuf));
-                                buf.readBytes(entryBuf);
-                                entriesToRead--;
-                                nextExpectedId++;
-                            } else if (entryId > lastEntry) {
-                                log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                        nextExpectedId, entryId, lastEntry);
-                                throw new BKException.BKUnexpectedConditionException();
-                            } else {
-                                buf.readBytes(length);
-                            }
-                        }
-                        if (lastEntry == ceilingEntry.getEntryId()) {
-                            int length = dataInputStream.readInt();
-                            long entryId = dataInputStream.readLong();
-                            byte[] entryByte = new byte[length];
-                            dataInputStream.read(entryByte);
-                            ByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
-                            entryBuf.writeBytes(entryByte);
-                            entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, entryBuf));
-                        }
-
-                    } else {
+                    inputStream.seek(floorEntry.getOffset());
+                    while (entriesToRead > 0) {
                         int length = dataInputStream.readInt();
                         long entryId = dataInputStream.readLong();
-                        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
-                        entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
-                        int toWrite = length;
-                        while (toWrite > 0) {
-                            toWrite -= buf.writeBytes(dataInputStream, toWrite);
+                        if (entryId == nextExpectedId) {
+                            ByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+                            entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, entryBuf));
+                            inputStream.readByteBuf(entryBuf);
+                            entriesToRead--;
+                            nextExpectedId++;
+                        } else if (entryId > lastEntry) {
+                            log.info("Expected to read {}, but read {}, which is greater than last entry {}",
+                                    nextExpectedId, entryId, lastEntry);
+                            throw new BKException.BKUnexpectedConditionException();
+                        } else {
+                            inputStream.skipLength(length);
                         }
-
                     }
-
                     promise.complete(LedgerEntriesImpl.create(entries));
                 } catch (Throwable t) {
                     promise.completeExceptionally(t);
@@ -196,11 +173,11 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     public static ReadHandle open(ScheduledExecutorService executor, String dataFilePath,
-                                  String indexFilePath, FileSystem fileSystem, long ledgerId) throws IOException {
+                                  String indexFilePath, FileSystem fileSystem, long ledgerId, int readBufferSize) throws IOException {
             OffloadIndexFile offloadIndexFile =
                     OffloadIndexFileImpl.getRecycler().get()
                             .initIndexFile(fileSystem.open(new Path(indexFilePath)));
             return new FileStoreBackedReadHandleImpl(executor, ledgerId,
-                    offloadIndexFile, fileSystem.open(new Path(dataFilePath)));
+                    offloadIndexFile, fileSystem.open(new Path(dataFilePath)), readBufferSize);
     }
 }
