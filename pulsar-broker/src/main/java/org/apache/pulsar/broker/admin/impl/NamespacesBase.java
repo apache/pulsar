@@ -1416,6 +1416,9 @@ public abstract class NamespacesBase extends AdminResource {
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
+        if (quota.getLimit() < 0 && (retention.getRetentionSizeInMB() > 0 || retention.getRetentionTimeInMinutes() > 0)) {
+            return false;
+        }
         if (quota.getLimit() >= ((long) retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;
         }
