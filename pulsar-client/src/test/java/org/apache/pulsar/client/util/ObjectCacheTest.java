@@ -34,7 +34,7 @@ public class ObjectCacheTest {
     @Test
     public void testCache() {
 
-        AtomicLong currentTime = new AtomicLong(10);
+        AtomicLong currentTime = new AtomicLong(0);
 
         Clock clock = mock(Clock.class);
         when(clock.millis()).then(invocation -> currentTime);
@@ -47,18 +47,18 @@ public class ObjectCacheTest {
         assertEquals(cache.get().intValue(), 0);
         assertEquals(cache.get().intValue(), 0);
 
-        currentTime.set(11);
+        currentTime.set(1);
         // Still the value has not expired
         assertEquals(cache.get().intValue(), 0);
 
-        currentTime.set(20);
+        currentTime.set(10);
         assertEquals(cache.get().intValue(), 1);
 
 
-        currentTime.set(25);
+        currentTime.set(15);
         assertEquals(cache.get().intValue(), 1);
 
-        currentTime.set(32);
+        currentTime.set(22);
         assertEquals(cache.get().intValue(), 2);
     }
 }

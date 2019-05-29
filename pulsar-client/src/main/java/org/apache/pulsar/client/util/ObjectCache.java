@@ -44,7 +44,7 @@ public class ObjectCache<T> implements Supplier<T> {
 
     public synchronized T get() {
         long now = clock.millis();
-        if (cachedInstance == null || (lastRefreshTimestamp + cacheDurationMillis) > now) {
+        if (cachedInstance == null || (now - lastRefreshTimestamp) >= cacheDurationMillis) {
             cachedInstance = supplier.get();
             lastRefreshTimestamp = now;
         }
