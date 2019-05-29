@@ -201,7 +201,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
-    private boolean backlogQuotaCheckEnabled = false;
+    private boolean backlogQuotaCheckEnabled = true;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How often to check for topics that have reached the quota."
@@ -210,9 +210,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int backlogQuotaCheckIntervalInSeconds = 60;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default per-topic backlog quota limit. Increase it if you want to allow larger msg backlog"
+        doc = "Default per-topic backlog quota limit, less than 0 means no limitation. default is -1."
+                + " Increase it if you want to allow larger msg backlog"
     )
-    private long backlogQuotaDefaultLimitGB = 50;
+    private long backlogQuotaDefaultLimitGB = -1;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default backlog quota retention policy. Default is producer_request_hold\n\n"
