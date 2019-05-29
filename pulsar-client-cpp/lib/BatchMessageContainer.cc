@@ -113,9 +113,13 @@ void BatchMessageContainer::sendMessage(FlushCallback flushCallback) {
         }
     } else {
         LOG_DEBUG("Connection not ready for batch message container.")
-        batchMessageCallBack(ResultNotConnected, messagesContainerListPtr_, nullptr);
-        clear();
-        return;
+        if (impl_->payload.readableBytes() > Commands::DefaultMaxMessageSize) {
+            // At this point the compressed batch is above the overall MaxMessageSize. There
+            // can only 1 single message in the batch at this point.
+            batchMessageCallBack(ResultMessageTooBig, messagesContainerListPtr_, nullptr);
+            clear();
+            return;
+        }
     }
 
     Message msg;
