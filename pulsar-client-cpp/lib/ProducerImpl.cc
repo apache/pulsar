@@ -155,6 +155,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         LOG_INFO(getName() << "Created producer on broker " << cnx->cnxString());
 
         Lock lock(mutex_);
+        keepMaxMessageSize_ = cnx->getMaxMessageSize();
         cnx->registerProducer(producerId_, shared_from_this());
         producerName_ = responseData.producerName;
         schemaVersion_ = responseData.schemaVersion;
