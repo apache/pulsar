@@ -333,15 +333,15 @@ $ bin/pulsar-daemon start bookie
 <span class="hljs-section">### 启用 Pulsar Functions（可选）</span>
 
 If you want to enable [<span class="hljs-string">Pulsar Functions</span>](<span class="hljs-link">/docs/zh-CN/2.2.1/functions-overview</span>), you can follow the instructions as below:
-
-<span class="hljs-bullet">1. </span>编辑 <span class="hljs-code">`conf/broker.conf`</span> 以启用 function worker，方法是将<span class="hljs-code">`functionsWorkerEnabled`</span>设置为<span class="hljs-code">` true `</span>。
+<span class="hljs-bullet">
+1. </span>编辑 <span class="hljs-code">`conf/broker.conf`</span> 以启用 function worker，方法是将<span class="hljs-code">`functionsWorkerEnabled`</span>设置为<span class="hljs-code">` true `</span>。
   
 <span class="hljs-code">      ```conf</span>
 <span class="hljs-code">      functionsWorkerEnabled=true</span>
 <span class="hljs-code">      ```</span>
-<span class="hljs-code">      </span>
+<span class="hljs-bullet">      
 
-<span class="hljs-bullet">2. </span>编辑<span class="hljs-code">`conf/functions_worker.yml`</span>并将<span class="hljs-code">`pulsarFunctionsCluster`</span>设置为[<span class="hljs-string">初始化集群元数据</span>](<span class="hljs-link">#initializing-cluster-metadata</span>)时提供的集群名称。
+2. </span>编辑<span class="hljs-code">`conf/functions_worker.yml`</span>并将<span class="hljs-code">`pulsarFunctionsCluster`</span>设置为[<span class="hljs-string">初始化集群元数据</span>](<span class="hljs-link">#initializing-cluster-metadata</span>)时提供的集群名称。
   
 <span class="hljs-code">      ```conf</span>
 <span class="hljs-code">      pulsarFunctionsCluster: pulsar-cluster-1</span>

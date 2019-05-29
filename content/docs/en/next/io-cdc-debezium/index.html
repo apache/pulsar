@@ -122,7 +122,7 @@
 <ul>
 <li>Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path <code>connectors/pulsar-io-debezium-mysql-2.3.1.nar</code>.</li>
 </ul>
-<pre><code class="hljs css language-$bash"> bin/pulsar-admin <span class="hljs-keyword">source</span> localrun  --sourceConfigFile debezium-mysql-<span class="hljs-keyword">source</span>-config.yaml
+<pre><code class="hljs css language-$bash"> <span class="hljs-keyword">bin/pulsar-admin </span>sources localrun  --sourceConfigFile debezium-mysql-source-<span class="hljs-built_in">config</span>.yaml
 </code></pre>
 <ul>
 <li>Subscribe the topic for table <code>inventory.products</code>.</li>

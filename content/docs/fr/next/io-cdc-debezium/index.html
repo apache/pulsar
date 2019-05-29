@@ -95,7 +95,7 @@ Here is a simple example to store MySQL change data using above example config.
      bin/pulsar standalone
     
 
-- Start pulsar debezium connector, with <span class="hljs-keyword">local</span> <span class="hljs-keyword">run</span> mode, and using above yaml config <span class="hljs-keyword">file</span>. Please make sure that the nar <span class="hljs-keyword">file</span> is available <span class="hljs-keyword">as</span> configured <span class="hljs-keyword">in</span> path `connectors/pulsar-io-debezium-mysql-{{pulsar:<span class="hljs-keyword">version</span>}}.nar`. ```<span class="hljs-variable">$bash</span> bin/pulsar-admin source localrun --sourceConfigFile debezium-mysql-source-config.yaml
+- Start pulsar debezium connector, with <span class="hljs-keyword">local</span> <span class="hljs-keyword">run</span> mode, and using above yaml config <span class="hljs-keyword">file</span>. Please make sure that the nar <span class="hljs-keyword">file</span> is available <span class="hljs-keyword">as</span> configured <span class="hljs-keyword">in</span> path `connectors/pulsar-io-debezium-mysql-{{pulsar:<span class="hljs-keyword">version</span>}}.nar`. ```<span class="hljs-variable">$bash</span> bin/pulsar-admin sources localrun --sourceConfigFile debezium-mysql-source-config.yaml
 
     &lt;<span class="hljs-keyword">br</span> /&gt;- Subscribe the topic <span class="hljs-keyword">for</span> <span class="hljs-keyword">table</span> `inventory.products`.
     

@@ -3940,12 +3940,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "403" : {
@@ -5417,12 +5411,6 @@
           "in" : "path",
           "required" : true,
           "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
         } ],
         "responses" : {
           "403" : {
@@ -7233,11 +7221,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -7251,6 +7241,9 @@
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
+        "loadReportType" : {
+          "type" : "string"
+        },
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -7258,16 +7251,11 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
+        "underLoaded" : {
+          "type" : "boolean"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "loadReportType" : {
-          "type" : "string"
+        "overLoaded" : {
+          "type" : "boolean"
         }
       }
     },
@@ -8218,15 +8206,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
+        },
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -8261,11 +8249,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

@@ -122,7 +122,7 @@ client.<span class="hljs-keyword">close</span>()
     docker cp pulsar-client.py pulsar-standalone:/pulsar/
     
 
-- Download canal connector and start canal connector ```<span class="hljs-variable">$bash</span> docker exec -it pulsar-standalone /bin/bash wget http:<span class="hljs-comment">//apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors ./bin/pulsar-admin source localrun --archive ./connectors/pulsar-io-canal-2.3.0.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1</span>
+- Download canal connector and start canal connector ```<span class="hljs-variable">$bash</span> docker exec -it pulsar-standalone /bin/bash wget http:<span class="hljs-comment">//apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors ./bin/pulsar-admin sources localrun --archive ./connectors/pulsar-io-canal-2.3.0.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1</span>
 
     &lt;<span class="hljs-keyword">br</span> /&gt;- Consumption data 
     

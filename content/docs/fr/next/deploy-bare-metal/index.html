@@ -330,15 +330,15 @@ $ bin/pulsar-daemon start bookie
 <span class="hljs-section">### Enabling Pulsar Functions (optional)</span>
 
 If you want to enable [<span class="hljs-string">Pulsar Functions</span>](<span class="hljs-link">/docs/fr/next/functions-overview</span>), you can follow the instructions as below:
-
-<span class="hljs-bullet">1. </span>Edit <span class="hljs-code">`conf/broker.conf`</span> to enable functions worker, by setting <span class="hljs-code">`functionsWorkerEnabled`</span> to <span class="hljs-code">`true`</span>.
+<span class="hljs-bullet">
+1. </span>Edit <span class="hljs-code">`conf/broker.conf`</span> to enable functions worker, by setting <span class="hljs-code">`functionsWorkerEnabled`</span> to <span class="hljs-code">`true`</span>.
   
 <span class="hljs-code">      ```conf</span>
 <span class="hljs-code">      functionsWorkerEnabled=true</span>
 <span class="hljs-code">      ```</span>
-<span class="hljs-code">      </span>
+<span class="hljs-bullet">      
 
-<span class="hljs-bullet">2. </span>Edit <span class="hljs-code">`conf/functions_worker.yml`</span> and set <span class="hljs-code">`pulsarFunctionsCluster`</span> to the cluster name that you provided when [<span class="hljs-string">initializing the cluster's metadata</span>](<span class="hljs-link">#initializing-cluster-metadata</span>).
+2. </span>Edit <span class="hljs-code">`conf/functions_worker.yml`</span> and set <span class="hljs-code">`pulsarFunctionsCluster`</span> to the cluster name that you provided when [<span class="hljs-string">initializing the cluster's metadata</span>](<span class="hljs-link">#initializing-cluster-metadata</span>).
   
 <span class="hljs-code">      ```conf</span>
 <span class="hljs-code">      pulsarFunctionsCluster: pulsar-cluster-1</span>
