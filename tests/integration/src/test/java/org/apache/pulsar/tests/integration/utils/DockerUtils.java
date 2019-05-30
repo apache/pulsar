@@ -183,7 +183,14 @@ public class DockerUtils {
                                                  String containerId,
                                                  String... cmd) throws ContainerExecException, ExecutionException, InterruptedException {
 
-        return runCommandAsync(docker, containerId, cmd).get();
+        try {
+            return runCommandAsync(docker, containerId, cmd).get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof ContainerExecException) {
+                throw (ContainerExecException) e.getCause();
+            }
+            throw e;
+        }
     }
 
     public static CompletableFuture<ContainerExecResult> runCommandAsync(DockerClient docker,
@@ -247,6 +254,8 @@ public class DockerUtils {
                     LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
 
                     if (retCode != 0) {
+                        LOG.error("DOCKER.exec({}:{}): completed with non zero return code: {}\nstdout: {}\nstderr: {}",
+                                containerId, cmdString, result.getExitCode(), result.getStdout(), result.getStderr());
                         future.completeExceptionally(new ContainerExecException(cmdString, containerId, result));
                     } else {
                         future.complete(result);
