@@ -238,6 +238,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
+            return Sets.newConcurrentHashSet();
+        }
+
+        @Override
         public List<Entry> readEntriesOrWait(int numberOfEntriesToRead)
                 throws InterruptedException, ManagedLedgerException {
             return null;
