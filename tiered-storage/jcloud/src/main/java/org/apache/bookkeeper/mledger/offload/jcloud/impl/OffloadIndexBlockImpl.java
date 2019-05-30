@@ -25,7 +25,6 @@ import com.google.protobuf.ByteString;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
@@ -42,11 +41,12 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
-import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
-import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,7 +183,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             + segmentMetadataLength
             + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
 
-        ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
+        ByteBuf out = PulsarByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
 
         out.writeInt(INDEX_MAGIC_WORD)
             .writeInt(indexBlockLength)

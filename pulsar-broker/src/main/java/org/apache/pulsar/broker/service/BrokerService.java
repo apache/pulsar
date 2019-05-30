@@ -31,7 +31,6 @@ import com.google.common.collect.Queues;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -42,7 +41,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -80,6 +78,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -88,20 +88,19 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -189,6 +188,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
+    private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
+
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
@@ -271,6 +272,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
             }
         };
+
+        this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
+                .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
     }
 
     public void start() throws Exception {
@@ -278,7 +282,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 pulsar.getConfiguration().getClusterName());
 
         ServerBootstrap bootstrap = new ServerBootstrap();
-        bootstrap.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+        bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
@@ -413,6 +417,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         ClientCnxnAspect.removeListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(null);
         topicOrderedExecutor.shutdown();
+        delayedDeliveryTrackerFactory.close();
         log.info("Broker service completely shut down");
     }
 
@@ -918,6 +923,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public boolean isBacklogExceeded(PersistentTopic topic) {
         TopicName topicName = TopicName.get(topic.getName());
         long backlogQuotaLimitInBytes = getBacklogQuotaManager().getBacklogQuotaLimit(topicName.getNamespace());
+        if (backlogQuotaLimitInBytes < 0) {
+            return false;
+        }
         if (log.isDebugEnabled()) {
             log.debug("[{}] - backlog quota limit = [{}]", topic.getName(), backlogQuotaLimitInBytes);
         }
@@ -1395,6 +1403,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         });
 
+    }
+
+    public DelayedDeliveryTrackerFactory getDelayedDeliveryTrackerFactory() {
+        return delayedDeliveryTrackerFactory;
     }
 
     public static List<String> getDynamicConfiguration() {

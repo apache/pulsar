@@ -22,6 +22,16 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.RateLimiter;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
@@ -50,19 +60,10 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PerformanceProducer {
 
@@ -159,6 +160,9 @@ public class PerformanceProducer {
                 "--encryption-key-value-file" }, description = "The file which contains the public key to encrypt payload")
         public String encKeyFile = null;
 
+        @Parameter(names = { "-d",
+                "--delay" }, description = "Mark messages with a given delay in seconds")
+        public long delay = 0;
     }
 
     public static void main(String[] args) throws Exception {
@@ -355,7 +359,12 @@ public class PerformanceProducer {
 
                         final long sendTime = System.nanoTime();
 
-                        producer.sendAsync(payloadData).thenRun(() -> {
+                        TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage()
+                                .value(payloadData);
+                        if (arguments.delay >0) {
+                            messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                        }
+                        messageBuilder.sendAsync().thenRun(() -> {
                             messagesSent.increment();
                             bytesSent.add(payloadData.length);
 
