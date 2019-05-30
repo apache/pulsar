@@ -19,7 +19,9 @@
 package org.apache.pulsar.common.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
+import static org.testng.Assert.assertEquals;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -175,6 +177,9 @@ public final class FieldParser {
             } // convert to set
             else if (field.getType().equals(Set.class)) {
                 return stringToSet(strValue, clazz);
+            } else if (field.getType().equals(Map.class)) {
+                Class<?> valueClass = (Class<?>) ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[1];
+                return stringToMap(strValue, clazz, valueClass);
             } else if (field.getType().equals(Optional.class)) {
                 Type typeClazz = ((ParameterizedType) fieldType).getActualTypeArguments()[0];
                 if (typeClazz instanceof ParameterizedType) {
@@ -333,6 +338,18 @@ public final class FieldParser {
         }).collect(Collectors.toSet());
     }
 
+    private static <K, V> Map<K, V> stringToMap(String strValue, Class<K> keyType, Class<V> valueType) {
+        String[] tokens = trim(strValue).split(",");
+        Map<K, V> map = new HashMap<>();
+        for (String token : tokens) {
+            String[] keyValue = trim(token).split("=");
+            checkArgument(keyValue.length == 2,
+                    strValue + " map-value is not in correct format key1=value,key2=value2");
+            map.put(convert(keyValue[0], keyType), convert(keyValue[1], valueType));
+        }
+        return map;
+    }
+    
     private static String trim(String val) {
         checkNotNull(val);
         return val.trim();
