@@ -1312,7 +1312,7 @@ public class ServerCnx extends PulsarHandler {
 
             ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
         } catch (Exception e) {
-            log.warn("[{]] Error GetTopicsOfNamespace for namespace [//{}] by {}",
+            log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
                 remoteAddress, namespace, requestId);
             ctx.writeAndFlush(
                 Commands.newError(requestId,
