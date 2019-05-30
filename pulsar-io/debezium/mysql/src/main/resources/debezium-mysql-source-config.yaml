@@ -27,7 +27,6 @@ parallelism: 1
 
 configs:
   ## config for mysql, docker image: debezium/example-mysql:0.8
-  task.class: "io.debezium.connector.mysql.MySqlConnectorTask"
   database.hostname: "localhost"
   database.port: "3306"
   database.user: "debezium"
