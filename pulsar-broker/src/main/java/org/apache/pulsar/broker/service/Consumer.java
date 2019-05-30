@@ -350,7 +350,7 @@ public class Consumer {
                 PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 positionsAcked.add(position);
 
-                if (subType == SubType.Shared) {
+                if (subType == SubType.Shared || subType == SubType.Key_Shared) {
                     removePendingAcks(position);
                 }
 
