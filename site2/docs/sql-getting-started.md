@@ -1,7 +1,7 @@
 ---
 id: sql-getting-started
-title: Pulsar SQL Getting Started
-sidebar_label: Getting Started
+title: Pulsar SQL Get Started
+sidebar_label: Get Started
 ---
 
 It is super easy to get started on querying data in Pulsar.  
@@ -72,7 +72,7 @@ Splits: 19 total, 19 done (100.00%)
 Currently, there is no data in Pulsar that we can query.  Lets start the built-in connector _DataGeneratorSource_ to ingest some mock data for us to query:
 
 ```bash
-./bin/pulsar-admin source create --name generator --destinationTopicName generator_test --source-type data-generator
+./bin/pulsar-admin sources create --name generator --destinationTopicName generator_test --source-type data-generator
 ```
 
 Afterwards, the will be a topic with can query in the namespace "public/default":

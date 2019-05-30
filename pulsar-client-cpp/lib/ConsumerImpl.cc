@@ -719,6 +719,9 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
 
         case ConsumerFailover:
             return proto::CommandSubscribe::Failover;
+
+        case ConsumerKeyShared:
+            return proto::CommandSubscribe_SubType_Key_Shared;
     }
 }
 

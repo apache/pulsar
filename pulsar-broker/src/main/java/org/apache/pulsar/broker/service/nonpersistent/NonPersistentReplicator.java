@@ -250,4 +250,10 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     protected void disableReplicatorRead() {
         // No-op
     }
+
+    @Override
+    public boolean isConnected() {
+        ProducerImpl<?> producer = this.producer;
+        return producer != null && producer.isConnected();
+    }
 }
