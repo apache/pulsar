@@ -334,7 +334,7 @@ public class Consumer {
                 return;
             }
 
-            if (subType == SubType.Shared) {
+            if (subType == SubType.Shared || subType == SubType.Key_Shared) {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
                 return;
             }
@@ -424,7 +424,7 @@ public class Consumer {
      * @return
      */
     private boolean shouldBlockConsumerOnUnackMsgs() {
-        return SubType.Shared.equals(subType) && maxUnackedMessages > 0;
+        return (SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType)) && maxUnackedMessages > 0;
     }
 
     public void updateRates() {
