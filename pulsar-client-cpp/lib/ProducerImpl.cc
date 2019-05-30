@@ -353,16 +353,10 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         }
         payload = encryptedPayload;
 
-        if (cnx) {
-            if (payloadSize > cnx->getMaxMessageSize()) {
-                LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
-                                    << cnx->getMaxMessageSize() << " bytes");
-                cb(ResultMessageTooBig, msg);
-                return;
-            }
-        } else {
-            LOG_ERROR("Connection not ready for producer.")
-            cb(ResultUnknownError, msg);
+        if (payloadSize > keepMaxMessageSize_) {
+            LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
+                                << keepMaxMessageSize_ << " bytes");
+            cb(ResultMessageTooBig, msg);
             return;
         }
     }
