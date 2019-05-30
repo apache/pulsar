@@ -1185,11 +1185,19 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "producerName" : {
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
           "type" : "string"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "producerName" : {
+          "type" : "string"
         },
         "sequenceId" : {
           "type" : "integer",
@@ -1216,23 +1224,15 @@
             "format" : "byte"
           }
         },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
-        },
         "keyBytes" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
         },
         "data" : {
           "type" : "array",
