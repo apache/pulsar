@@ -28,6 +28,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
@@ -154,6 +155,10 @@ public class PulsarAdmin implements Closeable {
 
         if (auth != null) {
             auth.start();
+        }
+        
+        if (StringUtils.isBlank(clientConfigData.getServiceUrl())) {
+            clientConfigData.setServiceUrl(serviceUrl);
         }
 
         AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData);
