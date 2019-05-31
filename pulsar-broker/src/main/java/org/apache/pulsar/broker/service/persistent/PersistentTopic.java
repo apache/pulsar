@@ -1395,7 +1395,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 topicStatsStream.writePair("numberOfEntriesSinceFirstNotAckedMessage", subscription.getNumberOfEntriesSinceFirstNotAckedMessage());
                 topicStatsStream.writePair("totalNonContiguousDeletedMessagesRange", subscription.getTotalNonContiguousDeletedMessagesRange());
                 topicStatsStream.writePair("type", subscription.getTypeString());
-                if (SubType.Shared.equals(subscription.getType()) || SubType.Key_Shared.equals(subscription.getType())) {
+                if (Subscription.isIndividualAckMode(subscription.getType())) {
                     if(subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
                         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers)subscription.getDispatcher();
                         topicStatsStream.writePair("blockedSubscriptionOnUnackedMsgs",  dispatcher.isBlockedDispatcherOnUnackedMsgs());
