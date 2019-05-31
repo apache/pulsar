@@ -94,4 +94,13 @@ public interface Subscription {
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
     }
+
+    // Subscription utils
+    static boolean isCumulativeAckMode(SubType subType) {
+        return SubType.Exclusive.equals(subType) || SubType.Failover.equals(subType);
+    }
+
+    static boolean isIndividualAckMode(SubType subType) {
+        return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
+    }
 }

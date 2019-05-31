@@ -138,7 +138,7 @@ public class Consumer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
 
-        if (subType == SubType.Shared || subType == SubType.Key_Shared) {
+        if (Subscription.isIndividualAckMode(subType)) {
             this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
@@ -334,7 +334,7 @@ public class Consumer {
                 return;
             }
 
-            if (subType == SubType.Shared) {
+            if (Subscription.isIndividualAckMode(subType)) {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
                 return;
             }
@@ -350,7 +350,7 @@ public class Consumer {
                 PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 positionsAcked.add(position);
 
-                if (subType == SubType.Shared) {
+                if (Subscription.isIndividualAckMode(subType)) {
                     removePendingAcks(position);
                 }
 
@@ -424,7 +424,7 @@ public class Consumer {
      * @return
      */
     private boolean shouldBlockConsumerOnUnackMsgs() {
-        return SubType.Shared.equals(subType) && maxUnackedMessages > 0;
+        return Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
     }
 
     public void updateRates() {

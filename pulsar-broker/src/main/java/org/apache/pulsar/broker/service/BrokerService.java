@@ -1003,9 +1003,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void removeTopicFromCache(String topic) {
+        TopicName topicName = null;
+        NamespaceBundle namespaceBundle = null;
         try {
-            TopicName topicName = TopicName.get(topic);
-            NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
+            topicName = TopicName.get(topic);
+            namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
             checkArgument(namespaceBundle instanceof NamespaceBundle);
 
             String bundleName = namespaceBundle.toString();
@@ -1030,7 +1032,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 }
             }
         } catch (Exception e) {
-            log.warn("Got exception when retrieving bundle name during removeTopicFromCache", e);
+            log.warn("Got exception when retrieving bundle name {} for topic {} during removeTopicFromCache", topicName,
+                    namespaceBundle, e);
         }
 
         topics.remove(topic);

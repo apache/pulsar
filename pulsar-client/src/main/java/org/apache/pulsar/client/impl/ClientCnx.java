@@ -132,9 +132,10 @@ public class ClientCnx extends PulsarHandler {
     // Remote hostName with which client is connected
     protected String remoteHostName = null;
     private boolean isTlsHostnameVerificationEnable;
-    private DefaultHostnameVerifier hostnameVerifier;
 
-    private final ScheduledFuture<?> timeoutTask;
+    private static final DefaultHostnameVerifier HOSTNAME_VERIFIER = new DefaultHostnameVerifier();
+
+    private ScheduledFuture<?> timeoutTask;
 
     // Added for mutual authentication.
     protected AuthenticationDataProvider authenticationDataProvider;
@@ -170,15 +171,15 @@ public class ClientCnx extends PulsarHandler {
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
         this.isTlsHostnameVerificationEnable = conf.isTlsHostnameVerificationEnable();
-        this.hostnameVerifier = new DefaultHostnameVerifier();
         this.protocolVersion = protocolVersion;
-        this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
-                operationTimeoutMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
+        this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
+                operationTimeoutMs, TimeUnit.MILLISECONDS);
+
         if (proxyToTargetBrokerAddress == null) {
             if (log.isDebugEnabled()) {
                 log.debug("{} Connected to broker", ctx.channel());
@@ -846,7 +847,7 @@ public class ClientCnx extends PulsarHandler {
                 log.debug("Verifying HostName for {}, Cipher {}, Protocols {}", hostname, sslSession.getCipherSuite(),
                         sslSession.getProtocol());
             }
-            return hostnameVerifier.verify(hostname, sslSession);
+            return HOSTNAME_VERIFIER.verify(hostname, sslSession);
         }
         return false;
     }
