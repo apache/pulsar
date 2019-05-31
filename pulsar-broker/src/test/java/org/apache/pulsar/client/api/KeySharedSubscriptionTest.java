@@ -198,17 +198,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         receiveAndCheck(checkList);
 
+        // wait for consumer grouping acking send.
+        Thread.sleep(1000);
+
         consumer1.close();
         consumer2.close();
-
-        // avoid message replay
-        Message<Integer> message;
-        do {
-            message = consumer3.receive(1000, TimeUnit.MILLISECONDS);
-            if (message != null) {
-                consumer3.acknowledge(message);
-            }
-        } while (message != null);
 
         for (int i = 0; i < 10; i++) {
             for (String key : keys) {
