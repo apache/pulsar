@@ -30,6 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
@@ -1027,6 +1028,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public Set<? extends Position> asyncReplayEntries(final Set<? extends Position> positions,
             ReadEntriesCallback callback, Object ctx) {
+        return asyncReplayEntries(positions, callback, ctx, false);
+    }
+
+    @Override
+    public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions,
+            ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
         List<Entry> entries = Lists.newArrayListWithExpectedSize(positions.size());
         if (positions.isEmpty()) {
             callback.readEntriesComplete(entries, ctx);
@@ -1062,6 +1069,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                 } else {
                     entries.add(entry);
                     if (--pendingCallbacks == 0) {
+                        if (sortEntries) {
+                            entries.sort((e1, e2) -> ComparisonChain.start()
+                                    .compare(e1.getLedgerId(), e2.getLedgerId())
+                                    .compare(e1.getEntryId(), e2.getEntryId()).result());
+                        }
                         callback.readEntriesComplete(entries, ctx);
                     }
                 }

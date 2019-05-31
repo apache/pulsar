@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  */
-public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
+public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers implements Dispatcher, ReadEntriesCallback {
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
@@ -303,8 +303,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 }
 
                 havePendingReplayRead = true;
-                Set<? extends Position> deletedMessages = cursor.asyncReplayEntries(messagesToReplayNow, this,
-                        ReadType.Replay);
+                Set<? extends Position> deletedMessages = asyncReplayEntries(messagesToReplayNow);
                 // clear already acked positions from replay bucket
 
                 deletedMessages.forEach(position -> messagesToRedeliver.remove(((PositionImpl) position).getLedgerId(),
@@ -333,6 +332,10 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                 log.debug("[{}] Consumer buffer is full, pause reading", name);
             }
         }
+    }
+
+    protected Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions) {
+        return cursor.asyncReplayEntries(positions, this, ReadType.Replay);
     }
 
 

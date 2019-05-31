@@ -390,6 +390,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             int redeliveryCount = check.getValue() / 2;
             log.info("[{}] Consumer wait for {} messages redelivery ...", redeliveryCount);
             // messages not acked, test redelivery
+            lastMessageForKey = new HashMap<>();
             for (int i = 0; i < redeliveryCount; i++) {
                 Message<Integer> message = check.getKey().receive();
                 received++;
@@ -397,6 +398,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 String key = message.hasOrderingKey() ? new String(message.getOrderingKey()) : message.getKey();
                 log.info("[{}] Receive redeliver message key: {} value: {} messageId: {}",
                         check.getKey().getConsumerName(), key, message.getValue(), message.getMessageId());
+                // check redelivery messages is order by key
+                if (lastMessageForKey.get(key) == null) {
+                    Assert.assertNotNull(message);
+                } else {
+                    Assert.assertTrue(message.getValue()
+                            .compareTo(lastMessageForKey.get(key).getValue()) > 0);
+                }
+                lastMessageForKey.put(key, message);
             }
             Message noMessages = null;
             try {
