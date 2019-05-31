@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.gson.Gson;
@@ -31,6 +32,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Builder;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -38,9 +41,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.*;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -50,14 +55,48 @@ import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
 import static org.apache.pulsar.functions.utils.FunctionCommon.*;
 
 @Slf4j
+@Builder
 public class LocalRunner {
 
-    @Parameter(names = "--functionConfig", description = "The json representation of FunctionConfig", hidden = true)
-    protected String functionConfigString;
-    @Parameter(names = "--sourceConfig", description = "The json representation of SourceConfig", hidden = true)
-    protected String sourceConfigString;
-    @Parameter(names = "--sinkConfig", description = "The json representation of SinkConfig", hidden = true)
-    protected String sinkConfigString;
+    public static class FunctionConfigConverter implements IStringConverter<FunctionConfig> {
+        @Override
+        public FunctionConfig convert(String value) {
+            try {
+                return ObjectMapperFactory.getThreadLocal().readValue(value, FunctionConfig.class);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to parse function config:", e);
+            }
+        }
+    }
+
+    public static class SourceConfigConverter implements IStringConverter<SourceConfig> {
+        @Override
+        public SourceConfig convert(String value) {
+            try {
+                return ObjectMapperFactory.getThreadLocal().readValue(value, SourceConfig.class);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to parse source config:", e);
+            }
+        }
+    }
+
+    public static class SinkConfigConverter implements IStringConverter<SinkConfig> {
+        @Override
+        public SinkConfig convert(String value) {
+            try {
+                return ObjectMapperFactory.getThreadLocal().readValue(value, SinkConfig.class);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to parse sink config:", e);
+            }
+        }
+    }
+
+    @Parameter(names = "--functionConfig", description = "The json representation of FunctionConfig", hidden = true, converter = FunctionConfigConverter.class)
+    protected FunctionConfig functionConfig;
+    @Parameter(names = "--sourceConfig", description = "The json representation of SourceConfig", hidden = true, converter = SourceConfigConverter.class)
+    protected SourceConfig sourceConfig;
+    @Parameter(names = "--sinkConfig", description = "The json representation of SinkConfig", hidden = true, converter = SinkConfigConverter.class)
+    protected SinkConfig sinkConfig;
     @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)", hidden = true)
     protected String stateStorageServiceUrl;
     @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
@@ -75,11 +114,11 @@ public class LocalRunner {
     @Parameter(names = "--tlsTrustCertFilePath", description = "tls trust cert file path", hidden = true)
     protected String tlsTrustCertFilePath;
     @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset", hidden = true)
-    protected Integer instanceIdOffset = 0;
+    protected int instanceIdOffset = 0;
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
 
     public static void main(String[] args) throws Exception {
-        LocalRunner localRunner = new LocalRunner();
+        LocalRunner localRunner = LocalRunner.builder().build();
         JCommander jcommander = new JCommander(localRunner);
         jcommander.setProgramName("LocalRunner");
 
@@ -88,25 +127,26 @@ public class LocalRunner {
         localRunner.start();
     }
 
-    void start() throws Exception {
+    public void start() throws Exception {
         Function.FunctionDetails functionDetails;
         String userCodeFile;
         int parallelism;
-        if (!StringUtils.isEmpty(functionConfigString)) {
-            FunctionConfig functionConfig = new Gson().fromJson(functionConfigString, FunctionConfig.class);
+        if (functionConfig != null) {
             FunctionConfigUtils.inferMissingArguments(functionConfig);
-            ClassLoader classLoader = null;
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             parallelism = functionConfig.getParallelism();
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                 userCodeFile = functionConfig.getJar();
-                if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
-                    classLoader = extractClassLoader(userCodeFile);
-                } else {
-                    File file = new File(userCodeFile);
-                    if (!file.exists()) {
-                        throw new RuntimeException("User jar does not exist");
+                if (userCodeFile != null) {
+                    if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                        classLoader = extractClassLoader(userCodeFile);
+                    } else {
+                        File file = new File(userCodeFile);
+                        if (!file.exists()) {
+                            throw new RuntimeException("User jar does not exist");
+                        }
+                        classLoader = loadJar(file);
                     }
-                    classLoader = loadJar(file);
                 }
             } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
                 userCodeFile = functionConfig.getGo();
@@ -116,8 +156,7 @@ public class LocalRunner {
                 throw new UnsupportedOperationException();
             }
             functionDetails = FunctionConfigUtils.convert(functionConfig, classLoader);
-        } else if (!StringUtils.isEmpty(sourceConfigString)) {
-            SourceConfig sourceConfig = new Gson().fromJson(sourceConfigString, SourceConfig.class);
+        } else if (sourceConfig != null) {
             inferMissingArguments(sourceConfig);
             String builtInSource = isBuiltInSource(sourceConfig.getArchive());
             if (builtInSource != null) {
@@ -135,8 +174,7 @@ public class LocalRunner {
                 }
                 functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file));
             }
-        } else {
-            SinkConfig sinkConfig = new Gson().fromJson(sinkConfigString, SinkConfig.class);
+        } else if (sinkConfig != null) {
             inferMissingArguments(sinkConfig);
             String builtInSink = isBuiltInSource(sinkConfig.getArchive());
             if (builtInSink != null) {
@@ -154,6 +192,8 @@ public class LocalRunner {
                 }
                 functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file));
             }
+        } else {
+            throw new IllegalArgumentException("Must specify Function, Source or Sink config");
         }
         startLocalRun(functionDetails, parallelism,
                 instanceIdOffset, brokerServiceUrl, stateStorageServiceUrl,
@@ -175,75 +215,104 @@ public class LocalRunner {
             serviceUrl = brokerServiceUrl;
         }
 
-        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
+
+        ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                 serviceUrl,
                 stateStorageServiceUrl,
                 authConfig,
-                null, /* java instance jar file */
-                null, /* python instance file */
-                null, /* log directory */
-                null, /* extra dependencies dir */
-                new DefaultSecretsProviderConfigurator(), false)) {
-            List<RuntimeSpawner> spawners = new LinkedList<>();
-            for (int i = 0; i < parallelism; ++i) {
-                InstanceConfig instanceConfig = new InstanceConfig();
-                instanceConfig.setFunctionDetails(functionDetails);
-                // TODO: correctly implement function version and id
-                instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-                instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(i + instanceIdOffset);
-                instanceConfig.setMaxBufferedTuples(1024);
-                instanceConfig.setPort(FunctionCommon.findAvailablePort());
-                instanceConfig.setClusterName("local");
-                RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
-                        instanceConfig,
-                        userCodeFile,
-                        null,
-                        containerFactory,
-                        30000);
-                spawners.add(runtimeSpawner);
-                runtimeSpawner.start();
-            }
-            java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
-                public void run() {
-                    log.info("Shutting down the localrun runtimeSpawner ...");
-                    for (RuntimeSpawner spawner : spawners) {
-                        spawner.close();
-                    }
-                }
-            });
-            Timer statusCheckTimer = new Timer();
-            statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
-                    int index = 0;
-                    for (RuntimeSpawner spawner : spawners) {
-                        futures[index] = spawner.getFunctionStatusAsJson(index);
-                        index++;
-                    }
-                    try {
-                        CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
-                        for (index = 0; index < futures.length; ++index) {
-                            String json = futures[index].get();
-                            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                            log.info(gson.toJson(new JsonParser().parse(json)));
-                        }
-                    } catch (Exception ex) {
-                        log.error("Could not get status from all local instances");
-                    }
-                }
-            }, 30000, 30000);
-            java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
-                public void run() {
-                    statusCheckTimer.cancel();
-                }
-            });
-            for (RuntimeSpawner spawner : spawners) {
-                spawner.join();
-                log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
-            }
+                new ClearTextSecretsProvider(), null);
 
+
+        List<RuntimeSpawner> spawners = new LinkedList<>();
+        for (int i = 0; i < parallelism; ++i) {
+            InstanceConfig instanceConfig = new InstanceConfig();
+            instanceConfig.setFunctionDetails(functionDetails);
+            // TODO: correctly implement function version and id
+            instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+            instanceConfig.setFunctionId(UUID.randomUUID().toString());
+            instanceConfig.setInstanceId(i + instanceIdOffset);
+            instanceConfig.setMaxBufferedTuples(1024);
+            instanceConfig.setPort(FunctionCommon.findAvailablePort());
+            instanceConfig.setClusterName("local");
+            RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
+                    instanceConfig,
+                    userCodeFile,
+                    null,
+                    threadRuntimeFactory,
+                    30000);
+            spawners.add(runtimeSpawner);
+            runtimeSpawner.start();
+        }
+
+
+//        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
+//                serviceUrl,
+//                stateStorageServiceUrl,
+//                authConfig,
+//                null, /* java instance jar file */
+//                null, /* python instance file */
+//                null, /* log directory */
+//                null, /* extra dependencies dir */
+//                new DefaultSecretsProviderConfigurator(), false)) {
+//            List<RuntimeSpawner> spawners = new LinkedList<>();
+//            for (int i = 0; i < parallelism; ++i) {
+//                InstanceConfig instanceConfig = new InstanceConfig();
+//                instanceConfig.setFunctionDetails(functionDetails);
+//                // TODO: correctly implement function version and id
+//                instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+//                instanceConfig.setFunctionId(UUID.randomUUID().toString());
+//                instanceConfig.setInstanceId(i + instanceIdOffset);
+//                instanceConfig.setMaxBufferedTuples(1024);
+//                instanceConfig.setPort(FunctionCommon.findAvailablePort());
+//                instanceConfig.setClusterName("local");
+//                RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
+//                        instanceConfig,
+//                        userCodeFile,
+//                        null,
+//                        containerFactory,
+//                        30000);
+//                spawners.add(runtimeSpawner);
+//                runtimeSpawner.start();
+//            }
+//            java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
+//                public void run() {
+//                    log.info("Shutting down the localrun runtimeSpawner ...");
+//                    for (RuntimeSpawner spawner : spawners) {
+//                        spawner.close();
+//                    }
+//                }
+//            });
+//            Timer statusCheckTimer = new Timer();
+//            statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
+//                @Override
+//                public void run() {
+//                    CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
+//                    int index = 0;
+//                    for (RuntimeSpawner spawner : spawners) {
+//                        futures[index] = spawner.getFunctionStatusAsJson(index);
+//                        index++;
+//                    }
+//                    try {
+//                        CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
+//                        for (index = 0; index < futures.length; ++index) {
+//                            String json = futures[index].get();
+//                            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+//                            log.info(gson.toJson(new JsonParser().parse(json)));
+//                        }
+//                    } catch (Exception ex) {
+//                        log.error("Could not get status from all local instances");
+//                    }
+//                }
+//            }, 30000, 30000);
+//            java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
+//                public void run() {
+//                    statusCheckTimer.cancel();
+//                }
+//            });
+//        }
+        for (RuntimeSpawner spawner : spawners) {
+            spawner.join();
+            log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
         }
     }
 

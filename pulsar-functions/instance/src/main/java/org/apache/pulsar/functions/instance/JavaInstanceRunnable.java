@@ -181,7 +181,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
 
         // start the function thread
-        loadJars();
+        if (jarFile != null) {
+            loadJars();
+        }
 
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
         Object object = Reflections.createInstance(
