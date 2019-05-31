@@ -134,7 +134,7 @@ public class ClientCnx extends PulsarHandler {
     private boolean isTlsHostnameVerificationEnable;
     private DefaultHostnameVerifier hostnameVerifier;
 
-    private final ScheduledFuture<?> timeoutTask;
+    private ScheduledFuture<?> timeoutTask;
 
     // Added for mutual authentication.
     protected AuthenticationDataProvider authenticationDataProvider;
@@ -172,13 +172,14 @@ public class ClientCnx extends PulsarHandler {
         this.isTlsHostnameVerificationEnable = conf.isTlsHostnameVerificationEnable();
         this.hostnameVerifier = new DefaultHostnameVerifier();
         this.protocolVersion = protocolVersion;
-        this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
-                operationTimeoutMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
+        this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
+                operationTimeoutMs, TimeUnit.MILLISECONDS);
+
         if (proxyToTargetBrokerAddress == null) {
             if (log.isDebugEnabled()) {
                 log.debug("{} Connected to broker", ctx.channel());
