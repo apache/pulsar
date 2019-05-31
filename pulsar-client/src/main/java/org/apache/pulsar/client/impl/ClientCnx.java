@@ -132,7 +132,8 @@ public class ClientCnx extends PulsarHandler {
     // Remote hostName with which client is connected
     protected String remoteHostName = null;
     private boolean isTlsHostnameVerificationEnable;
-    private DefaultHostnameVerifier hostnameVerifier;
+
+    private static final DefaultHostnameVerifier HOSTNAME_VERIFIER = new DefaultHostnameVerifier();
 
     private ScheduledFuture<?> timeoutTask;
 
@@ -170,7 +171,6 @@ public class ClientCnx extends PulsarHandler {
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
         this.isTlsHostnameVerificationEnable = conf.isTlsHostnameVerificationEnable();
-        this.hostnameVerifier = new DefaultHostnameVerifier();
         this.protocolVersion = protocolVersion;
     }
 
@@ -847,7 +847,7 @@ public class ClientCnx extends PulsarHandler {
                 log.debug("Verifying HostName for {}, Cipher {}, Protocols {}", hostname, sslSession.getCipherSuite(),
                         sslSession.getProtocol());
             }
-            return hostnameVerifier.verify(hostname, sslSession);
+            return HOSTNAME_VERIFIER.verify(hostname, sslSession);
         }
         return false;
     }
