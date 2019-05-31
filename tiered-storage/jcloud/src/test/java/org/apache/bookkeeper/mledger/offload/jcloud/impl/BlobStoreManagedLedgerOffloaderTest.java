@@ -25,6 +25,9 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
 
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSSessionCredentials;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.File;
 import java.io.IOException;
@@ -52,11 +55,14 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlobStoreTestBase;
 import org.apache.bookkeeper.mledger.offload.jcloud.TieredStorageConfigurationData;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.options.CopyOptions;
+import org.jclouds.domain.Credentials;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -604,6 +610,45 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertEquals(e.getCause().getClass(), IOException.class);
             Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
         }
+    }
+
+    @Test
+    public void testSessionCredentialSupplier() throws Exception {
+        TieredStorageConfigurationData mock = mock(TieredStorageConfigurationData.class);
+        Mockito.when(mock.getAWSCredentialProvider()).thenReturn(new AWSCredentialsProvider() {
+            @Override
+            public AWSCredentials getCredentials() {
+                return new AWSSessionCredentials() {
+                    @Override
+                    public String getSessionToken() {
+                        return "token";
+                    }
+
+                    @Override
+                    public String getAWSAccessKeyId() {
+                        return "access";
+                    }
+
+                    @Override
+                    public String getAWSSecretKey() {
+                        return "secret";
+                    }
+                };
+            }
+
+            @Override
+            public void refresh() {
+
+            }
+        });
+
+        Supplier<Credentials> creds = BlobStoreManagedLedgerOffloader.getCredentials("aws-s3", mock);
+
+        Assert.assertTrue(creds.get() instanceof SessionCredentials);
+        SessionCredentials sessCreds = (SessionCredentials) creds.get();
+        Assert.assertEquals(sessCreds.getAccessKeyId(), "access");
+        Assert.assertEquals(sessCreds.getSecretAccessKey(), "secret");
+        Assert.assertEquals(sessCreds.getSessionToken(), "token");
     }
 }
 
