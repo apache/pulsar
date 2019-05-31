@@ -670,7 +670,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.activeConsumerName = activeConsumer.consumerName();
             }
         }
-        if (SubType.Shared.equals(subStats.type) || SubType.Key_Shared.equals(subStats.type)) {
+        if (Subscription.isIndividualAckMode(subStats.type)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;
                 subStats.unackedMessages = d.getTotalUnackedMessages();
