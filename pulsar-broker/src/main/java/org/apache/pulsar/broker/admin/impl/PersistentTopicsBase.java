@@ -777,7 +777,8 @@ public class PersistentTopicsBase extends AdminResource {
                 } else {
                     PersistentSubscription sub = topic.getSubscription(subName);
                     checkNotNull(sub);
-                    sub.clearBacklog().get();
+                    sub.clearBacklog().get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(),
+                            TimeUnit.SECONDS);
                 }
                 log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
             } catch (NullPointerException npe) {
