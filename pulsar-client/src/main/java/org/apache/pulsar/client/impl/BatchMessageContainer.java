@@ -18,20 +18,19 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.Lists;
+
+import io.netty.buffer.ByteBuf;
+
 import java.util.List;
 
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 
 /**
  * container for individual messages being published until they are batched and sent to broker
@@ -91,7 +90,7 @@ class BatchMessageContainer {
             // the first message
             sequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
             this.firstCallback = callback;
-            batchedMessageMetadataAndPayload = PooledByteBufAllocator.DEFAULT
+            batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
                     .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES));
         }
 

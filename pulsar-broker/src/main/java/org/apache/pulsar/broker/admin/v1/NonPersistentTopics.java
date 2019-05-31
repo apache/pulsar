@@ -115,7 +115,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 409, message = "Partitioned topic already exist") })
     public void createPartitionedTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            int numPartitions, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            int numPartitions) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminAccessForTenant(topicName.getTenant());
         if (numPartitions <= 1) {
