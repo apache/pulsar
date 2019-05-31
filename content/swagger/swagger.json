@@ -6895,10 +6895,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -7221,15 +7221,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -7249,11 +7240,20 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputOut" : {
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         }
@@ -7415,13 +7415,13 @@
           "type" : "number",
           "format" : "double"
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -8145,13 +8145,13 @@
             "type" : "string"
           }
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -8253,11 +8253,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
