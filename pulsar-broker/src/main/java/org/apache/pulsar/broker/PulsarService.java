@@ -691,6 +691,10 @@ public class PulsarService implements AutoCloseable {
         return managedLedgerClientFactory.getManagedLedgerFactory();
     }
 
+    public ManagedLedgerClientFactory getManagedLedgerClientFactory() {
+        return managedLedgerClientFactory;
+    }
+    
     public LedgerOffloader getManagedLedgerOffloader() {
         return offloader;
     }

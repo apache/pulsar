@@ -421,6 +421,35 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set the bookie-affinity group name")
+    private class SetBookieAffinityGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--group",
+                "-g" }, description = "Bookie-affinity group name where namespace messages should be written", required = true)
+        private String bookieAffinityGroupName;
+
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setBookieAffinityGroup(namespace, bookieAffinityGroupName);
+        }
+    }
+    
+    @Parameters(commandDescription = "Get the bookie-affinity group name")
+    private class GetBookieAffinityGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getBookieAffinityGroup(namespace));
+        }
+    }
+
     @Parameters(commandDescription = "Get message TTL for a namespace")
     private class GetMessageTTL extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1125,6 +1154,9 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
+        
+        jcommander.addCommand("set-bookie-affinity-group", new SetBookieAffinityGroup());
+        jcommander.addCommand("get-bookie-affinity-group", new GetBookieAffinityGroup());
 
         jcommander.addCommand("unload", new Unload());
 
