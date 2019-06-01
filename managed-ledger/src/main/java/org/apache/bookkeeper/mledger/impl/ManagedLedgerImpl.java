@@ -1664,10 +1664,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 readEntryFailed(exception, ctx);
             } else if (readEntriesCallback != null) {
                 readEntriesFailed(exception, ctx);
-            } else {
-                // it should not happen .. recycle if none of the callback exists..
-                recycle();
             }
+            // It happens when timeout-thread and read-callback both recycles at the same time.
+            // this read-callback has already been recycled so, do nothing..
         }
 
         private boolean checkCallbackCompleted(Object ctx) {
