@@ -18,137 +18,78 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.Lists;
+import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 
-import io.netty.buffer.ByteBuf;
-
+import java.io.IOException;
 import java.util.List;
-
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * container for individual messages being published until they are batched and sent to broker
  */
+public interface BatchMessageContainer {
 
-class BatchMessageContainer {
+    /**
+     * Add message to the batch message container.
+     *
+     * @param msg message will add to the batch message container
+     * @param callback message send callback
+     */
+    void add(MessageImpl<?> msg, SendCallback callback);
 
-    private SendCallback previousCallback = null;
-    private final PulsarApi.CompressionType compressionType;
-    private final CompressionCodec compressor;
-    private final String topicName;
-    private final String producerName;
+    /**
+     * Check the batch message container have enough space for the message want to add.
+     *
+     * @param msg the message want to add
+     * @return return true if the container have enough space for the specific message,
+     *         otherwise return false.
+     */
+    boolean haveEnoughSpace(MessageImpl<?> msg);
 
-    final int maxNumMessagesInBatch;
+    /**
+     * Clear the message batch container.
+     */
+    void clear();
 
-    PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
-    int numMessagesInBatch = 0;
-    long currentBatchSizeBytes = 0;
-    // sequence id for this batch which will be persisted as a single entry by broker
-    long sequenceId = -1;
-    ByteBuf batchedMessageMetadataAndPayload;
-    List<MessageImpl<?>> messages = Lists.newArrayList();
-    // keep track of callbacks for individual messages being published in a batch
-    SendCallback firstCallback;
+    /**
+     * Check the message batch container is empty.
+     *
+     * @return return true if empty, otherwise return false.
+     */
+    boolean isEmpty();
 
-    private static final int INITIAL_BATCH_BUFFER_SIZE = 1024;
-    protected static final int MAX_MESSAGE_BATCH_SIZE_BYTES = 128 * 1024;
+    /**
+     * Get count of messages in the message batch container.
+     *
+     * @return messages count
+     */
+    int getNumMessagesInBatch();
 
-    // This will be the largest size for a batch sent from this particular producer. This is used as a baseline to
-    // allocate a new buffer that can hold the entire batch without needing costly reallocations
-    private int maxBatchSize = INITIAL_BATCH_BUFFER_SIZE;
+    /**
+     * Get current message batch size of the message batch container in bytes.
+     *
+     * @return message batch size in bytes
+     */
+    long getCurrentBatchSizeBytes();
 
-    BatchMessageContainer(int maxNumMessagesInBatch, PulsarApi.CompressionType compressionType, String topicName,
-            String producerName) {
-        this.maxNumMessagesInBatch = maxNumMessagesInBatch;
-        this.compressionType = compressionType;
-        this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);
-        this.topicName = topicName;
-        this.producerName = producerName;
-    }
+    /**
+     * Set producer of the message batch container.
+     *
+     * @param producer producer
+     */
+    void setProducer(ProducerImpl<?> producer);
 
-    boolean hasSpaceInBatch(MessageImpl<?> msg) {
-        int messageSize = msg.getDataBuffer().readableBytes();
-        return ((messageSize + currentBatchSizeBytes) <= MAX_MESSAGE_BATCH_SIZE_BYTES
-                && numMessagesInBatch < maxNumMessagesInBatch);
-    }
+    /**
+     * Release the payload and clear the container.
+     *
+     * @param ex cause
+     */
+    void handleException(Exception ex);
 
-    void add(MessageImpl<?> msg, SendCallback callback) {
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] add message to batch, num messages in batch so far {}", topicName, producerName,
-                    numMessagesInBatch);
-        }
-
-        if (++numMessagesInBatch == 1) {
-            // some properties are common amongst the different messages in the batch, hence we just pick it up from
-            // the first message
-            sequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
-            this.firstCallback = callback;
-            batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                    .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES));
-        }
-
-        if (previousCallback != null) {
-            previousCallback.addCallback(msg, callback);
-        }
-        previousCallback = callback;
-
-        currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
-        PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
-        batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
-                msg.getDataBuffer(), batchedMessageMetadataAndPayload);
-        messages.add(msg);
-        msgBuilder.recycle();
-    }
-
-    ByteBuf getCompressedBatchMetadataAndPayload() {
-        int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
-        ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
-        batchedMessageMetadataAndPayload.release();
-        if (compressionType != PulsarApi.CompressionType.NONE) {
-            messageMetadata.setCompression(compressionType);
-            messageMetadata.setUncompressedSize(uncompressedSize);
-        }
-
-        // Update the current max batch size using the uncompressed size, which is what we need in any case to
-        // accumulate the batch content
-        maxBatchSize = Math.max(maxBatchSize, uncompressedSize);
-        return compressedPayload;
-    }
-
-    PulsarApi.MessageMetadata setBatchAndBuild() {
-        messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] num messages in batch being closed are {}", topicName, producerName,
-                    numMessagesInBatch);
-        }
-        return messageMetadata.build();
-    }
-
-    ByteBuf getBatchedSingleMessageMetadataAndPayload() {
-        return batchedMessageMetadataAndPayload;
-    }
-
-    void clear() {
-        messages = Lists.newArrayList();
-        firstCallback = null;
-        previousCallback = null;
-        messageMetadata.clear();
-        numMessagesInBatch = 0;
-        currentBatchSizeBytes = 0;
-        sequenceId = -1;
-        batchedMessageMetadataAndPayload = null;
-    }
-
-    boolean isEmpty() {
-        return messages.isEmpty();
-    }
-
-    private static final Logger log = LoggerFactory.getLogger(BatchMessageContainer.class);
+    /**
+     * Create list of OpSendMsg, producer use OpSendMsg to send to the broker.
+     *
+     * @return list of OpSendMsg
+     * @throws IOException
+     */
+    List<OpSendMsg> createOpSendMsgs() throws IOException;
 }
