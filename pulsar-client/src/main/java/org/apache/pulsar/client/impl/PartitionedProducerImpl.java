@@ -342,7 +342,9 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 return;
             }
 
-            log.debug("[{}] run partitionsAutoUpdateTimerTask for partitioned producer", topic);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] run partitionsAutoUpdateTimerTask for partitioned producer", topic);
+            }
 
             // if last auto update not completed yet, do nothing.
             if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
