@@ -761,6 +761,10 @@ public interface Namespaces {
      */
     PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
 
+    void setBookieAffinityGroup(String namespace, String bookieAffinityGroup) throws PulsarAdminException;
+
+    String getBookieAffinityGroup(String namespace) throws PulsarAdminException;
+
     /**
      * Set the retention configuration for all the topics on a namespace.
      * <p/>

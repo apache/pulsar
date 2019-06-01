@@ -297,6 +297,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit);
 
     /**
+     *
+     * @param replicateSubscriptionState
+     */
+    ConsumerBuilder<T> replicateSubscriptionState(boolean replicateSubscriptionState);
+
+    /**
      * Set the max total receiver queue size across partitons.
      * <p>
      * This setting will be used to reduce the receiver queue size for individual partitions

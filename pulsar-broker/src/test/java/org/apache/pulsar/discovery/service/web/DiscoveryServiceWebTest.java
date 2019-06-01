@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 
@@ -80,7 +81,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         // 1. start server
         int port = PortManager.nextFreePort();
         ServiceConfig config = new ServiceConfig();
-        config.setWebServicePort(port);
+        config.setWebServicePort(Optional.of(port));
         ServerManager server = new ServerManager(config);
         DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
         Map<String, String> params = new TreeMap<>();

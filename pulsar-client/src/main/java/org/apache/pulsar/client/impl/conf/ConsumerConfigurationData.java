@@ -100,6 +100,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean autoUpdatePartitions = true;
 
+    private boolean replicateSubscriptionState = false;
+
     @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);

@@ -44,7 +44,6 @@ import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
@@ -281,6 +280,12 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-clusters myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceReplicationClusters("myprop/clust/ns1");
 
+        namespaces.run(split("set-bookie-affinity-group myprop/clust/ns1 --group test"));
+        verify(mockNamespaces).setBookieAffinityGroup("myprop/clust/ns1", "test");
+        
+        namespaces.run(split("get-bookie-affinity-group myprop/clust/ns1"));
+        verify(mockNamespaces).getBookieAffinityGroup("myprop/clust/ns1");
+        
         namespaces.run(split("unload myprop/clust/ns1"));
         verify(mockNamespaces).unload("myprop/clust/ns1");
 

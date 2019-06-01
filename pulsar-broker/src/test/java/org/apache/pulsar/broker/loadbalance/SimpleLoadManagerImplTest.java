@@ -133,9 +133,9 @@ public class SimpleLoadManagerImplTest {
         // Start broker 1
         ServiceConfiguration config1 = spy(new ServiceConfiguration());
         config1.setClusterName("use");
-        config1.setWebServicePort(PRIMARY_BROKER_WEBSERVICE_PORT);
+        config1.setWebServicePort(Optional.ofNullable(PRIMARY_BROKER_WEBSERVICE_PORT));
         config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config1.setBrokerServicePort(PRIMARY_BROKER_PORT);
+        config1.setBrokerServicePort(Optional.ofNullable(PRIMARY_BROKER_PORT));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         pulsar1 = new PulsarService(config1);
 
@@ -150,9 +150,9 @@ public class SimpleLoadManagerImplTest {
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setClusterName("use");
-        config2.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
+        config2.setWebServicePort(Optional.ofNullable(SECONDARY_BROKER_WEBSERVICE_PORT));
         config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config2.setBrokerServicePort(SECONDARY_BROKER_PORT);
+        config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         pulsar2 = new PulsarService(config2);
 

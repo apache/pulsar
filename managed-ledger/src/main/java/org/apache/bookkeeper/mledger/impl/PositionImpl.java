@@ -28,11 +28,11 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 
 public class PositionImpl implements Position, Comparable<PositionImpl> {
 
-    private final long ledgerId;
-    private final long entryId;
+    protected long ledgerId;
+    protected long entryId;
 
-    public static PositionImpl earliest = new PositionImpl(-1, -1);
-    public static PositionImpl latest = new PositionImpl(Long.MAX_VALUE, Long.MAX_VALUE);
+    public static final PositionImpl earliest = new PositionImpl(-1, -1);
+    public static final PositionImpl latest = new PositionImpl(Long.MAX_VALUE, Long.MAX_VALUE);
 
     public PositionImpl(PositionInfo pi) {
         this.ledgerId = pi.getLedgerId();

@@ -128,23 +128,23 @@ public class ProxyConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"
     )
-    private Integer servicePort = 6650;
+    private Optional<Integer> servicePort = Optional.ofNullable(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving tls secured binary protobuf request"
     )
-    private Integer servicePortTls;
+    private Optional<Integer> servicePortTls = Optional.empty();
 
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving http requests"
     )
-    private Integer webServicePort = 8080;
+    private Optional<Integer> webServicePort = Optional.ofNullable(8080);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving https requests"
     )
-    private Integer webServicePortTls;
+    private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -338,7 +338,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
            category = CATEGORY_HTTP,
            doc = "Number of threads to use for HTTP requests processing"
     )
-    private int httpNumThreads = Math.max(4, 2 * Runtime.getRuntime().availableProcessors());
+    private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
     @PropertiesContext(
         properties = {
@@ -371,7 +371,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     }
 
     public Optional<Integer> getServicePort() {
-        return Optional.ofNullable(servicePort);
+        return servicePort;
     }
 
     public Optional<Integer> getproxyLogLevel() {
@@ -382,15 +382,15 @@ public class ProxyConfiguration implements PulsarConfiguration {
     }
 
     public Optional<Integer> getServicePortTls() {
-        return Optional.ofNullable(servicePortTls);
+        return servicePortTls;
     }
 
     public Optional<Integer> getWebServicePort() {
-        return Optional.ofNullable(webServicePort);
+        return webServicePort;
     }
 
     public Optional<Integer> getWebServicePortTls() {
-        return Optional.ofNullable(webServicePortTls);
+        return webServicePortTls;
     }
 
     public void setProperties(Properties properties) {

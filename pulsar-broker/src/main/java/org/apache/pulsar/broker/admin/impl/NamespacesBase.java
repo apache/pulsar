@@ -20,9 +20,12 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -72,6 +75,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -79,6 +83,7 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -574,7 +579,94 @@ public abstract class NamespacesBase extends AdminResource {
             }
         }
 
-        log.info("[{}] Successfully unloaded all the bundles in namespace {}/{}/{}", clientAppId(), namespaceName);
+        log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(), namespaceName);
+    }
+
+    
+    protected void internalSetBookieAffinityGroup(String bookieAffinityGroup) {
+        log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
+                this.namespaceName);
+
+        validateSuperUserAccess();
+
+        if (namespaceName.isGlobal()) {
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(namespaceName);
+        } else {
+            validateClusterOwnership(namespaceName.getCluster());
+            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+        }
+
+        try {
+            String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
+            Stat nodeStat = new Stat();
+
+            LocalPolicies localPolicies = null;
+            int version = -1;
+            try {
+                byte[] content = pulsar().getLocalZkCache().getZooKeeper().getData(path, false, nodeStat);
+                localPolicies = jsonMapper().readValue(content, LocalPolicies.class);
+                version = nodeStat.getVersion();
+            } catch (KeeperException.NoNodeException e) {
+                log.info("local-policies for {} is not setup at path {}", this.namespaceName, path);
+                // if policies is not present into localZk then create new policies
+                this.pulsar().getLocalZkCacheService().createPolicies(path, false)
+                        .get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                localPolicies = new LocalPolicies();
+            }
+            localPolicies.bookkeeperAffinityGroup = bookieAffinityGroup;
+            byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(localPolicies);
+            pulsar().getLocalZkCache().getZooKeeper().setData(path, data, Math.toIntExact(version));
+            // invalidate namespace's local-policies
+            pulsar().getLocalZkCacheService().policiesCache().invalidate(path);
+            log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
+                    namespaceName, jsonMapper().writeValueAsString(localPolicies));
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update persistence configuration for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
+                    e);
+            throw new RestException(e);
+        }
+    }
+
+    protected String internalGetBookieAffinityGroup() {
+        validateSuperUserAccess();
+
+        if (namespaceName.isGlobal()) {
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(namespaceName);
+        } else {
+            validateClusterOwnership(namespaceName.getCluster());
+            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+        }
+
+        String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
+        try {
+            Optional<LocalPolicies> policies = pulsar().getLocalZkCacheService().policiesCache().get(path);
+            final String bookkeeperAffinityGroup = policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                    "Namespace local-policies does not exist")).bookkeeperAffinityGroup;
+            if (StringUtils.isBlank(bookkeeperAffinityGroup)) {
+                throw new RestException(Status.NOT_FOUND, "bookie-affinity group does not exist");
+            }
+            return bookkeeperAffinityGroup;
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace policies does not exist");
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get local-policy configuration for namespace {} at path {}", clientAppId(),
+                    namespaceName, path, e);
+            throw new RestException(e);
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -1217,13 +1309,13 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update subscription auth mode for namespace {}/{}/{}: concurrent modification",
+            log.warn("[{}] Failed to update subscription auth mode for namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update subscription auth mode for namespace {}/{}/{}", clientAppId(),
+            log.error("[{}] Failed to update subscription auth mode for namespace {}", clientAppId(),
                     namespaceName, e);
             throw new RestException(e);
         }
@@ -1415,6 +1507,9 @@ public abstract class NamespacesBase extends AdminResource {
         BacklogQuota quota = backlog_quota_map.get(BacklogQuotaType.destination_storage);
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
+        }
+        if (quota.getLimit() < 0 && (retention.getRetentionSizeInMB() > 0 || retention.getRetentionTimeInMinutes() > 0)) {
+            return false;
         }
         if (quota.getLimit() >= ((long) retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;

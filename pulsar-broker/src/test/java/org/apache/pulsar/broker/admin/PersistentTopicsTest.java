@@ -104,13 +104,13 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             Assert.assertEquals("Partitioned Topic not found: persistent://my-tenant/my-namespace/topic-not-found-partition-0 has zero partitions", e.getMessage());
         }
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 3, true);
+        persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 3);
         try {
             persistentTopics.getSubscriptions(testTenant, testNamespace, testLocalTopicName + "-partition-0", true);
         } catch (Exception e) {
             Assert.assertEquals("Topic partitions were not yet created", e.getMessage());
         }
-        persistentTopics.createSubscription(testTenant, testNamespace, testLocalTopicName, "test", true, (MessageIdImpl)MessageId.earliest);
+        persistentTopics.createSubscription(testTenant, testNamespace, testLocalTopicName, "test", true, (MessageIdImpl)MessageId.earliest, false);
         List<String> subscriptions =  persistentTopics.getSubscriptions(testTenant, testNamespace, testLocalTopicName + "-partition-0", true);
         Assert.assertTrue(subscriptions.contains("test"));
         persistentTopics.deleteSubscription(testTenant, testNamespace, testLocalTopicName, "test", true);
@@ -123,7 +123,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testNonPartitionedTopics() {
     	pulsar.getConfiguration().setAllowAutoTopicCreation(false);
     	final String nonPartitionTopic = "non-partitioned-topic";
-    	persistentTopics.createSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true, (MessageIdImpl) MessageId.latest);
+    	persistentTopics.createSubscription(testTenant, testNamespace, nonPartitionTopic, "test", true, (MessageIdImpl) MessageId.latest, false);
     	try {
     		persistentTopics.getSubscriptions(testTenant, testNamespace, nonPartitionTopic + "-partition-0", true);
     	} catch (RestException exc) {

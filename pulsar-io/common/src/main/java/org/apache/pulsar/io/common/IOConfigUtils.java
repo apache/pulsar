@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.io.common;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -65,6 +65,6 @@ public class IOConfigUtils {
 
             }
         }
-        return ObjectMapperFactory.getThreadLocal().convertValue(configs, clazz);
+        return new ObjectMapper().convertValue(configs, clazz);
     }
 }

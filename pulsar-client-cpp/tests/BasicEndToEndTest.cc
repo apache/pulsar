@@ -561,14 +561,14 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     Result result = client.createProducer(topicName, conf, producer);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::MaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
 
     // Anything up to MaxMessageSize should be allowed
-    size = Commands::MaxMessageSize;
+    size = Commands::DefaultMaxMessageSize;
     msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
@@ -1114,7 +1114,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     result = producerFuture.get(producer2);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::MaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
@@ -1165,7 +1165,7 @@ TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
     result = client.createProducer(topicName, conf2, producer2);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::MaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
@@ -1993,6 +1993,24 @@ TEST(BasicEndToEndTest, testpatternMultiTopicsHttpConsumerPubSub) {
     // verify no more to receive
     Message m;
     ASSERT_EQ(ResultTimeout, consumer.receive(m, 1000));
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testPatternEmptyUnsubscribe) {
+    Client client(lookupUrl);
+    std::string pattern = "persistent://public/default/patternEmptyUnsubscribe.*";
+
+    std::string subName = "testPatternMultiTopicsConsumer";
+
+    ConsumerConfiguration consConfig;
+    Consumer consumer;
+    Result result = client.subscribeWithRegex(pattern, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created topics consumer on a pattern that match 0 topics");
 
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
 

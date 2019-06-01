@@ -27,7 +27,6 @@ import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyF
 import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
@@ -37,7 +36,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -92,6 +95,8 @@ import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
+@UtilityClass
+@Slf4j
 public class Commands {
 
     // default message size for transfer
@@ -379,6 +384,14 @@ public class Commands {
         }
     }
 
+    public static void skipMessageMetadata(ByteBuf buffer) {
+        // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
+        // metadata
+        skipChecksumIfPresent(buffer);
+        int metadataSize = (int) buffer.readUnsignedInt();
+        buffer.skipBytes(metadataSize);
+    }
+
     public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount, ByteBuf metadataAndPayload) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
         msgBuilder.setConsumerId(consumerId);
@@ -418,12 +431,14 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false,
+                false /* isReplicated */, InitialPosition.Earliest, null);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
+            Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+            InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -435,6 +450,7 @@ public class Commands {
         subscribeBuilder.setDurable(isDurable);
         subscribeBuilder.setReadCompacted(readCompacted);
         subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
+        subscribeBuilder.setReplicateSubscriptionState(isReplicated);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
@@ -964,7 +980,7 @@ public class Commands {
         int totalSize = cmdSize + 4;
         int frameSize = totalSize + 4;
 
-        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(frameSize, frameSize);
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(frameSize, frameSize);
 
         // Prepend 2 lengths to the buffer
         buf.writeInt(totalSize);
@@ -1004,7 +1020,7 @@ public class Commands {
         int headersSize = 4 + headerContentSize; // totalSize + headerLength
         int checksumReaderIndex = -1;
 
-        ByteBuf headers = PooledByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
+        ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
         headers.writeInt(totalSize); // External frame
 
         try {
@@ -1061,7 +1077,7 @@ public class Commands {
         int checksumReaderIndex = -1;
         int totalSize = headerContentSize + payloadSize;
 
-        ByteBuf metadataAndPayload = PooledByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
+        ByteBuf metadataAndPayload = PulsarByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
         try {
             ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(metadataAndPayload);
 
@@ -1193,7 +1209,7 @@ public class Commands {
         int totalSize = 4 + cmdSize + metadataAndPayload.readableBytes();
         int headersSize = 4 + 4 + cmdSize;
 
-        ByteBuf headers = PooledByteBufAllocator.DEFAULT.buffer(headersSize);
+        ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize);
         headers.writeInt(totalSize); // External frame
 
         try {
@@ -1209,6 +1225,33 @@ public class Commands {
         }
 
         return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
+    }
+
+    public static int getNumberOfMessagesInBatch(ByteBuf metadataAndPayload, String subscription,
+            long consumerId) {
+        MessageMetadata msgMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
+        if (msgMetadata == null) {
+            return -1;
+        } else {
+            int numMessagesInBatch = msgMetadata.getNumMessagesInBatch();
+            msgMetadata.recycle();
+            return numMessagesInBatch;
+        }
+    }
+
+    public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, String subscription,
+            long consumerId) {
+        try {
+            // save the reader index and restore after parsing
+            int readerIdx = metadataAndPayload.readerIndex();
+            PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+            metadataAndPayload.readerIndex(readerIdx);
+
+            return metadata;
+        } catch (Throwable t) {
+            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
+            return null;
+        }
     }
 
     public static int getCurrentProtocolVersion() {

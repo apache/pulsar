@@ -24,11 +24,13 @@ import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
 import java.time.Clock;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
 
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-
 /**
  * Configuration class for a ManagedLedger.
  */
@@ -61,6 +63,9 @@ public class ManagedLedgerConfig {
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
+    private boolean unackedRangesOpenCacheSetEnabled = true;
+    private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
+    private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private Clock clock = Clock.systemUTC();
 
@@ -232,6 +237,19 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setPassword(String password) {
         this.password = password.getBytes(Charsets.UTF_8);
+        return this;
+    }
+
+    /**
+     * should use {@link ConcurrentOpenLongPairRangeSet} to store unacked ranges.
+     * @return
+     */
+    public boolean isUnackedRangesOpenCacheSetEnabled() {
+        return unackedRangesOpenCacheSetEnabled;
+    }
+
+    public ManagedLedgerConfig setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
+        this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
         return this;
     }
 
@@ -567,5 +585,45 @@ public class ManagedLedgerConfig {
     public ManagedLedgerConfig setAddEntryTimeoutSeconds(long addEntryTimeoutSeconds) {
         this.addEntryTimeoutSeconds = addEntryTimeoutSeconds;
         return this;
+    }
+
+    /**
+     * Managed-ledger can setup different custom EnsemblePlacementPolicy (eg: affinity to write ledgers to only setup of
+     * group of bookies).
+     * 
+     * @return
+     */
+    public Class<? extends EnsemblePlacementPolicy> getBookKeeperEnsemblePlacementPolicyClassName() {
+        return bookKeeperEnsemblePlacementPolicyClassName;
+    }
+
+    /**
+     * Returns EnsemblePlacementPolicy configured for the Managed-ledger.
+     * 
+     * @param bookKeeperEnsemblePlacementPolicy
+     */
+    public void setBookKeeperEnsemblePlacementPolicyClassName(
+            Class<? extends EnsemblePlacementPolicy> bookKeeperEnsemblePlacementPolicyClassName) {
+        this.bookKeeperEnsemblePlacementPolicyClassName = bookKeeperEnsemblePlacementPolicyClassName;
+    }
+
+    /**
+     * Returns properties required by configured bookKeeperEnsemblePlacementPolicy.
+     * 
+     * @return
+     */
+    public Map<String, Object> getBookKeeperEnsemblePlacementPolicyProperties() {
+        return bookKeeperEnsemblePlacementPolicyProperties;
+    }
+
+    /**
+     * Managed-ledger can setup different custom EnsemblePlacementPolicy which needs
+     * bookKeeperEnsemblePlacementPolicy-Properties.
+     * 
+     * @param bookKeeperEnsemblePlacementPolicyProperties
+     */
+    public void setBookKeeperEnsemblePlacementPolicyProperties(
+            Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties) {
+        this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
     }
 }

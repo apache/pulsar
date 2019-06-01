@@ -1,7 +1,7 @@
 ---
 id: functions-quickstart
-title: Getting started with Pulsar Functions
-sidebar_label: Getting started
+title: Get started with Pulsar Functions
+sidebar_label: Get started
 ---
 
 This tutorial will walk you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second will run in cluster mode (inside your cluster).

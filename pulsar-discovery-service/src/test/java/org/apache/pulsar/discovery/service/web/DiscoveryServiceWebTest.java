@@ -33,6 +33,7 @@ import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -136,7 +137,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         // 1. start server
         int port = nextFreePort();
         ServiceConfig config = new ServiceConfig();
-        config.setWebServicePort(port);
+        config.setWebServicePort(Optional.ofNullable(port));
         ServerManager server = new ServerManager(config);
         DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
         Map<String, String> params = new TreeMap<>();
@@ -192,8 +193,8 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         int port = nextFreePort();
         int tlsPort = nextFreePort();
         ServiceConfig config = new ServiceConfig();
-        config.setWebServicePort(port);
-        config.setWebServicePortTls(tlsPort);
+        config.setWebServicePort(Optional.ofNullable(port));
+        config.setWebServicePortTls(Optional.ofNullable(tlsPort));
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         ServerManager server = new ServerManager(config);
