@@ -34,13 +34,13 @@ import com.google.common.base.MoreObjects;
 public class ClusterData {
     @ApiModelProperty(
         name = "serviceUrl",
-        value = "The http rest service url (for admin operations)",
+        value = "The HTTP rest service URL (for admin operations)",
         example = "http://pulsar.example.com:8080"
     )
     private String serviceUrl;
     @ApiModelProperty(
         name = "serviceUrlTls",
-        value = "The https rest service URL (for admin operations)",
+        value = "The HTTPS rest service URL (for admin operations)",
         example = "https://pulsar.example.com:8443"
     )
     private String serviceUrlTls;
