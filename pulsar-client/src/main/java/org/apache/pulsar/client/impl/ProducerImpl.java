@@ -1322,11 +1322,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                 pendingMessages.put(op);
 
+                ClientCnx cnx = cnx();
                 if (isConnected()) {
                     // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new
                     // connection is established
                     cmd.retain();
-                    cnx().ctx().channel().eventLoop().execute(WriteInEventLoopCallback.create(this, cnx(), op));
+                    cnx.ctx().channel().eventLoop().execute(WriteInEventLoopCallback.create(this, cnx, op));
                     stats.updateNumMsgsSent(numMessagesInBatch, op.batchSizeByte);
                 } else {
                     if (log.isDebugEnabled()) {
