@@ -247,7 +247,37 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testS3DriverConfiguredWell() throws Exception {
-        TieredStorageConfigurationData conf = new TieredStorageConfigurationData();
+        TieredStorageConfigurationData conf = new TieredStorageConfigurationData() {
+            @Override
+            public AWSCredentialsProvider getAWSCredentialProvider() {
+                return new AWSCredentialsProvider() {
+                    @Override
+                    public AWSCredentials getCredentials() {
+                        return new AWSSessionCredentials() {
+                            @Override
+                            public String getSessionToken() {
+                                return "token";
+                            }
+
+                            @Override
+                            public String getAWSAccessKeyId() {
+                                return "access";
+                            }
+
+                            @Override
+                            public String getAWSSecretKey() {
+                                return "secret";
+                            }
+                        };
+                    }
+
+                    @Override
+                    public void refresh() {
+
+                    }
+                };
+            }
+        };
         conf.setManagedLedgerOffloadDriver("s3");
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
         conf.setS3ManagedLedgerOffloadServiceEndpoint("http://fake.s3.end.point");
