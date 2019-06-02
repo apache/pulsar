@@ -253,32 +253,34 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             }
         } else if (isS3Driver(driver)) {
             AWSCredentialsProvider credsChain = conf.getAWSCredentialProvider();
+            // try and get creds before starting... if we can't fetch
+            // creds on boot, we want to fail
+            try {
+                credsChain.getCredentials();
+            } catch (Exception e) {
+                // allowed, some mock s3 service not need credential
+                log.error("unable to fetch S3 credentials for offloading, failing", e);
+                throw e;
+            }
 
             return () -> {
-                AWSCredentials creds = null;
-                try {
-                    creds = credsChain.getCredentials();
-                } catch (Exception e) {
-                    // allowed, some mock s3 service not need credential
-                    log.warn("Exception when get credentials for s3 ", e);
+                AWSCredentials creds = credsChain.getCredentials();
+                if (creds == null) {
+                    // we don't expect this to happen, as we
+                    // successfully fetched creds on boot
+                    throw new RuntimeException("Unable to fetch S3 credentials after start, unexpected!");
                 }
-                Credentials jcloudCred = null;
-                if (creds != null) {
-                    // if we have session credentials, we need to send the session token
-                    // this allows us to support EC2 metadata credentials
-                    if (creds instanceof AWSSessionCredentials) {
-                        jcloudCred = SessionCredentials.builder()
-                                .accessKeyId(creds.getAWSAccessKeyId())
-                                .secretAccessKey(creds.getAWSSecretKey())
-                                .sessionToken(((AWSSessionCredentials) creds).getSessionToken())
-                                .build();
-                    } else {
-                        jcloudCred = new Credentials(creds.getAWSAccessKeyId(), creds.getAWSSecretKey());
-                    }
+                // if we have session credentials, we need to send the session token
+                // this allows us to support EC2 metadata credentials
+                if (creds instanceof AWSSessionCredentials) {
+                    return SessionCredentials.builder()
+                            .accessKeyId(creds.getAWSAccessKeyId())
+                            .secretAccessKey(creds.getAWSSecretKey())
+                            .sessionToken(((AWSSessionCredentials) creds).getSessionToken())
+                            .build();
                 } else {
-                    jcloudCred = new Credentials("accesskey", "secretkey");
+                    return new Credentials(creds.getAWSAccessKeyId(), creds.getAWSSecretKey());
                 }
-                return jcloudCred;
             };
         } else {
             throw new IOException(
