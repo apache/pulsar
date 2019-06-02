@@ -26,7 +26,10 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -40,14 +43,25 @@ public class IOConfigUtils {
         return loadWithSecrets(map, clazz, secretName -> sinkContext.getSecret(secretName));
     }
 
+
+    public static List<Field> getAllFields(Class<?> type) {
+        List<Field> fields = new LinkedList<>();
+        fields.addAll(Arrays.asList(type.getDeclaredFields()));
+
+        if (type.getSuperclass() != null) {
+            fields.addAll(getAllFields(type.getSuperclass()));
+        }
+
+        return fields;
+    }
+
     private static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz, Function<String, String> secretsGetter) {
         Map<String, Object> configs = new HashMap<>(map);
 
-        for (Field field : clazz.getDeclaredFields()) {
+        for (Field field : getAllFields(clazz)) {
             field.setAccessible(true);
             for (Annotation annotation : field.getAnnotations()) {
                 if (annotation.annotationType().equals(FieldDoc.class)) {
-
                     if (((FieldDoc) annotation).sensitive()) {
                         String secret = null;
                         try {
@@ -56,7 +70,6 @@ public class IOConfigUtils {
                             log.warn("Failed to read secret {}", field.getName(), e);
                             break;
                         }
-
                         if (secret != null) {
                             configs.put(field.getName(), secret);
                         }
