@@ -491,6 +491,30 @@ public class Namespaces extends NamespacesBase {
         internalSetPersistence(persistence);
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/persistence/bookieAffinity/{bookieAffinityGroup}")
+    @ApiOperation(value = "Set the bookie-affinity-group to namespace-persistent policy.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void setBookieAffinityGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @PathParam("bookieAffinityGroup") String bookieAffinityGroup) {
+        validateNamespaceName(tenant, namespace);
+        internalSetBookieAffinityGroup(bookieAffinityGroup);
+    }
+
+    @GET
+    @Path("/{property}/{namespace}/persistence/bookieAffinity")
+    @ApiOperation(hidden = true, value = "Get the bookie-affinity-group from namespace-local policy.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public String getBookieAffinityGroup(@PathParam("property") String property,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return internalGetBookieAffinityGroup();
+    }
+    
     @GET
     @Path("/{tenant}/{namespace}/persistence")
     @ApiOperation(value = "Get the persistence configuration for a namespace.")

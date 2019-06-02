@@ -769,7 +769,7 @@ public class PersistentTopicsBase extends AdminResource {
             validateAdminAccessForSubscriber(subName, authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             try {
-                if (subName.startsWith(topic.replicatorPrefix)) {
+                if (subName.startsWith(topic.getReplicatorPrefix())) {
                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                     PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                     checkNotNull(repl);
@@ -777,7 +777,8 @@ public class PersistentTopicsBase extends AdminResource {
                 } else {
                     PersistentSubscription sub = topic.getSubscription(subName);
                     checkNotNull(sub);
-                    sub.clearBacklog().get();
+                    sub.clearBacklog().get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(),
+                            TimeUnit.SECONDS);
                 }
                 log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
             } catch (NullPointerException npe) {
@@ -800,7 +801,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateAdminAccessForSubscriber(subName, authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         try {
-            if (subName.startsWith(topic.replicatorPrefix)) {
+            if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                 checkNotNull(repl);
@@ -1049,13 +1050,13 @@ public class PersistentTopicsBase extends AdminResource {
         PersistentReplicator repl = null;
         PersistentSubscription sub = null;
         Entry entry = null;
-        if (subName.startsWith(topic.replicatorPrefix)) {
+        if (subName.startsWith(topic.getReplicatorPrefix())) {
             repl = getReplicatorReference(subName, topic);
         } else {
             sub = (PersistentSubscription) getSubscriptionReference(subName, topic);
         }
         try {
-            if (subName.startsWith(topic.replicatorPrefix)) {
+            if (subName.startsWith(topic.getReplicatorPrefix())) {
                 entry = repl.peekNthMessage(messagePosition).get();
             } else {
                 entry = sub.peekNthMessage(messagePosition).get();
@@ -1199,7 +1200,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             try {
-                if (subName.startsWith(topic.replicatorPrefix)) {
+                if (subName.startsWith(topic.getReplicatorPrefix())) {
                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                     PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                     checkNotNull(repl);
