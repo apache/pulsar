@@ -2,7 +2,6 @@ module github.com/apache/pulsar/pulsar-client-go
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/alecthomas/jsonschema v0.0.0-20190122210438-a6952de1bbe6
 	github.com/davecgh/go-spew v1.1.1
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/protobuf v1.3.1

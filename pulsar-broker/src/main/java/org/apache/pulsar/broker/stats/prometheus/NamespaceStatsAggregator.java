@@ -125,6 +125,7 @@ public class NamespaceStatsAggregator {
             AggregatedSubscriptionStats subsStats = stats.subscriptionStats
                     .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
             subsStats.msgBacklog = subscription.getNumberOfEntriesInBacklog();
+            subsStats.msgDelayed = subscription.getNumberOfEntriesDelayed();
 
             subscription.getConsumers().forEach(consumer -> {
 

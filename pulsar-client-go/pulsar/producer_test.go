@@ -206,6 +206,35 @@ func TestProducerZstd(t *testing.T) {
 	}
 }
 
+func TestProducerSnappy(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assert.Nil(t, err)
+	defer client.Close()
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic:           "my-topic",
+		CompressionType: SNAPPY,
+	})
+
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	assert.Equal(t, producer.Topic(), "persistent://public/default/my-topic")
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		if err := producer.Send(ctx, ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestProducer_Flush(t *testing.T) {
 	client, err := NewClient(ClientOptions{
 		URL: "pulsar://localhost:6650",

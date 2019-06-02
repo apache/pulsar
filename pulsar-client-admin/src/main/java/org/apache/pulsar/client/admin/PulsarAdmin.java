@@ -28,6 +28,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
@@ -40,8 +41,8 @@ import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
 import org.apache.pulsar.client.admin.internal.SchemasImpl;
-import org.apache.pulsar.client.admin.internal.SinkImpl;
-import org.apache.pulsar.client.admin.internal.SourceImpl;
+import org.apache.pulsar.client.admin.internal.SinksImpl;
+import org.apache.pulsar.client.admin.internal.SourcesImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.WorkerImpl;
@@ -87,8 +88,8 @@ public class PulsarAdmin implements Closeable {
     private final String serviceUrl;
     private final Lookup lookups;
     private final Functions functions;
-    private final Source source;
-    private final Sink sink;
+    private final Sources sources;
+    private final Sinks sinks;
     private final Worker worker;
     private final Schemas schemas;
     protected final WebTarget root;
@@ -155,6 +156,10 @@ public class PulsarAdmin implements Closeable {
         if (auth != null) {
             auth.start();
         }
+        
+        if (StringUtils.isBlank(clientConfigData.getServiceUrl())) {
+            clientConfigData.setServiceUrl(serviceUrl);
+        }
 
         AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData);
 
@@ -193,8 +198,8 @@ public class PulsarAdmin implements Closeable {
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
         this.functions = new FunctionsImpl(root, auth, httpAsyncClient);
-        this.source = new SourceImpl(root, auth, httpAsyncClient);
-        this.sink = new SinkImpl(root, auth, httpAsyncClient);
+        this.sources = new SourcesImpl(root, auth, httpAsyncClient);
+        this.sinks = new SinksImpl(root, auth, httpAsyncClient);
         this.worker = new WorkerImpl(root, auth);
         this.schemas = new SchemasImpl(root, auth);
         this.bookies = new BookiesImpl(root, auth);
@@ -340,23 +345,35 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     *
-     * @return the source management object
+     * @return the sources management object
+     * @deprecated in favor of {@link #sources()}
      */
+    @Deprecated
     public Source source() {
-        return source;
+        return (Source) sources;
+    }
+
+    public Sources sources() {
+        return sources;
     }
 
     /**
-     *
-     * @return the sink management object
+     * @return the sinks management object
+     * @deprecated in favor of {@link #sinks}
      */
+    @Deprecated
     public Sink sink() {
-        return sink;
+        return (Sink) sinks;
     }
 
     /**
-    *
+     * @return the sinks management object
+     */
+    public Sinks sinks() {
+        return sinks;
+    }
+
+    /**
     * @return the Worker stats
     */
    public Worker worker() {

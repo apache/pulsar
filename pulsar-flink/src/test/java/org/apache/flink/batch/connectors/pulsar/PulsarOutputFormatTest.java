@@ -70,7 +70,7 @@ public class PulsarOutputFormatTest {
         ProducerConfigurationData producerConf = new ProducerConfigurationData();
         producerConf.setTopicName("testTopic");
 
-        new PulsarOutputFormat(clientConf, producerConf);
+        new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -81,7 +81,7 @@ public class PulsarOutputFormatTest {
         ProducerConfigurationData producerConf = new ProducerConfigurationData();
         producerConf.setTopicName(null);
 
-        new PulsarOutputFormat(clientConf, producerConf);
+        new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -92,7 +92,7 @@ public class PulsarOutputFormatTest {
         ProducerConfigurationData producerConf = new ProducerConfigurationData();
         producerConf.setTopicName(StringUtils.EMPTY);
 
-        new PulsarOutputFormat(clientConf, producerConf);
+        new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -103,7 +103,18 @@ public class PulsarOutputFormatTest {
         ProducerConfigurationData producerConf = new ProducerConfigurationData();
         producerConf.setTopicName("testTopic");
 
-        new PulsarOutputFormat(clientConf, producerConf);
+        new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testPulsarOutputFormatConstructorV2WhenSerializationSchemaIsNull() {
+        ClientConfigurationData clientConf = ClientConfigurationData.builder()
+                .serviceUrl("testServiceUrl")
+                .build();
+        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
+                .topicName("testTopic")
+                .build();
+        new PulsarOutputFormat(clientConf, producerConf, null);
     }
 
     @Test

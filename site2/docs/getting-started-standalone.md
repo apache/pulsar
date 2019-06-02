@@ -11,6 +11,8 @@ For local development and testing, you can run Pulsar in standalone mode on your
 
 ## Install Pulsar standalone
 
+This tutorial guides you through every step of the installation process.
+
 ### System requirements
 
 Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
@@ -58,8 +60,6 @@ Directory | Contains
 `instances` | Artifacts created for [Pulsar Functions](functions-overview.md).
 `logs` | Logs created by the installation.
 
-#### Install other optional components
-
 > #### Tip
 > If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：
 > 
@@ -68,7 +68,7 @@ Directory | Contains
 > 
 > Otherwise, skip this step and perform the next step [Start Pulsar standalone](#start-pulsar-standalone). Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.
 
-##### Install builtin connectors (optional)
+### Install builtin connectors (optional)
 
 Since `2.1.0-incubating` release, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
 To enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
@@ -105,7 +105,7 @@ pulsar-io-aerospike-{{pulsar:version}}.nar
 > * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)),
 > you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
-##### Install tiered storage offloaders (optional)
+### Install tiered storage offloaders (optional)
 
 > #### Tip
 >
