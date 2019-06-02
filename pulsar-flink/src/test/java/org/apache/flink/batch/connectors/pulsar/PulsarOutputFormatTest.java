@@ -108,12 +108,11 @@ public class PulsarOutputFormatTest {
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testPulsarOutputFormatConstructorV2WhenSerializationSchemaIsNull() {
-        ClientConfigurationData clientConf = ClientConfigurationData.builder()
-                .serviceUrl("testServiceUrl")
-                .build();
-        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
-                .topicName("testTopic")
-                .build();
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
+
+        ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        producerConf.setTopicName("testTopic");
         new PulsarOutputFormat(clientConf, producerConf, null);
     }
 
