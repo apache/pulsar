@@ -59,11 +59,10 @@ public class AuthenticationTokenTest {
 
     @Test
     public void testAuthTokenClientConfig() throws Exception {
-        ClientConfigurationData clientConfig = ClientConfigurationData.builder()
-                .serviceUrl("pulsar://service-url")
-                .authPluginClassName(AuthenticationToken.class.getName())
-                .authParams("token-xyz")
-                .build();
+        ClientConfigurationData clientConfig = new ClientConfigurationData();
+        clientConfig.setServiceUrl("pulsar://service-url");
+        clientConfig.setAuthPluginClassName(AuthenticationToken.class.getName());
+        clientConfig.setAuthParams("token-xyz");
 
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
 

@@ -114,10 +114,9 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testConfigBuilder() throws PulsarClientException {
-        ClientConfigurationData clientConfig = ClientConfigurationData.builder()
-                .serviceUrl("pulsar://unknown:6650")
-                .statsIntervalSeconds(80)
-                .build();
+        ClientConfigurationData clientConfig = new ClientConfigurationData();
+        clientConfig.setServiceUrl("pulsar://unknown:6650");
+        clientConfig.setStatsIntervalSeconds(80);
 
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
         assertTrue(pulsarClient != null, "Pulsar client built using config should not be null");
