@@ -3080,12 +3080,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         OpAddEntry opAddEntry = pendingAddEntries.peek();
         if (opAddEntry != null) {
             boolean isTimedOut = opAddEntry.lastInitTime != -1
-                    && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - opAddEntry.lastInitTime) >= timeoutSec
-                    && opAddEntry.completed == FALSE;
+                    && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - opAddEntry.lastInitTime) >= timeoutSec;
             if (isTimedOut) {
                 log.error("Failed to add entry for ledger {} in time-out {} sec",
                         (opAddEntry.ledger != null ? opAddEntry.ledger.getId() : -1), timeoutSec);
-                opAddEntry.handleAddFailure(opAddEntry.ledger);
+                opAddEntry.handleAddTimeoutFailure(opAddEntry.ledger, opAddEntry.ctx);
             }
         }
     }
