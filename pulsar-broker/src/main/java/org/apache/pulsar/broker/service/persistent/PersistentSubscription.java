@@ -91,11 +91,11 @@ public class PersistentSubscription implements Subscription {
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
     // Map to keep track of message ack by each txn.
-    private final ConcurrentOpenHashMap<TxnID, ConcurrentOpenHashSet<Position>> pendingAckMessagesMap;
+    private ConcurrentOpenHashMap<TxnID, ConcurrentOpenHashSet<Position>> pendingAckMessagesMap;
 
     // Messages acked by ongoing transaction, pending transaction commit to materialize the acks. For faster look up.
     // Using hashset as a message should only be acked once by one transaction.
-    private final ConcurrentOpenHashSet<Position> pendingAckMessages;
+    private ConcurrentOpenHashSet<Position> pendingAckMessages;
 
     // Message cumulative acked by ongoing transaction, pending transaction commit to materialize the ack.
     // Only one transaction can cumulative ack.
@@ -120,8 +120,6 @@ public class PersistentSubscription implements Subscription {
         this.subName = subscriptionName;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
         IS_FENCED_UPDATER.set(this, FALSE);
-        pendingAckMessagesMap = new ConcurrentOpenHashMap<>();
-        pendingAckMessages = new ConcurrentOpenHashSet<>();
     }
 
     @Override
@@ -250,7 +248,7 @@ public class PersistentSubscription implements Subscription {
                 positions.forEach(position -> {
                     checkArgument(position instanceof PositionImpl);
                     // If single ack try to ack message in pending_ack status, fail the ack.
-                    if (this.pendingAckMessages.contains(position)) {
+                    if (pendingAckMessages != null && this.pendingAckMessages.contains(position)) {
                         log.warn("[{}][{}] Invalid acks position conflict with an ongoing transaction:{}.",
                                  topicName, subName, this.pendingCumulativeAckTxnId.toString());
                         return;
@@ -335,6 +333,14 @@ public class PersistentSubscription implements Subscription {
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] TxnID:[{}] Individual acks on {}", topicName, subName, txnId.toString(), positions);
+            }
+
+            if (pendingAckMessagesMap == null) {
+                pendingAckMessagesMap = new ConcurrentOpenHashMap<>();
+            }
+
+            if (pendingAckMessages == null) {
+                pendingAckMessages = new ConcurrentOpenHashSet<>();
             }
 
             ConcurrentOpenHashSet<Position> pendingAckMessageForCurrentTxn =
@@ -801,7 +807,7 @@ public class PersistentSubscription implements Subscription {
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
         ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
-        // If  Check if message is in pending_ack status.
+        // Check if message is in pending_ack status.
         if (null != positionMap) {
             List<PositionImpl> pendingPositions = new ArrayList<>();
             PositionImpl cumulativeAckPosition = null == this.pendingCumulativeAckMessage ? null :
@@ -811,8 +817,8 @@ public class PersistentSubscription implements Subscription {
                 long batchSize = entry.getValue().first;
                 LongStream.range(0, batchSize).forEach(index -> {
                     PositionImpl position = new PositionImpl(entry.getKey().first, entry.getKey().second + index);
-                    if (!this.pendingAckMessages.contains(position) || (null != cumulativeAckPosition &&
-                            position.compareTo(cumulativeAckPosition) > 0)) {
+                    if ((pendingAckMessages != null && !this.pendingAckMessages.contains(position)) &&
+                            (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0)) {
                         pendingPositions.add(position);
                     }
                 });
@@ -832,8 +838,8 @@ public class PersistentSubscription implements Subscription {
                 (PositionImpl)this.pendingCumulativeAckMessage;
 
         positions.forEach(position -> {
-            if (!this.pendingAckMessages.contains(position) || (null != cumulativeAckPosition &&
-                    position.compareTo(cumulativeAckPosition) > 0)) {
+            if ((pendingAckMessages != null && !this.pendingAckMessages.contains(position)) &&
+                    (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0)) {
                 pendingPositions.add(position);
             }
         });
@@ -870,7 +876,7 @@ public class PersistentSubscription implements Subscription {
      */
     public synchronized CompletableFuture<Void> commitTxn(TxnID txnId, Map<String,Long> properties) {
 
-        if (!this.pendingAckMessagesMap.containsKey(txnId)) {
+        if (pendingAckMessagesMap != null && !this.pendingAckMessagesMap.containsKey(txnId)) {
             String errorMsg = "[" + topicName + "][" + subName + "] Transaction with id:" + txnId + " not found.";
             log.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
@@ -917,11 +923,16 @@ public class PersistentSubscription implements Subscription {
             }
         };
 
-        ConcurrentOpenHashSet<Position> pendingAckMessageForCurrentTxn = this.pendingAckMessagesMap.remove(txnId);
+        // It's valid to create transaction then commit without doing any operation, which will cause
+        // pendingAckMessagesMap to be null.
+        ConcurrentOpenHashSet<Position> pendingAckMessageForCurrentTxn = pendingAckMessagesMap != null ?
+                                                this.pendingAckMessagesMap.remove(txnId) : new ConcurrentOpenHashSet();
         List<Position> positions = pendingAckMessageForCurrentTxn.values();
         // Materialize all single acks.
         cursor.asyncDelete(positions, deleteCallback, positions);
-        positions.forEach(position -> this.pendingAckMessages.remove(position));
+        if (pendingAckMessages != null) {
+            positions.forEach(position -> this.pendingAckMessages.remove(position));
+        }
 
         // Materialize cumulative ack.
         cursor.asyncMarkDelete(this.pendingCumulativeAckMessage, (null == properties)?
@@ -946,15 +957,17 @@ public class PersistentSubscription implements Subscription {
      * @throws IllegalArgumentException if given {@link TxnID} is not found in this subscription.
      */
     public synchronized CompletableFuture<Void> abortTxn(TxnID txnId) {
-        if (!this.pendingAckMessagesMap.containsKey(txnId)) {
+        if (pendingAckMessagesMap != null && !this.pendingAckMessagesMap.containsKey(txnId)) {
             String errorMsg = "[" + topicName + "][" + subName + "] Transaction with id:" + txnId + " not found.";
             throw new IllegalArgumentException(errorMsg);
         }
 
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-        ConcurrentOpenHashSet<Position> pendingAckMessageForCurrentTxn = this.pendingAckMessagesMap.remove(txnId);
-        pendingAckMessageForCurrentTxn.forEach(position -> this.pendingAckMessages.remove(position));
-
+        ConcurrentOpenHashSet<Position> pendingAckMessageForCurrentTxn = pendingAckMessagesMap != null ?
+                                                this.pendingAckMessagesMap.remove(txnId) : new ConcurrentOpenHashSet();
+        if (pendingAckMessages != null) {
+            pendingAckMessageForCurrentTxn.forEach(position -> this.pendingAckMessages.remove(position));
+        }
         // Reset txdID and position for cumulative ack.
         PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
         POSITION_UPDATER.set(this, null);
