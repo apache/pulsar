@@ -34,7 +34,7 @@ ExecutorService::~ExecutorService() { close(); }
  *  @ returns shared_ptr to this socket
  */
 SocketPtr ExecutorService::createSocket() {
-    return std::make_shared<boost::asio::ip::tcp::socket>(std::ref(io_service_));
+    return SocketPtr(new boost::asio::ip::tcp::socket(io_service_));
 }
 
 TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx) {
@@ -47,11 +47,11 @@ TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ss
  *  @returns shraed_ptr to resolver object
  */
 TcpResolverPtr ExecutorService::createTcpResolver() {
-    return std::make_shared<boost::asio::ip::tcp::resolver>(std::ref(io_service_));
+    return TcpResolverPtr(new boost::asio::ip::tcp::resolver(io_service_));
 }
 
 DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
-    return std::make_shared<boost::asio::deadline_timer>(std::ref(io_service_));
+    return DeadlineTimerPtr(new boost::asio::deadline_timer(io_service_));
 }
 
 void ExecutorService::close() {
