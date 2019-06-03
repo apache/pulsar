@@ -33,9 +33,7 @@ ExecutorService::~ExecutorService() { close(); }
  *  factory method of boost::asio::ip::tcp::socket associated with io_service_ instance
  *  @ returns shared_ptr to this socket
  */
-SocketPtr ExecutorService::createSocket() {
-    return SocketPtr(new boost::asio::ip::tcp::socket(io_service_));
-}
+SocketPtr ExecutorService::createSocket() { return SocketPtr(new boost::asio::ip::tcp::socket(io_service_)); }
 
 TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx) {
     return std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> >(
