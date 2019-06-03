@@ -54,6 +54,8 @@ public interface SchemaRegistryService extends SchemaRegistry {
             Map<SchemaType, SchemaCompatibilityCheck> checkers =
                 getCheckers(config.getSchemaRegistryCompatibilityCheckers());
 
+            checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
+
             schemaStorage.start();
 
             return new SchemaRegistryServiceImpl(schemaStorage, checkers);

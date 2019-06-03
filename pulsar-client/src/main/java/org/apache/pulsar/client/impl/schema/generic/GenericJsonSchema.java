@@ -20,21 +20,28 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.schema.SchemaInfo;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * A generic json schema.
  */
+@Slf4j
 class GenericJsonSchema extends GenericSchemaImpl {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo);
+        this(schemaInfo, true);
+    }
+
+    GenericJsonSchema(SchemaInfo schemaInfo,
+                      boolean useProvidedSchemaAsReaderSchema) {
+        super(schemaInfo, useProvidedSchemaAsReaderSchema);
         setWriter(new GenericJsonWriter());
         setReader(new GenericJsonReader(fields));
     }
@@ -43,12 +50,24 @@ class GenericJsonSchema extends GenericSchemaImpl {
     protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
         SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
         if (schemaInfo != null) {
+            log.info("Load schema reader for version({}), schema is : {}",
+                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                schemaInfo.getSchemaDefinition());
+            Schema readerSchema;
+            if (useProvidedSchemaAsReaderSchema) {
+                readerSchema = schema;
+            } else {
+                readerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
+            }
             return new GenericJsonReader(schemaVersion,
-                    (parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8)).getFields()
+                    readerSchema.getFields()
                             .stream()
                             .map(f -> new Field(f.name(), f.pos()))
-                            .collect(Collectors.toList())));
+                            .collect(Collectors.toList()));
         } else {
+            log.warn("No schema found for version({}), use latest schema : {}",
+                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                this.schemaInfo.getSchemaDefinition());
             return reader;
         }
     }

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
@@ -30,11 +31,11 @@ import lombok.Getter;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
 
 /**
  * [Key, Value] pair schema definition
@@ -52,6 +53,8 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
     @Getter
     private final KeyValueEncodingType keyValueEncodingType;
+
+    protected SchemaInfoProvider schemaInfoProvider;
 
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
@@ -85,6 +88,10 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         return KV_BYTES;
     }
 
+    @Override
+    public boolean supportSchemaVersioning() {
+        return keySchema.supportSchemaVersioning() || valueSchema.supportSchemaVersioning();
+    }
 
     private KeyValueSchema(Schema<K> keySchema,
                            Schema<V> valueSchema) {
@@ -96,6 +103,46 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                            KeyValueEncodingType keyValueEncodingType) {
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
+
+        if (keySchema instanceof StructSchema) {
+            ((StructSchema) keySchema).setSchemaInfoProvider(new SchemaInfoProvider() {
+                @Override
+                public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
+                    SchemaInfo versionSchemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+                    return decodeKeyValueSchemaInfo(versionSchemaInfo).getKey();
+                }
+
+                @Override
+                public SchemaInfo getLatestSchema() {
+                    return ((StructSchema<K>) keySchema).schemaInfo;
+                }
+
+                @Override
+                public String getTopicName() {
+                    return "key-schema";
+                }
+            });
+        }
+
+        if (valueSchema instanceof StructSchema) {
+            ((StructSchema) valueSchema).setSchemaInfoProvider(new SchemaInfoProvider() {
+                @Override
+                public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
+                    SchemaInfo versionSchemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+                    return decodeKeyValueSchemaInfo(versionSchemaInfo).getValue();
+                }
+
+                @Override
+                public SchemaInfo getLatestSchema() {
+                    return ((StructSchema<V>) valueSchema).schemaInfo;
+                }
+
+                @Override
+                public String getTopicName() {
+                    return "value-schema";
+                }
+            });
+        }
 
         // set schemaInfo
         this.schemaInfo = new SchemaInfo()
@@ -125,6 +172,23 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         properties.put("kv.encoding.type", String.valueOf(keyValueEncodingType));
 
         this.schemaInfo.setSchema(byteBuffer.array()).setProperties(properties);
+
+        this.schemaInfoProvider = new SchemaInfoProvider() {
+            @Override
+            public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
+                return schemaInfo;
+            }
+
+            @Override
+            public SchemaInfo getLatestSchema() {
+                return schemaInfo;
+            }
+
+            @Override
+            public String getTopicName() {
+                return "key-value-schema";
+            }
+        };
     }
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
@@ -142,6 +206,10 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     }
 
     public KeyValue<K, V> decode(byte[] bytes) {
+        return decode(bytes, null);
+    }
+
+    public KeyValue<K, V> decode(byte[] bytes, byte[] schemaVersion) {
         if (this.keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
             throw new SchemaSerializationException("This method cannot be used under this SEPARATED encoding type");
         }
@@ -154,14 +222,63 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         byte[] valueBytes = new byte[valueLength];
         byteBuffer.get(valueBytes);
 
-        return decode(keyBytes, valueBytes);
+        return decode(keyBytes, valueBytes, schemaVersion);
     }
 
-    public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes) {
-        return new KeyValue<>(keySchema.decode(keyBytes), valueSchema.decode(valueBytes));
+    public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes, byte[] schemaVersion) {
+        K k;
+        if (keySchema.supportSchemaVersioning() && schemaVersion != null) {
+            k = keySchema.decode(keyBytes, schemaVersion);
+        } else {
+            k = keySchema.decode(keyBytes);
+        }
+        V v;
+        if (valueSchema.supportSchemaVersioning() && schemaVersion != null) {
+            v = valueSchema.decode(valueBytes, schemaVersion);
+        } else {
+            v = valueSchema.decode(valueBytes);
+        }
+        return new KeyValue<>(k, v);
     }
 
     public SchemaInfo getSchemaInfo() {
         return this.schemaInfo;
+    }
+
+    public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
+        this.schemaInfoProvider = schemaInfoProvider;
+    }
+
+    private static KeyValue<SchemaInfo, SchemaInfo> decodeKeyValueSchemaInfo(SchemaInfo schemaInfo) {
+        ByteBuffer byteBuffer = ByteBuffer.wrap(schemaInfo.getSchema());
+        int keySchemaLength = byteBuffer.getInt();
+        byte[] key = new byte[keySchemaLength];
+        byteBuffer.get(key);
+        int valueSchemaLength = byteBuffer.getInt();
+        byte[] value = new byte[valueSchemaLength];
+        byteBuffer.get(value);
+        Gson keySchemaGson = new Gson();
+        Map<String, String> keyProperties = Maps.newHashMap();
+        if (schemaInfo.getProperties().get("key.schema.properties") != null) {
+            keyProperties = keySchemaGson.fromJson(schemaInfo.getProperties().get("key.schema.properties"), Map.class);
+        } else {
+            keyProperties = Collections.emptyMap();
+        }
+        SchemaInfo keySchemaInfo = SchemaInfo.builder().schema(key)
+                .properties(keyProperties)
+                .name("")
+                .type(SchemaType.AVRO).build();
+        Gson valueSchemaGson = new Gson();
+        Map<String, String> valueProperties = Maps.newHashMap();
+        if (schemaInfo.getProperties().get("value.schema.properties") != null) {
+            valueProperties = valueSchemaGson.fromJson(schemaInfo.getProperties().get("value.schema.properties"), Map.class);
+        } else {
+            valueProperties = Collections.emptyMap();
+        }
+        SchemaInfo valueSchemaInfo = SchemaInfo.builder().schema(value)
+                .properties(valueProperties)
+                .name("")
+                .type(SchemaType.AVRO).build();
+        return new KeyValue<>(keySchemaInfo, valueSchemaInfo);
     }
 }

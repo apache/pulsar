@@ -44,27 +44,34 @@ public class AvroSchema<T> extends StructSchema<T> {
 //      https://issues.apache.org/jira/browse/AVRO-1891  bug address explain
 //      fix the avro logical type read and write
     static {
-        ReflectData reflectDataAllowNull = ReflectData.AllowNull.get();
+        try {
+            ReflectData reflectDataAllowNull = ReflectData.AllowNull.get();
 
-        reflectDataAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimeMicrosConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimestampMicrosConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
+            reflectDataAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
+            reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
+            reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimeMicrosConversion());
+            reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimestampMicrosConversion());
+            reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+            reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+            reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+            reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
 
-        ReflectData reflectDataNotAllowNull = ReflectData.get();
+            ReflectData reflectDataNotAllowNull = ReflectData.get();
 
-        reflectDataNotAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimeMicrosConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimestampMicrosConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
+            reflectDataNotAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
+            reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
+            reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+            reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimeMicrosConversion());
+            reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.LossyTimestampMicrosConversion());
+            reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+            reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+            reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeConversion());
+        } catch (Throwable t) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Avro logical types are not available. If you are going to use avro logical types, " +
+                        "you can include `joda-time` in your dependency.");
+            }
+        }
     }
 
     private AvroSchema(SchemaInfo schemaInfo) {
@@ -95,11 +102,16 @@ public class AvroSchema<T> extends StructSchema<T> {
     protected SchemaReader<T> loadReader(byte[] schemaVersion) {
         SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
         if (schemaInfo != null) {
-            return new AvroReader<>(parseAvroSchema(new String(schemaInfo.getSchema())), schema);
+            log.info("Load schema reader for version({}), schema is : {}",
+                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                schemaInfo.getSchemaDefinition());
+            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema);
         } else {
+            log.warn("No schema found for version({}), use latest schema : {}",
+                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                this.schemaInfo.getSchemaDefinition());
             return reader;
         }
     }
-
 
 }

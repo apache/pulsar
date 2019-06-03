@@ -197,8 +197,8 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder keepAliveInterval(int keepAliveIntervalSeconds, TimeUnit unit) {
-        conf.setKeepAliveIntervalSeconds((int)unit.toSeconds(keepAliveIntervalSeconds));
+    public ClientBuilder keepAliveInterval(int keepAliveInterval, TimeUnit unit) {
+        conf.setKeepAliveIntervalSeconds((int)unit.toSeconds(keepAliveInterval));
         return this;
     }
 

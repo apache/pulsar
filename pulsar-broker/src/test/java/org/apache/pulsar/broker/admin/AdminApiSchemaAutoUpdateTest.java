@@ -184,10 +184,10 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 100; i++) {
             Topic t = pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-            // get around fact that field is private and topic can be persisent or non-persistent
-            Field strategy = t.getClass().getDeclaredField("schemaCompatibilityStrategy");
+            // get around fact that field is private and topic can be persistent or non-persistent
+            Field strategy = t.getClass().getSuperclass().getDeclaredField("schemaCompatibilityStrategy");
             strategy.setAccessible(true);
-            if (((SchemaCompatibilityStrategy)strategy.get(t)) == SchemaCompatibilityStrategy.FULL) {
+            if (strategy.get(t) == SchemaCompatibilityStrategy.FULL) {
                 break;
             }
             Thread.sleep(100);

@@ -35,10 +35,10 @@ import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
@@ -91,11 +91,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
     }
 
-    private final ComponentType componentType;
+    private final Function.FunctionDetails.ComponentType componentType;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
-                       ComponentType componentType, ComponentStatsManager statsManager) {
+                       Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager) {
         this.config = config;
         this.logger = logger;
         this.publishProducers = new HashMap<>();
@@ -320,7 +320,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object) {
         return publish(topicName, object, "");
@@ -332,7 +331,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
         MessageBuilderImpl<O> messageBuilder = new MessageBuilderImpl<>();
@@ -341,7 +339,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         return messageBuilder;
     }
 
-    @SuppressWarnings("unchecked")
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
         try {
             return newOutputMessage(topicName, schema).value(object).sendAsync().thenApply(msgId -> null);
@@ -526,6 +523,18 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         @Override
         public TypedMessageBuilder<O> loadConf(Map<String, Object> config) {
             underlyingBuilder.loadConf(config);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> deliverAfter(long delay, TimeUnit unit) {
+            underlyingBuilder.deliverAfter(delay, unit);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> deliverAt(long timestamp) {
+            underlyingBuilder.deliverAt(timestamp);
             return this;
         }
 

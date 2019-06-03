@@ -23,7 +23,6 @@ import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import com.carrotsearch.hppc.ObjectObjectHashMap;
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -38,12 +37,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -80,53 +78,29 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.Curso
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NonPersistentTopic implements Topic {
-    private final String topic;
-
-    // Producers currently connected to this topic
-    private final ConcurrentOpenHashSet<Producer> producers;
+public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, NonPersistentSubscription> subscriptions;
 
     private final ConcurrentOpenHashMap<String, NonPersistentReplicator> replicators;
 
-    private final BrokerService brokerService;
-
-    private volatile boolean isFenced;
-
-    // Prefix for replication cursors
-    public final String replicatorPrefix;
-
     protected static final AtomicLongFieldUpdater<NonPersistentTopic> USAGE_COUNT_UPDATER = AtomicLongFieldUpdater
             .newUpdater(NonPersistentTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
-    private final OrderedExecutor executor;
-
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-
-    // Timestamp of when this topic was last seen active
-    private volatile long lastActive;
-
-    // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
-    // doesn't support batch-message
-    private volatile boolean hasBatchMessagePublished = false;
     // Ever increasing counter of entries added
-    static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER = AtomicLongFieldUpdater
+    private static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER = AtomicLongFieldUpdater
             .newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
-    private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -134,13 +108,6 @@ public class NonPersistentTopic implements Topic {
             return new TopicStats();
         }
     };
-
-    // Whether messages published must be encrypted or not in this topic
-    private volatile boolean isEncryptionRequired = false;
-    private volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
-        SchemaCompatibilityStrategy.FULL;
-    // schema validation enforced flag
-    private volatile boolean schemaValidationEnforced = false;
 
     private static class TopicStats {
         public double averageMsgSize;
@@ -151,7 +118,7 @@ public class NonPersistentTopic implements Topic {
         public final ObjectObjectHashMap<String, PublisherStats> remotePublishersStats;
 
         public TopicStats() {
-            remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
+            remotePublishersStats = new ObjectObjectHashMap<>();
             reset();
         }
 
@@ -166,17 +133,11 @@ public class NonPersistentTopic implements Topic {
     }
 
     public NonPersistentTopic(String topic, BrokerService brokerService) {
-        this.topic = topic;
-        this.brokerService = brokerService;
-        this.producers = new ConcurrentOpenHashSet<Producer>(16, 1);
+        super(topic, brokerService);
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         this.isFenced = false;
-        this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
-        this.executor = brokerService.getTopicOrderedExecutor();
         USAGE_COUNT_UPDATER.set(this, 0);
-
-        this.lastActive = System.nanoTime();
 
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
@@ -218,7 +179,7 @@ public class NonPersistentTopic implements Topic {
                 Entry entry = create(0L, 0L, duplicateBuffer);
                 // entry internally retains data so, duplicateBuffer should be release here
                 duplicateBuffer.release();
-                ((NonPersistentReplicator) replicator).sendMessage(entry);
+                replicator.sendMessage(entry);
             });
         }
     }
@@ -230,7 +191,7 @@ public class NonPersistentTopic implements Topic {
         lock.readLock().lock();
         try {
             brokerService.checkTopicNsOwnership(getName());
-            
+
             if (isFenced) {
                 log.warn("[{}] Attempting to add producer to a fenced topic", topic);
                 throw new TopicFencedException("Topic is temporarily unavailable");
@@ -261,38 +222,9 @@ public class NonPersistentTopic implements Topic {
         }
     }
 
-    private boolean isProducersExceeded() {
-        Policies policies;
-        try {
-            policies =  brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
-                    .orElseGet(() -> new Policies());
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-        final int maxProducers = policies.max_producers_per_topic > 0 ?
-                policies.max_producers_per_topic :
-                brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
-        if (maxProducers > 0 && maxProducers <= producers.size()) {
-            return true;
-        }
-        return false;
-    }
-
     @Override
     public void checkMessageDeduplicationInfo() {
         // No-op
-    }
-
-    private boolean hasLocalProducers() {
-        AtomicBoolean foundLocal = new AtomicBoolean(false);
-        producers.forEach(producer -> {
-            if (!producer.isRemote()) {
-                foundLocal.set(true);
-            }
-        });
-
-        return foundLocal.get();
     }
 
     @Override
@@ -312,10 +244,11 @@ public class NonPersistentTopic implements Topic {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            boolean replicateSubscriptionState) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
-        
+
         try {
             brokerService.checkTopicNsOwnership(getName());
         } catch (Exception e) {
@@ -393,17 +326,13 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition) {
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition, boolean replicateSubscriptionState) {
         return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName));
-    }
-
-    void removeSubscription(String subscriptionName) {
-        subscriptions.remove(subscriptionName);
     }
 
     @Override
     public CompletableFuture<Void> delete() {
-        return delete(false, false);
+        return delete(false, false, false);
     }
 
     /**
@@ -413,10 +342,12 @@ public class NonPersistentTopic implements Topic {
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
-        return delete(false, true);
+        return delete(false, true, false);
     }
 
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
+                                           boolean closeIfClientsConnected,
+                                           boolean deleteSchema) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -461,7 +392,9 @@ public class NonPersistentTopic implements Topic {
                     } else {
                         subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
                     }
-
+                    if (deleteSchema) {
+                        futures.add(deleteSchema().thenApply(schemaVersion -> null));
+                    }
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
@@ -668,16 +601,6 @@ public class NonPersistentTopic implements Topic {
         // No-op
     }
 
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("topic", topic).toString();
-    }
-
-    @Override
-    public ConcurrentOpenHashSet<Producer> getProducers() {
-        return producers;
-    }
-
     public int getNumberOfConsumers() {
         int count = 0;
         for (NonPersistentSubscription subscription : subscriptions.values()) {
@@ -703,15 +626,6 @@ public class NonPersistentTopic implements Topic {
 
     public Replicator getPersistentReplicator(String remoteCluster) {
         return replicators.get(remoteCluster);
-    }
-
-    public BrokerService getBrokerService() {
-        return brokerService;
-    }
-
-    @Override
-    public String getName() {
-        return topic;
     }
 
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream topicStatsStream,
@@ -770,7 +684,6 @@ public class NonPersistentTopic implements Topic {
 
                 topicStatsStream.startList("consumers");
 
-                subscription.getDispatcher().getMesssageDropRate().calculateRate();
                 for (Object consumerObj : consumers) {
                     Consumer consumer = (Consumer) consumerObj;
                     consumer.updateRates();
@@ -795,8 +708,9 @@ public class NonPersistentTopic implements Topic {
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());
                 if (subscription.getDispatcher() != null) {
+                    subscription.getDispatcher().getMesssageDropRate().calculateRate();
                     topicStatsStream.writePair("msgDropRate",
-                            subscription.getDispatcher().getMesssageDropRate().getRate());
+                            subscription.getDispatcher().getMesssageDropRate().getValueRate());
                 }
 
                 // Close consumers
@@ -833,7 +747,10 @@ public class NonPersistentTopic implements Topic {
         bundleStats.msgRateOut += topicStats.aggMsgRateOut;
         bundleStats.msgThroughputIn += topicStats.aggMsgThroughputIn;
         bundleStats.msgThroughputOut += topicStats.aggMsgThroughputOut;
-
+        // add publish-latency metrics
+        this.addEntryLatencyStatsUsec.refresh();
+        NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
+        this.addEntryLatencyStatsUsec.reset();
         // Close topic object
         topicStatsStream.endObject();
     }
@@ -923,7 +840,7 @@ public class NonPersistentTopic implements Topic {
                                 gcIntervalInSeconds);
                     }
 
-                    stopReplProducers().thenCompose(v -> delete(true, false))
+                    stopReplProducers().thenCompose(v -> delete(true, false, true))
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
                                 if (e.getCause() instanceof TopicBusyException) {
@@ -932,8 +849,7 @@ public class NonPersistentTopic implements Topic {
                                         log.debug("[{}] Did not delete busy topic: {}", topic,
                                                 e.getCause().getMessage());
                                     }
-                                    replicators.forEach((region, replicator) -> ((NonPersistentReplicator) replicator)
-                                            .startProducer());
+                                    replicators.forEach((region, replicator) -> replicator.startProducer());
                                 } else {
                                     log.warn("[{}] Inactive topic deletion failed", topic, e);
                                 }
@@ -989,21 +905,13 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
-    public boolean isEncryptionRequired() {
-        return isEncryptionRequired;
-    }
-
-    @Override
-    public boolean getSchemaValidationEnforced() { return schemaValidationEnforced; }
-
-    @Override
     public boolean isReplicated() {
         return replicators.size() > 1;
     }
 
     @Override
-    public CompletableFuture<Void> unsubscribe(String subName) {
-        // No-op
+    public CompletableFuture<Void> unsubscribe(String subscriptionName) {
+        subscriptions.remove(subscriptionName);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -1012,42 +920,8 @@ public class NonPersistentTopic implements Topic {
         throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
     }
 
-    public void markBatchMessagePublished() {
-        this.hasBatchMessagePublished = true;
-    }
-
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
-    @Override
-    public CompletableFuture<Boolean> hasSchema() {
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-            .getSchemaRegistryService()
-            .getSchema(id).thenApply((schema) -> schema != null);
-    }
-
-    @Override
-    public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
-        if (schema == null) {
-            return CompletableFuture.completedFuture(SchemaVersion.Empty);
-        }
-
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-            .getSchemaRegistryService()
-            .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
-    }
-
-    @Override
-    public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-            .getSchemaRegistryService()
-            .isCompatibleWithLatestVersion(id, schema, schemaCompatibilityStrategy);
-    }
 
     @Override
     public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {

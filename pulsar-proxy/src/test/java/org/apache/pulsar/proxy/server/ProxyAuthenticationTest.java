@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -216,8 +217,8 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		// Step 2: Try to use proxy Client as a normal Client - expect exception
 		ProxyConfiguration proxyConfig = new ProxyConfiguration();
 		proxyConfig.setAuthenticationEnabled(true);
-		proxyConfig.setServicePort(servicePort);
-		proxyConfig.setWebServicePort(webServicePort);
+		proxyConfig.setServicePort(Optional.ofNullable(servicePort));
+		proxyConfig.setWebServicePort(Optional.ofNullable(webServicePort));
 		proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
 
 		proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());

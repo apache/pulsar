@@ -61,7 +61,6 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
-import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -305,22 +304,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // If compression is enabled, we are compressing, otherwise it will simply use the same buffer
         int uncompressedSize = payload.readableBytes();
         ByteBuf compressedPayload = payload;
-        // batch will be compressed when closed
-        if (!isBatchMessagingEnabled()) {
+        // Batch will be compressed when closed
+        // If a message has a delayed delivery time, we'll always send it individually
+        if (!isBatchMessagingEnabled() || msgMetadataBuilder.hasDeliverAtTime()) {
             compressedPayload = compressor.encode(payload);
             payload.release();
 
             // validate msg-size (For batching this will be check at the batch completion size)
             int compressedSize = compressedPayload.readableBytes();
-
-            if (compressedSize > PulsarDecoder.MaxMessageSize) {
+            if (compressedSize > ClientCnx.getMaxMessageSize()) {
                 compressedPayload.release();
                 String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
-                        ? "Compressed"
-                        : "";
+                                           ? "Compressed"
+                                           : "";
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
-                        format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
-                                PulsarDecoder.MaxMessageSize));
+                    format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
+                           ClientCnx.getMaxMessageSize()));
                 callback.sendComplete(invalidMessageException);
                 return;
             }
@@ -361,7 +360,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
 
-                if (isBatchMessagingEnabled()) {
+                if (isBatchMessagingEnabled() && !msgMetadataBuilder.hasDeliverAtTime()) {
                     // handle boundary cases where message being added would exceed
                     // batch size and/or max message size
                     if (batchMessageContainer.hasSpaceInBatch(msg)) {
@@ -1306,12 +1305,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op = OpSendMsg.create(batchMessageContainer.messages, cmd, sequenceId,
                         batchMessageContainer.firstCallback);
 
-                if (encryptedPayload.readableBytes() > PulsarDecoder.MaxMessageSize) {
+                if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
                     cmd.release();
                     semaphore.release(numMessagesInBatch);
                     if (op != null) {
                         op.callback.sendComplete(new PulsarClientException.InvalidMessageException(
-                                "Message size is bigger than " + PulsarDecoder.MaxMessageSize + " bytes"));
+                            "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
                     }
                     return;
                 }
@@ -1323,11 +1322,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                 pendingMessages.put(op);
 
+                ClientCnx cnx = cnx();
                 if (isConnected()) {
                     // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new
                     // connection is established
                     cmd.retain();
-                    cnx().ctx().channel().eventLoop().execute(WriteInEventLoopCallback.create(this, cnx(), op));
+                    cnx.ctx().channel().eventLoop().execute(WriteInEventLoopCallback.create(this, cnx, op));
                     stats.updateNumMsgsSent(numMessagesInBatch, op.batchSizeByte);
                 } else {
                     if (log.isDebugEnabled()) {

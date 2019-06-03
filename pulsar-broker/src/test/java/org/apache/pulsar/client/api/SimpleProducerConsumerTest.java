@@ -634,10 +634,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
 
         // Messages are allowed up to MaxMessageSize
-        producer.newMessage().value(new byte[PulsarDecoder.MaxMessageSize]);
+        producer.newMessage().value(new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE]);
 
         try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+            producer.send(new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE + 1]);
             fail("Should have thrown exception");
         } catch (PulsarClientException.InvalidMessageException e) {
             // OK
@@ -671,7 +671,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.LZ4)
             .create();
-        producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+        producer.send(new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE + 1]);
         producer.close();
 
         // (b) batch-msg with compression
@@ -680,7 +680,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.LZ4)
             .create();
-        producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+        producer.send(new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE + 1]);
         producer.close();
 
         // (c) non-batch msg without compression
@@ -690,7 +690,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .compressionType(CompressionType.NONE)
             .create();
         try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+            producer.send(new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE + 1]);
             fail("Should have thrown exception");
         } catch (PulsarClientException.InvalidMessageException e) {
             // OK
@@ -704,7 +704,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.LZ4).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe();
-        byte[] content = new byte[PulsarDecoder.MaxMessageSize + 10];
+        byte[] content = new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE + 10];
         producer.send(content);
         assertEquals(consumer.receive().getData(), content);
         producer.close();
@@ -716,7 +716,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .compressionType(CompressionType.NONE)
             .create();
         try {
-            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
+            producer.send(new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE + 1]);
             fail("Should have thrown exception");
         } catch (PulsarClientException.InvalidMessageException e) {
             // OK

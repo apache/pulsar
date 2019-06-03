@@ -279,6 +279,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> replicateSubscriptionState(boolean replicateSubscriptionState) {
+        conf.setReplicateSubscriptionState(replicateSubscriptionState);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> intercept(ConsumerInterceptor<T>... interceptors) {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();

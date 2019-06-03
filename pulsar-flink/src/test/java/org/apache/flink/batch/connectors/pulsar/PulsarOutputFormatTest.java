@@ -72,7 +72,7 @@ public class PulsarOutputFormatTest {
                 .topicName("testTopic")
                 .build();
 
-        new PulsarOutputFormat(clientConf, producerConf);
+        new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -85,7 +85,7 @@ public class PulsarOutputFormatTest {
                 .topicName(null)
                 .build();
 
-        new PulsarOutputFormat(clientConf, producerConf);
+        new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -98,7 +98,7 @@ public class PulsarOutputFormatTest {
                 .topicName(StringUtils.EMPTY)
                 .build();
 
-        new PulsarOutputFormat(clientConf, producerConf);
+        new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -111,7 +111,18 @@ public class PulsarOutputFormatTest {
                 .topicName("testTopic")
                 .build();
 
-        new PulsarOutputFormat(clientConf, producerConf);
+        new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testPulsarOutputFormatConstructorV2WhenSerializationSchemaIsNull() {
+        ClientConfigurationData clientConf = ClientConfigurationData.builder()
+                .serviceUrl("testServiceUrl")
+                .build();
+        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
+                .topicName("testTopic")
+                .build();
+        new PulsarOutputFormat(clientConf, producerConf, null);
     }
 
     @Test

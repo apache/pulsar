@@ -41,19 +41,19 @@ You can use the [`create`](../../reference/CliTools#pulsar-admin-source-create)
 You can submit a sink to be run in an existing Pulsar cluster using a command of this form:
 
 ```bash
-$ ./bin/pulsar-admin sink create --className  <classname> --jar <jar-location> --tenant test --namespace <namespace> --name <sink-name> --inputs <input-topics>
+$ ./bin/pulsar-admin sinks create --className  <classname> --jar <jar-location> --tenant test --namespace <namespace> --name <sink-name> --inputs <input-topics>
 ```
 
 Here’s an example command:
 
 ```bash
-bin/pulsar-admin source create --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
+bin/pulsar-admin sources create --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
 ```
 
 Instead of submitting a source to run on an existing Pulsar cluster, you alternatively can run a source as a process on your local machine:
 
 ```bash
-bin/pulsar-admin source localrun --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
+bin/pulsar-admin sources localrun --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
 ```
 
 ### Running Sinks
@@ -61,19 +61,19 @@ bin/pulsar-admin source localrun --className  org.apache.pulsar.io.twitter.Twitt
 You can submit a sink to be run in an existing Pulsar cluster using a command of this form:
 
 ```bash
-./bin/pulsar-admin sink create --className  <classname> --jar <jar-location> --tenant test --namespace <namespace> --name <sink-name> --inputs <input-topics>
+./bin/pulsar-admin sinks create --className  <classname> --jar <jar-location> --tenant test --namespace <namespace> --name <sink-name> --inputs <input-topics>
 ```
 
 Here’s an example command:
 
 ```bash
-./bin/pulsar-admin sink create --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
+./bin/pulsar-admin sinks create --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
 ```
 
 Instead of submitting a sink to run on an existing Pulsar cluster, you alternatively can run a sink as a process on your local machine:
 
 ```bash
-./bin/pulsar-admin sink localrun --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
+./bin/pulsar-admin sinks localrun --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
 ```
 
 ## Available connectors

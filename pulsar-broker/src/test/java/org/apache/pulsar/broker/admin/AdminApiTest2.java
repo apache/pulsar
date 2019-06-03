@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.core.Response.Status;
 
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -817,14 +818,44 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.tenants().createTenant("prop xyz", tenantInfo);
             fail("Should have failed");
         } catch (PulsarAdminException e) {
-            // Expected
+            assertEquals(e.getStatusCode(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
         try {
             admin.tenants().createTenant("prop&xyz", tenantInfo);
             fail("Should have failed");
         } catch (PulsarAdminException e) {
-            // Expected
+            assertEquals(e.getStatusCode(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+    }
+
+    @Test
+    public void testTenantWithNonexistentClusters() throws Exception {
+        // Check non-existing cluster
+        assertTrue(!admin.clusters().getClusters().contains("cluster-non-existing"));
+
+        Set<String> allowedClusters = Sets.newHashSet("cluster-non-existing");
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
+
+        // If we try to create tenant with nonexistent clusters, it should fail immediately
+        try {
+            admin.tenants().createTenant("test-tenant", tenantInfo);
+            fail("Should have failed");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        assertTrue(!admin.tenants().getTenants().contains("test-tenant"));
+
+        // Check existing tenant
+        assertTrue(admin.tenants().getTenants().contains("prop-xyz"));
+
+        // If we try to update existing tenant with nonexistent clusters, it should fail immediately
+        try {
+            admin.tenants().updateTenant("prop-xyz", tenantInfo);
+            fail("Should have failed");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), Status.PRECONDITION_FAILED.getStatusCode());
         }
     }
 

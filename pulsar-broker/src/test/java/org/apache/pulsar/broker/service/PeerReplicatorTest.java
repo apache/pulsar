@@ -47,13 +47,13 @@ import com.google.common.collect.Sets;
 public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @Override
-    @BeforeClass
+    @BeforeClass(timeOut = 300000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass
+    @AfterClass(timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -178,23 +178,23 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         }, 5, 100);
         assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), peerClusters);
     }
-	
+
     /**
      * Removing local cluster from the replication-cluster should make sure that bundle should not be loaded by the
      * cluster even if owner broker doesn't receive the watch to avoid lookup-conflict between peer-cluster.
-     * 
+     *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters
         admin1.clusters().updatePeerClusterNames("r1", null);
         admin1.clusters().updatePeerClusterNames("r2", null);
         admin1.clusters().updatePeerClusterNames("r3", null);
-        
+
         final String serviceUrl = pulsar3.getBrokerServiceUrl();
-        final String namespace1 = "pulsar/global/peer-change-repl-ns";
+        final String namespace1 = "pulsar/global/peer-change-repl-ns-" + System.nanoTime();
         admin1.namespaces().createNamespace(namespace1);
         // add replication cluster
         admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));

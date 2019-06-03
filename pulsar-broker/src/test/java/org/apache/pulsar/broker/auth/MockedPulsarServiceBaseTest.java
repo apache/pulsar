@@ -24,12 +24,13 @@ import static org.mockito.Mockito.spy;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,6 +39,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -91,8 +93,10 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected void resetConfig() {
         this.conf = new ServiceConfiguration();
-        this.conf.setBrokerServicePort(BROKER_PORT);
-        this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
+        this.conf.setAdvertisedAddress("localhost");
+        this.conf.setBrokerServicePort(Optional.ofNullable(BROKER_PORT));
+        this.conf.setAdvertisedAddress("localhost");
+        this.conf.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
         this.conf.setClusterName(configClusterName);
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
         this.conf.setManagedLedgerCacheSizeMB(8);
@@ -271,7 +275,9 @@ public abstract class MockedPulsarServiceBaseTest {
     private BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
-        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) {
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+                Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                Map<String, Object> properties) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }

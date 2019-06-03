@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.utils;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.InspectContainerResponse;
@@ -28,9 +26,15 @@ import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.ContainerNetwork;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.StreamType;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResultBytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.File;
@@ -46,13 +50,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.pulsar.tests.integration.docker.ContainerExecException;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResultBytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class DockerUtils {
     private static final Logger LOG = LoggerFactory.getLogger(DockerUtils.class);
@@ -183,9 +181,22 @@ public class DockerUtils {
 
     public static ContainerExecResult runCommand(DockerClient docker,
                                                  String containerId,
-                                                 String... cmd)
-            throws ContainerExecException {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
+                                                 String... cmd) throws ContainerExecException, ExecutionException, InterruptedException {
+
+        try {
+            return runCommandAsync(docker, containerId, cmd).get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof ContainerExecException) {
+                throw (ContainerExecException) e.getCause();
+            }
+            throw e;
+        }
+    }
+
+    public static CompletableFuture<ContainerExecResult> runCommandAsync(DockerClient docker,
+                                                 String containerId,
+                                                 String... cmd) {
+        CompletableFuture<ContainerExecResult> future = new CompletableFuture<>();
         String execid = docker.execCreateCmd(containerId)
             .withCmd(cmd)
             .withAttachStderr(true)
@@ -223,33 +234,35 @@ public class DockerUtils {
                 @Override
                 public void onComplete() {
                     LOG.info("DOCKER.exec({}:{}): Done", containerId, cmdString);
-                    future.complete(true);
+
+                    InspectExecResponse resp = docker.inspectExecCmd(execid).exec();
+                    while (resp.isRunning()) {
+                        try {
+                            Thread.sleep(200);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            throw new RuntimeException(ie);
+                        }
+                        resp = docker.inspectExecCmd(execid).exec();
+                    }
+                    int retCode = resp.getExitCode();
+                    ContainerExecResult result = ContainerExecResult.of(
+                            retCode,
+                            stdout.toString(),
+                            stderr.toString()
+                    );
+                    LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
+
+                    if (retCode != 0) {
+                        LOG.error("DOCKER.exec({}:{}): completed with non zero return code: {}\nstdout: {}\nstderr: {}",
+                                containerId, cmdString, result.getExitCode(), result.getStdout(), result.getStderr());
+                        future.completeExceptionally(new ContainerExecException(cmdString, containerId, result));
+                    } else {
+                        future.complete(result);
+                    }
                 }
             });
-        future.join();
-
-        InspectExecResponse resp = docker.inspectExecCmd(execid).exec();
-        while (resp.isRunning()) {
-            try {
-                Thread.sleep(200);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(ie);
-            }
-            resp = docker.inspectExecCmd(execid).exec();
-        }
-        int retCode = resp.getExitCode();
-        ContainerExecResult result = ContainerExecResult.of(
-            retCode,
-            stdout.toString(),
-            stderr.toString()
-        );
-        LOG.info("DOCKER.exec({}:{}): completed with {}", containerId, cmdString, retCode);
-
-        if (retCode != 0) {
-            throw new ContainerExecException(cmdString, containerId, result);
-        }
-        return result;
+        return future;
     }
 
     public static ContainerExecResultBytes runCommandWithRawOutput(DockerClient docker,
