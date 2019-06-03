@@ -187,8 +187,9 @@ class BatchMessageContainerImpl implements BatchMessageContainer {
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException.InvalidMessageException(
                     "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                op.recycle();
             }
-            throw new PulsarClientException("Message size is bigger than " + + ClientCnx.getMaxMessageSize() + " bytes");
+            return null;
         }
 
         op.setNumMessagesInBatch(numMessagesInBatch);

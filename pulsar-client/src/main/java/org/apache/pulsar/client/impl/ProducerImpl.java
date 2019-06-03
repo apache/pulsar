@@ -1289,6 +1289,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (!batchMessageContainer.isEmpty()) {
             try {
                 for (OpSendMsg opSendMsg : batchMessageContainer.createOpSendMsgs()) {
+                    if (opSendMsg == null) {
+                        break;
+                    }
                     processOpSendMsg(opSendMsg);
                 }
             } catch (PulsarClientException e) {
