@@ -153,7 +153,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,
                             laterReplay);
                 }
-                readMoreEntries();
             }
         }
     }
