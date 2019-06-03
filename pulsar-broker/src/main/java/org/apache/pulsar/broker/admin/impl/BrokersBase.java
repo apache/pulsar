@@ -126,7 +126,7 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
         @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
-        @ApiResponse(code = 500, message = "Service internal error")})
+        @ApiResponse(code = 500, message = "Internal server error")})
     public void updateDynamicConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception {
         validateSuperUserAccess();
         updateDynamicConfigurationOnZk(configName, configValue);
@@ -137,7 +137,7 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
     @ApiResponses(value = {
         @ApiResponse(code = 404, message = "Configuration not found"),
-        @ApiResponse(code = 500, message = "Service internal error")})
+        @ApiResponse(code = 500, message = "Internal server error")})
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
         ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
                 .getDynamicConfigurationCache();
@@ -239,7 +239,7 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 200, message = "Everything is OK"),
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist"),
-        @ApiResponse(code = 500, message = "Service internal error")})
+        @ApiResponse(code = 500, message = "Internal server error")})
     public void healthcheck(@Suspended AsyncResponse asyncResponse) throws Exception {
         validateSuperUserAccess();
         String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(
