@@ -74,6 +74,16 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private long defaultBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
 
+    public boolean isUseTls() {
+        if (useTls)
+            return true;
+        if (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https")) {
+            this.useTls = true;
+            return true;
+        }
+        return false;
+    }
+
     public ClientConfigurationData clone() {
         try {
             return (ClientConfigurationData) super.clone();
