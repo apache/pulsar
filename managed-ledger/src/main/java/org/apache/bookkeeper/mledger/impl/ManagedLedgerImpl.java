@@ -3100,8 +3100,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         ReadEntryCallbackWrapper callback = this.lastReadCallback;
         long readOpCount = callback != null ? callback.readOpCount : 0;
-        long createdTime = callback.createdTime;
-        boolean timeout = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - createdTime) >= timeoutSec;
+        boolean timeout = callback != null
+                ? (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - callback.createdTime) >= timeoutSec)
+                : false;
         if (readOpCount > 0 && callback != null && timeout) {
             log.warn("[{}]-{}-{} read entry timeout after {} sec", this.name, this.lastReadCallback.ledgerId,
                     this.lastReadCallback.entryId, timeoutSec);
