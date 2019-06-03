@@ -6932,10 +6932,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -7258,6 +7258,10 @@
           "type" : "number",
           "format" : "double"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "underLoaded" : {
           "type" : "boolean"
         },
@@ -7266,6 +7270,9 @@
         },
         "loadReportType" : {
           "type" : "string"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -7283,16 +7290,9 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -7452,13 +7452,13 @@
           "type" : "number",
           "format" : "double"
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "producerName" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -8182,13 +8182,13 @@
             "type" : "string"
           }
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "producerName" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
