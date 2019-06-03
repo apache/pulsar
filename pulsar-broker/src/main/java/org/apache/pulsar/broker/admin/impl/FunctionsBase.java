@@ -72,88 +72,88 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void registerFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The functions tenant")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The functions namespace")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The functions name")
             final @PathParam("functionName") String functionName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
-                    value = "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \n" +
+                    value = "A JSON value presenting functions configuration payload. An example of the expected functions can be found here.  \n" +
                             "autoAck  \n" +
-                            "  Whether or not the framework will automatically acknowledge messages  \n" +
+                            "  Whether or not the framework will automatically acknowledge messages.  \n" +
                             "runtime  \n" +
                             "  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \n" +
                             "resources  \n" +
-                            "  The size of the system resources allowed by the function runtime, include: cpu, ram, disk.  \n" +
+                            "  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \n" +
                             "className  \n" +
-                            "  The function's class name  \n" +
+                            "  The class name of functions.  \n" +
                             "tenant  \n" +
-                            "  The function's tenant  \n" +
+                            "  The tenant of functions.  \n" +
                             "namespace  \n" +
-                            "  The function's namespace  \n" +
+                            "  The namespace of functions.  \n" +
                             "name  \n" +
-                            "  The function's name  \n" +
+                            "  The name of functions.  \n" +
                             "customSchemaInputs  \n" +
-                            "  The map of input topics to Schema class names (as a JSON string)  \n" +
+                            "  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \n" +
                             "customSerdeInputs  \n" +
-                            "  The map of input topics to SerDe class names (as a JSON string)  \n" +
+                            "  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \n" +
                             "deadLetterTopic  \n" +
-                            "  The topic where all messages which could not be processed successfully are sent  \n" +
+                            "  Messages that are not processed successfully are sent to `deadLetterTopic`.  \n" +
                             "runtimeFlags  \n" +
-                            "  Any flags that you want to pass to the runtime. note that in thread mode, these flags will have no impact  \n" +
+                            "  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \n" +
                             "fqfn  \n" +
-                            "  The Fully Qualified Function Name (FQFN) for the function  \n" +
+                            "  The Fully Qualified Function Name (FQFN) for the function.  \n" +
                             "inputSpecs  \n" +
-                            "  A generalized way of specifying inputs  \n" +
+                            "  A generalized way of specifying inputs.  \n" +
                             "inputs  \n" +
-                            "  The function's input topic or topics (multiple topics can be specified as a comma-separated list)  \n" +
+                            "  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \n" +
                             "jar  \n" +
-                            "  Path to the jar file for the function (if the function is written in Java). " +
-                            "  It also supports url-path [http/https/file (file protocol assumes that file " +
+                            "  Path to the JAR file for the function (if the function is written in Java). " +
+                            "  It also supports URL path [http/https/file (file protocol assumes that file " +
                             "  already exists on worker host)] from which worker can download the package.  \n" +
                             "py  \n" +
-                            "  Path to the main Python file/Python Wheel file for the function (if the function is written in Python)  \n" +
+                            "  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \n" +
                             "go  \n" +
-                            "  Path to the main Go executable binary for the function (if the function is written in Go)  \n" +
+                            "  Path to the main Go executable binary for the function (if the function is written in Go).  \n" +
                             "logTopic  \n" +
-                            "  The topic to which the function's logs are produced  \n" +
+                            "  The topic to which the functions logs are produced.  \n" +
                             "maxMessageRetries  \n" +
-                            "  How many times should we try to process a message before giving up  \n" +
+                            "  How many times should we try to process a message before giving up.  \n" +
                             "output  \n" +
-                            "  The function's output topic (If none is specified, no output is written)  \n" +
+                            "  The functions output topic (If none is specified, no output is written).  \n" +
                             "outputSerdeClassName  \n" +
-                            "  The SerDe class to be used for messages output by the function  \n" +
+                            "  The SerDe class to be used for messages output by the function.  \n" +
                             "parallelism  \n" +
-                            "  The function's parallelism factor (i.e. the number of function instances to run)  \n" +
+                            "  The functions parallelism factor (i.e. the number of function instances to run).  \n" +
                             "processingGuarantees  \n" +
-                            "  The processing guarantees (aka delivery semantics) applied to the function" +
+                            "  The processing guarantees (aka delivery semantics) applied to the function." +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
                             "retainOrdering  \n" +
-                            "  Function consumes and processes messages in order  \n" +
+                            "  Function consumes and processes messages in order.  \n" +
                             "outputSchemaType  \n" +
-                            "   Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema implementation" +
+                            "   Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema implementation." +
                             "subName  \n" +
-                            "  Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer  \n" +
+                            "  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \n" +
                             "windowConfig  \n" +
-                            "  The window functions config  \n" +
+                            "  The window functions configuration.  \n" +
                             "timeoutMs  \n" +
-                            "  The message timeout in milliseconds  \n" +
+                            "  The message timeout in milliseconds.  \n" +
                             "topicsPattern  \n" +
-                            "  The topic pattern to consume from list of topics under a namespace that match the pattern." +
+                            "  The topic pattern to consume from a list of topics under a namespace that match the pattern." +
                             "  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a " +
                             "  pattern in --custom-serde-inputs (supported for java fun only)  \n" +
                             "userConfig  \n" +
                             "  User-defined config key/values  \n" +
                             "secrets  \n" +
-                            "  This is a map of secretName(aka how the secret is going to be accessed in the function via context) to an object that" +
+                            "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
                             "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
                             "cleanupSubscription  \n" +
-                            "  Whether the subscriptions the functions created/used should be deleted when the functions is deleted  \n",
+                            "  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -184,11 +184,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void updateFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The functions tenant")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The functions namespace")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The functions name")
             final @PathParam("functionName") String functionName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
@@ -196,76 +196,76 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiParam(
                     value = "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \n" +
                             "autoAck  \n" +
-                            "  Whether or not the framework will automatically acknowledge messages  \n" +
+                            "  Whether or not the framework will automatically acknowledge messages.  \n" +
                             "runtime  \n" +
                             "  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \n" +
                             "resources  \n" +
-                            "  The size of the system resources allowed by the function runtime, include: cpu, ram, disk.  \n" +
+                            "  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \n" +
                             "className  \n" +
-                            "  The function's class name  \n" +
+                            "  The class name of functions.  \n" +
                             "tenant  \n" +
-                            "  The function's tenant  \n" +
+                            "  The tenant of functions.  \n" +
                             "namespace  \n" +
-                            "  The function's namespace  \n" +
+                            "  The namespace of functions.  \n" +
                             "name  \n" +
-                            "  The function's name  \n" +
+                            "  The name of functions.  \n" +
                             "customSchemaInputs  \n" +
-                            "  The map of input topics to Schema class names (as a JSON string)  \n" +
+                            "  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \n" +
                             "customSerdeInputs  \n" +
-                            "  The map of input topics to SerDe class names (as a JSON string)  \n" +
+                            "  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \n" +
                             "deadLetterTopic  \n" +
-                            "  The topic where all messages which could not be processed successfully are sent  \n" +
+                            "  Messages that are not processed successfully are sent to `deadLetterTopic`.  \n" +
                             "runtimeFlags  \n" +
-                            "  Any flags that you want to pass to the runtime. note that in thread mode, these flags will have no impact  \n" +
+                            "  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \n" +
                             "fqfn  \n" +
-                            "  The Fully Qualified Function Name (FQFN) for the function  \n" +
+                            "  The Fully Qualified Function Name (FQFN) for the function.  \n" +
                             "inputSpecs  \n" +
-                            "  A generalized way of specifying inputs  \n" +
+                            "  A generalized way of specifying inputs.  \n" +
                             "inputs  \n" +
-                            "  The function's input topic or topics (multiple topics can be specified as a comma-separated list)  \n" +
+                            "  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \n" +
                             "jar  \n" +
-                            "  Path to the jar file for the function (if the function is written in Java). " +
-                            "  It also supports url-path [http/https/file (file protocol assumes that file " +
+                            "  Path to the JAR file for the function (if the function is written in Java). " +
+                            "  It also supports URL path [http/https/file (file protocol assumes that file " +
                             "  already exists on worker host)] from which worker can download the package.  \n" +
                             "py  \n" +
-                            "  Path to the main Python file/Python Wheel file for the function (if the function is written in Python)  \n" +
+                            "  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \n" +
                             "go  \n" +
-                            "  Path to the main Go executable binary for the function (if the function is written in Go)  \n" +
+                            "  Path to the main Go executable binary for the function (if the function is written in Go).  \n" +
                             "logTopic  \n" +
-                            "  The topic to which the function's logs are produced  \n" +
+                            "  The topic to which the functions logs are produced.  \n" +
                             "maxMessageRetries  \n" +
-                            "  How many times should we try to process a message before giving up  \n" +
+                            "  How many times should we try to process a message before giving up.  \n" +
                             "output  \n" +
-                            "  The function's output topic (If none is specified, no output is written)  \n" +
+                            "  The functions output topic (If none is specified, no output is written).  \n" +
                             "outputSerdeClassName  \n" +
-                            "  The SerDe class to be used for messages output by the function  \n" +
+                            "  The SerDe class to be used for messages output by the function.  \n" +
                             "parallelism  \n" +
-                            "  The function's parallelism factor (i.e. the number of function instances to run)  \n" +
+                            "  The functions parallelism factor (i.e. the number of function instances to run).  \n" +
                             "processingGuarantees  \n" +
-                            "  The processing guarantees (aka delivery semantics) applied to the function" +
+                            "  The processing guarantees (aka delivery semantics) applied to the function." +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
                             "retainOrdering  \n" +
-                            "  Function consumes and processes messages in order  \n" +
+                            "  Function consumes and processes messages in order.  \n" +
                             "outputSchemaType  \n" +
-                            "   Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema implementation" +
+                            "   Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema implementation." +
                             "subName  \n" +
-                            "  Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer  \n" +
+                            "  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \n" +
                             "windowConfig  \n" +
-                            "  The window functions config  \n" +
+                            "  The window functions configuration.  \n" +
                             "timeoutMs  \n" +
-                            "  The message timeout in milliseconds  \n" +
+                            "  The message timeout in milliseconds.  \n" +
                             "topicsPattern  \n" +
-                            "  The topic pattern to consume from list of topics under a namespace that match the pattern." +
+                            "  The topic pattern to consume from a list of topics under a namespace that match the pattern." +
                             "  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a " +
                             "  pattern in --custom-serde-inputs (supported for java fun only)  \n" +
                             "userConfig  \n" +
                             "  User-defined config key/values  \n" +
                             "secrets  \n" +
-                            "  This is a map of secretName(aka how the secret is going to be accessed in the function via context) to an object that" +
+                            "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
                             "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
                             "cleanupSubscription  \n" +
-                            "  Whether the subscriptions the functions created/used should be deleted when the functions is deleted  \n",
+                            "  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -300,11 +300,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public void deregisterFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName) {
         functions.deregisterFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
@@ -322,11 +322,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public FunctionConfig getFunctionInfo(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionInfo(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
@@ -344,11 +344,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/status")
     public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The function instanceId (Get-status of all instances if instance-id")
             final @PathParam("instanceId") String instanceId) throws IOException {
@@ -368,11 +368,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/status")
     public FunctionStatus getFunctionStatus(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionStatus(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -390,11 +390,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/stats")
     public FunctionStats getFunctionStats(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionStats(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -412,13 +412,13 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
     public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (Get-stats of all instances if instance-id is not provided")
+            @ApiParam(value = "The function instanceId (if instance-id is not provided, the stats of all instances is returned")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionsInstanceStats(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -435,9 +435,9 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     })
     @Path("/{tenant}/{namespace}")
     public List<String> listFunctions(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace) {
         return functions.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
@@ -456,17 +456,17 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public String triggerFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The value with which you want to trigger the function")
             final @FormDataParam("data") String triggerValue,
             @ApiParam(value = "The path to the file that contains the data with which you'd like to trigger the function")
             final @FormDataParam("dataStream") InputStream triggerStream,
-            @ApiParam(value = "The specific topic name that the function consumes from that you want to inject the data to")
+            @ApiParam(value = "The specific topic name that the function consumes from which you want to inject the data to")
             final @FormDataParam("topic") String topic) {
         return functions.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientAppId(), clientAuthData());
     }
@@ -484,11 +484,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     })
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
     public FunctionState getFunctionState(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The stats key")
             final @PathParam("key") String key) {
@@ -505,13 +505,13 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (restart all instances if instance-id is not provided")
+            @ApiParam(value = "The function instanceId (if instance-id is not provided, all instances are restarted")
             final @PathParam("instanceId") String instanceId) {
         functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -526,11 +526,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName) {
         functions.restartFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
@@ -545,13 +545,13 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (stop all instances if instance-id is not provided")
+            @ApiParam(value = "The function instanceId (if instance-id is not provided, all instances are stopped. ")
             final @PathParam("instanceId") String instanceId) {
         functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -566,11 +566,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName) {
         functions.stopFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
@@ -585,13 +585,13 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (start all instances if instance-id is not provided")
+            @ApiParam(value = "The function instanceId (if instance-id is not provided, all instances sre started. ")
             final @PathParam("instanceId") String instanceId) {
         functions.startFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -606,11 +606,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startFunction(
-            @ApiParam(value = "The function's tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The function's namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The function's name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName) {
         functions.startFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
