@@ -130,12 +130,12 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "parallelism  \n" +
                             "  The functions parallelism factor (i.e. the number of function instances to run).  \n" +
                             "processingGuarantees  \n" +
-                            "  The processing guarantees (aka delivery semantics) applied to the function." +
+                            "  The processing guarantees (that is, delivery semantics) applied to the function." +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
                             "retainOrdering  \n" +
                             "  Function consumes and processes messages in order.  \n" +
                             "outputSchemaType  \n" +
-                            "   Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema implementation." +
+                            "   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation." +
                             "subName  \n" +
                             "  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \n" +
                             "windowConfig  \n" +
@@ -242,12 +242,12 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "parallelism  \n" +
                             "  The functions parallelism factor (i.e. the number of function instances to run).  \n" +
                             "processingGuarantees  \n" +
-                            "  The processing guarantees (aka delivery semantics) applied to the function." +
+                            "  The processing guarantees (that is, delivery semantics) applied to the function." +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
                             "retainOrdering  \n" +
                             "  Function consumes and processes messages in order.  \n" +
                             "outputSchemaType  \n" +
-                            "   Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema implementation." +
+                            "   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation." +
                             "subName  \n" +
                             "  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \n" +
                             "windowConfig  \n" +
