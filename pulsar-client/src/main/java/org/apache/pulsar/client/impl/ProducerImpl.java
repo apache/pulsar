@@ -87,7 +87,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private volatile Timeout batchMessageAndSendTimeout = null;
     private long createProducerTimeout;
     private final int maxNumMessagesInBatch;
-    private final BatchMessageContainer batchMessageContainer;
+    private final BatchMessageContainerBase batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
 
     // Globally unique producer name
@@ -163,11 +163,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         if (conf.isBatchingEnabled()) {
             this.maxNumMessagesInBatch = conf.getBatchingMaxMessages();
-            if (conf.getBatchMessageContainer() == null) {
-                this.batchMessageContainer = new BatchMessageContainerImpl();
-            } else {
-                this.batchMessageContainer = conf.getBatchMessageContainer();
-            }
+            this.batchMessageContainer = (BatchMessageContainerBase)conf.getBatchMessageContainerBuilder().build();
             this.batchMessageContainer.setProducer(this);
         } else {
             this.maxNumMessagesInBatch = 1;

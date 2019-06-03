@@ -18,19 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
-/**
- * Batch message container utilities
- */
-public class BatchMessageContainers {
+import org.apache.pulsar.client.api.BatchMessageContainer;
+import org.apache.pulsar.client.api.BatchMessageContainerBuilder;
 
-    /**
-     * Create a default batch message container.
-     * Default batch message container is the most basic batch message container,
-     * it generates a single batch messages form multiple single messages.
-     *
-     * @return a new default batch message container.
-     */
-    public static BatchMessageContainer newDefaultBatchMessageContainer() {
+public class DefaultBatchMessageContainerBuilder implements BatchMessageContainerBuilder {
+
+    @Override
+    public BatchMessageContainer build() {
         return new BatchMessageContainerImpl();
     }
 }

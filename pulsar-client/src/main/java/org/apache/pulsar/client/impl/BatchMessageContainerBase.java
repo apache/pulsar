@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import org.apache.pulsar.client.api.BatchMessageContainer;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 
 import java.io.IOException;
@@ -26,7 +27,7 @@ import java.util.List;
 /**
  * container for individual messages being published until they are batched and sent to broker
  */
-public interface BatchMessageContainer {
+public interface BatchMessageContainerBase extends BatchMessageContainer {
 
     /**
      * Add message to the batch message container.
@@ -46,44 +47,11 @@ public interface BatchMessageContainer {
     boolean haveEnoughSpace(MessageImpl<?> msg);
 
     /**
-     * Clear the message batch container.
-     */
-    void clear();
-
-    /**
-     * Check the message batch container is empty.
-     *
-     * @return return true if empty, otherwise return false.
-     */
-    boolean isEmpty();
-
-    /**
-     * Get count of messages in the message batch container.
-     *
-     * @return messages count
-     */
-    int getNumMessagesInBatch();
-
-    /**
-     * Get current message batch size of the message batch container in bytes.
-     *
-     * @return message batch size in bytes
-     */
-    long getCurrentBatchSizeBytes();
-
-    /**
      * Set producer of the message batch container.
      *
      * @param producer producer
      */
     void setProducer(ProducerImpl<?> producer);
-
-    /**
-     * Release the payload and clear the container.
-     *
-     * @param ex cause
-     */
-    void handleException(Exception ex);
 
     /**
      * Create list of OpSendMsg, producer use OpSendMsg to send to the broker.

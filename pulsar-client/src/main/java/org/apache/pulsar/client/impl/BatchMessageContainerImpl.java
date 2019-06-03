@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * container for individual messages being published until they are batched and sent to broker
  */
 
-class BatchMessageContainerImpl implements BatchMessageContainer {
+class BatchMessageContainerImpl implements BatchMessageContainerBase {
 
     private SendCallback previousCallback = null;
     private PulsarApi.CompressionType compressionType;
