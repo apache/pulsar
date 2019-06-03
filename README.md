@@ -24,7 +24,7 @@
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
 
-https://pulsar.apache.org
+Learn more about Pulsar at https://pulsar.apache.org
 
 ## Main features
 * Horizontally scalable (Millions of independent topics and millions
@@ -56,6 +56,19 @@ Compile and install:
 
 ```bash
 $ mvn install -DskipTests
+```
+
+Run Unit Tests:
+
+```bash
+$ mvn test
+```
+
+Run Individual Unit Test:
+
+```bash
+cd related-module (e.g: pulsar-client)
+$ mvn test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
 ```
 
 Start standalone Pulsar service:
