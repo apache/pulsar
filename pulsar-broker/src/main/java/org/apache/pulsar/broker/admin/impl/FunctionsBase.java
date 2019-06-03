@@ -184,11 +184,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void updateFunction(
-            @ApiParam(value = "The functions tenant")
+            @ApiParam(value = "The tenant of functions")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The functions namespace")
+            @ApiParam(value = "The namespace of functions")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The functions name")
+            @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
@@ -350,7 +350,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (Get-status of all instances if instance-id")
+            @ApiParam(value = "The function instanceId (if instance-id is not provided, the stats of all instances is returned")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
