@@ -849,7 +849,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     // Everything is now closed, remove the topic from map
                     brokerService.removeTopicFromCache(topic);
 
-                    ReplicatedSubscriptionsController ctrl = replicatedSubscriptionsController.get();
+                    ReplicatedSubscriptionsController ctrl = replicatedSubscriptionsController.orElse(null);
                     if (ctrl != null) {
                         ctrl.close();
                     }
