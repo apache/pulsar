@@ -70,6 +70,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private long defaultBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
 
+    public Authentication getAuthentication() {
+        if (authentication == null) {
+            this.authentication = new AuthenticationDisabled();
+        }
+        return authentication;
+    }
+
     public ClientConfigurationData clone() {
         try {
             return (ClientConfigurationData) super.clone();
