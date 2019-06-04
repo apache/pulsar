@@ -134,7 +134,7 @@ public class PersistentSubscriptionTest {
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerMock);
 
-        persistentSubscription = new PersistentSubscription(topic, subName, cursorMock);
+        persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false);
     }
 
     @AfterMethod
