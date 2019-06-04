@@ -442,7 +442,19 @@ public class CmdNamespaces extends CmdBase {
                     new BookieAffinityGroupData(bookieAffinityGroupNamePrimary, bookieAffinityGroupNameSecondary));
         }
     }
-    
+
+    @Parameters(commandDescription = "Set the bookie-affinity group name")
+    private class DeleteBookieAffinityGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().deleteBookieAffinityGroup(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get the bookie-affinity group name")
     private class GetBookieAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1162,6 +1174,7 @@ public class CmdNamespaces extends CmdBase {
         
         jcommander.addCommand("set-bookie-affinity-group", new SetBookieAffinityGroup());
         jcommander.addCommand("get-bookie-affinity-group", new GetBookieAffinityGroup());
+        jcommander.addCommand("delete-bookie-affinity-group", new DeleteBookieAffinityGroup());
 
         jcommander.addCommand("unload", new Unload());
 

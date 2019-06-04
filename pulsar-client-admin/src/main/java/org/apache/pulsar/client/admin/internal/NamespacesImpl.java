@@ -416,6 +416,17 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void deleteBookieAffinityGroup(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "persistence", "bookieAffinity");
+            request(path).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public BookieAffinityGroupData getBookieAffinityGroup(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
