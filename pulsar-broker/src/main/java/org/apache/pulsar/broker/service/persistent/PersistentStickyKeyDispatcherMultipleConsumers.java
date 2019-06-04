@@ -100,6 +100,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
 
                 int messagesForC = Math.min(entriesWithSameKey.getValue().size(), consumer.getAvailablePermits());
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] select consumer {} for key {} with messages num {}, read type is {}",
+                            name, consumer.consumerName(), entriesWithSameKey.getKey(), messagesForC, readType);
+                }
                 if (messagesForC > 0) {
                     // remove positions first from replay list first : sendMessages recycles entries
                     List<Entry> subList = new ArrayList<>(entriesWithSameKey.getValue().subList(0, messagesForC));
@@ -172,6 +176,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
         metadataAndPayload.resetReaderIndex();
         String key = metadata.getPartitionKey();
+        if (log.isDebugEnabled()) {
+            log.debug("parse message metadata, partition key is {}", key);
+        }
         if (StringUtils.isNotBlank(key) || metadata.hasOrderingKey()) {
             return metadata.hasOrderingKey() ? metadata.getOrderingKey().toByteArray() : key.getBytes();
         }
