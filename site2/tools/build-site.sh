@@ -18,17 +18,21 @@
 # under the License.
 #
 
-set -x -e
-
 ROOT_DIR=$(git rev-parse --show-toplevel)
 VERSION=`${ROOT_DIR}/src/get-project-version.py`
-DOXYGEN=doxygen
 
-mkdir -p $ROOT_DIR/generated-site/api/cpp
+set -x -e
 
-(
-  cd $ROOT_DIR/pulsar-client-cpp
-  $DOXYGEN Doxyfile
-)
+${ROOT_DIR}/site2/tools/generate-api-docs.sh
+cd ${ROOT_DIR}/site2/website
+yarn
+yarn write-translations
+yarn run crowdin-upload
+yarn run crowdin-download
+yarn build
 
-mv $ROOT_DIR/target/doxygen/html $ROOT_DIR/generated-site/api/cpp/${VERSION}
+node ./scripts/replace.js
+
+rm -rf ${ROOT_DIR}/generated-site/content
+mkdir -p ${ROOT_DIR}/generated-site/content
+cp -R ./build/pulsar/* ${ROOT_DIR}/generated-site/content

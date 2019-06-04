@@ -20,6 +20,7 @@
 
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
+VERSION=`${ROOT_DIR}/src/get-project-version.py`
 DEST_DIR=$ROOT_DIR/generated-site
 JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.io
 
@@ -32,7 +33,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -windowtitle "Pulsar Client Java API" \
     -doctitle "Pulsar Client Java API" \
     -overview site/javadoc/client.html \
-    -d $DEST_DIR/api/client \
+    -d $DEST_DIR/api/client/${VERSION}/ \
     -subpackages org.apache.pulsar.client.api \
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
@@ -45,7 +46,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -windowtitle "Pulsar Admin Java API" \
     -doctitle "Pulsar Admin Java API" \
     -overview site/javadoc/admin.html \
-    -d $DEST_DIR/api/admin \
+    -d $DEST_DIR/api/admin/${VERSION}/ \
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
     -Xdoclint:none \
@@ -58,7 +59,7 @@ JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.
     -windowtitle "Pulsar Functions Java SDK" \
     -doctitle "Pulsar Functions Java SDK" \
     -overview site/javadoc/pulsar-functions.html \
-    -d $DEST_DIR/api/pulsar-functions \
+    -d $DEST_DIR/api/pulsar-functions/${VERSION}/ \
     -noqualifier $JDK_COMMON_PKGS \
     -notimestamp \
     -Xdoclint:none \
