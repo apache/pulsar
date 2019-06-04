@@ -277,6 +277,26 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @POST
+    @ApiOperation(
+            value = "Put the state associated with a Pulsar Function"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public void putFunctionState(final @PathParam("tenant") String tenant,
+                                 final @PathParam("namespace") String namespace,
+                                 final @PathParam("functionName") String functionName,
+                                 final @PathParam("key") String key,
+                                 final @FormDataParam("state") FunctionState stateJson) {
+        functions.putFunctionState(tenant, namespace, functionName, key, stateJson, clientAppId(), clientAuthData());
+    }
+
+    @POST
     @ApiOperation(value = "Restart function instance", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
