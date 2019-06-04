@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.TRUE;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import com.google.common.collect.BoundType;
@@ -1605,7 +1604,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public void readEntryComplete(Entry entry, Object ctx) {
-            long reOpCount = (ctx != null && ctx instanceof Long) ? (long) ctx : 0;
+            long reOpCount = reOpCount(ctx);
             ReadEntryCallback callback = this.readEntryCallback;
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
@@ -1622,7 +1621,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-            long reOpCount = (ctx != null && ctx instanceof Long) ? (long) ctx : 0;
+            long reOpCount = reOpCount(ctx);
             ReadEntryCallback callback = this.readEntryCallback;
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
@@ -1637,7 +1636,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
-            long reOpCount = (ctx != null && ctx instanceof Long) ? (long) ctx : 0;
+            long reOpCount = reOpCount(ctx);
             ReadEntriesCallback callback = this.readEntriesCallback;
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
@@ -1654,7 +1653,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            long reOpCount = (ctx != null && ctx instanceof Long) ? (long) ctx : 0;
+            long reOpCount = reOpCount(ctx);
             ReadEntriesCallback callback = this.readEntriesCallback;
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
@@ -1666,6 +1665,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
                 return;
             }
+        }
+
+        private long reOpCount(Object ctx) {
+            return (ctx != null && ctx instanceof Long) ? (long) ctx : -1;
         }
 
         public void readFailed(ManagedLedgerException exception, Object ctx) {
