@@ -364,6 +364,49 @@
             "description" : "Internal server error"
           }
         }
+      },
+      "post" : {
+        "tags" : [ "functions" ],
+        "summary" : "Put the state associated with a Pulsar Function",
+        "description" : "",
+        "operationId" : "putFunctionState",
+        "consumes" : [ "multipart/form-data" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "functionName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "key",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
       }
     },
     "/functions/{tenant}/{namespace}/{functionName}/stats" : {
@@ -1115,6 +1158,13 @@
         "stringValue" : {
           "type" : "string"
         },
+        "byteValue" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
         "numberValue" : {
           "type" : "integer",
           "format" : "int64"
@@ -1185,16 +1235,12 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "publishTime" : {
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
         },
         "keyBytes" : {
           "type" : "array",
@@ -1213,26 +1259,30 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "data" : {
           "type" : "array",

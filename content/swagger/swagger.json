@@ -360,6 +360,9 @@
           },
           "404" : {
             "description" : "Configuration not found"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -393,7 +396,10 @@
             "description" : "Configuration not found"
           },
           "412" : {
-            "description" : "Configuration can't be updated dynamically"
+            "description" : "Invalid dynamic-config value"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -414,6 +420,9 @@
           },
           "404" : {
             "description" : "Cluster doesn't exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -435,10 +444,47 @@
         }
       }
     },
+    "/brokers/{clusterName}/{broker-webserviceurl}/ownedNamespaces" : {
+      "get" : {
+        "tags" : [ "brokers" ],
+        "summary" : "Get the list of namespaces served by the specific broker",
+        "description" : "",
+        "operationId" : "getOwnedNamespaes",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "clusterName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "broker-webserviceurl",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "$ref" : "#/definitions/NamespaceOwnershipStatus"
+              }
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Cluster doesn't exist"
+          }
+        }
+      }
+    },
     "/brokers/{cluster}" : {
       "get" : {
         "tags" : [ "brokers" ],
-        "summary" : "Get the list of active brokers (web service addresses) in the cluster.",
+        "summary" : "Get the list of active brokers (web service addresses) in the cluster.If authorization is not enabled, any cluster name is valid.",
         "description" : "",
         "operationId" : "getActiveBrokers",
         "produces" : [ "application/json" ],
@@ -459,48 +505,14 @@
               }
             }
           },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Cluster doesn't exist"
-          }
-        }
-      }
-    },
-    "/brokers/{cluster}/{broker}/ownedNamespaces" : {
-      "get" : {
-        "tags" : [ "brokers" ],
-        "summary" : "Get the list of namespaces served by the specific broker",
-        "description" : "",
-        "operationId" : "getOwnedNamespaes",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "cluster",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "broker",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "type" : "object",
-              "additionalProperties" : {
-                "$ref" : "#/definitions/NamespaceOwnershipStatus"
-              }
-            }
+          "401" : {
+            "description" : "Authentication required"
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "This operation requires super-user access"
           },
           "404" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster does not exist: cluster={clustername}"
           }
         }
       }
@@ -6932,10 +6944,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -7258,10 +7270,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "underLoaded" : {
           "type" : "boolean"
         },
@@ -7271,13 +7279,15 @@
         "loadReportType" : {
           "type" : "string"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthIn" : {
@@ -7286,9 +7296,11 @@
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "msgThroughputOut" : {
           "type" : "number",
@@ -7452,13 +7464,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -8182,13 +8194,13 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
