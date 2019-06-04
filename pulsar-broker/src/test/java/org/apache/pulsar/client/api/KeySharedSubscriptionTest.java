@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertTrue;
@@ -46,6 +48,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionTest.class);
     private static final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
 
+    @DataProvider(name = "batch")
+    public Object[][] batchProvider() {
+        return new Object[][] {
+                { false },
+                { true }
+        };
+    }
 
     @BeforeMethod
     @Override
@@ -60,10 +69,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testSendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+    @Test(dataProvider = "batch")
+    public void testSendAndReceiveWithHashRangeStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
-        String topic = "persistent://public/default/key_shared";
+        String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
@@ -90,10 +99,19 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscribe();
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
+        Producer<Integer> producer = null;
+        if (enableBatch) {
+            producer = pulsarClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(true)
+                    .batchingContainerBuilder(BatchMessageContainerBuilder.KEY_BASED)
+                    .create();
+        } else {
+            producer = pulsarClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(false)
+                    .create();
+        }
 
         int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
@@ -129,11 +147,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheck(checkList);
     }
 
-    @Test
-    public void testConsumerCrashSendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException, InterruptedException {
+    @Test(dataProvider = "batch")
+    public void testConsumerCrashSendAndReceiveWithHashRangeStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException, InterruptedException {
 
         this.conf.setSubscriptionKeySharedEnable(true);
-        String topic = "persistent://public/default/key_shared_consumer_crash";
+        String topic = "persistent://public/default/key_shared_consumer_crash-" + UUID.randomUUID();
 
         @Cleanup
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
@@ -160,10 +178,19 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscribe();
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .enableBatching(false)
-            .create();
+        Producer<Integer> producer = null;
+        if (enableBatch) {
+            producer = pulsarClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(true)
+                    .batchingContainerBuilder(BatchMessageContainerBuilder.KEY_BASED)
+                    .create();
+        } else {
+            producer = pulsarClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(false)
+                    .create();
+        }
 
         int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
@@ -219,10 +246,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
 
-    @Test
-    public void testNonKeySendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+    @Test(dataProvider = "batch")
+    public void testNonKeySendAndReceiveWithHashRangeStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
-        String topic = "persistent://public/default/key_shared_none_key";
+        String topic = "persistent://public/default/key_shared_none_key-" + UUID.randomUUID();
 
         @Cleanup
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
@@ -253,10 +280,19 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         int consumer3Slot = consumer2Slot >> 1;
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
+        Producer<Integer> producer = null;
+        if (enableBatch) {
+            producer = pulsarClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(true)
+                    .batchingContainerBuilder(BatchMessageContainerBuilder.KEY_BASED)
+                    .create();
+        } else {
+            producer = pulsarClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(false)
+                    .create();
+        }
 
         for (int i = 0; i < 100; i++) {
             producer.newMessage()
@@ -276,10 +312,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheck(checkList);
     }
 
-    @Test
-    public void testOrderingKeyWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+    @Test(dataProvider = "batch")
+    public void testOrderingKeyWithHashRangeStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
-        String topic = "persistent://public/default/key_shared_ordering_key";
+        String topic = "persistent://public/default/key_shared_ordering_key-" + UUID.randomUUID();
 
         @Cleanup
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
@@ -306,10 +342,19 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             .subscribe();
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-            .topic(topic)
-            .enableBatching(false)
-            .create();
+        Producer<Integer> producer = null;
+        if (enableBatch) {
+            producer = pulsarClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(true)
+                    .batchingContainerBuilder(BatchMessageContainerBuilder.KEY_BASED)
+                    .create();
+        } else {
+            producer = pulsarClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(false)
+                    .create();
+        }
 
         int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;

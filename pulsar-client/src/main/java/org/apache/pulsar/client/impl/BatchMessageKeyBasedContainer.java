@@ -37,7 +37,16 @@ import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
+/**
+ * Key based batch message container
+ *
+ * incoming single messages:
+ * (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+ *
+ * batched into multiple batch messages:
+ * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
+ */
+class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     private ConcurrentHashMap<String, KeyBasedPart> batches = new ConcurrentHashMap<>();
 

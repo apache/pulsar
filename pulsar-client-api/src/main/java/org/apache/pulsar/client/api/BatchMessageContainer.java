@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.api;
 
 /**
- * container for individual messages being published until they are batched and sent to broker
+ * Batch message container for individual messages being published until they are batched and sent to broker
  */
 public interface BatchMessageContainer {
 

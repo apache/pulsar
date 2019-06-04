@@ -24,9 +24,6 @@ import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * container for individual messages being published until they are batched and sent to broker
- */
 public interface BatchMessageContainerBase extends BatchMessageContainer {
 
     /**

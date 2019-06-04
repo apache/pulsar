@@ -22,6 +22,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 
+/**
+ * Batch message container framework.
+ */
 public abstract class AbstractBatchMessageContainer implements BatchMessageContainerBase {
 
     protected PulsarApi.CompressionType compressionType;
