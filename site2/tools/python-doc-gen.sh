@@ -21,6 +21,7 @@
 set -xe
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
+VERSION=`${ROOT_DIR}/src/get-project-version.py`
 
 # Make sure the Python client lib is installed
 # so that Pdoc can import the module
@@ -36,8 +37,9 @@ pip install six
 pip install fastavro
 pip install certifi
 
-DESTINATION=$ROOT_DIR/generated-site/api/python
-rm -fr $DESTINATION/{index.html,functions,pulsar}
+DESTINATION=$ROOT_DIR/generated-site/api/python/${VERSION}
+rm -fr $DESTINATION
+mkdir -p $DESTINATION
 PYTHONPATH=$ROOT_DIR/pulsar-client-cpp/python pdoc pulsar \
   --html \
   --html-dir $DESTINATION
