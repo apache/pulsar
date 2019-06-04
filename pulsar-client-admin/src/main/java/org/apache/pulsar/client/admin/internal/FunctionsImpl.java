@@ -463,6 +463,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         }
     }
 
+    @Override
     public FunctionState getFunctionState(String tenant, String namespace, String function, String key)
         throws PulsarAdminException {
         try {
@@ -472,6 +473,22 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 throw getApiException(response);
             }
             return response.readEntity(FunctionState.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void putFunctionState(String tenant, String namespace, String function, FunctionState state)
+            throws PulsarAdminException {
+        try {
+             RequestBuilder builder = post(functions.path(tenant).path(namespace).path(function).path("state").path(state.getKey()).getUri().toASCIIString());
+             builder.addBodyPart(new StringPart("state", ObjectMapperFactory.getThreadLocal().writeValueAsString(state), MediaType.APPLICATION_JSON));
+             org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build()).get();
+
+             if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                 throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+             }
         } catch (Exception e) {
             throw getApiException(e);
         }
