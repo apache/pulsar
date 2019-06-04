@@ -1057,9 +1057,9 @@ public class ServerCnx extends PulsarHandler {
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         headersAndPayload.resetReaderIndex();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received send message request. producer: {}:{} {}:{} size: {}, partition key is: {}", remoteAddress,
-                    send.getProducerId(), send.getSequenceId(), msgMetadata.getProducerName(), msgMetadata.getSequenceId(),
-                    headersAndPayload.readableBytes(), msgMetadata.getPartitionKey());
+            log.debug("[{}] Received send message request. producer: {}:{} {}:{} size: {}, partition key is: {}, ordering key is {}",
+                    remoteAddress, send.getProducerId(), send.getSequenceId(), msgMetadata.getProducerName(), msgMetadata.getSequenceId(),
+                    headersAndPayload.readableBytes(), msgMetadata.getPartitionKey(), msgMetadata.getOrderingKey());
         }
         msgMetadata.recycle();
     }

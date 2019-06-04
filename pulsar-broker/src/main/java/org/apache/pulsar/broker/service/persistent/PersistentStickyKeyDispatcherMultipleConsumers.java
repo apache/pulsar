@@ -177,7 +177,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         metadataAndPayload.resetReaderIndex();
         String key = metadata.getPartitionKey();
         if (log.isDebugEnabled()) {
-            log.debug("parse message metadata, partition key is {}", key);
+            log.debug("Parse message metadata, partition key is {}, ordering key is {}", key, metadata.getOrderingKey());
         }
         if (StringUtils.isNotBlank(key) || metadata.hasOrderingKey()) {
             return metadata.hasOrderingKey() ? metadata.getOrderingKey().toByteArray() : key.getBytes();
