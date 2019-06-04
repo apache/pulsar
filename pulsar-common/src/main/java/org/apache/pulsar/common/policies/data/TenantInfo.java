@@ -33,7 +33,7 @@ public class TenantInfo {
      * List of role enabled as admin for this tenant
      */
     @ApiModelProperty(
-        value = "Comma separated list of auth principal allowed to administrate the tenant. If empty the current set of roles won't be modified",
+        value = "Comma separated list of auth principal allowed to administrate the tenant.",
         name = "adminRoles"
     )
     private Set<String> adminRoles;
@@ -42,7 +42,7 @@ public class TenantInfo {
      * List of clusters this tenant is restricted on
      */
     @ApiModelProperty(
-        value = "Comma separated allowed clusters. If omitted, the current set of clusters will be preserved",
+        value = "Comma separated allowed clusters.",
         name = "allowedClusters"
     )
     private Set<String> allowedClusters;
