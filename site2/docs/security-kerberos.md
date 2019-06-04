@@ -127,7 +127,17 @@ Make sure that the keytabs configured in the `pulsar_jaas.conf` file and kdc ser
 
 ### Kerberos configuration for clients
 
-In client, we need to configure the authentication type to use `AuthenticationSasl`, and also provide the authentication parameters to it. 
+In client application, include `pulsar-client-auth-sasl` in your project dependency.
+
+```
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-auth-sasl</artifactId>
+      <version>${pulsar.version}</version>
+    </dependency>
+```
+
+configure the authentication type to use `AuthenticationSasl`, and also provide the authentication parameters to it. 
 
 There are 2 parameters needed: 
 - `saslJaasClientSectionName` is corresponding to the section in JAAS configuration file for client; 
