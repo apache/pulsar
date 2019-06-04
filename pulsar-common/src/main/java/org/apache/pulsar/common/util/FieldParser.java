@@ -21,7 +21,6 @@ package org.apache.pulsar.common.util;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
-import static org.testng.Assert.assertEquals;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
