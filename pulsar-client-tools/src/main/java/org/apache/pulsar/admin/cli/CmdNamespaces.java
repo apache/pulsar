@@ -431,7 +431,7 @@ public class CmdNamespaces extends CmdBase {
                 "-pg" }, description = "Bookie-affinity primary-groups (comma separated) name where namespace messages should be written", required = true)
         private String bookieAffinityGroupNamePrimary;
         @Parameter(names = { "--secondary-group",
-                "-sg" }, description = "Bookie-affinity secondary-group (comma separated) name where namespace messages should be written", required = true)
+                "-sg" }, description = "Bookie-affinity secondary-group (comma separated) name where namespace messages should be written", required = false)
         private String bookieAffinityGroupNameSecondary;
 
 

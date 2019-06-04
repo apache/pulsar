@@ -269,10 +269,12 @@ public class BrokerBookieIsolationTest {
                 bookies[1].getLocalAddress());
         Set<BookieSocketAddress> isolatedBookies = Sets.newHashSet(bookies[2].getLocalAddress(),
                 bookies[3].getLocalAddress());
+        Set<BookieSocketAddress> downedBookies = Sets.newHashSet(new BookieSocketAddress("1.1.1.1:1111"),
+                new BookieSocketAddress("1.1.1.1:1112"));
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         // primary group empty
-        setDefaultIsolationGroup(tenantNamespaceIsolationGroupsPrimary, zkClient, Sets.newHashSet());
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroupsPrimary, zkClient, downedBookies);
         setDefaultIsolationGroup(tenantNamespaceIsolationGroupsSecondary, zkClient, isolatedBookies);
 
         ServiceConfiguration config = new ServiceConfiguration();
