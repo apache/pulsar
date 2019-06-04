@@ -92,7 +92,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 URI hostUri = new URI(hostUrl);
                 addresses.add(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()));
             } catch (URISyntaxException e) {
-                log.error("Invalid host provided {}", hostUrl, e.getMessage(), e);
+                log.error("Invalid host provided {}", hostUrl, e);
                 throw new InvalidServiceURL(e);
             }
         }
