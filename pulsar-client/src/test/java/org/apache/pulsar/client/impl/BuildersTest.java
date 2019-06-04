@@ -66,7 +66,7 @@ public class BuildersTest {
         assertEquals(builder.conf.getServiceUrl(), "pulsar://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650").enableTls(false);
-        assertEquals(builder.conf.isUseTls(), false);
+        assertEquals(builder.conf.isUseTls(), true);
         assertEquals(builder.conf.getServiceUrl(), "pulsar+ssl://service:6650");
     }
 }
