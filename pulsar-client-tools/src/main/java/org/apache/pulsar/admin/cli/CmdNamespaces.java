@@ -37,6 +37,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -426,15 +427,19 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--group",
-                "-g" }, description = "Bookie-affinity group name where namespace messages should be written", required = true)
-        private String bookieAffinityGroupName;
+        @Parameter(names = { "--primary-group",
+                "-pg" }, description = "Bookie-affinity primary-groups (comma separated) name where namespace messages should be written", required = true)
+        private String bookieAffinityGroupNamePrimary;
+        @Parameter(names = { "--secondary-group",
+                "-sg" }, description = "Bookie-affinity secondary-group (comma separated) name where namespace messages should be written", required = true)
+        private String bookieAffinityGroupNameSecondary;
 
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().setBookieAffinityGroup(namespace, bookieAffinityGroupName);
+            admin.namespaces().setBookieAffinityGroup(namespace,
+                    new BookieAffinityGroupData(bookieAffinityGroupNamePrimary, bookieAffinityGroupNameSecondary));
         }
     }
     
