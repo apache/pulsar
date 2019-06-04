@@ -1,0 +1,40 @@
+.autoscroll {
+    overflow: auto;
+}
+
+input.small-button {
+    padding: 2px;
+}
+
+/*Create a red cross using class x*/
+.x{
+    width: 20px;
+    height: 20px;
+    position:relative;
+    border-radius:2px;
+}
+.x::after,.x::before{
+    position:absolute;
+    top:9px;
+    left:0px;
+    content:'';
+    display:block;
+    width:20px;
+    height:2px;
+    background-color:red;
+
+}
+.x::after{
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    -o-transform: rotate(45deg);
+    transform: rotate(45deg);
+}
+.x::before{
+    -webkit-transform: rotate(-45deg);
+    -moz-transform: rotate(-45deg);
+    -ms-transform: rotate(-45deg);
+    -o-transform: rotate(-45deg);
+    transform: rotate(-45deg);
+}
