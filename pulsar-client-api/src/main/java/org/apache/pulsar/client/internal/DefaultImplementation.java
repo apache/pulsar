@@ -289,4 +289,10 @@ public class DefaultImplementation {
             () -> (BatchMessageContainerBuilder) getConstructor("org.apache.pulsar.client.impl.DefaultBatchMessageContainerBuilder")
                     .newInstance());
     }
+
+    public static BatchMessageContainerBuilder newKeyBasedBatchMessageContainerBuilder() {
+        return catchExceptions(
+                () -> (BatchMessageContainerBuilder) getConstructor("org.apache.pulsar.client.impl.KeyBasedBatchMessageContainerBuilder")
+                        .newInstance());
+    }
 }

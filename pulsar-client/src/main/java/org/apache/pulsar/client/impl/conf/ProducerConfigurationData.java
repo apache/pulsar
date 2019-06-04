@@ -67,7 +67,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
     private int batchingMaxMessages = 1000;
     private boolean batchingEnabled = true; // enabled by default
-    private BatchMessageContainerBuilder batchMessageContainerBuilder = BatchMessageContainerBuilder.DEFAULT_BUILDER;
+    private BatchMessageContainerBuilder batchMessageContainerBuilder = BatchMessageContainerBuilder.DEFAULT;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;

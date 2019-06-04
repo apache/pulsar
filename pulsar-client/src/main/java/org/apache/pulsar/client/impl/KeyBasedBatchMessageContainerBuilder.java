@@ -16,23 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.client.api.BatchMessageContainer;
+import org.apache.pulsar.client.api.BatchMessageContainerBuilder;
 
-/**
- * Batch message container builder
- */
-public interface BatchMessageContainerBuilder {
+public class KeyBasedBatchMessageContainerBuilder implements BatchMessageContainerBuilder {
 
-    BatchMessageContainerBuilder DEFAULT = DefaultImplementation.newDefaultBatchMessageContainerBuilder();
-
-    BatchMessageContainerBuilder KEY_BASED = DefaultImplementation.newKeyBasedBatchMessageContainerBuilder();
-
-    /**
-     * Build a new batch message container.
-     * @return new batch message container
-     */
-    BatchMessageContainer build();
-
+    @Override
+    public BatchMessageContainer build() {
+        return new BatchMessageKeyBasedContainer();
+    }
 }

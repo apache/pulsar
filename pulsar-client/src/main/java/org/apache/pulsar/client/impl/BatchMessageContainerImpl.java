@@ -33,8 +33,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,41 +40,16 @@ import org.slf4j.LoggerFactory;
  * container for individual messages being published until they are batched and sent to broker
  */
 
-class BatchMessageContainerImpl implements BatchMessageContainerBase {
+class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
-    private SendCallback previousCallback = null;
-    private PulsarApi.CompressionType compressionType;
-    private CompressionCodec compressor;
-    private String topicName;
-    private String producerName;
-    private ProducerImpl producer;
-
-    int maxNumMessagesInBatch;
-
-    PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
-    int numMessagesInBatch = 0;
-    long currentBatchSizeBytes = 0;
+    private PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
     // sequence id for this batch which will be persisted as a single entry by broker
-    long sequenceId = -1;
-    ByteBuf batchedMessageMetadataAndPayload;
-    List<MessageImpl<?>> messages = Lists.newArrayList();
+    private long sequenceId = -1;
+    private ByteBuf batchedMessageMetadataAndPayload;
+    private List<MessageImpl<?>> messages = Lists.newArrayList();
+    protected SendCallback previousCallback = null;
     // keep track of callbacks for individual messages being published in a batch
-    SendCallback firstCallback;
-
-    private static final int INITIAL_BATCH_BUFFER_SIZE = 1024;
-    protected static final int MAX_MESSAGE_BATCH_SIZE_BYTES = 128 * 1024;
-
-    // This will be the largest size for a batch sent from this particular producer. This is used as a baseline to
-    // allocate a new buffer that can hold the entire batch without needing costly reallocations
-    private int maxBatchSize = INITIAL_BATCH_BUFFER_SIZE;
-
-
-    @Override
-    public boolean haveEnoughSpace(MessageImpl<?> msg) {
-        int messageSize = msg.getDataBuffer().readableBytes();
-        return ((messageSize + currentBatchSizeBytes) <= MAX_MESSAGE_BATCH_SIZE_BYTES
-                && numMessagesInBatch < maxNumMessagesInBatch);
-    }
+    protected SendCallback firstCallback;
 
     @Override
     public void add(MessageImpl<?> msg, SendCallback callback) {
@@ -99,16 +72,17 @@ class BatchMessageContainerImpl implements BatchMessageContainerBase {
             previousCallback.addCallback(msg, callback);
         }
         previousCallback = callback;
-
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
-        PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
-        batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
-                msg.getDataBuffer(), batchedMessageMetadataAndPayload);
         messages.add(msg);
-        msgBuilder.recycle();
     }
 
     private ByteBuf getCompressedBatchMetadataAndPayload() {
+        for (MessageImpl<?> msg : messages) {
+            PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
+            batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
+                    msg.getDataBuffer(), batchedMessageMetadataAndPayload);
+            msgBuilder.recycle();
+        }
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
         batchedMessageMetadataAndPayload.release();
@@ -138,27 +112,6 @@ class BatchMessageContainerImpl implements BatchMessageContainerBase {
     @Override
     public boolean isEmpty() {
         return messages.isEmpty();
-    }
-
-    @Override
-    public int getNumMessagesInBatch() {
-        return numMessagesInBatch;
-    }
-
-    @Override
-    public long getCurrentBatchSizeBytes() {
-        return currentBatchSizeBytes;
-    }
-
-    @Override
-    public void setProducer(ProducerImpl<?> producer) {
-        this.producer = producer;
-        this.topicName = producer.getTopic();
-        this.producerName = producer.getProducerName();
-        this.compressionType = CompressionCodecProvider
-            .convertToWireProtocol(producer.getConfiguration().getCompressionType());
-        this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);
-        this.maxNumMessagesInBatch = producer.getConfiguration().getBatchingMaxMessages();
     }
 
     @Override
