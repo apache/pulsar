@@ -600,7 +600,7 @@ func TestConsumerShared(t *testing.T) {
 	consumer1, err := client.Subscribe(ConsumerOptions{
 		Topic:            topic,
 		SubscriptionName: "sub-1",
-		Type:             keyShared,
+		Type:             KeyShared,
 	})
 	assert.Nil(t, err)
 	defer consumer1.Close()
@@ -608,7 +608,7 @@ func TestConsumerShared(t *testing.T) {
 	consumer2, err := client.Subscribe(ConsumerOptions{
 		Topic:            topic,
 		SubscriptionName: "sub-1",
-		Type:             keyShared,
+		Type:             KeyShared,
 	})
 	assert.Nil(t, err)
 	defer consumer2.Close()
