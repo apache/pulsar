@@ -329,7 +329,6 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
     for tenant_name in tenants:
         namespaces = get(broker_url, '/admin/v2/namespaces/' + tenant_name)
         for namespace_name in namespaces:
-            logger.error('tn - ' + tenant_name + ' ns - ' + namespace_name)
             property, _ = Property.objects.get_or_create(name=tenant_name)
             namespace, _ = Namespace.objects.get_or_create(
                 name=namespace_name,
