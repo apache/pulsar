@@ -22,6 +22,7 @@ package pulsar
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -280,5 +281,58 @@ func TestProducer_Flush(t *testing.T) {
 			fmt.Printf("Message %s successfully published", msg.Payload)
 		})
 		producer.Flush()
+	}
+}
+
+func TestProducer_MessageID(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topicName := "test-message-id"
+	subName := "sub-1"
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic:               topicName,
+		Batching:            true,
+		BatchingMaxMessages: 5,
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topic:            topicName,
+		SubscriptionName: subName,
+	})
+	assert.Nil(t, err)
+	defer consumer.Close()
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		// Create a different message to send asynchronously
+		asyncMsg := ProducerMessage{
+			Payload: []byte(fmt.Sprintf("async-message-%d", i)),
+		}
+		// Attempt to send the message asynchronously and handle the response
+		producer.SendAsync(ctx, asyncMsg, func(msg ProducerMessage, err error) {
+			if err != nil {
+				log.Fatal(err)
+			}
+		})
+	}
+
+	for i := 0; i < 10; i++ {
+		msg, err := consumer.Receive(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = consumer.Ack(msg)
+		assert.Nil(t, err)
+		// msgID output: (11,16,-1,0)
+		msgID := fmt.Sprintf("%v", msg.ID())
+		index := strings.Index(msgID, "-1")
+		assert.Equal(t, 6, index)
 	}
 }
