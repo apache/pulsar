@@ -220,14 +220,14 @@ PulsarClient pulsarClient = // Instantiate Pulsar client object
 
 // Subscribe to all topics in a namespace
 Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default/.*");
-Consumer allTopicsConsumer = pulsarClient.newConsumer()
+Consumer<byte[]> allTopicsConsumer = pulsarClient.newConsumer()
                 .topicsPattern(allTopicsInNamespace)
                 .subscriptionName("subscription-1")
                 .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
 Pattern someTopicsInNamespace = Pattern.compile("persistent://public/default/foo.*");
-Consumer someTopicsConsumer = pulsarClient.newConsumer()
+Consumer<byte[]> someTopicsConsumer = pulsarClient.newConsumer()
                 .topicsPattern(someTopicsInNamespace)
                 .subscriptionName("subscription-1")
                 .subscribe();
@@ -328,7 +328,7 @@ PulsarClient client = PulsarClient.builder()
 String npTopic = "non-persistent://public/default/my-topic";
 String subscriptionName = "my-subscription-name";
 
-Consumer consumer = client.newConsumer()
+Consumer<byte[]> consumer = client.newConsumer()
         .topic(npTopic)
         .subscriptionName(subscriptionName)
         .subscribe();
@@ -337,7 +337,7 @@ Consumer consumer = client.newConsumer()
 Here's an example [Java producer](client-libraries-java.md#producer) for the same non-persistent topic:
 
 ```java
-Producer producer = client.newProducer()
+Producer<byte[]> producer = client.newProducer()
                 .topic(npTopic)
                 .create();
 ```
