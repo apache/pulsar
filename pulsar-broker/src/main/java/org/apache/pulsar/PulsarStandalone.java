@@ -307,6 +307,9 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
 
+            workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
+            workerConfig.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
+
             // client in worker will use this config to authenticate with broker
             workerConfig.setClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
             workerConfig.setClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
