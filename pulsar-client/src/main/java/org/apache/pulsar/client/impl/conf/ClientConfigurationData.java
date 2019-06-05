@@ -77,7 +77,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     public boolean isUseTls() {
         if (useTls)
             return true;
-        if (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https")) {
+        if (getServiceUrl() != null && (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https"))) {
             this.useTls = true;
             return true;
         }
