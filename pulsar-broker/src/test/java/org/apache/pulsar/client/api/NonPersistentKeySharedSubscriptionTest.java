@@ -66,34 +66,16 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         String topic = "non-persistent://public/default/key_shared";
 
         @Cleanup
-        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer1 = createConsumer(topic);
 
         @Cleanup
-        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer2 = createConsumer(topic);
 
         @Cleanup
-        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer3 = createConsumer(topic);
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
+        Producer<Integer> producer = createProducer(topic);
 
         int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
@@ -136,34 +118,16 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         String topic = "non-persistent://public/default/key_shared_consumer_crash";
 
         @Cleanup
-        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer1 = createConsumer(topic);
 
         @Cleanup
-        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer2 = createConsumer(topic);
 
         @Cleanup
-        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer3 = createConsumer(topic);
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
+        Producer<Integer> producer = createProducer(topic);
 
         int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
@@ -224,38 +188,20 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         String topic = "non-persistent://public/default/key_shared_none_key";
 
         @Cleanup
-        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer1 = createConsumer(topic);
 
         @Cleanup
-        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer2 = createConsumer(topic);
 
         @Cleanup
-        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer3 = createConsumer(topic);
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic);
 
         int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
         int consumer3Slot = consumer2Slot >> 1;
-
-        @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
 
         for (int i = 0; i < 100; i++) {
             producer.newMessage()
@@ -281,34 +227,16 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         String topic = "non-persistent://public/default/key_shared_ordering_key";
 
         @Cleanup
-        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer1 = createConsumer(topic);
 
         @Cleanup
-        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer2 = createConsumer(topic);
 
         @Cleanup
-        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("key_shared")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+        Consumer<Integer> consumer3 = createConsumer(topic);
 
         @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
+        Producer<Integer> producer = createProducer(topic);
 
         int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
@@ -354,6 +282,22 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .ackTimeout(10, TimeUnit.SECONDS)
+                .subscribe();
+    }
+
+    private Producer<Integer> createProducer(String topic) throws PulsarClientException {
+        return pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+    }
+
+    private Consumer<Integer> createConsumer(String topic) throws PulsarClientException {
+        return pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
     }
 
