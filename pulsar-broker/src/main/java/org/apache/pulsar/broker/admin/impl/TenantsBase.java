@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import io.swagger.annotations.ApiParam;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,7 +49,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 public class TenantsBase extends AdminResource {
 
     @GET
-    @ApiOperation(value = "Get the list of tenants.", response = String.class, responseContainer = "List")
+    @ApiOperation(value = "Get the list of existing tenants.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant doesn't exist") })
     public List<String> getTenants() {
@@ -69,7 +70,9 @@ public class TenantsBase extends AdminResource {
     @ApiOperation(value = "Get the admin configuration for a given tenant.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist") })
-    public TenantInfo getTenantAdmin(@PathParam("tenant") String tenant) {
+    public TenantInfo getTenantAdmin(
+        @ApiParam(value = "The tenant name")
+        @PathParam("tenant") String tenant) {
         validateSuperUserAccess();
 
         try {
@@ -88,7 +91,10 @@ public class TenantsBase extends AdminResource {
             @ApiResponse(code = 409, message = "Tenant already exists"),
             @ApiResponse(code = 412, message = "Tenant name is not valid"),
             @ApiResponse(code = 412, message = "Clusters do not exist") })
-    public void createTenant(@PathParam("tenant") String tenant, TenantInfo config) {
+    public void createTenant(
+        @ApiParam(value = "The tenant name")
+        @PathParam("tenant") String tenant,
+        @ApiParam(value = "TenantInfo") TenantInfo config) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         validateClusters(config);
@@ -119,7 +125,10 @@ public class TenantsBase extends AdminResource {
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
             @ApiResponse(code = 412, message = "Clusters do not exist") })
-    public void updateTenant(@PathParam("tenant") String tenant, TenantInfo newTenantAdmin) {
+    public void updateTenant(
+        @ApiParam(value = "The tenant name")
+        @PathParam("tenant") String tenant,
+        @ApiParam(value = "TenantInfo") TenantInfo newTenantAdmin) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         validateClusters(newTenantAdmin);
@@ -174,7 +183,10 @@ public class TenantsBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "The tenant still has active namespaces") })
-    public void deleteTenant(@PathParam("tenant") String tenant) {
+    public void deleteTenant(
+        @PathParam("tenant")
+        @ApiParam(value = "The tenant name")
+        String tenant) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
