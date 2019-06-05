@@ -18,23 +18,21 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.yahoo.sketches.quantiles.DoublesSketch;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.yahoo.sketches.quantiles.DoublesSketch;
-
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 
 public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
@@ -56,12 +54,18 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private static final DecimalFormat DEC = new DecimalFormat("0.000");
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
     private final DoublesSketch ds;
-
+    /** The following parameters { sendMsgsRate, sendBytesRate,
+     *  currentNumBytesSent, currentNumMsgsSent,
+     *  currentNumSendFailedMsgs, currentNumAcksReceived }
+     *  represents the value of the last stats interval seconds */
     private volatile double sendMsgsRate;
     private volatile double sendBytesRate;
     private volatile double[] latencyPctValues;
-
-    private static final double[] PERCENTILES = { 0.5, 0.75, 0.95, 0.99, 0.999, 1.0 };
+    private volatile long currentNumBytesSent;
+    private volatile long currentNumMsgsSent;
+    private volatile long currentNumSendFailedMsgs;
+    private volatile long currentNumAcksReceived;
+    private static final double[] PERCENTILES = {0.5, 0.75, 0.95, 0.99, 0.999, 1.0};
 
     public ProducerStatsRecorderImpl() {
         numMsgsSent = new LongAdder();
@@ -73,10 +77,11 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
         ds = DoublesSketch.builder().build(256);
+        latencyPctValues = new double[]{};
     }
 
     public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
-            ProducerImpl<?> producer) {
+                                     ProducerImpl<?> producer) {
         this.pulsarClient = pulsarClient;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
         this.producer = producer;
@@ -89,6 +94,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
         ds = DoublesSketch.builder().build(256);
+        latencyPctValues = new double[]{};
         init(conf);
     }
 
@@ -115,10 +121,10 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                 double elapsed = (now - oldTime) / 1e9;
                 oldTime = now;
 
-                long currentNumMsgsSent = numMsgsSent.sumThenReset();
-                long currentNumBytesSent = numBytesSent.sumThenReset();
-                long currentNumSendFailedMsgs = numSendFailed.sumThenReset();
-                long currentNumAcksReceived = numAcksReceived.sumThenReset();
+                currentNumMsgsSent = numMsgsSent.sumThenReset();
+                currentNumBytesSent = numBytesSent.sumThenReset();
+                currentNumSendFailedMsgs = numSendFailed.sumThenReset();
+                currentNumAcksReceived = numAcksReceived.sumThenReset();
 
                 totalMsgsSent.add(currentNumMsgsSent);
                 totalBytesSent.add(currentNumBytesSent);
@@ -132,7 +138,6 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
                 sendMsgsRate = currentNumMsgsSent / elapsed;
                 sendBytesRate = currentNumBytesSent / elapsed;
-
                 if ((currentNumMsgsSent | currentNumSendFailedMsgs | currentNumAcksReceived
                         | currentNumMsgsSent) != 0) {
 
@@ -143,11 +148,12 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                     }
 
                     log.info("[{}] [{}] Pending messages: {} --- Publish throughput: {} msg/s --- {} Mbit/s --- "
-                            + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
-                            + "Ack received rate: {} ack/s --- Failed messages: {}", producer.getTopic(),
-                            producer.getProducerName(), producer.getPendingQueueSize(),
+                                    + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
+                                    + "Ack received rate: {} ack/s --- Failed messages: {}",
+                            producer.getTopic(),producer.getProducerName(),
+                            producer.getPendingQueueSize(),
                             THROUGHPUT_FORMAT.format(sendMsgsRate),
-                            THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
+                            THROUGHPUT_FORMAT.format(sendBytesRate * 8 / 1024 / 1024 ),
                             DEC.format(latencyPctValues[0] / 1000.0), DEC.format(latencyPctValues[2] / 1000.0),
                             DEC.format(latencyPctValues[3] / 1000.0), DEC.format(latencyPctValues[4] / 1000.0),
                             DEC.format(latencyPctValues[5] / 1000.0),
@@ -206,7 +212,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalAcksReceived.reset();
     }
 
-    void updateCumulativeStats(ProducerStats stats) {
+    synchronized void updateCumulativeStats(ProducerStats stats) {
         if (stats == null) {
             return;
         }
@@ -218,42 +224,61 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent.add(stats.getNumBytesSent());
         totalSendFailed.add(stats.getNumSendFailed());
         totalAcksReceived.add(stats.getNumAcksReceived());
+        sendMsgsRate += stats.getSendMsgsRate();
+        sendBytesRate += stats.getSendBytesRate();
+        if (latencyPctValues == null || latencyPctValues.length == 0) {
+            latencyPctValues = stats.getLatencyPctValues();
+        } else {
+            double[] curLatencyPctValues = stats.getLatencyPctValues();
+            for (int i = 0; i < this.latencyPctValues.length; i++) {
+                this.latencyPctValues[i] += curLatencyPctValues[i];
+            }
+        }
     }
 
     @Override
     public long getNumMsgsSent() {
-        return numMsgsSent.longValue();
+        return currentNumMsgsSent;
     }
 
     @Override
     public long getNumBytesSent() {
-        return numBytesSent.longValue();
+        return currentNumBytesSent;
     }
 
     @Override
     public long getNumSendFailed() {
-        return numSendFailed.longValue();
+        return currentNumSendFailedMsgs;
     }
 
     @Override
     public long getNumAcksReceived() {
-        return numAcksReceived.longValue();
+        return currentNumAcksReceived;
     }
 
+    @Override
     public long getTotalMsgsSent() {
         return totalMsgsSent.longValue();
     }
 
+    @Override
     public long getTotalBytesSent() {
         return totalBytesSent.longValue();
     }
 
+    @Override
     public long getTotalSendFailed() {
         return totalSendFailed.longValue();
     }
 
+    @Override
     public long getTotalAcksReceived() {
         return totalAcksReceived.longValue();
+    }
+
+    @Override
+    public double[] getLatencyPctValues() {
+        return latencyPctValues;
     }
 
     @Override
@@ -296,6 +321,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         return latencyPctValues[5];
     }
 
+    @Override
     public void cancelStatsTimeout() {
         if (statTimeout != null) {
             statTimeout.cancel();

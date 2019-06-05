@@ -20,11 +20,6 @@ package org.apache.pulsar.client.api;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.RateLimiter;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import org.apache.pulsar.broker.stats.NamespaceStats;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -32,20 +27,27 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.pulsar.client.api.SimpleProducerConsumerStatTest.validatingLogInfo;
 import static org.testng.Assert.*;
 
-public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
+public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
+    private String lookupUrl;
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetupForStatsTest();
+        init();
+        lookupUrl = brokerUrl.toString();
+        if (isTcpLookup) {
+            lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        }
+        pulsarClient = newPulsarClient(lookupUrl, 1);
         super.producerBaseSetup();
     }
 
@@ -57,19 +59,36 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
     @DataProvider(name = "batch")
     public Object[][] batchMessageDelayMsProvider() {
-        return new Object[][]{{0}, {1000}};
+        return new Object[][]{
+                {0, MessageRoutingMode.CustomPartition}, {1000, MessageRoutingMode.RoundRobinPartition},
+                {0, MessageRoutingMode.RoundRobinPartition}, {1000, MessageRoutingMode.RoundRobinPartition}
+        };
     }
 
     @DataProvider(name = "batch_with_timeout")
     public Object[][] ackTimeoutSecProvider() {
-        return new Object[][]{{0, 0}, {0, 2}, {1000, 0}, {1000, 2}};
+        return new Object[][]{
+                {0, 0, 3, MessageRoutingMode.RoundRobinPartition},
+                {0, 2, 3, MessageRoutingMode.RoundRobinPartition},
+                {1000, 0, 3, MessageRoutingMode.RoundRobinPartition},
+                {1000, 2, 3, MessageRoutingMode.RoundRobinPartition},
+                {1000, 2, 3, MessageRoutingMode.CustomPartition},
+        };
     }
 
     @Test(dataProvider = "batch_with_timeout")
-    public void testSyncProducerAndConsumer(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
+    public void testSyncPartitionedProducerAndPartitionConsumer(
+            int batchMessageDelayMs,
+            int ackTimeoutSec,
+            int intervalInSecs,
+            MessageRoutingMode messageRoutingMode
+    ) throws Exception {
         log.info("-- Starting {} test --", methodName);
+        pulsarClient = newPulsarClient(lookupUrl, intervalInSecs);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1").subscriptionName("my-subscriber-name");
+                .topic("persistent://my-property/tp1/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .receiverQueueSize(10);
 
         // Cumulative Ack-counter works if ackTimeOutTimer-task is enabled
         boolean isAckTimeoutTaskEnabledForCumulativeAck = ackTimeoutSec > 0;
@@ -78,14 +97,16 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         }
 
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
-
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1");
+                .topic("persistent://my-property/tp1/my-ns/my-topic1")
+                .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         }
-
+        if (messageRoutingMode.equals(MessageRoutingMode.CustomPartition)) {
+            producerBuilder.messageRouter(new AlwaysTwoMessageRouter());
+        }
         Producer<byte[]> producer = producerBuilder.create();
 
         int numMessages = 11;
@@ -105,7 +126,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         }
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
-        Thread.sleep(2000);
+        Thread.sleep(3000);
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, isAckTimeoutTaskEnabledForCumulativeAck);
@@ -113,10 +134,18 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch_with_timeout")
-    public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
+    public void testAsyncPartitionedProducerAndAsyncAck(
+            int batchMessageDelayMs,
+            int ackTimeoutSec,
+            int intervalInSecs,
+            MessageRoutingMode messageRoutingMode
+    ) throws Exception {
         log.info("-- Starting {} test --", methodName);
+        pulsarClient = newPulsarClient(lookupUrl, intervalInSecs);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2").subscriptionName("my-subscriber-name");
+                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .subscriptionName("my-subscriber-name")
+                .receiverQueueSize(10);
         if (ackTimeoutSec > 0) {
             consumerBuilder.ackTimeout(ackTimeoutSec, TimeUnit.SECONDS);
         }
@@ -125,14 +154,16 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic2")
-                .messageRoutingMode(MessageRoutingMode.SinglePartition);
+                .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         } else {
             producerBuilder.enableBatching(false);
         }
-
+        if (messageRoutingMode.equals(MessageRoutingMode.CustomPartition)) {
+            producerBuilder.messageRouter(new AlwaysTwoMessageRouter());
+        }
         Producer<byte[]> producer = producerBuilder.create();
         List<Future<MessageId>> futures = Lists.newArrayList();
 
@@ -162,7 +193,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Future<Void> ackFuture = consumer.acknowledgeCumulativeAsync(msg);
         log.info("Waiting for async ack to complete");
         ackFuture.get();
-        Thread.sleep(2000);
+        Thread.sleep(3000);
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, batchMessageDelayMs == 0 && ackTimeoutSec > 0);
@@ -170,11 +201,17 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch_with_timeout")
-    public void testAsyncProducerAndReceiveAsyncAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec)
-            throws Exception {
+    public void testAsyncPartitionedProducerAndReceiveAsyncAndAsyncAck(
+            int batchMessageDelayMs,
+            int ackTimeoutSec,
+            int intervalInSecs,
+            MessageRoutingMode messageRoutingMode) throws Exception {
         log.info("-- Starting {} test --", methodName);
+        pulsarClient = newPulsarClient(lookupUrl, intervalInSecs);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2").subscriptionName("my-subscriber-name");
+                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .subscriptionName("my-subscriber-name")
+                .receiverQueueSize(10);
         if (ackTimeoutSec > 0) {
             consumerBuilder.ackTimeout(ackTimeoutSec, TimeUnit.SECONDS);
         }
@@ -183,14 +220,16 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic2")
-                .messageRoutingMode(MessageRoutingMode.SinglePartition);
+                .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         } else {
             producerBuilder.enableBatching(false);
         }
-
+        if (messageRoutingMode.equals(MessageRoutingMode.CustomPartition)) {
+            producerBuilder.messageRouter(new AlwaysTwoMessageRouter());
+        }
         Producer<byte[]> producer = producerBuilder.create();
         List<Future<MessageId>> futures = Lists.newArrayList();
 
@@ -231,14 +270,14 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch", timeOut = 100000)
-    public void testMessageListener(int batchMessageDelayMs) throws Exception {
+    public void testMessageListener(int batchMessageDelayMs, MessageRoutingMode messageRoutingMode) throws Exception {
         log.info("-- Starting {} test --", methodName);
-
         int numMessages = 100;
         final CountDownLatch latch = new CountDownLatch(numMessages);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/tp1/my-ns/my-topic3")
                 .subscriptionName("my-subscriber-name").ackTimeout(100, TimeUnit.SECONDS)
+                .receiverQueueSize(10)
                 .messageListener((consumer1, msg) -> {
                     assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
@@ -248,12 +287,16 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
                 }).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic3");
+                .topic("persistent://my-property/tp1/my-ns/my-topic3")
+                .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+            producerBuilder.enableBatching(true)
+                    .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         }
-
+        if (messageRoutingMode.equals(MessageRoutingMode.CustomPartition)) {
+            producerBuilder.messageRouter(new AlwaysTwoMessageRouter());
+        }
         Producer<byte[]> producer = producerBuilder.create();
         List<Future<MessageId>> futures = Lists.newArrayList();
 
@@ -278,19 +321,23 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testSendTimeout(int batchMessageDelayMs) throws Exception {
+    public void testSendTimeout(int batchMessageDelayMs, MessageRoutingMode messageRoutingMode) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/tp1/my-ns/my-topic5")
-                .subscriptionName("my-subscriber-name").subscribe();
+                .subscriptionName("my-subscriber-name").receiverQueueSize(10).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic5").sendTimeout(1, TimeUnit.SECONDS);
+                .topic("persistent://my-property/tp1/my-ns/my-topic5")
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(2 * batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         }
-
+        if (messageRoutingMode.equals(MessageRoutingMode.CustomPartition)) {
+            producerBuilder.messageRouter(new AlwaysTwoMessageRouter());
+        }
         Producer<byte[]> producer = producerBuilder.create();
 
         final String message = "my-message";
@@ -324,123 +371,10 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    public void testBatchMessagesRateOut() throws PulsarClientException, InterruptedException, PulsarAdminException {
-        log.info("-- Starting {} test --", methodName);
-        String topicName = "persistent://my-property/cluster/my-ns/testBatchMessagesRateOut";
-        double produceRate = 17;
-        int batchSize = 5;
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).batchingMaxMessages(batchSize)
-                .enableBatching(true).batchingMaxPublishDelay(2, TimeUnit.SECONDS).create();
-        AtomicBoolean runTest = new AtomicBoolean(true);
-        Thread t1 = new Thread(() -> {
-            RateLimiter r = RateLimiter.create(produceRate);
-            while (runTest.get()) {
-                r.acquire();
-                producer.sendAsync("Hello World".getBytes());
-                consumer.receiveAsync().thenAccept(consumer::acknowledgeAsync);
-            }
-        });
-        t1.start();
-        Thread.sleep(2000); // Two seconds sleep
-        runTest.set(false);
-        pulsar.getBrokerService().updateRates();
-        double actualRate = admin.topics().getStats(topicName).msgRateOut;
-        assertTrue(actualRate > (produceRate / batchSize));
-        consumer.unsubscribe();
-        log.info("-- Exiting {} test --", methodName);
-    }
-
-    public static void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
-            throws InterruptedException {
-        // Waiting for recording last stat info
-        Thread.sleep(1000);
-        ConsumerStats cStat = consumer.getStats();
-        ProducerStats pStat = producer.getStats();
-        assertEquals(pStat.getTotalMsgsSent(), cStat.getTotalMsgsReceived());
-        assertEquals(pStat.getTotalBytesSent(), cStat.getTotalBytesReceived());
-        assertEquals(pStat.getTotalMsgsSent(), pStat.getTotalAcksReceived());
-        if (pStat.getNumMsgsSent() != 0) {
-            assertNotEquals(pStat.getSendMsgsRate(), 0.0);
-            assertNotEquals(pStat.getNumMsgsSent() / pStat.getSendMsgsRate(), 0.0);
-        } else {
-            assertEquals(pStat.getSendMsgsRate(), 0.0);
+    private class AlwaysTwoMessageRouter implements MessageRouter {
+        @Override
+        public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+            return 2;
         }
-
-        if (pStat.getNumBytesSent() != 0) {
-            assertNotEquals(pStat.getSendBytesRate(), 0.0);
-            assertNotEquals(pStat.getNumBytesSent() / pStat.getSendBytesRate(), 0.0);
-        } else {
-            assertEquals(pStat.getSendBytesRate(), 0.0);
-        }
-        double[] latencyPctValues = pStat.getLatencyPctValues();
-        if (pStat.getTotalAcksReceived() != 0) {
-            assertTrue(latencyPctValues != null && latencyPctValues.length != 0, "latency pct values are empty!");
-        } else {
-            assertFalse(latencyPctValues != null && latencyPctValues.length != 0, "latency pct values are not empty!");
-        }
-
-        if (cStat.getNumMsgsReceived() != 0) {
-            assertNotEquals(cStat.getRateMsgsReceived(), 0.0);
-            assertNotEquals(cStat.getNumMsgsReceived() / cStat.getRateMsgsReceived(), 0.0);
-        } else {
-            assertEquals(cStat.getRateMsgsReceived(), 0.0);
-        }
-        if (cStat.getNumBytesReceived() != 0) {
-            assertNotEquals(cStat.getRateBytesReceived(), 0.0);
-            assertNotEquals(cStat.getNumBytesReceived() / cStat.getRateBytesReceived(), 0.0);
-        } else {
-            assertEquals(cStat.getRateBytesReceived(), 0.0);
-        }
-        if (verifyAckCount) {
-            assertEquals(cStat.getTotalMsgsReceived(), cStat.getTotalAcksSent());
-        }
-    }
-
-    @Test
-    public void testAddBrokerLatencyStats() throws Exception {
-
-        log.info("-- Starting {} test --", methodName);
-
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1");
-
-        Producer<byte[]> producer = producerBuilder.create();
-
-        int numMessages = 11;
-        for (int i = 0; i < numMessages; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        pulsar.getBrokerService().updateRates();
-
-        JsonArray metrics = admin.brokerStats().getMetrics();
-
-        boolean latencyCaptured = false;
-        for (int i = 0; i < metrics.size(); i++) {
-            try {
-                String data = metrics.get(i).getAsJsonObject().get("metrics").toString();
-                if (data.contains(NamespaceStats.BRK_ADD_ENTRY_LATENCY_PREFIX)) {
-                    JsonObject stat = metrics.get(i).getAsJsonObject().get("metrics").getAsJsonObject();
-                    for (String key : stat.keySet()) {
-                        if (key.startsWith(NamespaceStats.BRK_ADD_ENTRY_LATENCY_PREFIX)) {
-                            double val = stat.get(key).getAsDouble();
-                            if (val > 0.0) {
-                                latencyCaptured = true;
-                            }
-                        }
-                    }
-                    System.out.println(stat.toString());
-                }
-            } catch (Exception e) {
-                //Ok
-            }
-        }
-
-        assertTrue(latencyCaptured);
-        producer.close();
-        log.info("-- Exiting {} test --", methodName);
     }
 }

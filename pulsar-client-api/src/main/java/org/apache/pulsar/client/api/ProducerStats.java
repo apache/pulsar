@@ -107,4 +107,5 @@ public interface ProducerStats extends Serializable {
      */
     long getTotalAcksReceived();
 
+    double[] getLatencyPctValues();
 }

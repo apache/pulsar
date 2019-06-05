@@ -18,24 +18,22 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.databind.SerializationFeature;
-
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 
 public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
@@ -56,10 +54,18 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     private final LongAdder totalReceiveFailed;
     private final LongAdder totalAcksSent;
     private final LongAdder totalAcksFailed;
-
+    /** The following parameters { receivedMsgsRate, receivedBytesRate,
+     *  currentNumBytesReceived, currentNumMsgsReceived,
+     *  currentNumReceiveFailed, currentNumAcksSent,
+     *  currentNumAcksFailed }
+     *  represents the value of the last stats interval seconds */
     private volatile double receivedMsgsRate;
     private volatile double receivedBytesRate;
-
+    private volatile long currentNumBytesReceived;
+    private volatile long currentNumMsgsReceived;
+    private volatile long currentNumReceiveFailed;
+    private volatile long currentNumAcksSent;
+    private volatile long currentNumAcksFailed;
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
 
     public ConsumerStatsRecorderImpl() {
@@ -76,7 +82,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     public ConsumerStatsRecorderImpl(PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf,
-            ConsumerImpl<?> consumer) {
+                                     ConsumerImpl<?> consumer) {
         this.pulsarClient = pulsarClient;
         this.consumer = consumer;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
@@ -102,7 +108,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
             log.info("Starting Pulsar consumer perf with config: {}", w.writeValueAsString(conf));
             log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
-            log.error("Failed to dump config info: {}", e);
+            log.error("Failed to dump config info", e);
         }
 
         stat = (timeout) -> {
@@ -113,11 +119,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                 long now = System.nanoTime();
                 double elapsed = (now - oldTime) / 1e9;
                 oldTime = now;
-                long currentNumMsgsReceived = numMsgsReceived.sumThenReset();
-                long currentNumBytesReceived = numBytesReceived.sumThenReset();
-                long currentNumReceiveFailed = numReceiveFailed.sumThenReset();
-                long currentNumAcksSent = numAcksSent.sumThenReset();
-                long currentNumAcksFailed = numAcksFailed.sumThenReset();
+                currentNumMsgsReceived = numMsgsReceived.sumThenReset();
+                currentNumBytesReceived = numBytesReceived.sumThenReset();
+                currentNumReceiveFailed = numReceiveFailed.sumThenReset();
+                currentNumAcksSent = numAcksSent.sumThenReset();
+                currentNumAcksFailed = numAcksFailed.sumThenReset();
 
                 totalMsgsReceived.add(currentNumMsgsReceived);
                 totalBytesReceived.add(currentNumBytesReceived);
@@ -196,7 +202,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     @Override
-    public void updateCumulativeStats(ConsumerStats stats) {
+    public synchronized void updateCumulativeStats(ConsumerStats stats) {
         if (stats == null) {
             return;
         }
@@ -210,44 +216,56 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         totalReceiveFailed.add(stats.getTotalReceivedFailed());
         totalAcksSent.add(stats.getTotalAcksSent());
         totalAcksFailed.add(stats.getTotalAcksFailed());
+        receivedMsgsRate += stats.getRateMsgsReceived();
+        receivedBytesRate += stats.getRateBytesReceived();
     }
 
+    @Override
     public long getNumMsgsReceived() {
-        return numMsgsReceived.longValue();
+        return currentNumMsgsReceived;
     }
 
+    @Override
     public long getNumBytesReceived() {
-        return numBytesReceived.longValue();
+        return currentNumBytesReceived;
     }
 
+    @Override
     public long getNumAcksSent() {
-        return numAcksSent.longValue();
+        return currentNumAcksSent;
     }
 
+    @Override
     public long getNumAcksFailed() {
-        return numAcksFailed.longValue();
+        return currentNumAcksFailed;
     }
 
+    @Override
     public long getNumReceiveFailed() {
-        return numReceiveFailed.longValue();
+        return currentNumReceiveFailed;
     }
 
+    @Override
     public long getTotalMsgsReceived() {
         return totalMsgsReceived.longValue();
     }
 
+    @Override
     public long getTotalBytesReceived() {
         return totalBytesReceived.longValue();
     }
 
+    @Override
     public long getTotalReceivedFailed() {
         return totalReceiveFailed.longValue();
     }
 
+    @Override
     public long getTotalAcksSent() {
         return totalAcksSent.longValue();
     }
 
+    @Override
     public long getTotalAcksFailed() {
         return totalAcksFailed.longValue();
     }

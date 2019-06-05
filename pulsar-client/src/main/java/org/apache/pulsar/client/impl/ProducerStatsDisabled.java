@@ -89,6 +89,11 @@ public class ProducerStatsDisabled implements ProducerStatsRecorder {
     }
 
     @Override
+    public double[] getLatencyPctValues() {
+        return new double[0];
+    }
+
+    @Override
     public double getSendMsgsRate() {
         return 0;
     }
