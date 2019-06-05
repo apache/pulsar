@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,18 +18,21 @@
 # under the License.
 #
 
+ROOT_DIR=$(git rev-parse --show-toplevel)
+VERSION=`${ROOT_DIR}/src/get-project-version.py`
 
-from pulsar import Function
+set -x -e
 
-# The classic ExclamationFunction that appends an exclamation at the end
-# of the input
-class WordCountFunction(Function):
-    def __init__(self):
-        pass
+${ROOT_DIR}/site2/tools/generate-api-docs.sh
+cd ${ROOT_DIR}/site2/website
+yarn
+yarn write-translations
+yarn run crowdin-upload
+yarn run crowdin-download
+yarn build
 
-    def process(self, input, context):
-        words = input.split()
-        for word in words:
-            context.incr_counter(word, 1)
-            context.get_logger().info("The value is " + str(context.get_counter(word)))
-        return input + "!"
+node ./scripts/replace.js
+
+rm -rf ${ROOT_DIR}/generated-site/content
+mkdir -p ${ROOT_DIR}/generated-site/content
+cp -R ./build/pulsar/* ${ROOT_DIR}/generated-site/content
