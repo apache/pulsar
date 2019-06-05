@@ -850,8 +850,10 @@ public class PersistentSubscription implements Subscription {
                 long batchSize = entry.getValue().first;
                 LongStream.range(0, batchSize).forEach(index -> {
                     PositionImpl position = new PositionImpl(entry.getKey().first, entry.getKey().second + index);
-                    if ((pendingAckMessages != null && !this.pendingAckMessages.contains(position)) &&
-                            (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0)) {
+                    if ((pendingAckMessages == null || (pendingAckMessages != null &&
+                            !this.pendingAckMessages.contains(position))) &&
+                            (null == cumulativeAckPosition ||
+                                    (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0))) {
                         pendingPositions.add(position);
                     }
                 });
@@ -871,8 +873,10 @@ public class PersistentSubscription implements Subscription {
                 (PositionImpl)this.pendingCumulativeAckMessage;
 
         positions.forEach(position -> {
-            if ((pendingAckMessages != null && !this.pendingAckMessages.contains(position)) &&
-                    (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0)) {
+            if ((pendingAckMessages == null || (pendingAckMessages != null &&
+                    !this.pendingAckMessages.contains(position))) &&
+                    (null == cumulativeAckPosition ||
+                            (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0))) {
                 pendingPositions.add(position);
             }
         });
