@@ -330,6 +330,7 @@ func TestProducer_MessageID(t *testing.T) {
 		}
 		err = consumer.Ack(msg)
 		assert.Nil(t, err)
+		// msgID output: (11,16,-1,0)
 		msgID := fmt.Sprintf("%v", msg.ID())
 		index := strings.Index(msgID, "-1")
 		assert.Equal(t, 6, index)
