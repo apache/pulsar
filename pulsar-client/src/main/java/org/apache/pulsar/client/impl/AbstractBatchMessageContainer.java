@@ -22,6 +22,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 
+import java.io.IOException;
+import java.util.List;
+
 /**
  * Batch message container framework.
  */
@@ -57,8 +60,18 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     }
 
     @Override
-    public long getCurrentBatchSizeBytes() {
+    public long getCurrentBatchSize() {
         return currentBatchSizeBytes;
+    }
+
+    @Override
+    public List<ProducerImpl.OpSendMsg> createOpSendMsgs() throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ProducerImpl.OpSendMsg createOpSendMsg() throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -373,7 +373,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         lastSendFuture = callback.getFuture();
                         payload.release();
                         if (batchMessageContainer.getNumMessagesInBatch() == maxNumMessagesInBatch
-                                || batchMessageContainer.getCurrentBatchSizeBytes() >= BatchMessageContainerImpl.MAX_MESSAGE_BATCH_SIZE_BYTES) {
+                                || batchMessageContainer.getCurrentBatchSize() >= BatchMessageContainerImpl.MAX_MESSAGE_BATCH_SIZE_BYTES) {
                             batchMessageAndSend();
                         }
                     } else {
@@ -1231,7 +1231,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
         semaphore.release(numMessagesInBatch);
-        batchMessageContainer.handleException(ex);
+        batchMessageContainer.discard(ex);
     }
 
     TimerTask batchMessageAndSendTask = new TimerTask() {
@@ -1289,9 +1289,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         if (!batchMessageContainer.isEmpty()) {
             try {
-                List<OpSendMsg> opSendMsgs = batchMessageContainer.createOpSendMsgs();
-                for (OpSendMsg opSendMsg : opSendMsgs) {
-                    processOpSendMsg(opSendMsg);
+                if (batchMessageContainer.isMultiBatches()) {
+                    List<OpSendMsg> opSendMsgs = batchMessageContainer.createOpSendMsgs();
+                    for (OpSendMsg opSendMsg : opSendMsgs) {
+                        processOpSendMsg(opSendMsg);
+                    }
+                } else {
+                    OpSendMsg opSendMsg = batchMessageContainer.createOpSendMsg();
+                    if (opSendMsg != null) {
+                        processOpSendMsg(opSendMsg);
+                    }
                 }
             } catch (PulsarClientException e) {
                 Thread.currentThread().interrupt();

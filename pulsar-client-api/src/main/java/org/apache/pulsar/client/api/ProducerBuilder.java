@@ -367,7 +367,7 @@ public interface ProducerBuilder<T> extends Cloneable {
 
     /**
      * Set the batch message container builder {@link BatchMessageContainerBuilder} of the producer. Producer will use the batch message container builder to
-     * build a batch message container.
+     * build a batch message container.This is only be used when batching is enabled
      *
      * @param batchingContainerBuilder
      *          batch message container builder

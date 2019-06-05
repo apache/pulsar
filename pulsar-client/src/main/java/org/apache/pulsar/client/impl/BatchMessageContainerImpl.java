@@ -120,7 +120,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     }
 
     @Override
-    public void handleException(Exception ex) {
+    public void discard(Exception ex) {
         try {
             // Need to protect ourselves from any exception being thrown in the future handler from the application
             firstCallback.sendComplete(ex);
@@ -132,7 +132,13 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         clear();
     }
 
-    private OpSendMsg createOpSendMsg() throws IOException {
+    @Override
+    public boolean isMultiBatches() {
+        return false;
+    }
+
+    @Override
+    public OpSendMsg createOpSendMsg() throws IOException {
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
         messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
         ByteBufPair cmd = producer.sendMessage(producer.producerId, sequenceId, numMessagesInBatch,
@@ -153,11 +159,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
         return op;
-    }
-
-    @Override
-    public List<OpSendMsg> createOpSendMsgs() throws IOException {
-        return Collections.singletonList(createOpSendMsg());
     }
 
     private static final Logger log = LoggerFactory.getLogger(BatchMessageContainerImpl.class);

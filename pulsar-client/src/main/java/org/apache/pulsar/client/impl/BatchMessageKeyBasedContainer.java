@@ -27,6 +27,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,21 +49,24 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
-    private ConcurrentHashMap<String, KeyBasedPart> batches = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, KeyedBatch> batches = new ConcurrentHashMap<>();
 
     @Override
     public void add(MessageImpl<?> msg, SendCallback callback) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] add message to batch, num messages in batch so far {}", topicName, producerName,
+            log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName, producerName,
                     numMessagesInBatch);
         }
         numMessagesInBatch++;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
-        String key = peekKey(msg);
-        KeyBasedPart part = batches.get(key);
+        String key = getKey(msg);
+        KeyedBatch part = batches.get(key);
         if (part == null) {
-            part = new KeyBasedPart();
+            part = new KeyedBatch();
             part.addMsg(msg, callback);
+            part.compressionType = compressionType;
+            part.compressor = compressor;
+            part.maxBatchSize = maxBatchSize;
             batches.putIfAbsent(key, part);
         } else {
             part.addMsg(msg, callback);
@@ -82,7 +86,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     }
 
     @Override
-    public void handleException(Exception ex) {
+    public void discard(Exception ex) {
         try {
             // Need to protect ourselves from any exception being thrown in the future handler from the application
             batches.forEach((k, v) -> v.firstCallback.sendComplete(ex));
@@ -93,18 +97,23 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         clear();
     }
 
-    private ProducerImpl.OpSendMsg createOpSendMsg(KeyBasedPart keyBasedPart) throws IOException {
-        ByteBuf encryptedPayload = producer.encryptMessage(keyBasedPart.messageMetadata, keyBasedPart.getCompressedBatchMetadataAndPayload());
-        final int numMessagesInBatch = keyBasedPart.messages.size();
+    @Override
+    public boolean isMultiBatches() {
+        return true;
+    }
+
+    private ProducerImpl.OpSendMsg createOpSendMsg(KeyedBatch keyedBatch) throws IOException {
+        ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata, keyedBatch.getCompressedBatchMetadataAndPayload());
+        final int numMessagesInBatch = keyedBatch.messages.size();
         long currentBatchSizeBytes = 0;
-        for (MessageImpl<?> message : keyBasedPart.messages) {
+        for (MessageImpl<?> message : keyedBatch.messages) {
             currentBatchSizeBytes += message.getDataBuffer().readableBytes();
         }
-        keyBasedPart.messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
-        ByteBufPair cmd = producer.sendMessage(producer.producerId, keyBasedPart.sequenceId, numMessagesInBatch,
-                keyBasedPart.messageMetadata.build(), encryptedPayload);
+        keyedBatch.messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
+        ByteBufPair cmd = producer.sendMessage(producer.producerId, keyedBatch.sequenceId, numMessagesInBatch,
+                keyedBatch.messageMetadata.build(), encryptedPayload);
 
-        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyBasedPart.messages, cmd, keyBasedPart.sequenceId, keyBasedPart.firstCallback);
+        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
 
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             cmd.release();
@@ -123,12 +132,12 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     @Override
     public List<ProducerImpl.OpSendMsg> createOpSendMsgs() throws IOException {
         List<ProducerImpl.OpSendMsg> result = new ArrayList<>();
-        List<KeyBasedPart> list = new ArrayList<>(batches.values());
+        List<KeyedBatch> list = new ArrayList<>(batches.values());
         list.sort(((o1, o2) -> ComparisonChain.start()
                 .compare(o1.sequenceId, o2.sequenceId)
                 .result()));
-        for (KeyBasedPart keyBasedPart : list) {
-            ProducerImpl.OpSendMsg op = createOpSendMsg(keyBasedPart);
+        for (KeyedBatch keyedBatch : list) {
+            ProducerImpl.OpSendMsg op = createOpSendMsg(keyedBatch);
             if (op != null) {
                 result.add(op);
             }
@@ -136,20 +145,23 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         return result;
     }
 
-    private String peekKey(MessageImpl<?> msg) {
+    private String getKey(MessageImpl<?> msg) {
         if (msg.hasOrderingKey()) {
             return Base64.getEncoder().encodeToString(msg.getOrderingKey());
         }
         return msg.getKey();
     }
 
-    private class KeyBasedPart {
+    private static class KeyedBatch {
         private PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
         // sequence id for this batch which will be persisted as a single entry by broker
         private long sequenceId = -1;
         private ByteBuf batchedMessageMetadataAndPayload;
         private List<MessageImpl<?>> messages = Lists.newArrayList();
         private SendCallback previousCallback = null;
+        private PulsarApi.CompressionType compressionType;
+        private CompressionCodec compressor;
+        private int maxBatchSize;
 
         // keep track of callbacks for individual messages being published in a batch
         private SendCallback firstCallback;

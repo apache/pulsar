@@ -57,4 +57,12 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      * @throws IOException
      */
     List<OpSendMsg> createOpSendMsgs() throws IOException;
+
+    /**
+     * Create OpSendMsg, producer use OpSendMsg to send to the broker.
+     *
+     * @return OpSendMsg
+     * @throws IOException
+     */
+    OpSendMsg createOpSendMsg() throws IOException;
 }

@@ -47,12 +47,18 @@ public interface BatchMessageContainer {
      *
      * @return message batch size in bytes
      */
-    long getCurrentBatchSizeBytes();
+    long getCurrentBatchSize();
 
     /**
      * Release the payload and clear the container.
      *
      * @param ex cause
      */
-    void handleException(Exception ex);
+    void discard(Exception ex);
+
+    /**
+     * Return the batch container batch message in multiple batches
+     * @return
+     */
+    boolean isMultiBatches();
 }
