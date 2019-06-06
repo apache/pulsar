@@ -455,6 +455,8 @@ The Apache Software License, Version 2.0
     - zookeeper-3.4.13.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.5.0.jar
+  * Swagger
+    - swagger-annotations-1.5.21.jar
 
 Protocol Buffers License
  * Protocol Buffers
