@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.api;
+package org.apache.pulsar.common.protocol;
 
 import com.google.common.annotations.VisibleForTesting;
 

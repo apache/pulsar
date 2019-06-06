@@ -22,8 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.lang.String.format;
-import static org.apache.pulsar.common.api.Commands.hasChecksum;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
+import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
 import com.google.common.collect.Queues;
 
@@ -58,9 +58,9 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;

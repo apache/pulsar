@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.api;
+package org.apache.pulsar.common.protocol;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
@@ -41,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;

@@ -27,7 +27,7 @@ import java.net.URISyntaxException;
 import java.util.Optional;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
