@@ -587,3 +587,72 @@ func TestConsumerNegativeAcks(t *testing.T) {
 
 	consumer.Unsubscribe()
 }
+
+func TestConsumerShared(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topic := "persistent://public/default/test-topic-6"
+
+	consumer1, err := client.Subscribe(ConsumerOptions{
+		Topic:            topic,
+		SubscriptionName: "sub-1",
+		Type:             KeyShared,
+	})
+	assert.Nil(t, err)
+	defer consumer1.Close()
+
+	consumer2, err := client.Subscribe(ConsumerOptions{
+		Topic:            topic,
+		SubscriptionName: "sub-1",
+		Type:             KeyShared,
+	})
+	assert.Nil(t, err)
+	defer consumer2.Close()
+
+	// create producer
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic:    topic,
+		Batching: false,
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	ctx := context.Background()
+	for i := 0; i < 10; i++ {
+		err := producer.Send(ctx, ProducerMessage{
+			Key:     fmt.Sprintf("key-shared-%d", i%4),
+			Payload: []byte(fmt.Sprintf("value-%d", i)),
+		})
+		assert.Nil(t, err)
+	}
+
+	time.Sleep(time.Second * 5)
+
+	go func() {
+		for i := 0; i < 10; i++ {
+			msg, err := consumer1.Receive(ctx)
+			assert.Nil(t, err)
+			if msg != nil {
+				fmt.Printf("consumer1 key is: %s, value is: %s\n", msg.Key(), string(msg.Payload()))
+				err = consumer1.Ack(msg)
+				assert.Nil(t, err)
+			}
+		}
+	}()
+
+	go func() {
+		for i := 0; i < 10; i++ {
+			msg2, err := consumer2.Receive(ctx)
+			assert.Nil(t, err)
+			if msg2 != nil {
+				fmt.Printf("consumer2 key is:%s, value is: %s\n", msg2.Key(), string(msg2.Payload()))
+				err = consumer2.Ack(msg2)
+				assert.Nil(t, err)
+			}
+		}
+	}()
+}
