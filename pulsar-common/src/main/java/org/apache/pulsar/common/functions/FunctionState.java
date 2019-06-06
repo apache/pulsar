@@ -34,6 +34,7 @@ import lombok.*;
 public class FunctionState {
     private String key;
     private String stringValue;
+    private byte[] byteValue;
     private Long numberValue;
     private Long version;
 }
