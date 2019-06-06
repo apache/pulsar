@@ -46,11 +46,11 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         implements NonPersistentDispatcher {
 
     private final NonPersistentTopic topic;
-    private final Subscription subscription;
+    protected final Subscription subscription;
 
     private CompletableFuture<Void> closeFuture = null;
     private final String name;
-    private final Rate msgDrop;
+    protected final Rate msgDrop;
     protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
     @SuppressWarnings("unused")
