@@ -18,8 +18,8 @@ Commands
 * `functions`
 * `namespaces`
 * `ns-isolation-policy`
-* `sink`
-* `source`
+* `sinks`
+* `sources`
 * `topics`
 * `tenants`
 * `resource-quotas`
@@ -1467,13 +1467,13 @@ Options
 |`--broker`|Broker name to get namespace-isolation policies attached to it||
 
 
-## `sink`
+## `sinks`
 
 An interface for managing Pulsar IO sinks (egress data from Pulsar)
 
 Usage
 ```bash
-$ pulsar-admin sink subcommand
+$ pulsar-admin sinks subcommand
 ```
 
 Subcommands
@@ -1495,7 +1495,7 @@ Submit a Pulsar IO sink connector to run in a Pulsar cluster
 
 Usage
 ```bash
-$ pulsar-admin sink create options
+$ pulsar-admin sinks create options
 ```
 
 Options
@@ -1529,7 +1529,7 @@ Update a Pulsar IO sink connector
 
 Usage
 ```bash
-$ pulsar-admin sink update options
+$ pulsar-admin sinks update options
 ```
 
 Options
@@ -1563,7 +1563,7 @@ Stops a Pulsar IO sink connector
 
 Usage
 ```bash
-$ pulsar-admin sink delete options
+$ pulsar-admin sinks delete options
 ```
 
 Options
@@ -1579,7 +1579,7 @@ List all running Pulsar IO sink connectors
 
 Usage
 ```bash
-$ pulsar-admin sink list options
+$ pulsar-admin sinks list options
 ```
 
 Options
@@ -1594,7 +1594,7 @@ Gets the information about a Pulsar IO sink connector
 
 Usage
 ```bash
-$ pulsar-admin sink get options
+$ pulsar-admin sinks get options
 ```
 
 Options
@@ -1610,7 +1610,7 @@ Check the current status of a Pulsar Sink
 
 Usage
 ```bash
-$ pulsar-admin sink status options
+$ pulsar-admin sinks status options
 ```
 
 Options
@@ -1627,7 +1627,7 @@ Stops sink instance
 
 Usage
 ```bash
-$ pulsar-admin sink stop options
+$ pulsar-admin sinks stop options
 ```
 
 Options
@@ -1644,7 +1644,7 @@ Starts sink instance
 
 Usage
 ```bash
-$ pulsar-admin sink start options
+$ pulsar-admin sinks start options
 ```
 
 Options
@@ -1661,7 +1661,7 @@ Restart sink instance
 
 Usage
 ```bash
-$ pulsar-admin sink restart options
+$ pulsar-admin sinks restart options
 ```
 
 Options
@@ -1678,7 +1678,7 @@ Run a Pulsar IO sink connector locally (rather than deploying it to the Pulsar c
 
 Usage
 ```bash
-$ pulsar-admin sink localrun options
+$ pulsar-admin sinks localrun options
 ```
 
 Options
@@ -1719,16 +1719,16 @@ Get the list of Pulsar IO connector sinks supported by Pulsar cluster
 
 Usage
 ```bash
-$ pulsar-admin sink available-sinks
+$ pulsar-admin sinks available-sinks
 ```
 
 
-## `source`
+## `sources`
 An interface for managing Pulsar IO sources (ingress data into Pulsar)
 
 Usage
 ```bash
-$ pulsar-admin source subcommand
+$ pulsar-admin sources subcommand
 ```
 
 Subcommands
@@ -1750,7 +1750,7 @@ Submit a Pulsar IO source connector to run in a Pulsar cluster
 
 Usage
 ```bash
-$ pulsar-admin source create options
+$ pulsar-admin sources create options
 ```
 
 Options
@@ -1779,7 +1779,7 @@ Update a already submitted Pulsar IO source connector
 
 Usage
 ```bash
-$ pulsar-admin source update options
+$ pulsar-admin sources update options
 ```
 
 Options
@@ -1808,7 +1808,7 @@ Stops a Pulsar IO source connector
 
 Usage
 ```bash
-$ pulsar-admin source delete options
+$ pulsar-admin sources delete options
 ```
 
 Options
@@ -1824,7 +1824,7 @@ Gets the information about a Pulsar IO source connector
 
 Usage
 ```bash
-$ pulsar-admin source get options
+$ pulsar-admin sources get options
 ```
 
 Options
@@ -1840,7 +1840,7 @@ Check the current status of a Pulsar Source
 
 Usage
 ```bash
-$ pulsar-admin source status options
+$ pulsar-admin sources status options
 ```
 
 Options
@@ -1857,7 +1857,7 @@ List all running Pulsar IO source connectors
 
 Usage
 ```bash
-$ pulsar-admin source list options
+$ pulsar-admin sources list options
 ```
 
 Options
@@ -1872,7 +1872,7 @@ Stop source instance
 
 Usage
 ```bash
-$ pulsar-admin source stop options
+$ pulsar-admin sources stop options
 ```
 
 Options
@@ -1889,7 +1889,7 @@ Start source instance
 
 Usage
 ```bash
-$ pulsar-admin source start options
+$ pulsar-admin sources start options
 ```
 
 Options
@@ -1906,7 +1906,7 @@ Restart source instance
 
 Usage
 ```bash
-$ pulsar-admin source restart options
+$ pulsar-admin sources restart options
 ```
 
 Options
@@ -1923,7 +1923,7 @@ Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar
 
 Usage
 ```bash
-$ pulsar-admin source localrun options
+$ pulsar-admin sources localrun options
 ```
 
 Options
@@ -1959,7 +1959,7 @@ Get the list of Pulsar IO connector sources supported by Pulsar cluster
 
 Usage
 ```bash
-$ pulsar-admin source available-sources
+$ pulsar-admin sources available-sources
 ```
 
 

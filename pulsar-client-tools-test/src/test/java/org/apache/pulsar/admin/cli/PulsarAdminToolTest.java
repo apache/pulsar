@@ -280,6 +280,12 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-clusters myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceReplicationClusters("myprop/clust/ns1");
 
+        namespaces.run(split("set-bookie-affinity-group myprop/clust/ns1 --group test"));
+        verify(mockNamespaces).setBookieAffinityGroup("myprop/clust/ns1", "test");
+        
+        namespaces.run(split("get-bookie-affinity-group myprop/clust/ns1"));
+        verify(mockNamespaces).getBookieAffinityGroup("myprop/clust/ns1");
+        
         namespaces.run(split("unload myprop/clust/ns1"));
         verify(mockNamespaces).unload("myprop/clust/ns1");
 

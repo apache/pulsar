@@ -45,13 +45,13 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 60000)
+    @BeforeClass(timeOut = 300000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 60000)
+    @AfterClass(timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -59,7 +59,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     /**
      * If local cluster is removed from the global namespace then all topics under that namespace should be deleted from
      * the cluster.
-     * 
+     *
      * @throws Exception
      */
     @Test

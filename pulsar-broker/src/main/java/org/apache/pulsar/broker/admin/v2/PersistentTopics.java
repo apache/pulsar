@@ -165,12 +165,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the namespace to which this topic belongs", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specifies topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
-            @ApiParam(value = "Whether to turn on authentication mode")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Number of partitions for the topic", required = true, type = "int", defaultValue = "0")
+            int numPartitions) {
         validateGlobalNamespaceOwnership(tenant,namespace);
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        internalCreatePartitionedTopic(numPartitions, authoritative);
+        internalCreatePartitionedTopic(numPartitions);
     }
 
     @PUT

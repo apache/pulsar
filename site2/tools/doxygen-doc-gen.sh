@@ -21,8 +21,8 @@
 set -x -e
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
+VERSION=`${ROOT_DIR}/src/get-project-version.py`
 DOXYGEN=doxygen
-TMP_DIR=$(mktemp -d)
 
 mkdir -p $ROOT_DIR/generated-site/api/cpp
 
@@ -31,5 +31,4 @@ mkdir -p $ROOT_DIR/generated-site/api/cpp
   $DOXYGEN Doxyfile
 )
 
-mv $ROOT_DIR/generated-site/api/cpp $TMP_DIR
-mv $TMP_DIR/cpp/html $ROOT_DIR/generated-site/api/cpp
+mv $ROOT_DIR/target/doxygen/html $ROOT_DIR/generated-site/api/cpp/${VERSION}

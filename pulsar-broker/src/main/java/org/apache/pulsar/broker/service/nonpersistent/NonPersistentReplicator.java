@@ -51,7 +51,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService) throws NamingException {
-        super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
+        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
 
         producerBuilder.blockIfQueueFull(false);
 
@@ -249,5 +249,11 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     @Override
     protected void disableReplicatorRead() {
         // No-op
+    }
+
+    @Override
+    public boolean isConnected() {
+        ProducerImpl<?> producer = this.producer;
+        return producer != null && producer.isConnected();
     }
 }

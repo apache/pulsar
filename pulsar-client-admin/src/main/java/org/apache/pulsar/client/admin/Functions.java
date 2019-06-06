@@ -485,4 +485,31 @@ public interface Functions {
      *             Unexpected error
      */
     FunctionState getFunctionState(String tenant, String namespace, String function, String key) throws PulsarAdminException;
+
+    /**
+     * Puts the given state associated with a Pulsar Function.
+     * <p>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{ "value : 12, version : 2"}</code>
+     * </pre>
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param state
+     *            FunctionState
+     **
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to get the configuration of the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void putFunctionState(String tenant, String namespace, String function, FunctionState state) throws PulsarAdminException;
 }

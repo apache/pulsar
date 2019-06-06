@@ -27,6 +27,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -54,6 +55,7 @@ import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -71,6 +73,7 @@ public class CmdFunctions extends CmdBase {
     private final StartFunction start;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
+    private final StatePutter statePutter;
     private final TriggerFunction triggerer;
     private final UploadFunction uploader;
     private final DownloadFunction downloader;
@@ -799,7 +802,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Fetch the current state associated with a Pulsar Function running in cluster mode")
+    @Parameters(commandDescription = "Fetch the current state associated with a Pulsar Function")
     class StateGetter extends FunctionCommand {
 
         @Parameter(names = { "-k", "--key" }, description = "key")
@@ -827,6 +830,22 @@ public class CmdFunctions extends CmdBase {
                     Thread.sleep(1000);
                 }
             } while (watch);
+        }
+    }
+
+    @Parameters(commandDescription = "Put the state associated with a Pulsar Function")
+    class StatePutter extends FunctionCommand {
+
+        @Parameter(names = { "-s", "--state" }, description = "The FunctionState that needs to be put", required = true)
+        private String state = null;
+
+        @Override
+        void runCmd() throws Exception {
+            TypeReference<FunctionState> typeRef
+                    = new TypeReference<FunctionState>() {};
+            FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, typeRef);
+            admin.functions()
+                    .putFunctionState(tenant, namespace, functionName, stateRepr);
         }
     }
 
@@ -943,6 +962,7 @@ public class CmdFunctions extends CmdBase {
         functionStats = new GetFunctionStats();
         lister = new ListFunctions();
         stateGetter = new StateGetter();
+        statePutter = new StatePutter();
         triggerer = new TriggerFunction();
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
@@ -962,6 +982,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("stats", getFunctionStats());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
+        jcommander.addCommand("putstate", getStatePutter());
         jcommander.addCommand("trigger", getTriggerer());
         jcommander.addCommand("upload", getUploader());
         jcommander.addCommand("download", getDownloader());
@@ -998,6 +1019,11 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     ListFunctions getLister() {
         return lister;
+    }
+
+    @VisibleForTesting
+    StatePutter getStatePutter() {
+        return statePutter;
     }
 
     @VisibleForTesting
