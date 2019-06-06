@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.pulsar.common.schema.PostSchemaPayload;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**

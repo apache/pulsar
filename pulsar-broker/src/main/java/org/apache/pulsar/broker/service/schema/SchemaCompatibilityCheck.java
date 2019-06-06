@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 public interface SchemaCompatibilityCheck {

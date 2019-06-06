@@ -20,9 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.NettySslContextBuilder;
 
 import io.netty.channel.ChannelInitializer;

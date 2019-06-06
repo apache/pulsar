@@ -16,22 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.common.protocol.schema;
 
-import java.util.Map;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+public final class LatestVersion implements SchemaVersion {
+    private static final byte[] EMPTY = new byte[]{};
 
-@Data
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class GetSchemaResponse {
-    private long version;
-    private SchemaType type;
-    private long timestamp;
-    private String data;
-    private Map<String, String> properties;
+    @Override
+    public byte[] bytes() {
+        return EMPTY;
+    }
 }
