@@ -25,7 +25,7 @@ import com.google.common.base.Objects;
 public class LocalPolicies {
 
     public BundlesData bundles;
-    public String bookkeeperAffinityGroup;
+    public BookieAffinityGroupData bookieAffinityGroup;
 
     public LocalPolicies() {
         bundles = defaultBundle();
@@ -33,7 +33,7 @@ public class LocalPolicies {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(bundles, bookkeeperAffinityGroup);
+        return Objects.hashCode(bundles, bookieAffinityGroup);
     }
 
     @Override
@@ -41,7 +41,7 @@ public class LocalPolicies {
         if (obj instanceof LocalPolicies) {
             LocalPolicies other = (LocalPolicies) obj;
             return Objects.equal(bundles, other.bundles)
-                    && Objects.equal(bookkeeperAffinityGroup, other.bookkeeperAffinityGroup);
+                    && Objects.equal(bookieAffinityGroup, other.bookieAffinityGroup);
         }
         return false;
     }
