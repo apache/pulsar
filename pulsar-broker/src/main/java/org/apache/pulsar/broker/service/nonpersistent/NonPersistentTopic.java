@@ -77,7 +77,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;

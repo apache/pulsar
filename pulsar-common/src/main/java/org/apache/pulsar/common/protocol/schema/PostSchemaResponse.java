@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.common.protocol.schema;
 
-public final class EmptyVersion implements SchemaVersion {
-    private static final byte[] EMPTY = new byte[]{};
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    @Override
-    public byte[] bytes() {
-        return EMPTY;
-    }
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class PostSchemaResponse {
+    private SchemaVersion version;
 }
