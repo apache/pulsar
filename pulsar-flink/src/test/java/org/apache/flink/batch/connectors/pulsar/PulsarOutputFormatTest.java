@@ -64,76 +64,65 @@ public class PulsarOutputFormatTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorV2WhenServiceUrlIsNull() {
-        ClientConfigurationData clientConf = ClientConfigurationData.builder()
-                .serviceUrl(null)
-                .build();
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl(null);
 
-        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
-                .topicName("testTopic")
-                .build();
+        ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        producerConf.setTopicName("testTopic");
 
         new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorV2WhenTopicNameIsNull() {
-        ClientConfigurationData clientConf = ClientConfigurationData.builder()
-                .serviceUrl("testServiceUrl")
-                .build();
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
 
-        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
-                .topicName(null)
-                .build();
+        ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        producerConf.setTopicName(null);
 
         new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorV2WhenTopicNameIsBlank() {
-        ClientConfigurationData clientConf = ClientConfigurationData.builder()
-                .serviceUrl("testServiceUrl")
-                .build();
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
 
-        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
-                .topicName(StringUtils.EMPTY)
-                .build();
+        ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        producerConf.setTopicName(StringUtils.EMPTY);
 
         new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPulsarOutputFormatConstructorV2WhenServiceUrlIsBlank() {
-        ClientConfigurationData clientConf = ClientConfigurationData.builder()
-                .serviceUrl(StringUtils.EMPTY)
-                .build();
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl(StringUtils.EMPTY);
 
-        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
-                .topicName("testTopic")
-                .build();
+        ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        producerConf.setTopicName("testTopic");
 
         new PulsarOutputFormat(clientConf, producerConf, text -> text.toString().getBytes());
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testPulsarOutputFormatConstructorV2WhenSerializationSchemaIsNull() {
-        ClientConfigurationData clientConf = ClientConfigurationData.builder()
-                .serviceUrl("testServiceUrl")
-                .build();
-        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
-                .topicName("testTopic")
-                .build();
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
+
+        ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        producerConf.setTopicName("testTopic");
         new PulsarOutputFormat(clientConf, producerConf, null);
     }
 
     @Test
     public void testPulsarOutputFormatConstructorV2() {
-        ClientConfigurationData clientConf = ClientConfigurationData.builder()
-                .serviceUrl("testServiceUrl")
-                .build();
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
 
-        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
-                .topicName("testTopic")
-                .build();
+        ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        producerConf.setTopicName("testTopic");
 
         PulsarCsvOutputFormat pulsarCsvOutputFormat = new PulsarCsvOutputFormat(clientConf, producerConf);
         assertNotNull(pulsarCsvOutputFormat);

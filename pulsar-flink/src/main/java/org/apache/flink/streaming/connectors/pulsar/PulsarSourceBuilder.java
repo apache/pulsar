@@ -290,7 +290,7 @@ public class PulsarSourceBuilder<T> {
 
     private void setAuth() throws PulsarClientException{
         if (StringUtils.isBlank(this.clientConfigurationData.getAuthPluginClassName())
-                && this.clientConfigurationData.getAuthParams() == null || this.clientConfigurationData.getAuthParams().isEmpty())
+                || StringUtils.isBlank(this.clientConfigurationData.getAuthParams()))
             return;
 
         clientConfigurationData.setAuthentication(
