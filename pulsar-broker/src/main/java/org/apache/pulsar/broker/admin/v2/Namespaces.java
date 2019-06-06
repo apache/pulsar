@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -492,13 +493,13 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/persistence/bookieAffinity/{bookieAffinityGroup}")
+    @Path("/{tenant}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(value = "Set the bookie-affinity-group to namespace-persistent policy.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setBookieAffinityGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("bookieAffinityGroup") String bookieAffinityGroup) {
+            BookieAffinityGroupData bookieAffinityGroup) {
         validateNamespaceName(tenant, namespace);
         internalSetBookieAffinityGroup(bookieAffinityGroup);
     }
@@ -509,7 +510,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public String getBookieAffinityGroup(@PathParam("property") String property,
+    public BookieAffinityGroupData getBookieAffinityGroup(@PathParam("property") String property,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, namespace);
         return internalGetBookieAffinityGroup();
