@@ -19,11 +19,8 @@
 package org.apache.pulsar.broker.service.schema;
 
 import com.google.gson.Gson;
-import org.apache.avro.SchemaParseException;
-import org.apache.avro.SchemaValidationException;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.nio.ByteBuffer;

@@ -16,11 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.common.protocol.schema;
 
-public interface SchemaVersion {
-    SchemaVersion Latest = new LatestVersion();
-    SchemaVersion Empty = new EmptyVersion();
+import java.util.HashMap;
+import java.util.Map;
+import lombok.Builder;
+import lombok.Data;
+import lombok.ToString;
+import org.apache.pulsar.common.schema.SchemaType;
 
-    byte[] bytes();
+@Builder
+@Data
+@ToString
+public class SchemaData {
+    private final SchemaType type;
+    private final boolean isDeleted;
+    private final long timestamp;
+    private final String user;
+    private final byte[] data;
+    @Builder.Default
+    private Map<String, String> props = new HashMap<>();
 }
