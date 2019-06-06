@@ -266,7 +266,7 @@
         Logger LOG = context.getLogger();
         String functionTenant = context.getTenant();
         String functionNamespace = context.getNamespace();
-        String functionName = context.getName();
+        String functionName = context.getFunctionName();
         LOG.info(<span class="hljs-string">"Function tenant/namespace/name: {}/{}/{}"</span>, functionTenant, functionNamespace, functionName);
         <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
     }

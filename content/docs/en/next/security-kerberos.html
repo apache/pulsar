@@ -166,7 +166,14 @@ and the location of the keytab where the principal is stored. It allows the clie
 <p>You can add this at the end of <code>PULSAR_EXTRA_OPTS</code> in the file <a href="https://github.com/apache/pulsar/blob/master/conf/pulsar_env.sh"><code>pulsar_env.sh</code></a></p>
 <p>Make sure that the keytabs configured in the <code>pulsar_jaas.conf</code> file and kdc server in the <code>krb5.conf</code> file are reachable by the operating system user who is starting broker.</p>
 <h3><a class="anchor" aria-hidden="true" id="kerberos-configuration-for-clients"></a><a href="#kerberos-configuration-for-clients" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kerberos configuration for clients</h3>
-<p>In client, we need to configure the authentication type to use <code>AuthenticationSasl</code>, and also provide the authentication parameters to it.</p>
+<p>In client application, include <code>pulsar-client-auth-sasl</code> in your project dependency.</p>
+<pre><code class="hljs"><span class="xml">    <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.apache.pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>pulsar-client-auth-sasl<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
+      <span class="hljs-tag">&lt;<span class="hljs-name">version</span>&gt;</span>$</span><span class="hljs-template-variable">{pulsar.version}</span><span class="xml"><span class="hljs-tag">&lt;/<span class="hljs-name">version</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
+</span></code></pre>
+<p>configure the authentication type to use <code>AuthenticationSasl</code>, and also provide the authentication parameters to it.</p>
 <p>There are 2 parameters needed:</p>
 <ul>
 <li><code>saslJaasClientSectionName</code> is corresponding to the section in JAAS configuration file for client;</li>

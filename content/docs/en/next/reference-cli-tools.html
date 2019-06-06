@@ -471,7 +471,8 @@
 <tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If set to 0, it will keep publishing.</td><td>0</td></tr>
 <tr><td><code>-n</code>, <code>--num-producers</code></td><td>The number of producers (per topic)</td><td>1</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
-<tr><td><code>-f</code>, <code>--payload-file</code></td><td>Use payload from a file instead of an empty buffer</td><td></td></tr>
+<tr><td><code>-f</code>, <code>--payload-file</code></td><td>Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages</td><td></td></tr>
+<tr><td><code>-e</code>, <code>--payload-delimiter</code></td><td>The delimiter used to split lines when using payload from a file</td><td>\n</td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>Publish rate msg/s across topics</td><td>100</td></tr>
 <tr><td><code>-u</code>, <code>--service-url</code></td><td>Pulsar service URL</td><td></td></tr>
 <tr><td><code>-s</code>, <code>--size</code></td><td>Message size (in bytes)</td><td>1024</td></tr>
