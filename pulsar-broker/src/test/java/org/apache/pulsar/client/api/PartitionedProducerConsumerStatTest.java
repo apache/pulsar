@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
 
+import static java.util.UUID.randomUUID;
 import static org.apache.pulsar.client.api.SimpleProducerConsumerStatTest.validatingLogInfo;
 import static org.testng.Assert.*;
 
@@ -84,9 +85,10 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
             MessageRoutingMode messageRoutingMode
     ) throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String randomTopicName = "persistent://my-property/tp1/my-ns/my-topic1"+ randomUUID().toString();
         pulsarClient = newPulsarClient(lookupUrl, intervalInSecs);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1")
+                .topic(randomTopicName)
                 .subscriptionName("my-subscriber-name")
                 .receiverQueueSize(10);
 
@@ -98,7 +100,7 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
 
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1")
+                .topic(randomTopicName)
                 .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
@@ -141,9 +143,10 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
             MessageRoutingMode messageRoutingMode
     ) throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String randomTopicName = "persistent://my-property/tp1/my-ns/my-topic2"+ randomUUID().toString();
         pulsarClient = newPulsarClient(lookupUrl, intervalInSecs);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .topic(randomTopicName)
                 .subscriptionName("my-subscriber-name")
                 .receiverQueueSize(10);
         if (ackTimeoutSec > 0) {
@@ -153,7 +156,7 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .topic(randomTopicName)
                 .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
@@ -207,9 +210,10 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
             int intervalInSecs,
             MessageRoutingMode messageRoutingMode) throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String randomTopicName = "persistent://my-property/tp1/my-ns/my-topic2"+ randomUUID().toString();
         pulsarClient = newPulsarClient(lookupUrl, intervalInSecs);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .topic(randomTopicName)
                 .subscriptionName("my-subscriber-name")
                 .receiverQueueSize(10);
         if (ackTimeoutSec > 0) {
@@ -219,7 +223,7 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .topic(randomTopicName)
                 .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
@@ -274,8 +278,8 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
         int numMessages = 100;
         final CountDownLatch latch = new CountDownLatch(numMessages);
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/tp1/my-ns/my-topic3")
+        String randomTopicName = "persistent://my-property/tp1/my-ns/my-topic3"+ randomUUID().toString();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(randomTopicName)
                 .subscriptionName("my-subscriber-name").ackTimeout(100, TimeUnit.SECONDS)
                 .receiverQueueSize(10)
                 .messageListener((consumer1, msg) -> {
@@ -287,7 +291,7 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
                 }).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic3")
+                .topic(randomTopicName)
                 .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true)
@@ -323,12 +327,12 @@ public class PartitionedProducerConsumerStatTest extends ProducerConsumerBase {
     @Test(dataProvider = "batch")
     public void testSendTimeout(int batchMessageDelayMs, MessageRoutingMode messageRoutingMode) throws Exception {
         log.info("-- Starting {} test --", methodName);
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/tp1/my-ns/my-topic5")
+        String randomTopicName = "persistent://my-property/tp1/my-ns/my-topic4"+ randomUUID().toString();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(randomTopicName)
                 .subscriptionName("my-subscriber-name").receiverQueueSize(10).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic5")
+                .topic(randomTopicName)
                 .sendTimeout(1, TimeUnit.SECONDS)
                 .messageRoutingMode(messageRoutingMode);
         if (batchMessageDelayMs != 0) {
