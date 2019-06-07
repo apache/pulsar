@@ -164,6 +164,19 @@
       </exclusions>
     </dependency>
 
+    <!-- local-runner -->
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-local-runner-original</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <!-- grpc -->
     <dependency>
       <groupId>io.grpc</groupId>

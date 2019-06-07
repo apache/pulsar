@@ -111,6 +111,11 @@ public class NonPersistentSubscription implements Subscription {
                             topic, this);
                 }
                 break;
+            case Key_Shared:
+                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                    dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this);
+                }
+                break;
             default:
                 throw new ServerMetadataException("Unsupported subscription type");
             }

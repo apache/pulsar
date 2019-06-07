@@ -16,17 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.common.protocol.schema;
 
+import java.util.Map;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class DeleteSchemaResponse {
-    private long version;
+public class PostSchemaPayload {
+    private String type;
+    private String schema;
+    private Map<String, String> properties;
 }

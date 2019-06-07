@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -86,7 +87,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -641,7 +642,7 @@ public class PersistentTopicsBase extends AdminResource {
         }, null);
     }
 
-    protected PartitionedTopicStats internalGetPartitionedStats(boolean authoritative) {
+    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative) {
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
         if (partitionMetadata.partitions == 0) {
             throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
@@ -650,38 +651,54 @@ public class PersistentTopicsBase extends AdminResource {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         PartitionedTopicStats stats = new PartitionedTopicStats(partitionMetadata);
-        try {
-            for (int i = 0; i < partitionMetadata.partitions; i++) {
-                TopicStats partitionStats = pulsar().getAdminClient().topics()
-                        .getStats(topicName.getPartition(i).toString());
-                stats.add(partitionStats);
-                stats.partitions.put(topicName.getPartition(i).toString(), partitionStats);
-            }
-        } catch (PulsarAdminException e) {
-            if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
 
+        List<CompletableFuture<TopicStats>> topicStatsFutureList = Lists.newArrayList();
+        for (int i = 0; i < partitionMetadata.partitions; i++) {
+            try {
+                topicStatsFutureList
+                        .add(pulsar().getAdminClient().topics().getStatsAsync((topicName.getPartition(i).toString())));
+            } catch (PulsarServerException e) {
+                asyncResponse.resume(new RestException(e));
+                return;
+            }
+        }
+
+        FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
+            CompletableFuture<TopicStats> statFuture = null;
+            for (int i = 0; i < topicStatsFutureList.size(); i++) {
+                statFuture = topicStatsFutureList.get(i);
+                if (statFuture.isDone() && !statFuture.isCompletedExceptionally()) {
+                    try {
+                        stats.add(statFuture.get());
+                        stats.partitions.put(topicName.getPartition(i).toString(), statFuture.get());
+                    } catch (Exception e) {
+                        asyncResponse.resume(new RestException(e));
+                        return null;
+                    }
+                }
+            }
+            if (stats.partitions.isEmpty()) {
                 String path = ZkAdminPaths.partitionedTopicPath(topicName);
                 try {
                     boolean zkPathExists = zkPathExists(path);
                     if (zkPathExists) {
                         stats.partitions.put(topicName.toString(), new TopicStats());
                     } else {
-                        throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
+                        asyncResponse.resume(
+                                new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet"));
+                        return null;
                     }
-                } catch (KeeperException | InterruptedException exception) {
-                    throw new RestException(e);
+                } catch (KeeperException | InterruptedException e) {
+                    asyncResponse.resume(new RestException(e));
+                    return null;
                 }
-
-            } else {
-                throw new RestException(e);
             }
-        } catch (Exception e) {
-            throw new RestException(e);
-        }
-        return stats;
+            asyncResponse.resume(stats);
+            return null;
+        });
     }
 
-    protected PartitionedTopicInternalStats internalGetPartitionedStatsInternal(boolean authoritative) {
+    protected void internalGetPartitionedStatsInternal(AsyncResponse asyncResponse, boolean authoritative) {
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
         if (partitionMetadata.partitions == 0) {
             throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
@@ -690,22 +707,35 @@ public class PersistentTopicsBase extends AdminResource {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         PartitionedTopicInternalStats stats = new PartitionedTopicInternalStats(partitionMetadata);
-        try {
-            for (int i = 0; i < partitionMetadata.partitions; i++) {
-                PersistentTopicInternalStats partitionStats = pulsar().getAdminClient().topics()
-                        .getInternalStats(topicName.getPartition(i).toString());
-                stats.partitions.put(topicName.getPartition(i).toString(), partitionStats);
+
+        List<CompletableFuture<PersistentTopicInternalStats>> topicStatsFutureList = Lists.newArrayList();
+        for (int i = 0; i < partitionMetadata.partitions; i++) {
+            try {
+                topicStatsFutureList.add(pulsar().getAdminClient().topics()
+                        .getInternalStatsAsync((topicName.getPartition(i).toString())));
+            } catch (PulsarServerException e) {
+                asyncResponse.resume(new RestException(e));
+                return;
             }
-        } catch (PulsarAdminException e) {
-            if (e.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
-                throw new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet");
-            } else {
-                throw new RestException(e);
-            }
-        } catch (Exception e) {
-            throw new RestException(e);
         }
-        return stats;
+
+        FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
+            CompletableFuture<PersistentTopicInternalStats> statFuture = null;
+            for (int i = 0; i < topicStatsFutureList.size(); i++) {
+                statFuture = topicStatsFutureList.get(i);
+                if (statFuture.isDone() && !statFuture.isCompletedExceptionally()) {
+                    try {
+                        stats.partitions.put(topicName.getPartition(i).toString(), statFuture.get());
+                    } catch (Exception e) {
+                        asyncResponse.resume(new RestException(e));
+                        return null;
+                    }
+                }
+            }
+            asyncResponse.resume(!stats.partitions.isEmpty() ? stats
+                    : new RestException(Status.NOT_FOUND, "Internal topics have not been generated yet"));
+            return null;
+        });
     }
 
     protected void internalDeleteSubscription(String subName, boolean authoritative) {

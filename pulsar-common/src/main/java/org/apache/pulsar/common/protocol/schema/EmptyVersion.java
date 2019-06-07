@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.common.protocol.schema;
 
-public final class LatestVersion implements SchemaVersion {
+public final class EmptyVersion implements SchemaVersion {
     private static final byte[] EMPTY = new byte[]{};
 
     @Override
