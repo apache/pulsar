@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
@@ -84,15 +83,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     public Producer<T> create() throws PulsarClientException {
         try {
             return createAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        } catch (Exception e) {
             throw new PulsarClientException(e);
         }
     }

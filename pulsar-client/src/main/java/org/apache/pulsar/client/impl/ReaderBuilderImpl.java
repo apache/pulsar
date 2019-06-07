@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -66,15 +65,10 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     public Reader<T> create() throws PulsarClientException {
         try {
             return createAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        } catch (Exception e) {
             throw new PulsarClientException(e);
         }
     }
