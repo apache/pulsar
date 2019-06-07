@@ -2342,7 +2342,7 @@
         }
       }
     },
-    "/namespaces/{tenant}/{namespace}/persistence/bookieAffinity/{bookieAffinityGroup}" : {
+    "/namespaces/{tenant}/{namespace}/persistence/bookieAffinity" : {
       "post" : {
         "tags" : [ "namespaces" ],
         "summary" : "Set the bookie-affinity-group to namespace-persistent policy.",
@@ -2357,11 +2357,6 @@
           "type" : "string"
         }, {
           "name" : "namespace",
-          "in" : "path",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "bookieAffinityGroup",
           "in" : "path",
           "required" : true,
           "type" : "string"
@@ -3875,12 +3870,6 @@
           "default" : false
         } ],
         "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/PartitionedTopicStats"
-            }
-          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5340,12 +5329,6 @@
           "default" : false
         } ],
         "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/PartitionedTopicStats"
-            }
-          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -7293,6 +7276,15 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -7316,15 +7308,6 @@
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
         }
       }
     },
@@ -7684,65 +7667,6 @@
         "partitions" : {
           "type" : "integer",
           "format" : "int32"
-        }
-      }
-    },
-    "PartitionedTopicStats" : {
-      "type" : "object",
-      "properties" : {
-        "msgRateIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgRateOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "averageMsgSize" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "storageSize" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "publishers" : {
-          "type" : "array",
-          "items" : {
-            "$ref" : "#/definitions/PublisherStats"
-          }
-        },
-        "subscriptions" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "$ref" : "#/definitions/SubscriptionStats"
-          }
-        },
-        "replication" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "$ref" : "#/definitions/ReplicatorStats"
-          }
-        },
-        "deduplicationStatus" : {
-          "type" : "string"
-        },
-        "metadata" : {
-          "$ref" : "#/definitions/PartitionedTopicMetadata"
-        },
-        "partitions" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "$ref" : "#/definitions/TopicStats"
-          }
         }
       }
     },
@@ -8322,11 +8246,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

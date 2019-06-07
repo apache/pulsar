@@ -57,11 +57,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         } ],
@@ -92,16 +94,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         } ],
@@ -136,18 +141,32 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The functions tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The functions namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The functions name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting functions configuration payload. An example of the expected functions can be found here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ntenant  \n  The tenant of functions.  \nnamespace  \n  The namespace of functions.  \nname  \n  The name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n  A generalized way of specifying inputs.  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in --custom-serde-inputs (supported for java fun only)  \nuserConfig  \n  User-defined config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          },
+          "x-examples" : {
+            "application/json" : "{\n  \"inputs\": persistent://public/default/input-topic,\n  \"parallelism\": 4\n  \"output\": persistent://public/default/output-topic\n  \"log-topic\": persistent://public/default/log-topic\n  \"classname\": org.example.test.ExclamationFunction\n  \"jar\": java-function-1.0-SNAPSHOT.jar\n}"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -174,18 +193,40 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ntenant  \n  The tenant of functions.  \nnamespace  \n  The namespace of functions.  \nname  \n  The name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n  A generalized way of specifying inputs.  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in --custom-serde-inputs (supported for java fun only)  \nuserConfig  \n  User-defined config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          },
+          "x-examples" : {
+            "application/json" : "{\n  \"inputs\": persistent://public/default/input-topic,\n  \"parallelism\": 4\n  \"output\": persistent://public/default/output-topic\n  \"log-topic\": persistent://public/default/log-topic\n  \"classname\": org.example.test.ExclamationFunction\n  \"jar\": java-function-1.0-SNAPSHOT.jar\n}"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The update options is for the Pulsar Function that needs to be updated.",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/UpdateOptions"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -209,16 +250,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         } ],
@@ -252,16 +296,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         } ],
@@ -289,16 +336,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         } ],
@@ -326,21 +376,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "key",
           "in" : "path",
+          "description" : "The stats key",
           "required" : true,
           "type" : "string"
         } ],
@@ -420,16 +474,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         } ],
@@ -463,16 +520,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         } ],
@@ -506,16 +566,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         } ],
@@ -543,18 +606,45 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The value with which you want to trigger the function",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The path to the file that contains the data with which you'd like to trigger the function",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/InputStream"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The specific topic name that the function consumes from which you want to inject the data to",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -589,21 +679,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, all instances are restarted",
           "required" : true,
           "type" : "string"
         } ],
@@ -631,21 +725,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, all instances sre started. ",
           "required" : true,
           "type" : "string"
         } ],
@@ -673,21 +771,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, the stats of all instances is returned",
           "required" : true,
           "type" : "string"
         } ],
@@ -721,21 +823,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, the stats of all instances is returned",
           "required" : true,
           "type" : "string"
         } ],
@@ -769,21 +875,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The tenant of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The namespace of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
+          "description" : "The name of functions",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The function instanceId (if instance-id is not provided, all instances are stopped. ",
           "required" : true,
           "type" : "string"
         } ],
@@ -1232,22 +1342,22 @@
         }
       }
     },
+    "InputStream" : {
+      "type" : "object"
+    },
     "Message" : {
       "type" : "object",
       "properties" : {
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "messageId" : {
           "$ref" : "#/definitions/MessageId"
         },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
         },
         "orderingKey" : {
           "type" : "array",
@@ -1259,19 +1369,12 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "producerName" : {
-          "type" : "string"
         },
         "publishTime" : {
           "type" : "integer",
@@ -1283,6 +1386,16 @@
         },
         "topicName" : {
           "type" : "string"
+        },
+        "producerName" : {
+          "type" : "string"
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "data" : {
           "type" : "array",
@@ -1322,6 +1435,14 @@
         "disk" : {
           "type" : "integer",
           "format" : "int64"
+        }
+      }
+    },
+    "UpdateOptions" : {
+      "type" : "object",
+      "properties" : {
+        "updateAuthData" : {
+          "type" : "boolean"
         }
       }
     },
