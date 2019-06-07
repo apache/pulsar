@@ -847,16 +847,13 @@ public class PersistentSubscription implements Subscription {
                     (PositionImpl) this.pendingCumulativeAckMessage;
 
             positionMap.asMap().entrySet().forEach(entry -> {
-                long batchSize = entry.getValue().first;
-                LongStream.range(0, batchSize).forEach(index -> {
-                    PositionImpl position = new PositionImpl(entry.getKey().first, entry.getKey().second + index);
-                    if ((pendingAckMessages == null || (pendingAckMessages != null &&
-                            !this.pendingAckMessages.contains(position))) &&
-                            (null == cumulativeAckPosition ||
-                                    (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0))) {
-                        pendingPositions.add(position);
-                    }
-                });
+                PositionImpl position = new PositionImpl(entry.getKey().first, entry.getKey().second);
+                if ((pendingAckMessages == null || (pendingAckMessages != null &&
+                        !this.pendingAckMessages.contains(position))) &&
+                        (null == cumulativeAckPosition ||
+                                (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0))) {
+                    pendingPositions.add(position);
+                }
             });
 
             dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
