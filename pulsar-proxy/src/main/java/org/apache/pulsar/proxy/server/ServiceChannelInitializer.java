@@ -22,7 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.ClientSslContextRefresher;
 import org.apache.pulsar.common.util.NettySslContextBuilder;
 

@@ -96,6 +96,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 return FloatSchema.of();
             case DOUBLE:
                 return DoubleSchema.of();
+            case BOOLEAN:
+                return BooleanSchema.of();
             case BYTES:
                 return BytesSchema.of();
             case DATE:

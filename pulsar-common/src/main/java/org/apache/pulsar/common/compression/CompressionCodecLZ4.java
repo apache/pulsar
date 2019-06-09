@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.common.compression;
 
+import io.netty.buffer.ByteBuf;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
@@ -54,7 +57,7 @@ public class CompressionCodecLZ4 implements CompressionCodec {
 
         ByteBuffer sourceNio = source.nioBuffer(source.readerIndex(), source.readableBytes());
 
-        ByteBuf target = PooledByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
+        ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
         ByteBuffer targetNio = target.nioBuffer(0, maxLength);
 
         int compressedLength = compressor.compress(sourceNio, 0, uncompressedLength, targetNio, 0, maxLength);
@@ -64,7 +67,7 @@ public class CompressionCodecLZ4 implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PooledByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
         ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
 
         ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());

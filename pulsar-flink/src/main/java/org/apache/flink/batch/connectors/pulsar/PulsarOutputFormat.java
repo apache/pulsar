@@ -37,7 +37,9 @@ public class PulsarOutputFormat<T> extends BasePulsarOutputFormat<T> {
         this.serializationSchema = serializationSchema;
     }
 
-    public PulsarOutputFormat(ClientConfigurationData clientConfigurationData, ProducerConfigurationData producerConfigurationData) {
+    public PulsarOutputFormat(final ClientConfigurationData clientConfigurationData,
+                              final ProducerConfigurationData producerConfigurationData,
+                              final SerializationSchema<T> serializationSchema) {
         super(clientConfigurationData, producerConfigurationData);
         Preconditions.checkNotNull(serializationSchema, "serializationSchema cannot be null.");
         this.serializationSchema = serializationSchema;

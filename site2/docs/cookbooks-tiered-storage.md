@@ -32,7 +32,7 @@ getting charged for incomplete uploads.
 
 ## Configuring the offload driver
 
-Offloading is configured in ```broker.conf```. 
+Offloading is configured in ```broker.conf```.
 
 At a minimum, the administrator must configure the driver, the bucket and the authenticating credentials.
 There is also some other knobs to configure, like the bucket region, the max block size in backed storage, etc.
@@ -82,7 +82,12 @@ but relies on the mechanisms supported by the
 
 Once you have created a set of credentials in the AWS IAM console, they can be configured in a number of ways.
 
-1. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```conf/pulsar_env.sh```.
+1. Using ec2 instance metadata credentials
+
+If you are on AWS instance with an instance profile that provides credentials, Pulsar will use these credentials
+if no other mechanism is provided
+
+2. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```conf/pulsar_env.sh```.
 
 ```bash
 export AWS_ACCESS_KEY_ID=ABC123456789
@@ -92,13 +97,13 @@ export AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 > \"export\" is important so that the variables are made available in the environment of spawned processes.
 
 
-2. Add the Java system properties *aws.accessKeyId* and *aws.secretKey* to **PULSAR_EXTRA_OPTS** in `conf/pulsar_env.sh`.
+3. Add the Java system properties *aws.accessKeyId* and *aws.secretKey* to **PULSAR_EXTRA_OPTS** in `conf/pulsar_env.sh`.
 
 ```bash
 PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"
 ```
 
-3. Set the access credentials in ```~/.aws/credentials```.
+4. Set the access credentials in ```~/.aws/credentials```.
 
 ```conf
 [default]
@@ -106,7 +111,16 @@ aws_access_key_id=ABC123456789
 aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 ```
 
-If you are running in EC2 you can also use instance profile credentials, provided through the EC2 metadata service, but that is out of scope for this cookbook.
+5. Assuming an IAM role
+
+If you want to assume an IAM role, this can be done via specifying the following:
+
+```conf
+s3ManagedLedgerOffloadRole=<aws role arn>
+s3ManagedLedgerOffloadRoleSessionName=pulsar-s3-offload
+```
+
+This will use the `DefaultAWSCredentialsProviderChain` for assuming this role.
 
 > The broker must be rebooted for credentials specified in pulsar_env to take effect.
 
@@ -134,7 +148,7 @@ gcsManagedLedgerOffloadBucket=pulsar-topic-offload
 Bucket Region is the region where bucket located. Bucket Region is not a required but
 a recommended configuration. If it is not configured, It will use the default region.
 
-Regarding GCS, buckets are default created in the `us multi-regional location`, 
+Regarding GCS, buckets are default created in the `us multi-regional location`,
 page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
 
 ```conf
@@ -211,7 +225,7 @@ Offload was a success
 If there is an error offloading, the error will be propagated to the offload-status command.
 
 ```bash
-$ bin/pulsar-admin topics offload-status persistent://public/default/topic1                                                                                                       
+$ bin/pulsar-admin topics offload-status persistent://public/default/topic1
 Error in offload
 null
 

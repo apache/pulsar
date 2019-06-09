@@ -91,6 +91,7 @@ public class AggregatedNamespaceStats {
                     subscriptionStats.computeIfAbsent(n, k -> new AggregatedSubscriptionStats());
             subsStats.blockedSubscriptionOnUnackedMsgs = as.blockedSubscriptionOnUnackedMsgs;
             subsStats.msgBacklog += as.msgBacklog;
+            subsStats.msgDelayed += as.msgDelayed;
             subsStats.msgRateRedeliver += as.msgRateRedeliver;
             subsStats.unackedMessages += as.unackedMessages;
             as.consumerStat.forEach((c, v) -> {

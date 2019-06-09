@@ -33,6 +33,7 @@ void export_enums() {
             .value("LZ4", CompressionLZ4)
             .value("ZLib", CompressionZLib)
             .value("ZSTD", CompressionZSTD)
+            .value("SNAPPY", CompressionSNAPPY)
             ;
 
     enum_<ConsumerType>("ConsumerType")

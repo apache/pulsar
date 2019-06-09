@@ -49,11 +49,17 @@ PULSAR_PUBLIC void pulsar_message_set_allocated_content(pulsar_message_t *messag
 PULSAR_PUBLIC void pulsar_message_set_property(pulsar_message_t *message, const char *name,
                                                const char *value);
 
-/*
+/**
  * set partition key for the message routing
  * @param hash of this key is used to determine message's topic partition
  */
 PULSAR_PUBLIC void pulsar_message_set_partition_key(pulsar_message_t *message, const char *partitionKey);
+
+/**
+ * Sets the ordering key of the message for message dispatch in Key_Shared mode.
+ * @param the ordering key for the message
+ */
+PULSAR_PUBLIC void pulsar_message_set_ordering_key(pulsar_message_t *message, const char *orderingKey);
 
 /**
  * Set the event timestamp for the message.
@@ -156,6 +162,13 @@ PULSAR_PUBLIC pulsar_message_id_t *pulsar_message_get_message_id(pulsar_message_
  */
 PULSAR_PUBLIC const char *pulsar_message_get_partitionKey(pulsar_message_t *message);
 PULSAR_PUBLIC int pulsar_message_has_partition_key(pulsar_message_t *message);
+
+/**
+ * Get the ordering key of the message for message dispatch in Key_Shared mode.
+ * Partition key Will be used if ordering key not specified
+ */
+PULSAR_PUBLIC const char *pulsar_message_get_orderingKey(pulsar_message_t *message);
+PULSAR_PUBLIC int pulsar_message_has_ordering_key(pulsar_message_t *message);
 
 /**
  * Get the UTC based timestamp in milliseconds referring to when the message was published by the client

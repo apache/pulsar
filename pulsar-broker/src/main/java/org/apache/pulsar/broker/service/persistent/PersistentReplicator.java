@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
 
 import java.util.List;
 import java.util.Optional;
@@ -50,14 +53,11 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
 
 public class PersistentReplicator extends AbstractReplicator implements Replicator, ReadEntriesCallback, DeleteCallback {
 
@@ -96,7 +96,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
             BrokerService brokerService) throws NamingException {
-        super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
+        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
         this.topic = topic;
         this.cursor = cursor;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
@@ -279,6 +279,8 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     entry.release();
                     continue;
                 }
+
+                checkReplicatedSubscriptionMarker(entry.getPosition(), msg, headersAndPayload);
 
                 if (msg.isReplicated()) {
                     // Discard messages that were already replicated into this region
@@ -648,6 +650,40 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), Type.REPLICATOR)) {
             this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
         }
+    }
+
+    private void checkReplicatedSubscriptionMarker(Position position, MessageImpl<?> msg, ByteBuf payload) {
+        if (!msg.getMessageBuilder().hasMarkerType()) {
+            // No marker is defined
+            return;
+        }
+
+        int markerType = msg.getMessageBuilder().getMarkerType();
+
+        if (!remoteCluster.equals(msg.getMessageBuilder().getReplicatedFrom())) {
+            // Only consider markers that are coming from the same cluster that this
+            // replicator instance is assigned to.
+            // All the replicators will see all the markers, but we need to only process
+            // it once.
+            return;
+        }
+
+        switch (markerType) {
+        case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
+        case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE:
+        case MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE:
+            topic.receivedReplicatedSubscriptionMarker(position, markerType, payload);
+            break;
+
+        default:
+            // Do nothing
+        }
+    }
+
+    @Override
+    public boolean isConnected() {
+        ProducerImpl<?> producer = this.producer;
+        return producer != null && producer.isConnected();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);

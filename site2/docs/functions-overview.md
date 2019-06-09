@@ -239,7 +239,7 @@ public class ContextAwareFunction implements Function<String, Void> {
         Logger LOG = context.getLogger();
         String functionTenant = context.getTenant();
         String functionNamespace = context.getNamespace();
-        String functionName = context.getName();
+        String functionName = context.getFunctionName();
         LOG.info("Function tenant/namespace/name: {}/{}/{}", functionTenant, functionNamespace, functionName);
         return null;
     }

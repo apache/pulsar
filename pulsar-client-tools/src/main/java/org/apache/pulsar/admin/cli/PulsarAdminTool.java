@@ -123,18 +123,7 @@ public class PulsarAdminTool {
             adminBuilder.authentication(authPluginClassName, authParams);
             PulsarAdmin admin = adminFactory.apply(adminBuilder);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
-                if (admin != null) {
-                    // To remain backwards compatibility for "source" and "sink" commands
-                    // TODO eventually remove this
-                    if (c.getKey().equals("sources") || c.getKey().equals("source")) {
-                        jcommander.addCommand("sources", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "source");
-                    } else if (c.getKey().equals("sinks") || c.getKey().equals("sink")) {
-                        jcommander.addCommand("sinks", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "sink");
-                    } else {
-                        // Other mode, all components are initialized.
-                        jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
-                    }
-                }
+                addCommand(c, admin);
             }
         } catch (Exception e) {
             Throwable cause;
@@ -145,6 +134,23 @@ public class PulsarAdminTool {
             }
             System.err.println(cause.getClass() + ": " + cause.getMessage());
             System.exit(1);
+        }
+    }
+
+    private void addCommand(Map.Entry<String, Class<?>> c, PulsarAdmin admin) throws Exception {
+        // To remain backwards compatibility for "source" and "sink" commands
+        // TODO eventually remove this
+        if (c.getKey().equals("sources") || c.getKey().equals("source")) {
+            jcommander.addCommand("sources", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "source");
+        } else if (c.getKey().equals("sinks") || c.getKey().equals("sink")) {
+            jcommander.addCommand("sinks", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "sink");
+        } else if (c.getKey().equals("functions")) {
+            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+        } else {
+            if (admin != null) {
+                // Other mode, all components are initialized.
+                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+            }
         }
     }
 
