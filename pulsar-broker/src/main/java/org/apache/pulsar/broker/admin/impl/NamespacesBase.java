@@ -72,6 +72,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -583,7 +584,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     
-    protected void internalSetBookieAffinityGroup(String bookieAffinityGroup) {
+    protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
         log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
                 this.namespaceName);
 
@@ -614,7 +615,7 @@ public abstract class NamespacesBase extends AdminResource {
                         .get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
                 localPolicies = new LocalPolicies();
             }
-            localPolicies.bookkeeperAffinityGroup = bookieAffinityGroup;
+            localPolicies.bookieAffinityGroup = bookieAffinityGroup;
             byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(localPolicies);
             pulsar().getLocalZkCache().getZooKeeper().setData(path, data, Math.toIntExact(version));
             // invalidate namespace's local-policies
@@ -636,7 +637,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected String internalGetBookieAffinityGroup() {
+    protected BookieAffinityGroupData internalGetBookieAffinityGroup() {
         validateSuperUserAccess();
 
         if (namespaceName.isGlobal()) {
@@ -650,9 +651,9 @@ public abstract class NamespacesBase extends AdminResource {
         String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
             Optional<LocalPolicies> policies = pulsar().getLocalZkCacheService().policiesCache().get(path);
-            final String bookkeeperAffinityGroup = policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace local-policies does not exist")).bookkeeperAffinityGroup;
-            if (StringUtils.isBlank(bookkeeperAffinityGroup)) {
+            final BookieAffinityGroupData bookkeeperAffinityGroup = policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                    "Namespace local-policies does not exist")).bookieAffinityGroup;
+            if (bookkeeperAffinityGroup == null) {
                 throw new RestException(Status.NOT_FOUND, "bookie-affinity group does not exist");
             }
             return bookkeeperAffinityGroup;

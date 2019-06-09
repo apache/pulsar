@@ -16,18 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.common.protocol.schema;
 
-import java.util.Map;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+public interface SchemaVersion {
+    SchemaVersion Latest = new LatestVersion();
+    SchemaVersion Empty = new EmptyVersion();
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class PostSchemaPayload {
-    private String type;
-    private String schema;
-    private Map<String, String> properties;
+    byte[] bytes();
 }

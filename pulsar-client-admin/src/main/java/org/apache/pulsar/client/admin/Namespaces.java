@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -761,9 +762,28 @@ public interface Namespaces {
      */
     PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
 
-    void setBookieAffinityGroup(String namespace, String bookieAffinityGroup) throws PulsarAdminException;
+    /**
+     * Set bookie affinity group for a namespace to isolate namespace write to bookies that are part of given affinity
+     * group.
+     * 
+     * @param namespace
+     *            namespace name
+     * @param bookieAffinityGroup
+     *            bookie affinity group
+     * @throws PulsarAdminException
+     */
+    void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup)
+            throws PulsarAdminException;
+    
 
-    String getBookieAffinityGroup(String namespace) throws PulsarAdminException;
+    /**
+     * Get bookie affinity group configured for a namespace.
+     * 
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    BookieAffinityGroupData getBookieAffinityGroup(String namespace) throws PulsarAdminException;
 
     /**
      * Set the retention configuration for all the topics on a namespace.

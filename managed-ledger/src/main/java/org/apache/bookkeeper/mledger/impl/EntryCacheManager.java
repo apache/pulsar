@@ -217,7 +217,7 @@ public class EntryCacheManager {
                         mlFactoryMBean.recordCacheMiss(entries.size(), totalSize);
                         ml.mbean.addReadEntriesSample(entries.size(), totalSize);
 
-                        callback.readEntriesComplete(entries, null);
+                        callback.readEntriesComplete(entries, ctx);
                     });
         }
 

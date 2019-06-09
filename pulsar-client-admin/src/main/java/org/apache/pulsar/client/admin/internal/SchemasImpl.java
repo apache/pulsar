@@ -25,9 +25,9 @@ import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.common.schema.DeleteSchemaResponse;
-import org.apache.pulsar.common.schema.GetSchemaResponse;
-import org.apache.pulsar.common.schema.PostSchemaPayload;
+import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 public class SchemasImpl extends BaseResource implements Schemas {

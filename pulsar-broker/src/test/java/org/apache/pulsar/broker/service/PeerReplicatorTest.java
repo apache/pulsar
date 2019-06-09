@@ -185,7 +185,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters
@@ -194,7 +194,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.clusters().updatePeerClusterNames("r3", null);
 
         final String serviceUrl = pulsar3.getBrokerServiceUrl();
-        final String namespace1 = "pulsar/global/peer-change-repl-ns";
+        final String namespace1 = "pulsar/global/peer-change-repl-ns-" + System.nanoTime();
         admin1.namespaces().createNamespace(namespace1);
         // add replication cluster
         admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));

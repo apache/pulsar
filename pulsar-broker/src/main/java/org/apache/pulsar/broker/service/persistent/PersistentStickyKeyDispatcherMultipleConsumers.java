@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -31,7 +29,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -39,16 +36,12 @@ import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers {
-
-    public static final String NONE_KEY = "NONE_KEY";
 
     private final StickyKeyConsumerSelector selector;
 
@@ -100,6 +93,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
 
                 int messagesForC = Math.min(entriesWithSameKey.getValue().size(), consumer.getAvailablePermits());
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] select consumer {} for key {} with messages num {}, read type is {}",
+                            name, consumer.consumerName(), entriesWithSameKey.getKey(), messagesForC, readType);
+                }
                 if (messagesForC > 0) {
                     // remove positions first from replay list first : sendMessages recycles entries
                     List<Entry> subList = new ArrayList<>(entriesWithSameKey.getValue().subList(0, messagesForC));
@@ -153,7 +150,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,
                             laterReplay);
                 }
-                readMoreEntries();
             }
         }
     }
@@ -166,18 +162,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     protected Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions) {
         return cursor.asyncReplayEntries(positions, this, ReadType.Replay, true);
-    }
-
-    private byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        metadataAndPayload.markReaderIndex();
-        MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-        metadataAndPayload.resetReaderIndex();
-        String key = metadata.getPartitionKey();
-        if (StringUtils.isNotBlank(key) || metadata.hasOrderingKey()) {
-            return metadata.hasOrderingKey() ? metadata.getOrderingKey().toByteArray() : key.getBytes();
-        }
-        metadata.recycle();
-        return NONE_KEY.getBytes();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
