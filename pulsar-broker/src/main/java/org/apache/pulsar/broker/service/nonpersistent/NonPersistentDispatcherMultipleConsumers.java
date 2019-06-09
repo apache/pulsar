@@ -34,7 +34,7 @@ import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
@@ -46,11 +46,11 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         implements NonPersistentDispatcher {
 
     private final NonPersistentTopic topic;
-    private final Subscription subscription;
+    protected final Subscription subscription;
 
     private CompletableFuture<Void> closeFuture = null;
     private final String name;
-    private final Rate msgDrop;
+    protected final Rate msgDrop;
     protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
     @SuppressWarnings("unused")

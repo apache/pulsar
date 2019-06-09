@@ -35,8 +35,8 @@ import java.util.List;
 
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.Markers;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;

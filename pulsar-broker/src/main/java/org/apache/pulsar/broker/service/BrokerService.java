@@ -746,12 +746,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
             managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
             managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
-            if (localPolicies.isPresent() && StringUtils.isNotBlank(localPolicies.get().bookkeeperAffinityGroup)) {
+            if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
                 managedLedgerConfig
                         .setBookKeeperEnsemblePlacementPolicyClassName(ZkIsolatedBookieEnsemblePlacementPolicy.class);
                 Map<String, Object> properties = Maps.newHashMap();
                 properties.put(ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
-                        localPolicies.get().bookkeeperAffinityGroup);
+                        localPolicies.get().bookieAffinityGroup.bookkeeperAffinityGroupPrimary);
+                properties.put(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                        localPolicies.get().bookieAffinityGroup.bookkeeperAffinityGroupSecondary);
                 managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
             }
             managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());

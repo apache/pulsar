@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.api;
+package org.apache.pulsar.common.protocol;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -28,7 +28,7 @@ import java.util.Optional;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 
-import org.apache.pulsar.common.api.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
