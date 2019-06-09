@@ -21,6 +21,7 @@ package org.apache.pulsar.discovery.service;
 import static org.apache.bookkeeper.test.PortManager.nextFreePort;
 import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.util.ZkUtils;
@@ -49,8 +50,8 @@ public class BaseDiscoveryTestSetup {
 
     protected void setup() throws Exception {
         config = new ServiceConfig();
-        config.setServicePort(nextFreePort());
-        config.setServicePortTls(nextFreePort());
+        config.setServicePort(Optional.ofNullable(nextFreePort()));
+        config.setServicePortTls(Optional.ofNullable(nextFreePort()));
         config.setBindOnLocalhost(true);
 
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);

@@ -18,18 +18,27 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * A generic avro schema.
  */
+@Slf4j
 public class GenericAvroSchema extends GenericSchemaImpl {
 
     public GenericAvroSchema(SchemaInfo schemaInfo) {
-        super(schemaInfo);
+        this(schemaInfo, true);
+    }
+
+    GenericAvroSchema(SchemaInfo schemaInfo,
+                      boolean useProvidedSchemaAsReaderSchema) {
+        super(schemaInfo, useProvidedSchemaAsReaderSchema);
         setReader(new GenericAvroReader(schema));
         setWriter(new GenericAvroWriter(schema));
     }
@@ -39,16 +48,28 @@ public class GenericAvroSchema extends GenericSchemaImpl {
         return new AvroRecordBuilderImpl(this);
     }
 
+    @Override
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
 
     @Override
     protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
          SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
          if (schemaInfo != null) {
+             log.info("Load schema reader for version({}), schema is : {}",
+                 SchemaUtils.getStringSchemaVersion(schemaVersion),
+                 schemaInfo.getSchemaDefinition());
+             Schema writerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
+             Schema readerSchema = useProvidedSchemaAsReaderSchema ? schema : writerSchema;
              return new GenericAvroReader(
-                     parseAvroSchema(new String(schemaInfo.getSchema())),
-                     schema,
+                     writerSchema,
+                     readerSchema,
                      schemaVersion);
          } else {
+             log.warn("No schema found for version({}), use latest schema : {}",
+                 SchemaUtils.getStringSchemaVersion(schemaVersion),
+                 this.schemaInfo.getSchemaDefinition());
              return reader;
          }
     }

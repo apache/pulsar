@@ -54,6 +54,18 @@
 
     <dependency>
       <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-broker-auth-sasl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-auth-sasl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-tools</artifactId>
       <version>${project.version}</version>
       <exclusions>
@@ -144,6 +156,19 @@
       <version>${project.version}</version>
       <!-- make sure the api examples are compiled before assembly -->
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- local-runner -->
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-local-runner-original</artifactId>
+      <version>${project.version}</version>
       <exclusions>
         <exclusion>
           <groupId>io.grpc</groupId>

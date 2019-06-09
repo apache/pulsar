@@ -59,6 +59,9 @@ public class PerformanceConsumer {
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
+    private static final LongAdder totalMessagesReceived = new LongAdder();
+    private static final LongAdder totalBytesReceived = new LongAdder();
+
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
@@ -91,6 +94,9 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
+
+        @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
+        public boolean replicatedSubscription = false;
 
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowlegments grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
@@ -195,6 +201,9 @@ public class PerformanceConsumer {
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
+            totalMessagesReceived.increment();
+            totalBytesReceived.add(msg.getData().length);
+
             if (limiter != null) {
                 limiter.acquire();
             }
@@ -247,7 +256,8 @@ public class PerformanceConsumer {
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
                 .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
-                .subscriptionType(arguments.subscriptionType);
+                .subscriptionType(arguments.subscriptionType)
+                .replicateSubscriptionState(arguments.replicatedSubscription);
 
         if (arguments.encKeyName != null) {
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
@@ -280,8 +290,11 @@ public class PerformanceConsumer {
         log.info("Start receiving from {} consumers on {} topics", arguments.numConsumers,
                 arguments.numTopics);
 
+        long start = System.nanoTime();
+
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
+                printAggregatedThroughput(start);
                 printAggregatedStats();
             }
         });
@@ -318,6 +331,17 @@ public class PerformanceConsumer {
         }
 
         pulsarClient.close();
+    }
+
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;;
+        double rate = totalMessagesReceived.sum() / elapsed;
+        double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
+        log.info(
+            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
+            totalMessagesReceived,
+            dec.format(rate),
+            dec.format(throughput));
     }
 
     private static void printAggregatedStats() {

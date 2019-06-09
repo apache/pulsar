@@ -160,13 +160,14 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit) {
         checkArgument(ackTimeout == 0 || timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
-                "Ack timeout should be should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
+                "Ack timeout should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
         conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit) {
+        checkArgument(redeliveryDelay >= 0, "redeliveryDelay needs to be >= 0");
         conf.setNegativeAckRedeliveryDelayMicros(timeUnit.toMicros(redeliveryDelay));
         return this;
     }
@@ -224,6 +225,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> priorityLevel(int priorityLevel) {
+        checkArgument(priorityLevel >= 0, "priorityLevel needs to be >= 0");
         conf.setPriorityLevel(priorityLevel);
         return this;
     }
@@ -249,6 +251,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
+        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= 0, "maxTotalReceiverQueueSizeAcrossPartitions needs to be >= 0");
         conf.setMaxTotalReceiverQueueSizeAcrossPartitions(maxTotalReceiverQueueSizeAcrossPartitions);
         return this;
     }
@@ -261,6 +264,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes) {
+        checkArgument(periodInMinutes >= 0, "periodInMinutes needs to be >= 0");
         conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
         return this;
     }
@@ -275,6 +279,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> subscriptionTopicsMode(@NonNull RegexSubscriptionMode mode) {
         conf.setRegexSubscriptionMode(mode);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> replicateSubscriptionState(boolean replicateSubscriptionState) {
+        conf.setReplicateSubscriptionState(replicateSubscriptionState);
         return this;
     }
 

@@ -20,14 +20,15 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.base.MoreObjects;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
@@ -40,7 +41,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositio
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
@@ -76,12 +76,36 @@ public class PersistentSubscription implements Subscription {
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor) {
+    private static final String REPLICATED_SUBSCRIPTION_PROPERTY = "pulsar.replicated.subscription";
+
+    // Map of properties that is used to mark this subscription as "replicated".
+    // Since this is the only field at this point, we can just keep a static
+    // instance of the map.
+    private static final Map<String, Long> REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = new TreeMap<>();
+    private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Collections.emptyMap();
+
+    private volatile boolean isReplicated;
+
+    static {
+        REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+    }
+
+    static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
+        return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
+    }
+
+    static boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
+        return cursor.getProperties().containsKey(REPLICATED_SUBSCRIPTION_PROPERTY);
+    }
+
+    public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
+            boolean replicated) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
+        this.isReplicated = replicated;
         IS_FENCED_UPDATER.set(this, FALSE);
     }
 
@@ -96,6 +120,15 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
+    public boolean isReplicated() {
+        return isReplicated;
+    }
+
+    void setReplicated(boolean replicated) {
+        this.isReplicated = replicated;
+    }
+
+    @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         cursor.updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
@@ -107,12 +140,12 @@ public class PersistentSubscription implements Subscription {
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0, topic);
+                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0, topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor);
+                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
                 }
                 break;
             case Failover:
@@ -124,12 +157,12 @@ public class PersistentSubscription implements Subscription {
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover, partitionIndex,
-                            topic);
+                            topic, this);
                 }
                 break;
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
-                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor);
+                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this);
                 }
                 break;
             default:
@@ -194,7 +227,7 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
-            cursor.asyncMarkDelete(position, properties, markDeleteCallback, position);
+            cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, position);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
@@ -637,17 +670,17 @@ public class PersistentSubscription implements Subscription {
                 subStats.activeConsumerName = activeConsumer.consumerName();
             }
         }
-        if (SubType.Shared.equals(subStats.type)) {
+        if (Subscription.isIndividualAckMode(subStats.type)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
-                subStats.unackedMessages = ((PersistentDispatcherMultipleConsumers) dispatcher)
-                        .getTotalUnackedMessages();
-                subStats.blockedSubscriptionOnUnackedMsgs = ((PersistentDispatcherMultipleConsumers) dispatcher)
-                        .isBlockedDispatcherOnUnackedMsgs();
+                PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;
+                subStats.unackedMessages = d.getTotalUnackedMessages();
+                subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
+                subStats.msgDelayed = d.getNumberOfDelayedMessages();
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog();
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
-
+        subStats.isReplicated = isReplicated;
         return subStats;
     }
 
@@ -667,6 +700,15 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
+    public synchronized long getNumberOfEntriesDelayed() {
+        if (dispatcher != null) {
+            return dispatcher.getNumberOfDelayedMessages();
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
     public void markTopicWithBatchMessagePublished() {
         topic.markBatchMessagePublished();
     }
@@ -679,6 +721,26 @@ public class PersistentSubscription implements Subscription {
                 dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
             }
         }
+    }
+
+    /**
+     * Return a merged map that contains the cursor properties specified by used
+     * (eg. when using compaction subscription) and the subscription properties.
+     */
+    protected Map<String, Long> mergeCursorProperties(Map<String, Long> userProperties) {
+        Map<String, Long> baseProperties = isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES
+                : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
+
+        if (userProperties.isEmpty()) {
+            // Use only the static instance in the common case
+            return baseProperties;
+        } else {
+            Map<String, Long> merged = new TreeMap<>();
+            merged.putAll(userProperties);
+            merged.putAll(baseProperties);
+            return merged;
+        }
+
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

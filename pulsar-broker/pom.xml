@@ -138,6 +138,13 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-local-runner-original</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
     <!-- functions related dependencies (end) -->
 
     <dependency>
@@ -286,11 +293,17 @@
     <dependency>
       <groupId>javax.xml.bind</groupId>
       <artifactId>jaxb-api</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>javax.activation</groupId>
+          <artifactId>javax.activation-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
-      <groupId>javax.xml.bind</groupId>
-      <artifactId>activation</artifactId>
+      <groupId>com.sun.activation</groupId>
+      <artifactId>javax.activation</artifactId>
     </dependency>
   </dependencies>
 
@@ -404,7 +417,7 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
-                  <locations>org.apache.pulsar.broker.admin.v3.Source</locations>
+                  <locations>org.apache.pulsar.broker.admin.v3.Sources</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
                   <info>
@@ -421,7 +434,7 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
-                  <locations>org.apache.pulsar.broker.admin.v3.Sink</locations>
+                  <locations>org.apache.pulsar.broker.admin.v3.Sinks</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
                   <info>

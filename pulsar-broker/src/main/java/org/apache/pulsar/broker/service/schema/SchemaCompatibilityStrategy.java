@@ -44,24 +44,49 @@ public enum SchemaCompatibilityStrategy {
     /**
      * Equivalent to both FORWARD and BACKWARD
      */
-    FULL;
+    FULL,
+
+    /**
+     * Be similar to BACKWARD, BACKWARD_TRANSITIVE ensure all previous version schema can
+     * be read by the new schema.
+     */
+    BACKWARD_TRANSITIVE,
+
+    /**
+     * Be similar to FORWARD, FORWARD_TRANSITIVE ensure new schema can be ready by all previous
+     * version schema.
+     */
+    FORWARD_TRANSITIVE,
+
+    /**
+     * Equivalent to both FORWARD_TRANSITIVE and BACKWARD_TRANSITIVE
+     */
+    FULL_TRANSITIVE;
+
+
 
     public static SchemaCompatibilityStrategy fromAutoUpdatePolicy(SchemaAutoUpdateCompatibilityStrategy strategy) {
         if (strategy == null) {
             return SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE;
         }
         switch (strategy) {
-        case Backward:
-            return BACKWARD;
-        case Forward:
-            return FORWARD;
-        case Full:
-            return FULL;
-        case AlwaysCompatible:
-            return ALWAYS_COMPATIBLE;
-        case AutoUpdateDisabled:
-        default:
-            return ALWAYS_INCOMPATIBLE;
+            case Backward:
+                return BACKWARD;
+            case Forward:
+                return FORWARD;
+            case Full:
+                return FULL;
+            case AlwaysCompatible:
+                return ALWAYS_COMPATIBLE;
+            case ForwardTransitive:
+                return FORWARD_TRANSITIVE;
+            case BackwardTransitive:
+                return BACKWARD_TRANSITIVE;
+            case FullTransitive:
+                return FULL_TRANSITIVE;
+            case AutoUpdateDisabled:
+            default:
+                return ALWAYS_INCOMPATIBLE;
         }
     }
 }

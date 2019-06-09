@@ -110,10 +110,6 @@ Future<Result, ConsumerImplBaseWeakPtr> ConsumerImpl::getConsumerCreatedFuture()
     return consumerCreatedPromise_.getFuture();
 }
 
-void ConsumerImpl::incrRefCount() { ++refCount_; }
-
-unsigned int ConsumerImpl::safeDecrRefCount() { return refCount_ > 0 ? refCount_-- : refCount_; }
-
 const std::string& ConsumerImpl::getSubscriptionName() const { return originalSubscriptionName_; }
 
 const std::string& ConsumerImpl::getTopic() const { return topic_; }
@@ -463,11 +459,17 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, con
 
     uint32_t uncompressedSize = metadata.uncompressed_size();
     uint32_t payloadSize = payload.readableBytes();
-    if (payloadSize > Commands::MaxMessageSize) {
-        // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
-        LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
-                            << " at  " << msg.message_id().ledgerid() << ":" << msg.message_id().entryid());
-        discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::UncompressedSizeCorruption);
+    if (cnx) {
+        if (payloadSize > cnx->getMaxMessageSize()) {
+            // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
+            LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
+                                << " at  " << msg.message_id().ledgerid() << ":"
+                                << msg.message_id().entryid());
+            discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::UncompressedSizeCorruption);
+            return false;
+        }
+    } else {
+        LOG_ERROR("Connection not ready for Consumer - " << getConsumerId());
         return false;
     }
 
@@ -723,6 +725,9 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
 
         case ConsumerFailover:
             return proto::CommandSubscribe::Failover;
+
+        case ConsumerKeyShared:
+            return proto::CommandSubscribe_SubType_Key_Shared;
     }
 }
 
@@ -817,14 +822,6 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         lock.unlock();
         if (callback) {
             callback(ResultAlreadyClosed);
-        }
-        return;
-    }
-
-    if (safeDecrRefCount() != 0) {
-        lock.unlock();
-        if (callback) {
-            callback(ResultOk);
         }
         return;
     }

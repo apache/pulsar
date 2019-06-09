@@ -561,14 +561,14 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     Result result = client.createProducer(topicName, conf, producer);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::MaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
 
     // Anything up to MaxMessageSize should be allowed
-    size = Commands::MaxMessageSize;
+    size = Commands::DefaultMaxMessageSize;
     msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
@@ -1114,7 +1114,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
     result = producerFuture.get(producer2);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::MaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
@@ -1165,7 +1165,7 @@ TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
     result = client.createProducer(topicName, conf2, producer2);
     ASSERT_EQ(ResultOk, result);
 
-    int size = Commands::MaxMessageSize + 1;
+    int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
@@ -1999,6 +1999,24 @@ TEST(BasicEndToEndTest, testpatternMultiTopicsHttpConsumerPubSub) {
     client.shutdown();
 }
 
+TEST(BasicEndToEndTest, testPatternEmptyUnsubscribe) {
+    Client client(lookupUrl);
+    std::string pattern = "persistent://public/default/patternEmptyUnsubscribe.*";
+
+    std::string subName = "testPatternMultiTopicsConsumer";
+
+    ConsumerConfiguration consConfig;
+    Consumer consumer;
+    Result result = client.subscribeWithRegex(pattern, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+    LOG_INFO("created topics consumer on a pattern that match 0 topics");
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+
+    client.shutdown();
+}
+
 // create a pattern consumer, which contains no match topics at beginning.
 // create 4 topics, in which 3 topics match the pattern.
 // verify PatternMultiTopicsConsumer subscribed matched topics, after a while,
@@ -2796,56 +2814,6 @@ TEST(BasicEndToEndTest, testPartitionedReceiveAsyncFailedConsumer) {
     client.shutdown();
 }
 
-TEST(BasicEndToEndTest, testPreventDupConsumersOnSharedMode) {
-    ClientConfiguration config;
-    Client client(lookupUrl);
-    std::string subsName = "my-only-sub";
-    std::string topicName = "persistent://public/default/test-prevent-dup-consumers";
-    ConsumerConfiguration consumerConf;
-    consumerConf.setConsumerType(ConsumerShared);
-
-    Consumer consumerA;
-    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
-    ASSERT_EQ(ResultOk, resultA);
-    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
-
-    Consumer consumerB;
-    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
-    ASSERT_EQ(ResultOk, resultB);
-    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
-
-    // Since this is a shared consumer over same client cnx
-    // closing consumerA should result in consumerB also being closed.
-    ASSERT_EQ(ResultOk, consumerA.close());
-    ASSERT_EQ(ResultOk, consumerB.close());
-    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
-    ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
-}
-
-TEST(BasicEndToEndTest, testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe) {
-    ClientConfiguration config;
-    Client client(lookupUrl);
-    std::string subsName = "my-only-sub";
-    std::string topicName =
-        "persistent://public/default/testDupConsumersOnSharedModeNotThrowsExcOnUnsubscribe";
-    ConsumerConfiguration consumerConf;
-    consumerConf.setConsumerType(ConsumerShared);
-
-    Consumer consumerA;
-    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
-    ASSERT_EQ(ResultOk, resultA);
-    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
-
-    Consumer consumerB;
-    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
-    ASSERT_EQ(ResultOk, resultB);
-    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
-
-    ASSERT_EQ(ResultOk, consumerA.unsubscribe());
-    // If dup consumers are allowed BrokerMetadataError will be the result of close()
-    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
-}
-
 void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
     Client client(lookupUrl);
     Consumer consumer;
@@ -2911,38 +2879,6 @@ TEST(BasicEndToEndTest, testNegativeAcksWithPartitions) {
     ASSERT_FALSE(res != 204 && res != 409);
 
     testNegativeAcks(topicName, true);
-}
-
-TEST(BasicEndToEndTest, testPreventDupConsumersAllowSameSubForDifferentTopics) {
-    ClientConfiguration config;
-    Client client(lookupUrl);
-    std::string subsName = "my-only-sub";
-    std::string topicName =
-        "persistent://public/default/testPreventDupConsumersAllowSameSubForDifferentTopics";
-    ConsumerConfiguration consumerConf;
-    consumerConf.setConsumerType(ConsumerShared);
-
-    Consumer consumerA;
-    Result resultA = client.subscribe(topicName, subsName, consumerConf, consumerA);
-    ASSERT_EQ(ResultOk, resultA);
-    ASSERT_EQ(consumerA.getSubscriptionName(), subsName);
-
-    Consumer consumerB;
-    Result resultB = client.subscribe(topicName, subsName, consumerConf, consumerB);
-    ASSERT_EQ(ResultOk, resultB);
-    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
-
-    Consumer consumerC;
-    Result resultC = client.subscribe(topicName + "-different-topic", subsName, consumerConf, consumerC);
-    ASSERT_EQ(ResultOk, resultB);
-    ASSERT_EQ(consumerB.getSubscriptionName(), subsName);
-    ASSERT_EQ(ResultOk, consumerA.close());
-    ASSERT_EQ(ResultOk, consumerB.close());
-    ASSERT_EQ(ResultAlreadyClosed, consumerA.close());
-    ASSERT_EQ(ResultAlreadyClosed, consumerB.close());
-
-    // consumer C should be a different instance from A and B and should be with open state.
-    ASSERT_EQ(ResultOk, consumerC.close());
 }
 
 static long regexTestMessagesReceived = 0;

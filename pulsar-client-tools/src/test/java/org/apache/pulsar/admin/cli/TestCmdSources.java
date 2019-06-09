@@ -36,10 +36,11 @@ import java.nio.file.Files;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.client.admin.Source;
+import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.utils.*;
 import org.powermock.api.mockito.PowerMockito;
@@ -77,7 +78,7 @@ public class TestCmdSources {
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
 
     private PulsarAdmin pulsarAdmin;
-    private Source source;
+    private Sources source;
     private CmdSources CmdSources;
     private CmdSources.CreateSource createSource;
     private CmdSources.UpdateSource updateSource;
@@ -88,8 +89,8 @@ public class TestCmdSources {
     public void setup() throws Exception {
 
         pulsarAdmin = mock(PulsarAdmin.class);
-        source = mock(Source.class);
-        when(pulsarAdmin.source()).thenReturn(source);
+        source = mock(Sources.class);
+        when(pulsarAdmin.sources()).thenReturn(source);
 
         CmdSources = spy(new CmdSources(pulsarAdmin));
         createSource = spy(CmdSources.getCreateSource());
@@ -586,7 +587,7 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .archive(updateSource.archive)
-                .build()), eq(updateSource.archive));
+                .build()), eq(updateSource.archive), eq(new UpdateOptions()));
 
 
         updateSource.archive = null;
@@ -595,6 +596,11 @@ public class TestCmdSources {
 
         updateSource.processArguments();
 
+        updateSource.updateAuthData = true;
+
+        UpdateOptions updateOptions = new UpdateOptions();
+        updateOptions.setUpdateAuthData(true);
+
         updateSource.runCmd();
 
         verify(source).updateSource(eq(SourceConfig.builder()
@@ -602,7 +608,9 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .parallelism(2)
-                .build()), eq(null));
+                .build()), eq(null), eq(updateOptions));
+
+
 
     }
 }

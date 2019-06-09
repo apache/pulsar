@@ -45,6 +45,7 @@ Messages published by producers can be compressed during transportation in order
 * [LZ4](https://github.com/lz4/lz4)
 * [ZLIB](https://zlib.net/)
 * [ZSTD](https://facebook.github.io/zstd/)
+* [SNAPPY](https://google.github.io/snappy/)
 
 ### Batching
 
@@ -63,18 +64,59 @@ Messages can be received from [brokers](reference-terminology.md#broker) either 
 | Sync receive  | A sync receive will be blocked until a message is available.                                                                                                                                                  |
 | Async receive | An async receive will return immediately with a future value---a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) in Java, for example---that completes once a new message is available. |
 
+### Listeners
+
+Client libraries provide listener implementation for consumers. For example, the [Java client](client-libraries-java.md) provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
+
 ### Acknowledgement
 
-When a consumer has successfully processed a message, it needs to send an acknowledgement to the broker so that the broker can discard the message (otherwise it [stores](concepts-architecture-overview.md#persistent-storage) the message).
+When a consumer has consumed a message successfully, the consumer sends an acknowledgement request to the broker, so that the broker will discard the message. Otherwise, it [stores](concepts-architecture-overview.md#persistent-storage) the message.
 
 Messages can be acknowledged either one by one or cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message will not be re-delivered to that consumer.
 
 
 > Cumulative acknowledgement cannot be used with [shared subscription mode](#subscription-modes), because shared mode involves multiple consumers having access to the same subscription.
 
-### Listeners
+In the shared subscription mode, messages can be acknowledged individually.
 
-Client libraries can provide their own listener implementations for consumers. The [Java client](client-libraries-java.md), for example, provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
+### Negative acknowledgement
+
+When a consumer does not consume a message successfully at a time, and wants to consume the message again, the consumer can send a negative acknowledgement to the broker, and then the broker will redeliver the message.
+
+Messages can be negatively acknowledged one by one or cumulatively, which depends on the consumption subscription mode.
+
+In the exclusive and failover subscription modes, consumers only negatively acknowledge the last message they have received.
+
+In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
+
+### Acknowledgement timeout
+
+When a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client will track the unacknowledged messages within the entire `acktimeout` time range, and send a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
+
+> Note    
+> Use negative acknowledgement prior to acknowledgement timeout. Negative acknowledgement controls re-delivery of individual messages with more precise, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
+
+### Dead letter topic
+
+Dead letter topic enables you to consume new messages when some messages cannot be consumed successfully by a consumer. In this mechanism, messages that are failed to be consumed are stored in a separate topic, which is called dead letter topic. You can decide how to handle messages in the dead letter topic.
+
+The following example shows how to enable dead letter topic in Java client.
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+              .topic(topic)
+              .subscriptionName("my-subscription")
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .build())
+              .subscribe();
+                
+```
+Dead letter topic depends on message re-delivery. You need to confirm message re-delivery method: negative acknowledgement or acknowledgement timeout. Use negative acknowledgement prior to acknowledgement timeout. 
+
+> Note    
+> Currently, dead letter topic is enabled only in the shared subscription mode.
 
 ## Topics
 
@@ -178,11 +220,17 @@ PulsarClient pulsarClient = // Instantiate Pulsar client object
 
 // Subscribe to all topics in a namespace
 Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default/.*");
-Consumer allTopicsConsumer = pulsarClient.subscribe(allTopicsInNamespace, "subscription-1");
+Consumer<byte[]> allTopicsConsumer = pulsarClient.newConsumer()
+                .topicsPattern(allTopicsInNamespace)
+                .subscriptionName("subscription-1")
+                .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
 Pattern someTopicsInNamespace = Pattern.compile("persistent://public/default/foo.*");
-Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, "subscription-1");
+Consumer<byte[]> someTopicsConsumer = pulsarClient.newConsumer()
+                .topicsPattern(someTopicsInNamespace)
+                .subscriptionName("subscription-1")
+                .subscribe();
 ```
 
 For code examples, see:
@@ -274,17 +322,24 @@ Producers and consumers can connect to non-persistent topics in the same way as 
 Here's an example [Java consumer](client-libraries-java.md#consumers) for a non-persistent topic:
 
 ```java
-PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://localhost:6650")
+        .build();
 String npTopic = "non-persistent://public/default/my-topic";
 String subscriptionName = "my-subscription-name";
 
-Consumer consumer = client.subscribe(npTopic, subscriptionName);
+Consumer<byte[]> consumer = client.newConsumer()
+        .topic(npTopic)
+        .subscriptionName(subscriptionName)
+        .subscribe();
 ```
 
 Here's an example [Java producer](client-libraries-java.md#producer) for the same non-persistent topic:
 
 ```java
-Producer producer = client.createProducer(npTopic);
+Producer<byte[]> producer = client.newProducer()
+                .topic(npTopic)
+                .create();
 ```
 
 ## Message retention and expiry

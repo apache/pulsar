@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -384,7 +385,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      */
     void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles) throws PulsarAdminException;
-    
+
     /**
      * Revoke permissions on a subscription's admin-api access.
      * @param namespace
@@ -393,7 +394,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      */
     void revokePermissionOnSubscription(String namespace, String subscription, String role) throws PulsarAdminException;
-    
+
     /**
      * Get the replication clusters for a namespace.
      * <p>
@@ -762,6 +763,29 @@ public interface Namespaces {
     PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
 
     /**
+     * Set bookie affinity group for a namespace to isolate namespace write to bookies that are part of given affinity
+     * group.
+     * 
+     * @param namespace
+     *            namespace name
+     * @param bookieAffinityGroup
+     *            bookie affinity group
+     * @throws PulsarAdminException
+     */
+    void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup)
+            throws PulsarAdminException;
+    
+
+    /**
+     * Get bookie affinity group configured for a namespace.
+     * 
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    BookieAffinityGroupData getBookieAffinityGroup(String namespace) throws PulsarAdminException;
+
+    /**
      * Set the retention configuration for all the topics on a namespace.
      * <p/>
      * Set the retention configuration on a namespace. This operation requires Pulsar super-user access.
@@ -932,6 +956,26 @@ public interface Namespaces {
      */
     DispatchRate getSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
 
+    /**
+     * Set replicator-message-dispatch-rate (Replicators under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setReplicatorDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /** Get replicator-message-dispatch-rate (Replicators under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getReplicatorDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
      * Clear backlog for all topics on a namespace
@@ -1360,5 +1404,37 @@ public interface Namespaces {
      */
     void setSchemaAutoUpdateCompatibilityStrategy(String namespace,
                                                   SchemaAutoUpdateCompatibilityStrategy strategy)
+            throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for namespace.
+     * @return the schema validation enforced flag
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
+    boolean getSchemaValidationEnforced(String namespace)
+            throws PulsarAdminException;
+    /**
+     * Set schema validation enforced for namespace.
+     * if a producer without a schema attempts to produce to a topic with schema in this the namespace, the
+     * producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't
+     * support schema. if you enable this setting, it will cause non-java clients failed to produce.
+     *
+     * @param namespace pulsar namespace name
+     * @param schemaValidationEnforced flag to enable or disable schema validation for the given namespace
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
+    void setSchemaValidationEnforced(String namespace, boolean schemaValidationEnforced)
             throws PulsarAdminException;
 }

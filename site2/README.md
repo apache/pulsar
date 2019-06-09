@@ -15,8 +15,9 @@ Ensure you have installed the latest version of [Node](https://nodejs.org/en/dow
 
 To run the site locally:
 
-```bash
-cd website
+```bash 
+git clone https://github.com/apache/pulsar.git
+cd pulsar/site2/website
 yarn install
 yarn start
 ```

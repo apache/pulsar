@@ -31,7 +31,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
-import org.apache.pulsar.functions.utils.ComponentType;
 import org.mockito.Matchers;
 import org.slf4j.Logger;
 import org.testng.annotations.BeforeMethod;
@@ -42,11 +41,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.same;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -89,7 +86,7 @@ public class ContextImplTest {
             logger,
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
-                ComponentType.FUNCTION, null);
+                FunctionDetails.ComponentType.FUNCTION, null);
         context.setCurrentMessageContext(new Record<String>() {
             @Override
             public String getValue() {
@@ -153,6 +150,6 @@ public class ContextImplTest {
 
     @Test
     public void testPublishUsingDefaultSchema() throws Exception {
-        context.publish("sometopic", "Somevalue");
+        context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
     }
  }

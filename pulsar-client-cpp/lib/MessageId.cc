@@ -92,7 +92,7 @@ int32_t MessageId::partition() const { return impl_->partition_; }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
     s << '(' << messageId.impl_->ledgerId_ << ',' << messageId.impl_->entryId_ << ','
-      << messageId.impl_->batchIndex_ << ',' << messageId.impl_->partition_ << ')';
+      << messageId.impl_->partition_ << ',' << messageId.impl_->batchIndex_ << ')';
     return s;
 }
 

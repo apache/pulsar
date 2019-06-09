@@ -34,8 +34,9 @@ public class Policies {
     public Set<String> replication_clusters = Sets.newHashSet();
     public BundlesData bundles;
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
-    public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
+    public Map<String, DispatchRate> topicDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
+    public Map<String, DispatchRate> replicatorDispatchRate = Maps.newHashMap();
     public Map<String, SubscribeRate> clusterSubscribeRate = Maps.newHashMap();
     public PersistencePolicies persistence = null;
 
@@ -65,10 +66,13 @@ public class Policies {
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
         SchemaAutoUpdateCompatibilityStrategy.Full;
 
+    public boolean schema_validation_enforced = false;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
-                backlog_quota_map, clusterDispatchRate,
+                backlog_quota_map,
+                topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
                 clusterSubscribeRate, deduplicationEnabled, persistence,
                 bundles, latency_stats_sample_rate,
                 message_ttl_in_seconds, retention_policies,
@@ -77,7 +81,8 @@ public class Policies {
                 max_consumers_per_topic, max_consumers_per_subscription,
                 compaction_threshold, offload_threshold,
                 offload_deletion_lag_ms,
-                schema_auto_update_compatibility_strategy);
+                schema_auto_update_compatibility_strategy,
+                schema_validation_enforced);
     }
 
     @Override
@@ -87,7 +92,9 @@ public class Policies {
             return Objects.equals(auth_policies, other.auth_policies)
                     && Objects.equals(replication_clusters, other.replication_clusters)
                     && Objects.equals(backlog_quota_map, other.backlog_quota_map)
-                    && Objects.equals(clusterDispatchRate, other.clusterDispatchRate)
+                    && Objects.equals(topicDispatchRate, other.topicDispatchRate)
+                    && Objects.equals(subscriptionDispatchRate, other.subscriptionDispatchRate)
+                    && Objects.equals(replicatorDispatchRate, other.replicatorDispatchRate)
                     && Objects.equals(clusterSubscribeRate, other.clusterSubscribeRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
@@ -104,7 +111,8 @@ public class Policies {
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
-                    && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy;
+                    && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
+                    && schema_validation_enforced == other.schema_validation_enforced;
         }
 
         return false;
@@ -132,7 +140,9 @@ public class Policies {
                 .add("replication_clusters", replication_clusters).add("bundles", bundles)
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
-                .add("clusterDispatchRate", clusterDispatchRate)
+                .add("topicDispatchRate", topicDispatchRate)
+                .add("subscriptionDispatchRate", subscriptionDispatchRate)
+                .add("replicatorDispatchRate", replicatorDispatchRate)
                 .add("clusterSubscribeRate", clusterSubscribeRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("antiAffinityGroup", antiAffinityGroup)
@@ -146,6 +156,7 @@ public class Policies {
                 .add("compaction_threshold", compaction_threshold)
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
-                .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy).toString();
+                .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
+                .add("schema_validation_enforced", schema_validation_enforced).toString();
     }
 }

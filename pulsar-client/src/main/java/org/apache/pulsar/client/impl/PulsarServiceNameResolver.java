@@ -34,10 +34,11 @@ import org.apache.pulsar.common.net.ServiceURI;
  * The default implementation of {@link ServiceNameResolver}.
  */
 @Slf4j
-class PulsarServiceNameResolver implements ServiceNameResolver {
+public class PulsarServiceNameResolver implements ServiceNameResolver {
 
     private volatile ServiceURI serviceUri;
     private volatile String serviceUrl;
+    private volatile int currentIndex;
     private volatile List<InetSocketAddress> addressList;
 
     @Override
@@ -50,7 +51,9 @@ class PulsarServiceNameResolver implements ServiceNameResolver {
         if (list.size() == 1) {
             return list.get(0);
         } else {
-            return list.get(randomIndex(list.size()));
+            currentIndex = (currentIndex + 1) % list.size();
+            return list.get(currentIndex);
+
         }
     }
 
@@ -89,13 +92,14 @@ class PulsarServiceNameResolver implements ServiceNameResolver {
                 URI hostUri = new URI(hostUrl);
                 addresses.add(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()));
             } catch (URISyntaxException e) {
-                log.error("Invalid host provided {}", hostUrl, e.getMessage(), e);
+                log.error("Invalid host provided {}", hostUrl, e);
                 throw new InvalidServiceURL(e);
             }
         }
         this.addressList = addresses;
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
+        this.currentIndex = randomIndex(addresses.size());
     }
 
     private static int randomIndex(int numAddresses) {

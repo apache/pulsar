@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Utils for schemas.
  */
-final class SchemaUtils {
+public final class SchemaUtils {
 
     private SchemaUtils() {}
 
@@ -147,6 +148,24 @@ final class SchemaUtils {
         } else {
             return null;
         }
+    }
+
+    public static String getStringSchemaVersion(byte[] schemaVersionBytes) {
+        if (null == schemaVersionBytes) {
+            return "NULL";
+        } else if (
+            // the length of schema version is 8 bytes post 2.4.0
+            schemaVersionBytes.length == Long.BYTES
+            // the length of schema version is 64 bytes before 2.4.0
+            || schemaVersionBytes.length == Long.SIZE) {
+            ByteBuffer bb = ByteBuffer.wrap(schemaVersionBytes);
+            return String.valueOf(bb.getLong());
+        } else if (schemaVersionBytes.length == 0) {
+            return "EMPTY";
+        } else {
+            return Base64.getEncoder().encodeToString(schemaVersionBytes);
+        }
+
     }
 
 }

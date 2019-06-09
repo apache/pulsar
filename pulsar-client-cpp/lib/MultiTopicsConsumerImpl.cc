@@ -244,6 +244,12 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
     state_ = Closing;
     lock.unlock();
 
+    if (consumers_.empty()) {
+        // No need to unsubscribe, since the list matching the regex was empty
+        callback(ResultOk);
+        return;
+    }
+
     std::shared_ptr<std::atomic<int>> consumerUnsubed = std::make_shared<std::atomic<int>>(0);
 
     for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();

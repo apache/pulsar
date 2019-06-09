@@ -24,11 +24,13 @@ import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
 import java.time.Clock;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
 
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-
 /**
  * Configuration class for a ManagedLedger.
  */
@@ -61,6 +63,9 @@ public class ManagedLedgerConfig {
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
+    private boolean unackedRangesOpenCacheSetEnabled = true;
+    private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
+    private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private Clock clock = Clock.systemUTC();
 
@@ -232,6 +237,19 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setPassword(String password) {
         this.password = password.getBytes(Charsets.UTF_8);
+        return this;
+    }
+
+    /**
+     * should use {@link ConcurrentOpenLongPairRangeSet} to store unacked ranges.
+     * @return
+     */
+    public boolean isUnackedRangesOpenCacheSetEnabled() {
+        return unackedRangesOpenCacheSetEnabled;
+    }
+
+    public ManagedLedgerConfig setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
+        this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
         return this;
     }
 
@@ -515,9 +533,9 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * 
+     *
      * Ledger-Op (Create/Delete) timeout
-     * 
+     *
      * @return
      */
     public long getMetadataOperationsTimeoutSeconds() {
@@ -526,17 +544,17 @@ public class ManagedLedgerConfig {
 
     /**
      * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure
-     * 
+     *
      * @param metadataOperationsTimeoutSeconds
      */
     public ManagedLedgerConfig setMetadataOperationsTimeoutSeconds(long metadataOperationsTimeoutSeconds) {
         this.metadataOperationsTimeoutSeconds = metadataOperationsTimeoutSeconds;
         return this;
     }
-    
+
     /**
      * Ledger read-entry timeout
-     * 
+     *
      * @return
      */
     public long getReadEntryTimeoutSeconds() {
@@ -546,7 +564,7 @@ public class ManagedLedgerConfig {
     /**
      * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
      * readTimeoutSeconds <= 0)
-     * 
+     *
      * @param readTimeoutSeconds
      * @return
      */
@@ -554,18 +572,58 @@ public class ManagedLedgerConfig {
         this.readEntryTimeoutSeconds = readEntryTimeoutSeconds;
         return this;
     }
-    
+
     public long getAddEntryTimeoutSeconds() {
         return addEntryTimeoutSeconds;
     }
 
     /**
      * Add-entry timeout after which add-entry callback will be failed if add-entry is not succeeded.
-     * 
+     *
      * @param addEntryTimeoutSeconds
      */
     public ManagedLedgerConfig setAddEntryTimeoutSeconds(long addEntryTimeoutSeconds) {
         this.addEntryTimeoutSeconds = addEntryTimeoutSeconds;
         return this;
+    }
+
+    /**
+     * Managed-ledger can setup different custom EnsemblePlacementPolicy (eg: affinity to write ledgers to only setup of
+     * group of bookies).
+     * 
+     * @return
+     */
+    public Class<? extends EnsemblePlacementPolicy> getBookKeeperEnsemblePlacementPolicyClassName() {
+        return bookKeeperEnsemblePlacementPolicyClassName;
+    }
+
+    /**
+     * Returns EnsemblePlacementPolicy configured for the Managed-ledger.
+     * 
+     * @param bookKeeperEnsemblePlacementPolicy
+     */
+    public void setBookKeeperEnsemblePlacementPolicyClassName(
+            Class<? extends EnsemblePlacementPolicy> bookKeeperEnsemblePlacementPolicyClassName) {
+        this.bookKeeperEnsemblePlacementPolicyClassName = bookKeeperEnsemblePlacementPolicyClassName;
+    }
+
+    /**
+     * Returns properties required by configured bookKeeperEnsemblePlacementPolicy.
+     * 
+     * @return
+     */
+    public Map<String, Object> getBookKeeperEnsemblePlacementPolicyProperties() {
+        return bookKeeperEnsemblePlacementPolicyProperties;
+    }
+
+    /**
+     * Managed-ledger can setup different custom EnsemblePlacementPolicy which needs
+     * bookKeeperEnsemblePlacementPolicy-Properties.
+     * 
+     * @param bookKeeperEnsemblePlacementPolicyProperties
+     */
+    public void setBookKeeperEnsemblePlacementPolicyProperties(
+            Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties) {
+        this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
     }
 }

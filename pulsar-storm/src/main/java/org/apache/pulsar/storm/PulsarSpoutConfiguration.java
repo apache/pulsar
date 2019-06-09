@@ -21,6 +21,7 @@ package org.apache.pulsar.storm;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 /**
@@ -45,7 +46,13 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
     private boolean sharedConsumerEnabled = false;
 
     private SubscriptionType subscriptionType = SubscriptionType.Shared;
+    private boolean autoUnsubscribe = false;
+    private int consumerReceiverQueueSize = 1000;
+    private boolean durableSubscription = true;
+    // read position if non-durable subscription is enabled : default oldest message available in topic
+    private MessageId nonDurableSubscriptionReadPosition = MessageId.earliest; 
 
+    
     /**
      * @return the subscription name for the consumer in the spout
      */
@@ -70,6 +77,19 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
         this.subscriptionType = subscriptionType;
     }
 
+    public int getConsumerReceiverQueueSize() {
+        return consumerReceiverQueueSize;
+    }
+
+    /**
+     * Receiver queue size of pulsar-spout consumer.
+     * 
+     * @param consumerReceiverQueueSize
+     */
+    public void setConsumerReceiverQueueSize(int consumerReceiverQueueSize) {
+        this.consumerReceiverQueueSize = consumerReceiverQueueSize;
+    }
+    
     /**
      * @return the mapper to convert pulsar message to a storm tuple
      */
@@ -145,5 +165,45 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
      */
     public void setSharedConsumerEnabled(boolean sharedConsumerEnabled) {
         this.sharedConsumerEnabled = sharedConsumerEnabled;
+    }
+    
+    public boolean isAutoUnsubscribe() {
+        return autoUnsubscribe;
+    }
+
+    /**
+     * It unsubscribes the subscription when spout gets closed in the topology.
+     * 
+     * @param autoUnsubscribe
+     */
+    public void setAutoUnsubscribe(boolean autoUnsubscribe) {
+        this.autoUnsubscribe = autoUnsubscribe;
+    }
+    
+    public boolean isDurableSubscription() {
+        return durableSubscription;
+    }
+
+    /**
+     * if subscription is not durable then it creates non-durable reader to start reading from the
+     * {@link #setNonDurableSubscriptionReadPosition(MessagePosition)} in topic.
+     * 
+     * @param nonDurableSubscription
+     */
+    public void setDurableSubscription(boolean durableSubscription) {
+        this.durableSubscription = durableSubscription;
+    }
+
+    public MessageId getNonDurableSubscriptionReadPosition() {
+        return nonDurableSubscriptionReadPosition;
+    }
+
+    /**
+     * Non-durable-subscription/Reader can be set to start reading from a specific position earliest/latest.
+     * 
+     * @param nonDurableSubscriptionReadPosition
+     */
+    public void setNonDurableSubscriptionReadPosition(MessageId nonDurableSubscriptionReadPosition) {
+        this.nonDurableSubscriptionReadPosition = nonDurableSubscriptionReadPosition;
     }
 }

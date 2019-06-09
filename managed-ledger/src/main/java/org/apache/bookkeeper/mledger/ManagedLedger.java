@@ -323,6 +323,11 @@ public interface ManagedLedger {
     long getEstimatedBacklogSize();
 
     /**
+     * Return the size of all ledgers offloaded to 2nd tier storage
+     */
+    long getOffloadedSize();
+
+    /**
      * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
      * backlog.
      */

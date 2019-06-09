@@ -57,7 +57,7 @@ public class TopicStats {
 
     /** Map of replication statistics by remote cluster context */
     public Map<String, ReplicatorStats> replication;
-
+    
     public String deduplicationStatus;
 
     public TopicStats() {
@@ -124,4 +124,5 @@ public class TopicStats {
         }
         return this;
     }
+
 }
