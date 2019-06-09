@@ -22,7 +22,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.configuration.Config;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.shade.org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.pulsar.common.api.Commands;
 
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
@@ -37,8 +38,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
     private int maxSplitEntryQueueSize = 1000;
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
     private String statsProvider = NullStatsProvider.class.getName();
     private Map<String, String> statsProviderConfigs = new HashMap<>();
+
+    /**** --- Ledger Offloading --- ****/
+    private String managedLedgerOffloadDriver = null;
+    private int managedLedgerOffloadMaxThreads = 2;
+    private String offloadersDirectory = "./offloaders";
+    private Map<String, String> offloaderProperties = new HashMap<>();
+
     private PulsarAdmin pulsarAdmin;
 
     @NotNull
@@ -50,6 +59,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
     public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
         this.brokerServiceUrl = brokerServiceUrl;
         return this;
+    }
+
+    @Config("pulsar.max-message-size")
+    public PulsarConnectorConfig setMaxMessageSize(int maxMessageSize) {
+        this.maxMessageSize = maxMessageSize;
+        return this;
+    }
+
+    public int getMaxMessageSize() {
+        return this.maxMessageSize;
     }
 
     @NotNull
@@ -126,6 +145,49 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.stats-provider-configs")
     public PulsarConnectorConfig setStatsProviderConfigs(String statsProviderConfigs) throws IOException {
         this.statsProviderConfigs = new ObjectMapper().readValue(statsProviderConfigs, Map.class);
+        return this;
+    }
+
+    /**** --- Ledger Offloading --- ****/
+
+    public int getManagedLedgerOffloadMaxThreads() {
+        return this.managedLedgerOffloadMaxThreads;
+    }
+
+    @Config("pulsar.managed-ledger-offload-max-threads")
+    public PulsarConnectorConfig setManagedLedgerOffloadMaxThreads(int managedLedgerOffloadMaxThreads) throws IOException {
+        this.managedLedgerOffloadMaxThreads = managedLedgerOffloadMaxThreads;
+        return this;
+    }
+
+    public String getManagedLedgerOffloadDriver() {
+        return this.managedLedgerOffloadDriver;
+    }
+
+    @Config("pulsar.managed-ledger-offload-driver")
+    public PulsarConnectorConfig setManagedLedgerOffloadDriver(String managedLedgerOffloadDriver) throws IOException {
+        this.managedLedgerOffloadDriver = managedLedgerOffloadDriver;
+        return this;
+    }
+
+    public String getOffloadersDirectory() {
+        return this.offloadersDirectory;
+    }
+
+
+    @Config("pulsar.offloaders-directory")
+    public PulsarConnectorConfig setOffloadersDirectory(String offloadersDirectory) throws IOException {
+        this.offloadersDirectory = offloadersDirectory;
+        return this;
+    }
+
+    public Map<String, String> getOffloaderProperties() {
+        return this.offloaderProperties;
+    }
+
+    @Config("pulsar.offloader-properties")
+    public PulsarConnectorConfig setOffloaderProperties(String offloaderProperties) throws IOException {
+        this.offloaderProperties = new ObjectMapper().readValue(offloaderProperties, Map.class);
         return this;
     }
 

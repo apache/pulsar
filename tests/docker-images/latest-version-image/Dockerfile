@@ -19,7 +19,7 @@
 
 FROM apachepulsar/pulsar-all:latest
 
-RUN apt-get update && apt-get install -y supervisor vim
+RUN apt-get update && apt-get install -y supervisor vim procps
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
 
@@ -48,3 +48,5 @@ COPY python-examples/exclamation_with_extra_deps.py /pulsar/examples/python-exam
 COPY python-examples/exclamation.zip /pulsar/examples/python-examples/
 COPY python-examples/producer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/consumer_schema.py /pulsar/examples/python-examples/
+COPY python-examples/exception_function.py /pulsar/examples/python-examples/
+COPY target/java-test-functions.jar /pulsar/examples/

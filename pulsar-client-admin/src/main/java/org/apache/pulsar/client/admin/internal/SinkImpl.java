@@ -23,13 +23,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.RequestBuilder;
+import org.asynchttpclient.request.body.multipart.FilePart;
+import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
-import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -39,14 +44,19 @@ import javax.ws.rs.core.Response;
 import java.io.File;
 import java.util.List;
 
+import static org.asynchttpclient.Dsl.post;
+import static org.asynchttpclient.Dsl.put;
+
 @Slf4j
-public class SinkImpl extends BaseResource implements Sink {
+public class SinkImpl extends ComponentResource implements Sink {
 
     private final WebTarget sink;
+    private final AsyncHttpClient asyncHttpClient;
 
-    public SinkImpl(WebTarget web, Authentication auth) {
+    public SinkImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
         super(auth);
         this.sink = web.path("/admin/v3/sink");
+        this.asyncHttpClient = asyncHttpClient;
     }
 
     @Override
@@ -109,18 +119,19 @@ public class SinkImpl extends BaseResource implements Sink {
     @Override
     public void createSink(SinkConfig sinkConfig, String fileName) throws PulsarAdminException {
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = post(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
-                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+                builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
+            }
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
             }
 
-            mp.bodyPart(new FormDataBodyPart("sinkConfig",
-                new Gson().toJson(sinkConfig),
-                MediaType.APPLICATION_JSON_TYPE));
-            request(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -154,20 +165,56 @@ public class SinkImpl extends BaseResource implements Sink {
     }
 
     @Override
-    public void updateSink(SinkConfig sinkConfig, String fileName) throws PulsarAdminException {
+    public void updateSink(SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) throws PulsarAdminException {
         try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
+            RequestBuilder builder = put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
+                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+
+            if (updateOptions != null) {
+                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+            }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
-                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+                builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
+            }
+            org.asynchttpclient.Response response = asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build()).get();
+
+            if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                throw getApiException(Response.status(response.getStatusCode()).entity(response.getResponseBody()).build());
+            }
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void updateSink(SinkConfig sinkConfig, String fileName) throws PulsarAdminException {
+       updateSink(sinkConfig, fileName, null);
+    }
+
+    @Override
+    public void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
+
+            mp.bodyPart(new FormDataBodyPart(
+                    "sinkConfig",
+                    new Gson().toJson(sinkConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
+
+            if (updateOptions != null) {
+                mp.bodyPart(new FormDataBodyPart(
+                        "updateOptions",
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        MediaType.APPLICATION_JSON_TYPE));
             }
 
-            mp.bodyPart(new FormDataBodyPart("sinkConfig",
-                    new Gson().toJson(sinkConfig),
-                MediaType.APPLICATION_JSON_TYPE));
-            request(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName()))
-                    .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+            request(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
+                    .path(sinkConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+                    ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -175,19 +222,7 @@ public class SinkImpl extends BaseResource implements Sink {
 
     @Override
     public void updateSinkWithUrl(SinkConfig sinkConfig, String pkgUrl) throws PulsarAdminException {
-        try {
-            final FormDataMultiPart mp = new FormDataMultiPart();
-
-            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
-
-            mp.bodyPart(new FormDataBodyPart("sinkConfig", new Gson().toJson(sinkConfig),
-                    MediaType.APPLICATION_JSON_TYPE));
-            request(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
-                    .path(sinkConfig.getName())).put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
-                            ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        updateSinkWithUrl(sinkConfig, pkgUrl, null);
     }
 
     @Override

@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 public class FutureUtil {
 
@@ -37,5 +38,13 @@ public class FutureUtil {
         CompletableFuture<T> future = new CompletableFuture<>();
         future.completeExceptionally(t);
         return future;
+    }
+
+    public static Throwable unwrapCompletionException(Throwable t) {
+        if (t instanceof CompletionException) {
+            return unwrapCompletionException(t.getCause());
+        } else {
+            return t;
+        }
     }
 }

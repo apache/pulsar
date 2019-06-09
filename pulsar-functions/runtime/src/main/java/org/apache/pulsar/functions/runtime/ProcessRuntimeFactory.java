@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderCo
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
+import java.util.Optional;
 
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
@@ -39,6 +40,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
     private final String pulsarServiceUrl;
     private final String stateStorageServiceUrl;
+    private final boolean authenticationEnabled;
     private AuthenticationConfig authConfig;
     private SecretsProviderConfigurator secretsProviderConfigurator;
     private String javaInstanceJarFile;
@@ -54,7 +56,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  String pythonInstanceFile,
                                  String logDirectory,
                                  String extraDependenciesDir,
-                                 SecretsProviderConfigurator secretsProviderConfigurator) {
+                                 SecretsProviderConfigurator secretsProviderConfigurator,
+                                 boolean authenticationEnabled) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
@@ -63,6 +66,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         this.pythonInstanceFile = pythonInstanceFile;
         this.extraDependenciesDir = extraDependenciesDir;
         this.logDirectory = logDirectory;
+        this.authenticationEnabled = authenticationEnabled;
 
         // if things are not specified, try to figure out by env properties
         if (this.javaInstanceJarFile == null) {
@@ -116,7 +120,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
                                           String originalCodeFileName,
                                           Long expectedHealthCheckInterval) throws Exception {
-        String instanceFile;
+        String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 instanceFile = javaInstanceJarFile;
@@ -124,13 +128,16 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             case PYTHON:
                 instanceFile = pythonInstanceFile;
                 break;
+            case GO:
+                break;
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
 
         // configure auth if necessary
-        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
-            getAuthProvider().configureAuthenticationConfig(authConfig, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+        if (authenticationEnabled) {
+            getAuthProvider().configureAuthenticationConfig(authConfig,
+                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 
         return new ProcessRuntime(

@@ -24,22 +24,30 @@ import io.netty.handler.ssl.SslContext;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
 
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.asynchttpclient.AsyncCompletionHandler;
@@ -59,15 +67,27 @@ import org.glassfish.jersey.client.spi.Connector;
 @Slf4j
 public class AsyncHttpConnector implements Connector {
 
+    @Getter
     private final AsyncHttpClient httpClient;
+    private final PulsarServiceNameResolver serviceNameResolver;
+
+    public AsyncHttpConnector(Client client, ClientConfigurationData conf) {
+        this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
+                (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
+                PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
+                conf);
+    }
 
     @SneakyThrows
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf) {
+    public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
+                              int requestTimeoutMs, ClientConfigurationData conf) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT));
-        confBuilder.setReadTimeout((int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT));
+        confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
+        confBuilder.setConnectTimeout(connectTimeoutMs);
+        confBuilder.setReadTimeout(readTimeoutMs);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        confBuilder.setRequestTimeout(requestTimeoutMs);
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
             public boolean keepAlive(Request ahcRequest, HttpRequest request, HttpResponse response) {
@@ -76,63 +96,114 @@ public class AsyncHttpConnector implements Connector {
             }
         });
 
-        if (conf != null && StringUtils.isNotBlank(conf.getServiceUrl())
-                && conf.getServiceUrl().startsWith("https://")) {
+        serviceNameResolver = new PulsarServiceNameResolver();
+        if (conf != null && StringUtils.isNotBlank(conf.getServiceUrl())) {
+            serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
+            if (conf.getServiceUrl().startsWith("https://")) {
 
-            SslContext sslCtx = null;
+                SslContext sslCtx = null;
 
-            // Set client key and certificate if available
-            AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
-            if (authData.hasDataForTls()) {
-                sslCtx = SecurityUtility.createNettySslContextForClient(
-                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                        conf.getTlsTrustCertsFilePath(),
-                        authData.getTlsCertificates(), authData.getTlsPrivateKey());
-            } else {
-                sslCtx = SecurityUtility.createNettySslContextForClient(
-                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                        conf.getTlsTrustCertsFilePath());
+                // Set client key and certificate if available
+                AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
+                if (authData.hasDataForTls()) {
+                    sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                                                            conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(), authData.getTlsPrivateKey());
+                } else {
+                    sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                                                            conf.getTlsTrustCertsFilePath());
+                }
+
+                confBuilder.setSslContext(sslCtx);
             }
-
-            confBuilder.setSslContext(sslCtx);
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
     }
 
-    @Override
     public ClientResponse apply(ClientRequest jerseyRequest) {
+
         CompletableFuture<ClientResponse> future = new CompletableFuture<>();
+        long startTime = System.currentTimeMillis();
+        Throwable lastException = null;
+        Set<InetSocketAddress> triedAddresses = new HashSet<>();
 
-        try {
-            Future<?> resultFuture = apply(jerseyRequest, new AsyncConnectorCallback() {
-                @Override
-                public void response(ClientResponse response) {
-                    future.complete(response);
-                }
-
-                @Override
-                public void failure(Throwable failure) {
-                    future.completeExceptionally(failure);
-                }
-            });
-
-            Integer timeout = ClientProperties.getValue(
-                    jerseyRequest.getConfiguration().getProperties(),
-                    ClientProperties.READ_TIMEOUT, 0);
-
-            if (timeout != null && timeout > 0) {
-                resultFuture.get(timeout, TimeUnit.MILLISECONDS);
-            } else {
-                resultFuture.get();
+        while (true) {
+            InetSocketAddress address = serviceNameResolver.resolveHost();
+            if (triedAddresses.contains(address)) {
+                // We already tried all available addresses
+                throw new ProcessingException((lastException.getMessage()), lastException);
             }
-        } catch (ExecutionException ex) {
-            Throwable e = ex.getCause() == null ? ex : ex.getCause();
-            throw new ProcessingException(e.getMessage(), e);
-        } catch (Exception ex) {
-            throw new ProcessingException(ex.getMessage(), ex);
+
+            triedAddresses.add(address);
+            URI requestUri = replaceWithNew(address, jerseyRequest.getUri());
+            jerseyRequest.setUri(requestUri);
+            CompletableFuture<ClientResponse> tempFuture = new CompletableFuture<>();
+            try {
+                resolveRequest(tempFuture, jerseyRequest);
+                if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
+                    throw new ProcessingException(
+                        "Request timeout, the last try service url is : " + jerseyRequest.getUri().toString());
+                }
+            } catch (ExecutionException ex) {
+                Throwable e = ex.getCause() == null ? ex : ex.getCause();
+                if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
+                    throw new ProcessingException((e.getMessage()), e);
+                }
+                lastException = e;
+                continue;
+            } catch (Exception e) {
+                if (System.currentTimeMillis() - startTime > httpClient.getConfig().getRequestTimeout()) {
+                    throw new ProcessingException(e.getMessage(), e);
+                }
+                lastException = e;
+                continue;
+            }
+            future = tempFuture;
+            break;
         }
 
         return future.join();
+    }
+
+    private URI replaceWithNew(InetSocketAddress address, URI uri) {
+        String originalUri = uri.toString();
+        String newUri = (originalUri.split(":")[0] + "://")
+                        + address.getHostName() + ":"
+                        + address.getPort()
+                        + uri.getRawPath();
+        if (uri.getRawQuery() != null) {
+            newUri += "?" + uri.getRawQuery();
+        }
+        return URI.create(newUri);
+    }
+
+
+
+    private void resolveRequest(CompletableFuture<ClientResponse> future,
+                                ClientRequest jerseyRequest)
+        throws InterruptedException, ExecutionException, TimeoutException {
+        Future<?> resultFuture = apply(jerseyRequest, new AsyncConnectorCallback() {
+            @Override
+            public void response(ClientResponse response) {
+                future.complete(response);
+            }
+            @Override
+            public void failure(Throwable failure) {
+                future.completeExceptionally(failure);
+            }
+        });
+
+        Integer timeout = httpClient.getConfig().getRequestTimeout() / 3;
+
+        Object result = null;
+        if (timeout != null && timeout > 0) {
+            result = resultFuture.get(timeout, TimeUnit.MILLISECONDS);
+        } else {
+            result = resultFuture.get();
+        }
+
+        if (result != null && result instanceof Throwable) {
+            throw new ExecutionException((Throwable) result);
+        }
     }
 
     @Override

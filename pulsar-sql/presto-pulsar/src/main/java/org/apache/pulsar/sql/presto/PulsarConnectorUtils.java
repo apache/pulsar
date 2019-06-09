@@ -26,6 +26,8 @@ import org.apache.pulsar.common.naming.TopicName;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
+import java.util.Properties;
 
 public class PulsarConnectorUtils {
 
@@ -72,5 +74,13 @@ public class PulsarConnectorUtils {
         } catch (InvocationTargetException e) {
             throw new RuntimeException("User class constructor throws exception", e);
         }
+    }
+
+    public static Properties getProperties(Map<String, String> configMap) {
+        Properties properties = new Properties();
+        for (Map.Entry<String, String> entry : configMap.entrySet()) {
+            properties.setProperty(entry.getKey(), entry.getValue());
+        }
+        return properties;
     }
 }

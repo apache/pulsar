@@ -61,7 +61,6 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
-import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -185,13 +184,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.connectionHandler = new ConnectionHandler(this,
         	new BackoffBuilder()
         	    .setInitialTime(100, TimeUnit.MILLISECONDS)
-			    .setMandatoryStop(60, TimeUnit.SECONDS)
-			    .setMax(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
-			    .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(), 
+			    .setMax(60, TimeUnit.SECONDS)
+			    .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
+			    .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(),
 			                                client.getConfiguration().getMaxBackoffIntervalNanos())
 			    .create(),
             this);
-     
+
         grabCnx();
     }
 
@@ -312,15 +311,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             // validate msg-size (For batching this will be check at the batch completion size)
             int compressedSize = compressedPayload.readableBytes();
-
-            if (compressedSize > PulsarDecoder.MaxMessageSize) {
+            if (compressedSize > ClientCnx.getMaxMessageSize()) {
                 compressedPayload.release();
                 String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
-                        ? "Compressed"
-                        : "";
+                                           ? "Compressed"
+                                           : "";
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
-                        format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
-                                PulsarDecoder.MaxMessageSize));
+                    format("%s Message payload size %d cannot exceed %d bytes", compressedStr, compressedSize,
+                           ClientCnx.getMaxMessageSize()));
                 callback.sendComplete(invalidMessageException);
                 return;
             }
@@ -1306,12 +1304,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op = OpSendMsg.create(batchMessageContainer.messages, cmd, sequenceId,
                         batchMessageContainer.firstCallback);
 
-                if (encryptedPayload.readableBytes() > PulsarDecoder.MaxMessageSize) {
+                if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
                     cmd.release();
                     semaphore.release(numMessagesInBatch);
                     if (op != null) {
                         op.callback.sendComplete(new PulsarClientException.InvalidMessageException(
-                                "Message size is bigger than " + PulsarDecoder.MaxMessageSize + " bytes"));
+                            "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
                     }
                     return;
                 }

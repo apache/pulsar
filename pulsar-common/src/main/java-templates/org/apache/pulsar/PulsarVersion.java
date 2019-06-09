@@ -23,7 +23,10 @@ import java.util.regex.Pattern;
 
 public class PulsarVersion {
 
-    private static final Pattern majorMinorPatchPattern = Pattern.compile("([1-9]+[0-9]*)\\.([1-9]+[0-9]*)\\.([1-9]+[0-9]*)(.*)");
+    private static final Pattern majorMinorPatchPattern = Pattern.compile("([0-9]+)\\.([0-9]+)\\.([0-9]+)(.*)");
+
+    // Pattern for version missing the patch number: eg: 1.14-SNAPSHOT
+    private static final Pattern majorMinorPatter = Pattern.compile("([0-9]+)\\.([0-9]+)(.*)");
 
     // If the version string does not contain a patch version, add one so the
     // version becomes valid according to the SemVer library (see https://github.com/zafarkhaja/jsemver).
@@ -41,8 +44,7 @@ public class PulsarVersion {
             return version;
         } else {
             // the patch version is missing, so add one ("0")
-            Pattern pattern2 = Pattern.compile("([1-9]+[0-9]*)\\.([1-9]+[0-9]*)(.*)");
-            Matcher matcher2 = pattern2.matcher(version);
+            Matcher matcher2 = majorMinorPatter.matcher(version);
 
             if (matcher2.matches()) {
                 int startMajorVersion = matcher2.start(1);

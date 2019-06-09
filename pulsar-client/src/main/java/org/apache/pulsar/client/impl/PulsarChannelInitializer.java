@@ -29,6 +29,7 @@ import io.netty.handler.ssl.SslContext;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.ByteBufPair;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.util.SecurityUtility;
 
@@ -38,6 +39,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     private final Supplier<ClientCnx> clientCnxSupplier;
     private final SslContext sslCtx;
+    private final ClientConfigurationData conf;
 
     public PulsarChannelInitializer(ClientConfigurationData conf, Supplier<ClientCnx> clientCnxSupplier)
             throws Exception {
@@ -57,6 +59,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         } else {
             this.sslCtx = null;
         }
+        this.conf = conf;
     }
 
     @Override
@@ -68,7 +71,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         }
 
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
+        ch.pipeline()
+          .addLast("frameDecoder",
+                   new LengthFieldBasedFrameDecoder(
+                       Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING,
+                       0, 4, 0, 4));
         ch.pipeline().addLast("handler", clientCnxSupplier.get());
     }
 }

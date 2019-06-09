@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -82,10 +83,11 @@ public class FunctionApiV3Resource extends FunctionApiResource {
                                final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                final @FormDataParam("url") String functionPkgUrl,
-                               final @FormDataParam("functionConfig") String functionConfigJson) {
+                               final @FormDataParam("functionConfig") String functionConfigJson,
+                               final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
+                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateOptions);
 
     }
 
@@ -306,6 +308,10 @@ public class FunctionApiV3Resource extends FunctionApiResource {
 
     @GET
     @Path("/connectors")
+    /**
+     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
+     */
+    @Deprecated
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
     }

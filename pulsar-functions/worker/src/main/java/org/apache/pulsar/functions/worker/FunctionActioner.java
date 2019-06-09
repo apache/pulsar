@@ -59,6 +59,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -154,11 +155,13 @@ public class FunctionActioner {
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder(functionMetaData.getFunctionDetails());
 
-        // check to make sure functionAuthenticationSpec has any data. If not set to null, since for protobuf,
+        // check to make sure functionAuthenticationSpec has any data and authentication is enabled.
+        // If not set to null, since for protobuf,
         // even if the field is not set its not going to be null. Have to use the "has" method to check
-        Function.FunctionAuthenticationSpec functionAuthenticationSpec
-                = instance.getFunctionMetaData().hasFunctionAuthSpec()
-                ? instance.getFunctionMetaData().getFunctionAuthSpec() : null;
+        Function.FunctionAuthenticationSpec functionAuthenticationSpec = null;
+        if (workerConfig.isAuthenticationEnabled() && instance.getFunctionMetaData().hasFunctionAuthSpec()) {
+            functionAuthenticationSpec = instance.getFunctionMetaData().getFunctionAuthSpec();
+        }
 
         InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
                 functionAuthenticationSpec,
@@ -283,14 +286,16 @@ public class FunctionActioner {
             functionRuntimeInfo.getRuntimeSpawner().close();
 
             // cleanup any auth data cached
-            if (functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec() != null) {
+            if (workerConfig.isAuthenticationEnabled()) {
                 try {
                     log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
                     functionRuntimeInfo.getRuntimeSpawner()
                             .getRuntimeFactory().getAuthProvider()
                             .cleanUpAuthData(
                                     details.getTenant(), details.getNamespace(), details.getName(),
-                                    getFunctionAuthData(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionAuthSpec()));
+                                    Optional.ofNullable(getFunctionAuthData(
+                                            Optional.ofNullable(
+                                                    functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
 
                 } catch (Exception e) {
                     log.error("Failed to cleanup auth data for function: {}", fqfn, e);
@@ -385,7 +390,7 @@ public class FunctionActioner {
                 File.separatorChar);
     }
 
-    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException {
+    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException, ClassNotFoundException {
         if (functionDetails.hasSource()) {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
@@ -418,7 +423,7 @@ public class FunctionActioner {
     }
 
     private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException {
+            throws IOException, ClassNotFoundException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
             String typeArg = getSourceType(className, ncl).getName();
 
@@ -436,7 +441,7 @@ public class FunctionActioner {
     }
 
     private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException {
+            throws IOException, ClassNotFoundException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
             String typeArg = getSinkType(className, ncl).getName();
 
@@ -472,6 +477,8 @@ public class FunctionActioner {
                 return fileName + ".jar";
             case PYTHON:
                 return fileName + ".py";
+            case GO:
+                return fileName + ".go";
             default:
                 throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
         }

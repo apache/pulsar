@@ -19,16 +19,19 @@
 
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -38,12 +41,14 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
+@Slf4j
 public class SourceConfigUtils {
 
     @Getter
@@ -137,6 +142,8 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setRuntimeFlags(sourceConfig.getRuntimeFlags());
         }
 
+        functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.SOURCE);
+
         return functionDetailsBuilder.build();
     }
 
@@ -155,8 +162,16 @@ public class SourceConfigUtils {
             sourceConfig.setArchive("builtin://" + sourceSpec.getBuiltin());
         }
         if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
-            Type type = new TypeToken<Map<String, String>>() {}.getType();
-            sourceConfig.setConfigs(new Gson().fromJson(sourceSpec.getConfigs(), type));
+            TypeReference<HashMap<String,Object>> typeRef
+                    = new TypeReference<HashMap<String,Object>>() {};
+            Map<String, Object> configMap;
+            try {
+                configMap = ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(), typeRef);
+            } catch (IOException e) {
+                log.error("Failed to read configs for source {}", FunctionCommon.getFullyQualifiedName(functionDetails), e);
+                throw new RuntimeException(e);
+            }
+            sourceConfig.setConfigs(configMap);
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
             Type type = new TypeToken<Map<String, Object>>() {}.getType();
@@ -235,7 +250,12 @@ public class SourceConfigUtils {
                 tmptypeArg = getSourceType(sourceClassName, narClassLoader);
                 tmpclassLoader = narClassLoader;
             } catch (Exception e) {
-                tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
+                try {
+                    tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
+                } catch (ClassNotFoundException e1) {
+                    throw new IllegalArgumentException(
+                            String.format("Source class %s must be in class path", sourceClassName), e1);
+                }
                 tmpclassLoader = jarClassLoader;
             }
             typeArg = tmptypeArg;
@@ -252,7 +272,12 @@ public class SourceConfigUtils {
             } catch (IOException e1) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e1);
             }
-            typeArg = getSourceType(sourceClassName, classLoader);
+            try {
+                typeArg = getSourceType(sourceClassName, classLoader);
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(
+                        String.format("Source class %s must be in class path", sourceClassName), e);
+            }
         }
 
         // Only one of serdeClassName or schemaType should be set
@@ -284,8 +309,8 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
         }
-        if (!StringUtils.isEmpty(newConfig.getTopicName()) && !newConfig.getTopicName().equals(existingConfig.getTopicName())) {
-            throw new IllegalArgumentException("Destination topics differ");
+        if (!StringUtils.isEmpty(newConfig.getTopicName())) {
+            mergedConfig.setTopicName(newConfig.getTopicName());
         }
         if (!StringUtils.isEmpty(newConfig.getSerdeClassName())) {
             mergedConfig.setSerdeClassName(newConfig.getSerdeClassName());

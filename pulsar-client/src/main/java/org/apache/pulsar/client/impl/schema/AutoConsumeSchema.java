@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
@@ -49,6 +50,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
+
+    @Override
     public byte[] encode(GenericRecord message) {
         ensureSchemaInitialized();
 
@@ -60,6 +66,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         ensureSchemaInitialized();
 
         return schema.decode(bytes, schemaVersion);
+    }
+
+    @Override
+    public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
+        schema.setSchemaInfoProvider(schemaInfoProvider);
     }
 
     @Override

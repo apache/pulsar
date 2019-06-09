@@ -34,15 +34,16 @@ import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
 /**
  * An append-only table sink to emit a streaming table as a Pulsar stream.
  */
 public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
 
-    protected final String serviceUrl;
-    protected final String topic;
-    protected Authentication authentication;
+    protected ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
+    protected ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
     protected SerializationSchema<Row> serializationSchema;
     protected PulsarKeyExtractor<Row> keyExtractor;
     protected String[] fieldNames;
@@ -54,9 +55,20 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
             String topic,
             Authentication authentication,
             String routingKeyFieldName) {
-        this.serviceUrl = checkNotNull(serviceUrl, "Service url not set");
-        this.topic = checkNotNull(topic, "Topic is null");
-        this.authentication = checkNotNull(authentication, "authentication is null, set new AuthenticationDisabled() instead");
+        checkNotNull(serviceUrl, "Service url not set");
+        checkNotNull(topic, "Topic is null");
+        this.clientConfigurationData.setServiceUrl(serviceUrl);
+        this.clientConfigurationData.setAuthentication(authentication);
+        this.producerConfigurationData.setTopicName(topic);;
+        this.routingKeyFieldName = routingKeyFieldName;
+    }
+
+    public PulsarTableSink(
+            ClientConfigurationData clientConfigurationData,
+            ProducerConfigurationData producerConfigurationData,
+            String routingKeyFieldName) {
+        this.clientConfigurationData = checkNotNull(clientConfigurationData, "client config is null");
+        this.producerConfigurationData = checkNotNull(producerConfigurationData, "producer config is null");
         this.routingKeyFieldName = routingKeyFieldName;
     }
 
@@ -80,9 +92,8 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
      */
     protected FlinkPulsarProducer<Row> createFlinkPulsarProducer() {
         return new FlinkPulsarProducer<Row>(
-                serviceUrl,
-                topic,
-                authentication,
+                clientConfigurationData,
+                producerConfigurationData,
                 serializationSchema,
                 keyExtractor);
     }

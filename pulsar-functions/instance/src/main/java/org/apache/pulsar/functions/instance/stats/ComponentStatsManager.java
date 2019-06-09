@@ -20,10 +20,9 @@ package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.utils.ComponentType;
+import org.apache.pulsar.functions.proto.Function;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -58,7 +57,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     public static ComponentStatsManager getStatsManager(CollectorRegistry collectorRegistry,
                                   String[] metricsLabels,
                                   ScheduledExecutorService scheduledExecutorService,
-                                  ComponentType componentType) {
+                                  Function.FunctionDetails.ComponentType componentType) {
         switch (componentType) {
             case FUNCTION:
                 return new FunctionStatsManager(collectorRegistry, metricsLabels, scheduledExecutorService);
@@ -143,7 +142,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     public String getStatsAsString() throws IOException {
         StringWriter outputWriter = new StringWriter();
 
-        TextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
+        PrometheusTextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
 
         return outputWriter.toString();
     }

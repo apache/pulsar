@@ -23,10 +23,10 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -97,10 +97,11 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
                              final @FormDataParam("data") InputStream uploadedInputStream,
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String functionPkgUrl,
-                             final @FormDataParam("sourceConfig") String sourceConfigJson) {
+                             final @FormDataParam("sourceConfig") String sourceConfigJson,
+                             final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
+            functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData(), updateOptions);
     }
 
 
@@ -123,7 +124,7 @@ public class SourceBase extends AdminResource implements Supplier<WorkerService>
     @GET
     @ApiOperation(
             value = "Fetches information about a Pulsar Source currently running in cluster mode",
-            response = FunctionMetaData.class
+            response = SourceConfig.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),

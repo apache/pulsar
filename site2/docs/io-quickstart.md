@@ -236,13 +236,13 @@ as a Pulsar Function and write the messages produced in topic `test_cassandra` t
 
 ### Inspect the Cassandra Sink
 
-Since an IO connector is running as [Pulsar Functions](functions-overview.md), you can use [functions CLI](reference-pulsar-admin.md#functions)
+You can use [sink CLI](reference-pulsar-admin.md#sink) and [source CLI](reference-pulsar-admin.md#source)
 for inspecting and managing the IO connectors.
 
 #### Retrieve Sink Info
 
 ```bash
-bin/pulsar-admin functions get \
+bin/pulsar-admin sink get \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -255,26 +255,31 @@ Example output:
   "tenant": "public",
   "namespace": "default",
   "name": "cassandra-test-sink",
-  "className": "org.apache.pulsar.functions.api.utils.IdentityFunction",
-  "autoAck": true,
-  "parallelism": 1,
-  "source": {
-    "topicsToSerDeClassName": {
-      "test_cassandra": ""
+  "className": "org.apache.pulsar.io.cassandra.CassandraStringSink",
+  "inputSpecs": {
+    "test_cassandra": {
+      "isRegexPattern": false
     }
   },
-  "sink": {
-    "configs": "{\"roots\":\"cassandra\",\"keyspace\":\"pulsar_test_keyspace\",\"columnFamily\":\"pulsar_test_table\",\"keyname\":\"key\",\"columnName\":\"col\"}",
-    "builtin": "cassandra"
+  "configs": {
+    "roots": "localhost:9042",
+    "keyspace": "pulsar_test_keyspace",
+    "columnFamily": "pulsar_test_table",
+    "keyname": "key",
+    "columnName": "col"
   },
-  "resources": {}
+  "parallelism": 1,
+  "processingGuarantees": "ATLEAST_ONCE",
+  "retainOrdering": false,
+  "autoAck": true,
+  "archive": "builtin://cassandra"
 }
 ```
 
 #### Check Sink Running Status
 
 ```bash
-bin/pulsar-admin functions getstatus \
+bin/pulsar-admin sink status \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -284,23 +289,24 @@ Example output:
 
 ```shell
 {
-  "functionStatusList": [
-    {
-      "running": true,
-      "instanceId": "0",
-      "metrics": {
-        "metrics": {
-          "__total_processed__": {},
-          "__total_successfully_processed__": {},
-          "__total_system_exceptions__": {},
-          "__total_user_exceptions__": {},
-          "__total_serialization_exceptions__": {},
-          "__avg_latency_ms__": {}
-        }
-      },
-      "workerId": "c-standalone-fw-localhost-6750"
+  "numInstances" : 1,
+  "numRunning" : 1,
+  "instances" : [ {
+    "instanceId" : 0,
+    "status" : {
+      "running" : true,
+      "error" : "",
+      "numRestarts" : 0,
+      "numReadFromPulsar" : 0,
+      "numSystemExceptions" : 0,
+      "latestSystemExceptions" : [ ],
+      "numSinkExceptions" : 0,
+      "latestSinkExceptions" : [ ],
+      "numWrittenToSink" : 0,
+      "lastReceivedTime" : 0,
+      "workerId" : "c-standalone-fw-localhost-8080"
     }
-  ]
+  } ]
 }
 ```
 
@@ -315,7 +321,7 @@ for i in {0..9}; do bin/pulsar-client produce -m "key-$i" -n 1 test_cassandra; d
 Inspect the sink running status again. You should be able to see 10 messages are processed by the Cassandra sink.
 
 ```bash
-bin/pulsar-admin functions getstatus \
+bin/pulsar-admin sink status \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -325,34 +331,24 @@ Example output:
 
 ```shell
 {
-  "functionStatusList": [
-    {
-      "running": true,
-      "numProcessed": "11",
-      "numSuccessfullyProcessed": "11",
-      "lastInvocationTime": "1532031040117",
-      "instanceId": "0",
-      "metrics": {
-        "metrics": {
-          "__total_processed__": {
-            "count": 5.0,
-            "sum": 5.0,
-            "max": 5.0
-          },
-          "__total_successfully_processed__": {
-            "count": 5.0,
-            "sum": 5.0,
-            "max": 5.0
-          },
-          "__total_system_exceptions__": {},
-          "__total_user_exceptions__": {},
-          "__total_serialization_exceptions__": {},
-          "__avg_latency_ms__": {}
-        }
-      },
-      "workerId": "c-standalone-fw-localhost-6750"
+  "numInstances" : 1,
+  "numRunning" : 1,
+  "instances" : [ {
+    "instanceId" : 0,
+    "status" : {
+      "running" : true,
+      "error" : "",
+      "numRestarts" : 0,
+      "numReadFromPulsar" : 10,
+      "numSystemExceptions" : 0,
+      "latestSystemExceptions" : [ ],
+      "numSinkExceptions" : 0,
+      "latestSinkExceptions" : [ ],
+      "numWrittenToSink" : 10,
+      "lastReceivedTime" : 1551685489136,
+      "workerId" : "c-standalone-fw-localhost-8080"
     }
-  ]
+  } ]
 }
 ```
 

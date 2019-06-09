@@ -62,7 +62,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 import java.io.IOException;
@@ -73,6 +72,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -116,6 +116,7 @@ public class KubernetesRuntime implements Runtime {
             )
     );
     private static final long GRPC_TIMEOUT_SECS = 5;
+    private final boolean authenticationEnabled;
 
     // The thread that invokes the function
     @Getter
@@ -160,7 +161,8 @@ public class KubernetesRuntime implements Runtime {
                       SecretsProviderConfigurator secretsProviderConfigurator,
                       Integer expectedMetricsCollectionInterval,
                       int percentMemoryPadding,
-                      KubernetesFunctionAuthProvider functionAuthDataCacheProvider) throws Exception {
+                      KubernetesFunctionAuthProvider functionAuthDataCacheProvider,
+                      boolean authenticationEnabled) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -174,6 +176,7 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
+        this.authenticationEnabled = authenticationEnabled;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -187,6 +190,8 @@ public class KubernetesRuntime implements Runtime {
             case PYTHON:
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
                 break;
+            case GO:
+                throw new UnsupportedOperationException();
         }
 
         this.authConfig = authConfig;
@@ -417,6 +422,7 @@ public class KubernetesRuntime implements Runtime {
         // setup stateful set metadata
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
         objectMeta.name(jobName);
+        objectMeta.setLabels(getLabels(instanceConfig.getFunctionDetails()));
         service.metadata(objectMeta);
 
         // create the stateful set spec
@@ -438,9 +444,9 @@ public class KubernetesRuntime implements Runtime {
     private void submitStatefulSet() throws Exception {
         final V1StatefulSet statefulSet = createStatefulSet();
         // Configure function authentication if needed
-        if (instanceConfig.getFunctionAuthenticationSpec() != null) {
+        if (authenticationEnabled) {
             functionAuthDataCacheProvider.configureAuthDataStatefulSet(
-                    statefulSet, getFunctionAuthData(instanceConfig.getFunctionAuthenticationSpec()));
+                    statefulSet, Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
         }
 
         log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));
@@ -754,9 +760,10 @@ public class KubernetesRuntime implements Runtime {
     private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
 
         // add auth plugin and parameters if necessary
-        if (authConfig != null) {
+        if (authenticationEnabled && authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())
+                    && instanceConfig.getFunctionAuthenticationSpec() != null) {
                 return Arrays.asList(
                         pulsarRootDir + "/bin/pulsar-admin",
                         "--auth-plugin",
@@ -798,6 +805,7 @@ public class KubernetesRuntime implements Runtime {
         // setup stateful set metadata
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
         objectMeta.name(jobName);
+        objectMeta.setLabels(getLabels(instanceConfig.getFunctionDetails()));
         statefulSet.metadata(objectMeta);
 
         // create the stateful set spec
@@ -844,7 +852,7 @@ public class KubernetesRuntime implements Runtime {
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
-        ComponentType componentType = InstanceUtils.calculateSubjectType(functionDetails);
+        Function.FunctionDetails.ComponentType componentType = InstanceUtils.calculateSubjectType(functionDetails);
         String component;
         switch (componentType) {
             case FUNCTION:

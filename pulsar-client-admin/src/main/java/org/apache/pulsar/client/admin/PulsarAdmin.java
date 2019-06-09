@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.asynchttpclient.AsyncHttpClient;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -68,6 +69,7 @@ public class PulsarAdmin implements Closeable {
 
     public static final int DEFAULT_CONNECT_TIMEOUT_SECONDS = 60;
     public static final int DEFAULT_READ_TIMEOUT_SECONDS = 60;
+    public static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 300;
 
     private final Clusters clusters;
     private final Brokers brokers;
@@ -81,6 +83,7 @@ public class PulsarAdmin implements Closeable {
     private final ResourceQuotas resourceQuotas;
     private final ClientConfigurationData clientConfigData;
     private final Client client;
+    private final AsyncHttpClient httpAsyncClient;
     private final String serviceUrl;
     private final Lookup lookups;
     private final Functions functions;
@@ -94,6 +97,8 @@ public class PulsarAdmin implements Closeable {
     private final TimeUnit connectTimeoutUnit;
     private final int readTimeout;
     private final TimeUnit readTimeoutUnit;
+    private final int requestTimeout;
+    private final TimeUnit requestTimeoutUnit;
 
     static {
         /**
@@ -123,7 +128,8 @@ public class PulsarAdmin implements Closeable {
 
     public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
         this(serviceUrl, clientConfigData, DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS,
-                DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS,
+                DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
     }
 
@@ -132,11 +138,15 @@ public class PulsarAdmin implements Closeable {
                        int connectTimeout,
                        TimeUnit connectTimeoutUnit,
                        int readTimeout,
-                       TimeUnit readTimeoutUnit) throws PulsarClientException {
+                       TimeUnit readTimeoutUnit,
+                       int requestTimeout,
+                       TimeUnit requestTimeoutUnit) throws PulsarClientException {
         this.connectTimeout = connectTimeout;
         this.connectTimeoutUnit = connectTimeoutUnit;
         this.readTimeout = readTimeout;
         this.readTimeoutUnit = readTimeoutUnit;
+        this.requestTimeout = requestTimeout;
+        this.requestTimeoutUnit = requestTimeoutUnit;
         this.clientConfigData = clientConfigData;
         this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
@@ -146,11 +156,13 @@ public class PulsarAdmin implements Closeable {
             auth.start();
         }
 
+        AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData);
+
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
-        httpConfig.connectorProvider(new AsyncHttpConnectorProvider(clientConfigData));
+        httpConfig.connectorProvider(asyncConnectorProvider);
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(httpConfig)
@@ -165,6 +177,11 @@ public class PulsarAdmin implements Closeable {
         this.serviceUrl = serviceUrl;
         root = client.target(serviceUrl);
 
+        this.httpAsyncClient = asyncConnectorProvider.getConnector(
+                Math.toIntExact(connectTimeoutUnit.toMillis(this.connectTimeout)),
+                Math.toIntExact(readTimeoutUnit.toMillis(this.readTimeout)),
+                Math.toIntExact(requestTimeoutUnit.toMillis(this.requestTimeout))).getHttpClient();
+
         this.clusters = new ClustersImpl(root, auth);
         this.brokers = new BrokersImpl(root, auth);
         this.brokerStats = new BrokerStatsImpl(root, auth);
@@ -175,9 +192,9 @@ public class PulsarAdmin implements Closeable {
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
-        this.functions = new FunctionsImpl(root, auth);
-        this.source = new SourceImpl(root, auth);
-        this.sink = new SinkImpl(root, auth);
+        this.functions = new FunctionsImpl(root, auth, httpAsyncClient);
+        this.source = new SourceImpl(root, auth, httpAsyncClient);
+        this.sink = new SinkImpl(root, auth, httpAsyncClient);
         this.worker = new WorkerImpl(root, auth);
         this.schemas = new SchemasImpl(root, auth);
         this.bookies = new BookiesImpl(root, auth);
@@ -387,6 +404,11 @@ public class PulsarAdmin implements Closeable {
             LOG.error("Failed to close the authentication service", e);
         }
         client.close();
-    }
 
+        try {
+            httpAsyncClient.close();
+        } catch (IOException e) {
+           LOG.error("Failed to close http async client", e);
+        }
+    }
 }

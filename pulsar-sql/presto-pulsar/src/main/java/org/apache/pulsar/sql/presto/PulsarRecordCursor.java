@@ -56,6 +56,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -83,6 +84,7 @@ public class PulsarRecordCursor implements RecordCursor {
     private DeserializeEntries deserializeEntries;
     private TopicName topicName;
     private PulsarConnectorMetricsTracker metricsTracker;
+    private boolean readOffloaded;
 
     // Stats total execution time of split
     private long startTime;
@@ -110,19 +112,20 @@ public class PulsarRecordCursor implements RecordCursor {
             throw new RuntimeException(e);
         }
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig,
-                pulsarConnectorCache.getManagedLedgerFactory(),
+                pulsarConnectorCache.getManagedLedgerFactory(), pulsarConnectorCache.getManagedLedgerConfig(),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
     }
 
     // Exposed for testing purposes
     PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
-            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
+            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig,
+                       PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
         this.splitSize = pulsarSplit.getSplitSize();
-        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, pulsarConnectorMetricsTracker);
+        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, managedLedgerConfig, pulsarConnectorMetricsTracker);
     }
 
     private void initialize(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
-            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory,
+            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig,
                             PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
         this.columnHandles = columnHandles;
         this.pulsarSplit = pulsarSplit;
@@ -134,6 +137,8 @@ public class PulsarRecordCursor implements RecordCursor {
                 NamespaceName.get(pulsarSplit.getSchemaName()),
                 pulsarSplit.getTableName());
         this.metricsTracker = pulsarConnectorMetricsTracker;
+        this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
+        this.pulsarConnectorConfig = pulsarConnectorConfig;
 
         Schema schema = PulsarConnectorUtils.parseSchema(pulsarSplit.getSchema());
 
@@ -143,7 +148,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
         try {
             this.cursor = getCursor(TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
-                    pulsarSplit.getTableName()), pulsarSplit.getStartPosition(), managedLedgerFactory);
+                    pulsarSplit.getTableName()), pulsarSplit.getStartPosition(), managedLedgerFactory, managedLedgerConfig);
         } catch (ManagedLedgerException | InterruptedException e) {
             log.error(e, "Failed to get read only cursor");
             close();
@@ -168,11 +173,11 @@ public class PulsarRecordCursor implements RecordCursor {
     }
 
     private ReadOnlyCursor getCursor(TopicName topicName, Position startPosition, ManagedLedgerFactory
-            managedLedgerFactory)
+            managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig)
             throws ManagedLedgerException, InterruptedException {
 
         ReadOnlyCursor cursor = managedLedgerFactory.openReadOnlyCursor(topicName.getPersistenceNamingEncoding(),
-                startPosition, new ManagedLedgerConfig());
+                startPosition, managedLedgerConfig);
 
         return cursor;
     }
@@ -256,7 +261,7 @@ public class PulsarRecordCursor implements RecordCursor {
                                             } catch (InterruptedException e) {
                                                 //no-op
                                             }
-                                        });
+                                        }, pulsarConnectorConfig.getMaxMessageSize());
                             } catch (IOException e) {
                                 log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
                                 throw new RuntimeException(e);
@@ -298,7 +303,6 @@ public class PulsarRecordCursor implements RecordCursor {
         public void run() {
 
             if (outstandingReadsRequests.get() > 0) {
-
                 if (!cursor.hasMoreEntries() || ((PositionImpl) cursor.getReadPosition())
                         .compareTo(pulsarSplit.getEndPosition()) >= 0) {
                     isDone = true;
@@ -307,8 +311,22 @@ public class PulsarRecordCursor implements RecordCursor {
                     int batchSize = Math.min(maxBatchSize, entryQueue.capacity() - entryQueue.size());
 
                     if (batchSize > 0) {
-                        outstandingReadsRequests.decrementAndGet();
-                        cursor.asyncReadEntries(batchSize, this, System.nanoTime());
+
+                        ReadOnlyCursorImpl readOnlyCursorImpl = ((ReadOnlyCursorImpl) cursor);
+                        // check if ledger is offloaded
+                        if (!readOffloaded  && readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
+                            log.warn("Ledger %s is offloaded for topic %s. Ignoring it because offloader is not configured",
+                                    readOnlyCursorImpl.getCurrentLedgerInfo().getLedgerId(), pulsarSplit.getTableName());
+
+                            long numEntries = readOnlyCursorImpl.getCurrentLedgerInfo().getEntries();
+                            long entriesToSkip = (numEntries - ((PositionImpl) cursor.getReadPosition()).getEntryId()) + 1;
+                            cursor.skipEntries(Math.toIntExact((entriesToSkip)));
+
+                            entriesProcessed += entriesToSkip;
+                        } else {
+                            outstandingReadsRequests.decrementAndGet();
+                            cursor.asyncReadEntries(batchSize, this, System.nanoTime());
+                        }
 
                         // stats for successful read request
                         metricsTracker.incr_READ_ATTEMPTS_SUCCESS();
@@ -507,8 +525,13 @@ public class PulsarRecordCursor implements RecordCursor {
             currentMessage.release();
         }
 
-        messageQueue.drain(RawMessage::release);
-        entryQueue.drain(Entry::release);
+        if (messageQueue != null) {
+            messageQueue.drain(RawMessage::release);
+        }
+
+        if (entryQueue != null) {
+            entryQueue.drain(Entry::release);
+        }
 
         if (deserializeEntries != null) {
             deserializeEntries.interrupt();

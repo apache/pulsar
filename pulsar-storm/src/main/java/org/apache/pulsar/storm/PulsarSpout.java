@@ -40,6 +40,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.storm.metric.api.IMetric;
+import org.apache.storm.shade.org.eclipse.jetty.util.log.Log;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -57,6 +58,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     public static final String NO_OF_PENDING_FAILED_MESSAGES = "numberOfPendingFailedMessages";
     public static final String NO_OF_MESSAGES_RECEIVED = "numberOfMessagesReceived";
     public static final String NO_OF_MESSAGES_EMITTED = "numberOfMessagesEmitted";
+    public static final String NO_OF_MESSAGES_FAILED = "numberOfMessagesFailed";
+    public static final String MESSAGE_NOT_AVAILABLE_COUNT = "messageNotAvailableCount";
     public static final String NO_OF_PENDING_ACKS = "numberOfPendingAcks";
     public static final String CONSUMER_RATE = "consumerRate";
     public static final String CONSUMER_THROUGHPUT_BYTES = "consumerThroughput";
@@ -77,6 +80,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     private Consumer<byte[]> consumer;
     private volatile long messagesReceived = 0;
     private volatile long messagesEmitted = 0;
+    private volatile long messagesFailed = 0;
+    private volatile long messageNotAvailableCount = 0;
     private volatile long pendingAcks = 0;
     private volatile long messageSizeReceived = 0;
 
@@ -92,6 +97,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         this.consumerConf.setTopicNames(Collections.singleton(pulsarSpoutConf.getTopic()));
         this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
         this.consumerConf.setSubscriptionType(pulsarSpoutConf.getSubscriptionType());
+        this.consumerConf.setReceiverQueueSize(pulsarSpoutConf.getConsumerReceiverQueueSize());
 
         this.pulsarSpoutConf = pulsarSpoutConf;
         this.failedRetriesTimeoutNano = pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.NANOSECONDS);
@@ -102,6 +108,11 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     public void close() {
         try {
             LOG.info("[{}] Closing Pulsar consumer for topic {}", spoutId, pulsarSpoutConf.getTopic());
+            
+            if (pulsarSpoutConf.isAutoUnsubscribe()) {
+                consumer.unsubscribe();
+            }
+            
             if (!pulsarSpoutConf.isSharedConsumerEnabled() && consumer != null) {
                 consumer.close();
             }
@@ -124,6 +135,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
             }
             consumer.acknowledgeAsync(msg);
             pendingMessageRetries.remove(msg.getMessageId());
+            // we should also remove message from failedMessages but it will be eventually removed while emitting next
+            // tuple
             --pendingAcks;
         }
     }
@@ -148,7 +161,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                 pendingMessageRetries.putIfAbsent(id, messageRetries);
                 failedMessages.add(msg);
                 --pendingAcks;
-
+                messagesFailed++;
             } else {
                 LOG.warn("[{}] Number of retries limit reached, dropping the message {}", spoutId, id);
                 ack(msg);
@@ -172,25 +185,12 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
      * emit.
      */
     public void emitNextAvailableTuple() {
-        Message<byte[]> msg;
-
         // check if there are any failed messages to re-emit in the topology
-        msg = failedMessages.peek();
-        if (msg != null) {
-            MessageRetries messageRetries = pendingMessageRetries.get(msg.getMessageId());
-            if (Backoff.shouldBackoff(messageRetries.getTimeStamp(), TimeUnit.NANOSECONDS,
-                    messageRetries.getNumRetries(), clientConf.getDefaultBackoffIntervalNanos(), 
-                    clientConf.getMaxBackoffIntervalNanos())) {
-                Utils.sleep(TimeUnit.NANOSECONDS.toMillis(clientConf.getDefaultBackoffIntervalNanos()));
-            } else {
-                // remove the message from the queue and emit to the topology, only if it should not be backedoff
-                LOG.info("[{}] Retrying failed message {}", spoutId, msg.getMessageId());
-                failedMessages.remove();
-                mapToValueAndEmit(msg);
-            }
+        if(emitFailedMessage()) {
             return;
         }
 
+        Message<byte[]> msg;
         // receive from consumer if no failed messages
         if (consumer != null) {
             if (LOG.isDebugEnabled()) {
@@ -207,12 +207,47 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                     } else {
                         // queue is empty and nothing to emit
                         done = true;
+                        messageNotAvailableCount++;
                     }
                 }
             } catch (PulsarClientException e) {
                 LOG.error("[{}] Error receiving message from pulsar consumer", spoutId, e);
             }
         }
+    }
+
+    private boolean emitFailedMessage() {
+        Message<byte[]> msg;
+
+        while ((msg = failedMessages.peek()) != null) {
+            MessageRetries messageRetries = pendingMessageRetries.get(msg.getMessageId());
+            if (messageRetries != null) {
+                // emit the tuple if retry doesn't need backoff else sleep with backoff time and return without doing
+                // anything
+                if (Backoff.shouldBackoff(messageRetries.getTimeStamp(), TimeUnit.NANOSECONDS,
+                        messageRetries.getNumRetries(), clientConf.getDefaultBackoffIntervalNanos(),
+                        clientConf.getMaxBackoffIntervalNanos())) {
+                    Utils.sleep(TimeUnit.NANOSECONDS.toMillis(clientConf.getDefaultBackoffIntervalNanos()));
+                } else {
+                    // remove the message from the queue and emit to the topology, only if it should not be backedoff
+                    LOG.info("[{}] Retrying failed message {}", spoutId, msg.getMessageId());
+                    failedMessages.remove();
+                    mapToValueAndEmit(msg);
+                }
+                return true;
+            }
+
+            // messageRetries is null because messageRetries is already acked and removed from pendingMessageRetries
+            // then remove it from failed message queue as well.
+            if(LOG.isDebugEnabled()) {
+                LOG.debug("[{}]-{} removing {} from failedMessage because it's already acked",
+                        pulsarSpoutConf.getTopic(), spoutId, msg.getMessageId());
+            }
+            failedMessages.remove();
+            // try to find out next failed message
+            continue;
+        }
+        return false;
     }
 
     @Override
@@ -304,6 +339,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         metricsMap.put(NO_OF_PENDING_FAILED_MESSAGES, (long) pendingMessageRetries.size());
         metricsMap.put(NO_OF_MESSAGES_RECEIVED, messagesReceived);
         metricsMap.put(NO_OF_MESSAGES_EMITTED, messagesEmitted);
+        metricsMap.put(NO_OF_MESSAGES_FAILED, messagesFailed);
+        metricsMap.put(MESSAGE_NOT_AVAILABLE_COUNT, messageNotAvailableCount);
         metricsMap.put(NO_OF_PENDING_ACKS, pendingAcks);
         metricsMap.put(CONSUMER_RATE, ((double) messagesReceived) / pulsarSpoutConf.getMetricsTimeIntervalInSecs());
         metricsMap.put(CONSUMER_THROUGHPUT_BYTES,
@@ -315,6 +352,8 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         messagesReceived = 0;
         messagesEmitted = 0;
         messageSizeReceived = 0;
+        messagesFailed = 0;
+        messageNotAvailableCount = 0;
     }
 
     @SuppressWarnings("rawtypes")

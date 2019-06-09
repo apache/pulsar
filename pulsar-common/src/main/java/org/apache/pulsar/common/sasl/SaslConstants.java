@@ -29,13 +29,9 @@ public class SaslConstants {
 
     public static final String AUTH_METHOD_NAME = "sasl";
 
-    // service broker Principal
-    public static final String JAAS_BROKER_SECTION_NAME = "saslJaasBrokerSectionName";
+    // service section name, this is broker or proxy Principal
+    public static final String JAAS_SERVER_SECTION_NAME = "saslJaasServerSectionName";
     public static final String JAAS_DEFAULT_BROKER_SECTION_NAME = "PulsarBroker";
-
-    //TODO: for sasl proxy.
-    // github issue #3655 {@link: https://github.com/apache/pulsar/issues/3655}
-    public static final String JAAS_PROXY_SECTION_NAME = "saslJaasProxySectionName";
     public static final String JAAS_DEFAULT_PROXY_SECTION_NAME = "PulsarProxy";
 
     // Client principal
@@ -53,13 +49,42 @@ public class SaslConstants {
 
     public static final String KINIT_COMMAND = "kerberos.kinit";
 
+    // The sasl server type that client will connect to. default value broker, could also be proxy.
+    public static final String SASL_SERVER_TYPE = "serverType";
     // The non-null string name of the protocol for which the authentication is being performed (e.g., "ldap").
-    public static final String SASL_PULSAR_PROTOCOL = "broker";
+    public static final String SASL_BROKER_PROTOCOL = "broker";
+    public static final String SASL_PROXY_PROTOCOL = "proxy";
     // The non-null fully-qualified host name of the server to authenticate to.
     public static final String SASL_PULSAR_REALM = "EXAMPLE.COM";
 
     // Stand for the start of mutual auth between Client and Broker
     public static final String INIT_PROVIDER_DATA = "isInit";
+
+
+    // Sasl token name that contained auth role
+    public static final String SASL_AUTH_ROLE_TOKEN = "SaslAuthRoleToken";
+    public static final String SASL_AUTH_ROLE_TOKEN_EXPIRED = "SaslAuthRoleTokenExpired";
+
+    /**
+     * HTTP header used by the SASL client/server during an authentication sequence.
+     */
+    // auth type
+    public static final String SASL_HEADER_TYPE = "SASL-Type";
+    public static final String SASL_TYPE_VALUE = "Kerberos";
+
+    // header name for token auth between client and server
+    public static final String SASL_AUTH_TOKEN = "SASL-Token";
+
+    // header name for state
+    public static final String SASL_HEADER_STATE = "State";
+    // header value for state
+    public static final String SASL_STATE_CLIENT_INIT = "Init";
+    public static final String SASL_STATE_NEGOTIATE = "ING";
+    public static final String SASL_STATE_COMPLETE = "Done";
+    public static final String SASL_STATE_SERVER_CHECK_TOKEN = "ServerCheckToken";
+
+    // server side track the server
+    public static final String SASL_STATE_SERVER = "SASL-Server-ID";
 
     public static boolean isUsingTicketCache(String configurationEntry) {
         AppConfigurationEntry[] entries = Configuration.getConfiguration()
