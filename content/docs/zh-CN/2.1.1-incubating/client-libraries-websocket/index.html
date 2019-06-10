@@ -78,17 +78,17 @@
             });
         </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Pulsar&#x27;s WebSocket API</h1></header><article><div><span><p>Pulsar 的<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API">WebSocket</a> API 提供了一种简单便捷的交互方式和 Pulsar 进行交互，它完全不依赖于官方<a href="/docs/zh-CN/2.1.1-incubating/client-libraries">客户端库</a>。 Through WebSockets you can publish and consume messages and use all the features available in the <a href="/docs/zh-CN/2.1.1-incubating/client-libraries-java">Java</a>, <a href="/docs/zh-CN/2.1.1-incubating/client-libraries-python">Python</a>, and <a href="/docs/zh-CN/2.1.1-incubating/client-libraries-cpp">C++</a> client libraries.</p>
 <blockquote>
-<p>您可以将 Pulsar 的 WebSocket API 与任何的 WebSocket 客户端库一起使用。请参阅<a href="#client-examples">下面</a>的 Python 和 Node.js 示例。</p>
+<p>你可以将 Pulsar 的 WebSocket API 与任何的 WebSocket 客户端库一起使用。请参阅<a href="#client-examples">下面</a>的 Python 和 Node.js 示例。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="运行-websocket-服务"></a><a href="#运行-websocket-服务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>运行 WebSocket 服务</h2>
-<p>我们推荐使用的Pulsar的 standalone 版本进行开发，在<a href="/docs/zh-CN/2.1.1-incubating/standalone">本地开发</a> 环境启用 WebSocket 服务。</p>
+<p>我们推荐使用的 Pulsar 的 standalone 版本进行开发，在<a href="/docs/zh-CN/2.1.1-incubating/standalone">本地开发</a> 环境启用 WebSocket 服务。</p>
 <p>在非 standalone 模式下，有两种方法可以部署 WebSocket 服务：</p>
 <ul>
 <li><a href="#embedded-with-a-pulsar-broker">嵌入</a> Pulsar Broker</li>
 <li>作为一个<a href="#as-a-separate-component">单独</a>的组件</li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="嵌入pulsar-broker"></a><a href="#嵌入pulsar-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>嵌入Pulsar Broker</h3>
-<p>在此模式下，WebSocket 服务将在已经在代理中运行的同一 HTTP 服务中运行。 要启用此模式，请在安装目录下的 <a href="/docs/zh-CN/2.1.1-incubating/reference-configuration#broker"><code>conf/broker.conf</code></a> 文件中设置<a href="/docs/zh-CN/2.1.1-incubating/reference-configuration#broker-webSocketServiceEnabled"><code>webSocketServiceEnabled</code></a>参数。</p>
+<h3><a class="anchor" aria-hidden="true" id="嵌入-pulsar-broker"></a><a href="#嵌入-pulsar-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>嵌入 Pulsar Broker</h3>
+<p>在此模式下，WebSocket 服务会在已经在 broker 中运行的同一 HTTP 服务中运行。 要启用此模式，请在安装目录下的 <a href="/docs/zh-CN/2.1.1-incubating/reference-configuration#broker"><code>conf/broker.conf</code></a> 文件中设置<a href="/docs/zh-CN/2.1.1-incubating/reference-configuration#broker-webSocketServiceEnabled"> <code>webSocketServiceEnabled</code></a> 参数。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webSocketServiceEnabled</span>=<span class="hljs-string">true</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="作为一个独立的组件"></a><a href="#作为一个独立的组件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>作为一个独立的组件</h3>
@@ -104,7 +104,7 @@
 <span class="hljs-attr">clusterName</span>=<span class="hljs-string">my-cluster</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="启动-broker"></a><a href="#启动-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 Broker</h3>
-<p>配置完成后，你可以使用<a href="/docs/zh-CN/2.1.1-incubating/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> 命令来启动服务：</p>
+<p>配置完成后，你可以使用 <a href="/docs/zh-CN/2.1.1-incubating/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> 命令来启动服务：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start websocket</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="api-手册"></a><a href="#api-手册" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API 手册：</h2>
@@ -120,7 +120,7 @@
 <tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必须？</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>sendTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">发送超时（默认值：30秒）</td></tr>
+<tr><td style="text-align:left"><code>sendTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">发送超时(默认值：30秒)</td></tr>
 <tr><td style="text-align:left"><code>batchingEnabled</code></td><td style="text-align:left">boolean</td><td style="text-align:left">no</td><td style="text-align:left">启用批量缓存消息 (默认: false)</td></tr>
 <tr><td style="text-align:left"><code>batchingMaxMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">批量允许的最大消息数(默认：1000)</td></tr>
 <tr><td style="text-align:left"><code>maxPendingMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">设置包含消息的内部队列最大值 (默认: 1000)</td></tr>
@@ -144,11 +144,11 @@
 <tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必须？</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的有效载荷</td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的属性</td></tr>
 <tr><td style="text-align:left"><code>context</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的请求标识符</td></tr>
 <tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">对于分区主题，决定哪些分区需要使用</td></tr>
-<tr><td style="text-align:left"><code>replicationClusters</code></td><td style="text-align:left">array</td><td style="text-align:left">no</td><td style="text-align:left">将复制限制为由 name 指定的<a href="/docs/zh-CN/2.1.1-incubating/reference-terminology#cluster">群集</a>列表</td></tr>
+<tr><td style="text-align:left"><code>replicationClusters</code></td><td style="text-align:left">array</td><td style="text-align:left">no</td><td style="text-align:left">将副本限制为由 name 指定的<a href="/docs/zh-CN/2.1.1-incubating/reference-terminology#cluster">群集</a>列表</td></tr>
 </tbody>
 </table>
 <h5><a class="anchor" aria-hidden="true" id="示例响应成功"></a><a href="#示例响应成功" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例响应成功</h5>
@@ -170,7 +170,7 @@
 <tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必须？</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>result</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left"><code>ok</code>要么成功发送，要么发送错误，要么发送不成功</td></tr>
+<tr><td style="text-align:left"><code>result</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left"><code>ok</code> 要么成功发送，要么发送错误，要么发送不成功</td></tr>
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID 用来分配给已发布的消息</td></tr>
 <tr><td style="text-align:left"><code>context</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的请求标识符</td></tr>
 </tbody>
@@ -187,7 +187,7 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">`ackTimeoutMillis</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">设置未打包消息超时时间（默认值：0）</td></tr>
+<tr><td style="text-align:left">`</td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">设置未完成 ACK 的超时时间（默认值：0）</td></tr>
 <tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left"><a href="https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html">Subscription type</a>: <code>Exclusive</code>, <code>Failover</code>, <code>Shared</code></td></tr>
 <tr><td style="text-align:left">`receiverQueueSize</td></tr>
 <tr><td style="text-align:left">`</td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
@@ -212,7 +212,7 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID</td></tr>
-<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的有效载荷</td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
 <tr><td style="text-align:left">`publishTime</td></tr>
 <tr><td style="text-align:left">`</td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">发布时间戳</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的属性</td></tr>
@@ -264,7 +264,7 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID</td></tr>
-<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的有效载荷</td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
 <tr><td style="text-align:left">`publishTime</td></tr>
 <tr><td style="text-align:left">`</td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">发布时间戳</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的属性</td></tr>
@@ -285,7 +285,7 @@
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">处理消息的消息ID</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="error-codes"></a><a href="#error-codes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Error codes</h3>
+<h3><a class="anchor" aria-hidden="true" id="错误代码"></a><a href="#错误代码" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>错误代码</h3>
 <p>In case of error the server will close the WebSocket session using the following error codes:</p>
 <table>
 <thead>
@@ -303,9 +303,9 @@
 </tbody>
 </table>
 <blockquote>
-<p>The application is responsible for re-establishing a new WebSocket session after a backoff period.</p>
+<p>应用程序负责在后台重新建立新的 WebSocket 会话。</p>
 </blockquote>
-<h2><a class="anchor" aria-hidden="true" id="client-examples"></a><a href="#client-examples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client examples</h2>
+<h2><a class="anchor" aria-hidden="true" id="客户端示例"></a><a href="#客户端示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端示例</h2>
 <p>Below you'll find code examples for the Pulsar WebSocket API in <a href="#python">Python</a> and <a href="#nodejs">Node.js</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="python"></a><a href="#python" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python</h3>
 <p>This example uses the <a href="https://pypi.python.org/pypi/websocket-client"><code>websocket-client</code></a> package. You can install it using <a href="https://pypi.python.org/pypi/pip">pip</a>:</p>
@@ -431,7 +431,7 @@ ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><s
     ws.send(<span class="hljs-built_in">JSON</span>.stringify(ackMsg));
 });
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.1-incubating/client-libraries-cpp"><span class="arrow-prev">← </span><span>C++</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.1-incubating/admin-api-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#运行-websocket-服务">运行 WebSocket 服务</a><ul class="toc-headings"><li><a href="#嵌入pulsar-broker">嵌入Pulsar Broker</a></li><li><a href="#作为一个独立的组件">作为一个独立的组件</a></li><li><a href="#启动-broker">启动 Broker</a></li></ul></li><li><a href="#api-手册">API 手册：</a><ul class="toc-headings"><li><a href="#生产者端">生产者端</a></li><li><a href="#消费端">消费端</a></li><li><a href="#阅读端">阅读端</a></li><li><a href="#error-codes">Error codes</a></li></ul></li><li><a href="#client-examples">Client examples</a><ul class="toc-headings"><li><a href="#python">Python</a></li><li><a href="#nodejs">Node.js</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.1-incubating/client-libraries-cpp"><span class="arrow-prev">← </span><span>C++</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.1-incubating/admin-api-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#运行-websocket-服务">运行 WebSocket 服务</a><ul class="toc-headings"><li><a href="#嵌入-pulsar-broker">嵌入 Pulsar Broker</a></li><li><a href="#作为一个独立的组件">作为一个独立的组件</a></li><li><a href="#启动-broker">启动 Broker</a></li></ul></li><li><a href="#api-手册">API 手册：</a><ul class="toc-headings"><li><a href="#生产者端">生产者端</a></li><li><a href="#消费端">消费端</a></li><li><a href="#阅读端">阅读端</a></li><li><a href="#错误代码">错误代码</a></li></ul></li><li><a href="#客户端示例">客户端示例</a><ul class="toc-headings"><li><a href="#python">Python</a></li><li><a href="#nodejs">Node.js</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
