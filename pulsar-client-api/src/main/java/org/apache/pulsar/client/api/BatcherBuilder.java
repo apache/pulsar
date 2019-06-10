@@ -34,7 +34,7 @@ public interface BatcherBuilder {
      * batched into single batch message:
      * [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
      */
-    BatcherBuilder DEFAULT = DefaultImplementation.newDefaultBatchMessageContainerBuilder();
+    BatcherBuilder DEFAULT = DefaultImplementation.newDefaultBatcherBuilder();
 
     /**
      * Key based batch message container
@@ -45,7 +45,7 @@ public interface BatcherBuilder {
      * batched into multiple batch messages:
      * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
      */
-    BatcherBuilder KEY_BASED = DefaultImplementation.newKeyBasedBatchMessageContainerBuilder();
+    BatcherBuilder KEY_BASED = DefaultImplementation.newKeyBasedBatcherBuilder();
 
     /**
      * Build a new batch message container.

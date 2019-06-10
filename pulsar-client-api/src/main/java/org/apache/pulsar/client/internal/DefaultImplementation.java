@@ -284,13 +284,13 @@ public class DefaultImplementation {
                         String.class).newInstance(name));
     }
 
-    public static BatcherBuilder newDefaultBatchMessageContainerBuilder() {
+    public static BatcherBuilder newDefaultBatcherBuilder() {
         return catchExceptions(
             () -> (BatcherBuilder) getConstructor("org.apache.pulsar.client.impl.DefaultBatcherBuilder")
                     .newInstance());
     }
 
-    public static BatcherBuilder newKeyBasedBatchMessageContainerBuilder() {
+    public static BatcherBuilder newKeyBasedBatcherBuilder() {
         return catchExceptions(
                 () -> (BatcherBuilder) getConstructor("org.apache.pulsar.client.impl.KeyBasedBatcherBuilder")
                         .newInstance());
