@@ -243,7 +243,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 401, message = "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 406, message = "Number of partitions should be more than 1"),
+            @ApiResponse(code = 406, message = "The number of partitions should be more than 1"),
             @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
             @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -552,7 +552,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Subscription to be skip messages on")
+            @ApiParam(value = "Name of subscription")
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -562,12 +562,12 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/skip/{numMessages}")
-    @ApiOperation(value = "Skip messages on a topic subscription.")
+    @ApiOperation(value = "Skipping messages on a topic subscription.")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
-            @ApiResponse(code = 405, message = "Skip messages on a partitioned topic is not allowed"),
+            @ApiResponse(code = 405, message = "Skipping messages on a partitioned topic is not allowed"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
@@ -578,9 +578,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Subscription to be skip messages on")
+            @ApiParam(value = "Name of subscription")
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Number of messages to skip", defaultValue = "0")
+            @ApiParam(value = "The number of messages to skip", defaultValue = "0")
             @PathParam("numMessages") int numMessages,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -590,13 +590,13 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/expireMessages/{expireTimeInSeconds}")
-    @ApiOperation(value = "Expire messages on a topic subscription.")
+    @ApiOperation(value = "Expiry messages on a topic subscription.")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
-            @ApiResponse(code = 405, message = "Expire messages on a non-persistent topic is not allowed"),
+            @ApiResponse(code = 405, message = "Expiry messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
     public void expireTopicMessages(
@@ -606,7 +606,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Subscription to be expire messages on")
+            @ApiParam(value = "Subscription to be Expiry messages on")
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "Expires beyond the specified number of seconds", defaultValue = "0")
             @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
@@ -618,13 +618,13 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/all_subscription/expireMessages/{expireTimeInSeconds}")
-    @ApiOperation(value = "Expire messages on all subscriptions of topic.")
+    @ApiOperation(value = "Expiry messages on all subscriptions of topic.")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
-            @ApiResponse(code = 405, message = "Expire messages on a non-persistent topic is not allowed"),
+            @ApiResponse(code = 405, message = "Expiry messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 412, message = "Can't find owner for topic"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
@@ -743,7 +743,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist"),
-            @ApiResponse(code = 405, message = "Skip messages on a non-persistent topic is not allowed"),
+            @ApiResponse(code = 405, message = "Skipping messages on a non-persistent topic is not allowed"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
@@ -756,7 +756,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(name = "subName", value = "Subscribed message expired", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Number of messages (default 1)", defaultValue = "1")
+            @ApiParam(value = "The number of messages (default 1)", defaultValue = "1")
             @PathParam("messagePosition") int messagePosition,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -818,7 +818,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
-            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 409, message = "Compaction already running"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -844,7 +844,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist, or compaction hasn't run"),
-            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
@@ -869,7 +869,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
-            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 409, message = "Offload already running"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -896,7 +896,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
-            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
@@ -921,7 +921,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
-            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
