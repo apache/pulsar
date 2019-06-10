@@ -18,11 +18,13 @@
 #
 
 import logging
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.template import loader
 from django.urls import reverse
 from django.views import generic
-from django.db.models import Q
+from django.db.models import Q, IntegerField
+from dashboard import settings
+import requests, json, re
 
 from django.http import HttpResponseRedirect, HttpResponse
 from .models import *
@@ -42,9 +44,16 @@ class HomeView(generic.ListView):
 def home(request):
     ts = get_timestamp()
     properties = Property.objects.filter(
-            namespace__topic__timestamp = ts,
         ).annotate(
-            numNamespaces = Count('namespace__name', distinct=True),
+            numNamespaces = Subquery(
+                Namespace.objects.filter(
+                    deleted=False,
+                    property=OuterRef('pk')
+                ).values('property')
+                    .annotate(cnt=Count('pk'))
+                    .values('cnt'),
+                output_field=IntegerField()
+            ),
             numTopics    = Count('namespace__topic__name', distinct=True),
             numProducers = Sum('namespace__topic__producerCount'),
             numSubscriptions = Sum('namespace__topic__subscriptionCount'),
@@ -71,7 +80,8 @@ def property(request, property_name):
     ts = get_timestamp()
     namespaces = Namespace.objects.filter(
             property = property,
-            topic__timestamp = ts,
+            timestamp = ts,
+            deleted = False,
         ).annotate(
             numTopics    = Count('topic'),
             numProducers = Sum('topic__producerCount'),
@@ -97,18 +107,20 @@ def property(request, property_name):
 def namespace(request, namespace_name):
     selectedClusterName = request.GET.get('cluster')
 
-    namespace = get_object_or_404(Namespace, name=namespace_name)
+    namespace = get_object_or_404(Namespace, name=namespace_name, timestamp=get_timestamp(), deleted=False)
     topics = Topic.objects.select_related('broker', 'namespace', 'cluster')
     if selectedClusterName:
         topics = topics.filter(
                     namespace     = namespace,
                     timestamp     = get_timestamp(),
-                    cluster__name = selectedClusterName
+                    cluster__name = selectedClusterName,
+                    deleted       = False
                 )
     else:
         topics = topics.filter(
                     namespace = namespace,
-                    timestamp = get_timestamp()
+                    timestamp = get_timestamp(),
+                    deleted   = False
                 )
 
     topics = Table(request, topics, default_sort='name')
@@ -119,6 +131,15 @@ def namespace(request, namespace_name):
         'selectedCluster' : selectedClusterName,
     })
 
+
+def deleteNamespace(request, namespace_name):
+    url = settings.SERVICE_URL + '/admin/v2/namespaces/' + namespace_name
+    response = requests.delete(url)
+    status = response.status_code
+    logger.debug("Delete namespace " + namespace_name + " status - " + str(status))
+    if status == 204:
+        Namespace.objects.filter(name=namespace_name, timestamp=get_timestamp()).update(deleted=True)
+    return redirect('property', property_name=namespace_name.split('/', 1)[0])
 
 def topic(request, topic_name):
     timestamp = get_timestamp()
@@ -131,7 +152,7 @@ def topic(request, topic_name):
         clusters = [x.cluster for x in Topic.objects.filter(name=topic_name, timestamp=timestamp).order_by('cluster__name')]
     else:
         topic = get_object_or_404(Topic, name=topic_name, timestamp=timestamp)
-    subscriptions = Subscription.objects.filter(topic=topic).order_by('name')
+    subscriptions = Subscription.objects.filter(topic=topic, timestamp=timestamp, deleted=False).order_by('name')
 
     subs = []
 
@@ -170,11 +191,13 @@ def topics(request):
     if selectedClusterName:
         topics = topics.filter(
                     timestamp     = get_timestamp(),
-                    cluster__name = selectedClusterName
+                    cluster__name = selectedClusterName,
+                    deleted = False
                 )
     else:
         topics = topics.filter(
-                    timestamp = get_timestamp()
+                    timestamp = get_timestamp(),
+                    deleted = False
                 )
 
     topics = Table(request, topics, default_sort='cluster__name')
@@ -282,3 +305,55 @@ def clusters(request):
     return render(request, 'stats/clusters.html', {
         'clusters' : clusters,
     })
+
+
+def clearSubscription(request, topic_name, subscription_name):
+    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name + '/skip_all'
+    requests.post(url)
+    return redirect('topic', topic_name=topic_name)
+
+def deleteSubscription(request, topic_name, subscription_name):
+    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name
+    response = requests.delete(url)
+    status = response.status_code
+    if status == 204:
+        ts = get_timestamp()
+        topic_db_name = 'persistent://' + topic_name.split('persistent/', 1)[1]
+        topic = Topic.objects.filter(name=topic_db_name, timestamp=ts)[0]
+        Subscription.objects.filter(name=subscription_name, topic=topic, timestamp=ts).update(deleted=True)
+        subscriptions = Subscription.objects.filter(topic=topic, deleted=False, timestamp=ts)
+        if not subscriptions:
+            topic.deleted=True
+            topic.save(update_fields=['deleted'])
+            m = re.search(r"persistent/(?P<namespace>.*)/.*", topic_name)
+            namespace_name = m.group("namespace")
+            return redirect('namespace', namespace_name=namespace_name)
+    return redirect('topic', topic_name=topic_name)
+
+def messages(request, topic_name, subscription_name):
+    topic_name = 'persistent://' + topic_name.split('persistent/', 1)[1]
+    timestamp = get_timestamp()
+    cluster_name = request.GET.get('cluster')
+
+    if cluster_name:
+        topic = get_object_or_404(Topic, name=topic_name, cluster__name=cluster_name, timestamp=timestamp)
+    else:
+        topic = get_object_or_404(Topic, name=topic_name, timestamp=timestamp)
+    subscription = get_object_or_404(Subscription, topic=topic, name=subscription_name)
+
+    return render(request, 'stats/messages.html', {
+        'topic' : topic,
+        'subscription' : subscription,
+        'title' : topic.name,
+        'subtitle' : subscription_name,
+    })
+
+def peek(request, topic_name, subscription_name, message_number):
+    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name + '/position/' + message_number
+    response = requests.get(url)
+    message = response.text
+    message = message[message.index('{'):]
+    context = {
+        'message_body' : json.dumps(json.loads(message), indent=4),
+    }
+    return render(request, 'stats/peek.html', context)
