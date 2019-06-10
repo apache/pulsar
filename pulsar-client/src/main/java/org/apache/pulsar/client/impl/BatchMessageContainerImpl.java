@@ -23,16 +23,16 @@ import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import io.netty.util.ReferenceCountUtil;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.api.Commands;
+
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

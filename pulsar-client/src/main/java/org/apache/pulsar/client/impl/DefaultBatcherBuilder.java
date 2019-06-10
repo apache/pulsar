@@ -19,9 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.BatchMessageContainer;
-import org.apache.pulsar.client.api.BatchMessageContainerBuilder;
+import org.apache.pulsar.client.api.BatcherBuilder;
 
-public class DefaultBatchMessageContainerBuilder implements BatchMessageContainerBuilder {
+public class DefaultBatcherBuilder implements BatcherBuilder {
 
     @Override
     public BatchMessageContainer build() {

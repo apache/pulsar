@@ -36,7 +36,7 @@ import java.util.function.Supplier;
 import lombok.experimental.UtilityClass;
 
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.BatchMessageContainerBuilder;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -284,15 +284,15 @@ public class DefaultImplementation {
                         String.class).newInstance(name));
     }
 
-    public static BatchMessageContainerBuilder newDefaultBatchMessageContainerBuilder() {
+    public static BatcherBuilder newDefaultBatchMessageContainerBuilder() {
         return catchExceptions(
-            () -> (BatchMessageContainerBuilder) getConstructor("org.apache.pulsar.client.impl.DefaultBatchMessageContainerBuilder")
+            () -> (BatcherBuilder) getConstructor("org.apache.pulsar.client.impl.DefaultBatcherBuilder")
                     .newInstance());
     }
 
-    public static BatchMessageContainerBuilder newKeyBasedBatchMessageContainerBuilder() {
+    public static BatcherBuilder newKeyBasedBatchMessageContainerBuilder() {
         return catchExceptions(
-                () -> (BatchMessageContainerBuilder) getConstructor("org.apache.pulsar.client.impl.KeyBasedBatchMessageContainerBuilder")
+                () -> (BatcherBuilder) getConstructor("org.apache.pulsar.client.impl.KeyBasedBatcherBuilder")
                         .newInstance());
     }
 }

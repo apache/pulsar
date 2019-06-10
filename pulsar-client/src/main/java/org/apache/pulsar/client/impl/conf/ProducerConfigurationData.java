@@ -26,9 +26,8 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.NoArgsConstructor;
-import org.apache.pulsar.client.api.BatchMessageContainerBuilder;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -67,7 +66,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
     private int batchingMaxMessages = 1000;
     private boolean batchingEnabled = true; // enabled by default
-    private BatchMessageContainerBuilder batchMessageContainerBuilder = BatchMessageContainerBuilder.DEFAULT;
+    private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;

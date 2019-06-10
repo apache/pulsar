@@ -24,10 +24,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +35,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -49,7 +51,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
-    private ConcurrentHashMap<String, KeyedBatch> batches = new ConcurrentHashMap<>();
+    private Map<String, KeyedBatch> batches = new HashMap<>();
 
     @Override
     public void add(MessageImpl<?> msg, SendCallback callback) {

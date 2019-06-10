@@ -301,7 +301,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             producer = pulsarClient.newProducer(Schema.INT32)
                     .topic(topic)
                     .enableBatching(true)
-                    .batchingContainerBuilder(BatchMessageContainerBuilder.KEY_BASED)
+                    .batcherBuilder(BatcherBuilder.KEY_BASED)
                     .create();
         } else {
             producer = pulsarClient.newProducer(Schema.INT32)

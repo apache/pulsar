@@ -59,7 +59,7 @@ public class ConfigurationDataUtilsTest {
         Map<String, Object> config = new HashMap<>();
         config.put("producerName", "test-producer");
         config.put("batchingEnabled", false);
-        confData.setBatchMessageContainerBuilder(null);
+        confData.setBatcherBuilder(null);
         confData = ConfigurationDataUtils.loadData(config, confData, ProducerConfigurationData.class);
         assertEquals("test-producer", confData.getProducerName());
         assertEquals(false, confData.isBatchingEnabled());

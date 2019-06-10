@@ -21,9 +21,9 @@ package org.apache.pulsar.client.api;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
- * Batch message container builder
+ * Batcher builder
  */
-public interface BatchMessageContainerBuilder {
+public interface BatcherBuilder {
 
     /**
      * Default batch message container
@@ -34,7 +34,7 @@ public interface BatchMessageContainerBuilder {
      * batched into single batch message:
      * [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
      */
-    BatchMessageContainerBuilder DEFAULT = DefaultImplementation.newDefaultBatchMessageContainerBuilder();
+    BatcherBuilder DEFAULT = DefaultImplementation.newDefaultBatchMessageContainerBuilder();
 
     /**
      * Key based batch message container
@@ -45,7 +45,7 @@ public interface BatchMessageContainerBuilder {
      * batched into multiple batch messages:
      * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
      */
-    BatchMessageContainerBuilder KEY_BASED = DefaultImplementation.newKeyBasedBatchMessageContainerBuilder();
+    BatcherBuilder KEY_BASED = DefaultImplementation.newKeyBasedBatchMessageContainerBuilder();
 
     /**
      * Build a new batch message container.

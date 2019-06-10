@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
-import org.apache.pulsar.client.api.BatchMessageContainerBuilder;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -164,9 +164,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         if (conf.isBatchingEnabled()) {
             this.maxNumMessagesInBatch = conf.getBatchingMaxMessages();
-            BatchMessageContainerBuilder containerBuilder = conf.getBatchMessageContainerBuilder();
+            BatcherBuilder containerBuilder = conf.getBatcherBuilder();
             if (containerBuilder == null) {
-                containerBuilder = BatchMessageContainerBuilder.DEFAULT;
+                containerBuilder = BatcherBuilder.DEFAULT;
             }
             this.batchMessageContainer = (BatchMessageContainerBase)containerBuilder.build();
             this.batchMessageContainer.setProducer(this);

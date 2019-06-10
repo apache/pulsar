@@ -29,7 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.BatchMessageContainerBuilder;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -225,8 +225,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> batchingContainerBuilder(BatchMessageContainerBuilder batchingContainerBuilder) {
-        conf.setBatchMessageContainerBuilder(batchingContainerBuilder);
+    public ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder) {
+        conf.setBatcherBuilder(batcherBuilder);
         return this;
     }
 
