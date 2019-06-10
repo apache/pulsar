@@ -20,7 +20,6 @@
 package org.apache.pulsar.proxy.server;
 
 
-import avro.shaded.com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -28,6 +27,7 @@ import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import java.util.ArrayList;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
@@ -88,7 +88,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
         PulsarApi.BaseCommand cmd = null;
         PulsarApi.BaseCommand.Builder cmdBuilder = null;
         TopicName topicName ;
-        List<RawMessage> messages = Lists.newArrayList();
+        List<RawMessage> messages = new ArrayList();
         ByteBuf buffer = (ByteBuf)(msg);
 
         try {

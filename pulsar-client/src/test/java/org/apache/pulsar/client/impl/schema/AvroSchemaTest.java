@@ -27,8 +27,10 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
-import java.util.Date;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -50,8 +52,6 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
 import org.joda.time.chrono.ISOChronology;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -290,9 +290,9 @@ public class AvroSchemaTest {
     NasaMission nasaMission = NasaMission.newBuilder()
         .setId(1001)
         .setName("one")
-        .setCreateYear(new LocalDate(new Date().getTime()))
-        .setCreateTime(new LocalTime(new Date().getTime()))
-        .setCreateTimestamp(new DateTime(new Date().getTime()))
+        .setCreateYear(LocalDate.now())
+        .setCreateTime(LocalTime.now())
+        .setCreateTimestamp(Instant.now())
         .build();
 
     byte[] bytes = avroSchema.encode(nasaMission);
