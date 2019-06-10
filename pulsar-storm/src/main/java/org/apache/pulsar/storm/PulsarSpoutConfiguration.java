@@ -47,7 +47,6 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
 
     private SubscriptionType subscriptionType = SubscriptionType.Shared;
     private boolean autoUnsubscribe = false;
-    private int consumerReceiverQueueSize = 1000;
     private boolean durableSubscription = true;
     // read position if non-durable subscription is enabled : default oldest message available in topic
     private MessageId nonDurableSubscriptionReadPosition = MessageId.earliest; 
@@ -77,19 +76,6 @@ public class PulsarSpoutConfiguration extends PulsarStormConfiguration {
         this.subscriptionType = subscriptionType;
     }
 
-    public int getConsumerReceiverQueueSize() {
-        return consumerReceiverQueueSize;
-    }
-
-    /**
-     * Receiver queue size of pulsar-spout consumer.
-     * 
-     * @param consumerReceiverQueueSize
-     */
-    public void setConsumerReceiverQueueSize(int consumerReceiverQueueSize) {
-        this.consumerReceiverQueueSize = consumerReceiverQueueSize;
-    }
-    
     /**
      * @return the mapper to convert pulsar message to a storm tuple
      */
