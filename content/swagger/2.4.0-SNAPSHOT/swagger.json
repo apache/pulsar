@@ -526,7 +526,7 @@
         "produces" : [ "application/json" ],
         "responses" : {
           "200" : {
-            "description" : "successful operation",
+            "description" : "Return a list of clusters.",
             "schema" : {
               "type" : "array",
               "uniqueItems" : true,
@@ -535,8 +535,8 @@
               }
             }
           },
-          "403" : {
-            "description" : "Don't have admin permission"
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       }
@@ -544,106 +544,144 @@
     "/clusters/{cluster}" : {
       "get" : {
         "tags" : [ "clusters" ],
-        "summary" : "Get the configuration data for the specified cluster.",
-        "description" : "",
+        "summary" : "Get the configuration for the specified cluster.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "getCluster",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "200" : {
-            "description" : "successful operation",
+            "description" : "Return the cluster data.",
             "schema" : {
               "$ref" : "#/definitions/ClusterData"
             }
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission."
           },
           "404" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       },
       "post" : {
         "tags" : [ "clusters" ],
         "summary" : "Update the configuration for a cluster.",
-        "description" : "This operation requires Pulsar super-user privileges.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "updateCluster",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The cluster data",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/definitions/ClusterData"
+          },
+          "x-examples" : {
+            "application/json" : "{\n   'serviceUrl': 'http://pulsar.example.com:8080',\n   'brokerServiceUrl': 'pulsar://pulsar.example.com:6651'\n}"
+          }
         } ],
         "responses" : {
           "204" : {
-            "description" : "Cluster has been updated"
+            "description" : "Cluster has been updated."
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission or policies are read-only."
           },
           "404" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       },
       "put" : {
         "tags" : [ "clusters" ],
-        "summary" : "Provisions a new cluster. This operation requires Pulsar super-user privileges.",
-        "description" : "The name cannot contain '/' characters.",
+        "summary" : "Create a new cluster.",
+        "description" : "This operation requires Pulsar superuser privileges, and the name cannot contain the '/' characters.",
         "operationId" : "createCluster",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The cluster data",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/definitions/ClusterData"
+          },
+          "x-examples" : {
+            "application/json" : "{\n   'serviceUrl': 'http://pulsar.example.com:8080',\n   'brokerServiceUrl': 'pulsar://pulsar.example.com:6651',\n}"
+          }
         } ],
         "responses" : {
           "204" : {
-            "description" : "Cluster has been created"
+            "description" : "Cluster has been created."
           },
           "403" : {
-            "description" : "You don't have admin permission to create the cluster"
+            "description" : "You don't have admin permission to create the cluster."
           },
           "409" : {
-            "description" : "Cluster already exists"
+            "description" : "Cluster already exists."
           },
           "412" : {
-            "description" : "Cluster name is not valid"
+            "description" : "Cluster name is not valid."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       },
       "delete" : {
         "tags" : [ "clusters" ],
-        "summary" : "Delete an existing cluster",
-        "description" : "",
+        "summary" : "Delete an existing cluster.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "deleteCluster",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "204" : {
-            "description" : "Cluster has been updated"
+            "description" : "Cluster has been deleted."
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission or policies are read-only."
           },
           "404" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
           },
           "412" : {
-            "description" : "Cluster is not empty"
+            "description" : "Cluster is not empty."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       }
@@ -651,13 +689,14 @@
     "/clusters/{cluster}/failureDomains" : {
       "get" : {
         "tags" : [ "clusters" ],
-        "summary" : "Get the cluster failure domains",
-        "description" : "",
+        "summary" : "Get the cluster failure domains.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "getFailureDomains",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         } ],
@@ -673,6 +712,9 @@
           },
           "403" : {
             "description" : "Don't have admin permission"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -681,17 +723,19 @@
       "get" : {
         "tags" : [ "clusters" ],
         "summary" : "Get a domain in a cluster",
-        "description" : "",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "getDomain",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "domainName",
           "in" : "path",
+          "description" : "The failure domain name",
           "required" : true,
           "type" : "string"
         } ],
@@ -706,65 +750,92 @@
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Domain doesn't exist"
+            "description" : "FailureDomain doesn't exist"
           },
           "412" : {
             "description" : "Cluster doesn't exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       },
       "post" : {
         "tags" : [ "clusters" ],
-        "summary" : "Set cluster's failure Domain",
-        "description" : "",
+        "summary" : "Set the failure domain of the cluster.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "setFailureDomain",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "domainName",
           "in" : "path",
+          "description" : "The failure domain name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The configuration data of a failure domain",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/definitions/FailureDomain"
+          }
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission."
           },
           "404" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Failure domain doesn't exist."
           },
           "409" : {
-            "description" : "Broker already exists in another domain"
+            "description" : "Broker already exists in another domain."
+          },
+          "412" : {
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       },
       "delete" : {
         "tags" : [ "clusters" ],
-        "summary" : "Delete cluster's failure omain",
-        "description" : "",
+        "summary" : "Delete the failure domain of the cluster",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "deleteFailureDomain",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "domainName",
           "in" : "path",
+          "description" : "The failure domain name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission or plicy is read only"
+            "description" : "Don't have admin permission or policy is read only"
+          },
+          "404" : {
+            "description" : "FailureDomain doesn't exist"
           },
           "412" : {
             "description" : "Cluster doesn't exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -772,13 +843,14 @@
     "/clusters/{cluster}/namespaceIsolationPolicies" : {
       "get" : {
         "tags" : [ "clusters" ],
-        "summary" : "Get the namespace isolation policies assigned in the cluster",
-        "description" : "",
+        "summary" : "Get the namespace isolation policies assigned to the cluster.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "getNamespaceIsolationPolicies",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         } ],
@@ -793,10 +865,13 @@
             }
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission."
           },
           "404" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       }
@@ -804,13 +879,14 @@
     "/clusters/{cluster}/namespaceIsolationPolicies/brokers" : {
       "get" : {
         "tags" : [ "clusters" ],
-        "summary" : "Get list of brokers with namespace-isolation policies attached to them",
-        "description" : "",
+        "summary" : "Get list of brokers with namespace-isolation policies attached to them.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "getBrokersWithNamespaceIsolationPolicy",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         } ],
@@ -818,17 +894,24 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/BrokerNamespaceIsolationData"
+              "type" : "array",
+              "uniqueItems" : true,
+              "items" : {
+                "$ref" : "#/definitions/BrokerNamespaceIsolationData"
+              }
             }
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission."
           },
           "404" : {
-            "description" : "Namespace-isolation policies not found"
+            "description" : "Namespace-isolation policies not found."
           },
           "412" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       }
@@ -836,20 +919,23 @@
     "/clusters/{cluster}/namespaceIsolationPolicies/brokers/{broker}" : {
       "get" : {
         "tags" : [ "clusters" ],
-        "summary" : "Get a broker with namespace-isolation policies attached to it",
-        "description" : "",
+        "summary" : "Get a broker with namespace-isolation policies attached to it.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "getBrokerWithNamespaceIsolationPolicy",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "broker",
           "in" : "path",
+          "description" : "The broker name (<broker-hostname>:<web-service-port>)",
           "required" : true,
-          "type" : "string"
+          "type" : "string",
+          "x-example" : "broker1:8080"
         } ],
         "responses" : {
           "200" : {
@@ -859,13 +945,16 @@
             }
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission."
           },
           "404" : {
-            "description" : "Namespace-isolation policies/ Broker not found"
+            "description" : "Namespace-isolation policies/ Broker not found."
           },
           "412" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       }
@@ -873,18 +962,20 @@
     "/clusters/{cluster}/namespaceIsolationPolicies/{policyName}" : {
       "get" : {
         "tags" : [ "clusters" ],
-        "summary" : "Get a single namespace isolation policy assigned in the cluster",
-        "description" : "",
+        "summary" : "Get the single namespace isolation policy assigned to the cluster.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "getNamespaceIsolationPolicy",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "policyName",
           "in" : "path",
+          "description" : "The name of the namespace isolation policy",
           "required" : true,
           "type" : "string"
         } ],
@@ -896,65 +987,95 @@
             }
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission."
           },
           "404" : {
-            "description" : "Policy doesn't exist"
+            "description" : "Policy doesn't exist."
           },
           "412" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       },
       "post" : {
         "tags" : [ "clusters" ],
-        "summary" : "Set namespace isolation policy",
-        "description" : "",
+        "summary" : "Set namespace isolation policy.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "setNamespaceIsolationPolicy",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "policyName",
           "in" : "path",
+          "description" : "The namespace isolation policy name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The namespace isolation policy data",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/definitions/NamespaceIsolationData"
+          }
         } ],
         "responses" : {
+          "400" : {
+            "description" : "Namespace isolation policy data is invalid."
+          },
           "403" : {
-            "description" : "Don't have admin permission or plicy is read only"
+            "description" : "Don't have admin permission or policies are read-only."
+          },
+          "404" : {
+            "description" : "Namespace isolation policy doesn't exist."
           },
           "412" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       },
       "delete" : {
         "tags" : [ "clusters" ],
-        "summary" : "Delete namespace isolation policy",
-        "description" : "",
+        "summary" : "Delete namespace isolation policy.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "deleteNamespaceIsolationPolicy",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "policyName",
           "in" : "path",
+          "description" : "The namespace isolation policy name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "403" : {
-            "description" : "Don't have admin permission or plicy is read only"
+            "description" : "Don't have admin permission or policies are read only."
+          },
+          "404" : {
+            "description" : "Namespace isolation policy doesn't exist."
           },
           "412" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       }
@@ -963,12 +1084,13 @@
       "get" : {
         "tags" : [ "clusters" ],
         "summary" : "Get the peer-cluster data for the specified cluster.",
-        "description" : "",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "getPeerCluster",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
         } ],
@@ -979,42 +1101,63 @@
               "type" : "array",
               "uniqueItems" : true,
               "items" : {
-                "type" : "object"
+                "type" : "string"
               }
             }
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission."
           },
           "404" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       },
       "post" : {
         "tags" : [ "clusters" ],
         "summary" : "Update peer-cluster-list for a cluster.",
-        "description" : "This operation requires Pulsar super-user privileges.",
+        "description" : "This operation requires Pulsar superuser privileges.",
         "operationId" : "setPeerClusterNames",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "cluster",
           "in" : "path",
+          "description" : "The cluster name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The list of peer cluster names",
+          "required" : true,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "x-examples" : {
+            "application/json" : "[\n   'cluster-a',\n   'cluster-b'\n]"
+          }
         } ],
         "responses" : {
           "204" : {
-            "description" : "Cluster has been updated"
+            "description" : "Cluster has been updated."
           },
           "403" : {
-            "description" : "Don't have admin permission"
+            "description" : "Don't have admin permission or policies are read-only."
           },
           "404" : {
-            "description" : "Cluster doesn't exist"
+            "description" : "Cluster doesn't exist."
           },
           "412" : {
-            "description" : "Peer cluster doesn't exist"
+            "description" : "Peer cluster doesn't exist."
+          },
+          "500" : {
+            "description" : "Internal server error."
           }
         }
       }
@@ -6825,15 +6968,19 @@
       "properties" : {
         "policy_type" : {
           "type" : "string",
+          "description" : "The auto failover policy type",
           "enum" : [ "min_available" ]
         },
         "parameters" : {
           "type" : "object",
+          "example" : "{\n  \"min_limit\": 3,\n  \"usage_threshold\": 80\n}\n",
+          "description" : "The parameters applied to the auto failover policy specified by `policy_type`.\nThe parameters for 'min_available' are :\n  - 'min_limit': the limit of minimal number of available brokers in primary group before auto failover\n  - 'usage_threshold': the resource usage threshold. If the usage of a broker is beyond this value, it would be marked as unavailable\n",
           "additionalProperties" : {
             "type" : "string"
           }
         }
-      }
+      },
+      "description" : "The auto failover policy configuration data"
     },
     "BacklogQuota" : {
       "type" : "object",
@@ -6863,15 +7010,19 @@
       "type" : "object",
       "properties" : {
         "brokerName" : {
-          "type" : "string"
+          "type" : "string",
+          "example" : "broker1:8080",
+          "description" : "The broker name"
         },
         "namespaceRegex" : {
           "type" : "array",
+          "description" : "The namespace-isolation policies attached to this broker",
           "items" : {
             "type" : "string"
           }
         }
-      }
+      },
+      "description" : "The namespace isolation data for a given broker"
     },
     "BundlesData" : {
       "type" : "object",
@@ -6892,25 +7043,35 @@
       "type" : "object",
       "properties" : {
         "serviceUrl" : {
-          "type" : "string"
+          "type" : "string",
+          "example" : "http://pulsar.example.com:8080",
+          "description" : "The HTTP rest service URL (for admin operations)"
         },
         "serviceUrlTls" : {
-          "type" : "string"
+          "type" : "string",
+          "example" : "https://pulsar.example.com:8443",
+          "description" : "The HTTPS rest service URL (for admin operations)"
         },
         "brokerServiceUrl" : {
-          "type" : "string"
+          "type" : "string",
+          "example" : "pulsar://pulsar.example.com:6650",
+          "description" : "The broker service url (for produce and consume operations)"
         },
         "brokerServiceUrlTls" : {
-          "type" : "string"
+          "type" : "string",
+          "example" : "pulsar+ssl://pulsar.example.com:6651",
+          "description" : "The secured broker service url (for produce and consume operations)"
         },
         "peerClusterNames" : {
           "type" : "array",
+          "description" : "A set of peer cluster names",
           "uniqueItems" : true,
           "items" : {
             "type" : "string"
           }
         }
-      }
+      },
+      "description" : "The configuration data for a cluster"
     },
     "ConsumerStats" : {
       "type" : "object",
@@ -7056,12 +7217,15 @@
       "properties" : {
         "brokers" : {
           "type" : "array",
+          "example" : "[ 'broker-1', 'broker-2' ]",
+          "description" : "The collection of brokers in the same failure domain",
           "uniqueItems" : true,
           "items" : {
             "type" : "string"
           }
         }
-      }
+      },
+      "description" : "The data of a failure domain configuration in a cluster"
     },
     "GetSchemaResponse" : {
       "type" : "object",
@@ -7273,22 +7437,29 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
         "overLoaded" : {
           "type" : "boolean"
         },
         "loadReportType" : {
           "type" : "string"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -7299,14 +7470,7 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         }
       }
@@ -7402,26 +7566,25 @@
       "properties" : {
         "namespaces" : {
           "type" : "array",
+          "description" : "The list of namespaces to apply this namespace isolation data",
           "items" : {
             "type" : "string"
           }
         },
         "primary" : {
           "type" : "array",
-          "items" : {
-            "type" : "string"
-          }
-        },
-        "secondary" : {
-          "type" : "array",
+          "description" : "The list of secondary brokers for serving the list of namespaces in this isolation policy",
           "items" : {
             "type" : "string"
           }
         },
         "auto_failover_policy" : {
+          "example" : "{  \"policy_type\": \"min_available\"  \"parameters\": {    \"\": \"\"  }}",
+          "description" : "The data of auto-failover policy configuration",
           "$ref" : "#/definitions/AutoFailoverPolicyData"
         }
-      }
+      },
+      "description" : "The data of namespace isolation configuration"
     },
     "NamespaceOwnershipStatus" : {
       "type" : "object",
@@ -7467,13 +7630,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -8138,13 +8301,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
