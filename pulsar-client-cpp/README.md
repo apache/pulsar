@@ -130,15 +130,8 @@ brew install openssl
 export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
 export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
-# For Protobuf 2.6.0
-brew install boost boost-python log4cxx jsoncpp
-
-git clone https://github.com/google/protobuf.git
-cd protobuf
-git checkout v2.6.0
-./configure CC=clang CXX=clang++ CXXFLAGS='-std=c++11 -stdlib=libc++ -O3 -g' LDFLAGS='-stdlib=libc++' LIBS="-lc++ -lc++abi"
-make -j 4
-sudo make install
+# For Protobuf
+brew install protobuf boost boost-python log4cxx jsoncpp
 
 # For gtest
 cd $HOME
