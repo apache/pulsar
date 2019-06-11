@@ -121,6 +121,6 @@ To use localrun like above programmatically please addd the following dependency
 
 ```
 
-For complete code samples please visit [here](https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging)
+For complete code samples, please visit [here](https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging)
 
 In the future, debugging with localrun mode for Pulsar Functions written in other languages will be supported.
