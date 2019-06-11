@@ -33,8 +33,8 @@ import javax.ws.rs.client.WebTarget;
 
 public class ComponentResource extends BaseResource {
 
-    protected ComponentResource(Authentication auth, long connectTimeoutMs) {
-        super(auth, connectTimeoutMs);
+    protected ComponentResource(Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
     }
 
     public RequestBuilder addAuthHeaders(WebTarget target, RequestBuilder requestBuilder) throws PulsarAdminException {
