@@ -440,6 +440,8 @@ func main() {
 }
 ```
 
+When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/log`, and you do not have to use the `getLogger()` context object. The approach is different from Java Function and Python Function.
+
 ### User configuration
 
 You can pass arbitrary key-values to Pulsar Functions via the command line (both keys and values must be string). This set of key-values is called the functions **user configuration**. User configuration must consist of JSON strings.
