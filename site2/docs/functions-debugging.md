@@ -62,11 +62,13 @@ public void testExclamationFunction() {
 
 ## Debugging with localrun mode
 
-> Please note that there is currenlty only support for this for Pulsar Functions written in Java.  Users will need a Pulsar version > 2.4.9 to do the following. Even though localrun is available in older version of Pulsar, it does not have the functionally to be executed programmatically and run functions as threads.
+> Note
+>
+> Currently, debugging with localrun mode only supports Pulsar Functions written in Java. Users need Pulsar version 2.4.0 or later to do the following. Even though localrun is available in versions earlier than Pulsar 2.4.0, it does not have the functionality to be executed programmatically and run Functions as threads.
 
 To test in a more realistic fashion, a Pulsar Function can be run via localrun mode which will launch an instance of the Function on your local machine as a thread.
 
-In this mode, the Pulsar Function can consume and produce actual data to a Pulsar Cluster and mirrors how the function will actually run in a Pulsar Cluster.
+In this mode, the Pulsar Function can consume and produce actual data to a Pulsar cluster and mirrors how the function will actually run in a Pulsar cluster.
 
 Users can launch his or her function in the following manner:
 
@@ -82,9 +84,9 @@ LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).b
 localRunner.start(true);
 ```
 
-This allows users to easily debug functions using an IDE.  User's can set break points and manually set through a function to debug will real data.
+This allows users to easily debug functions using an IDE. Users can set breakpoints and manually step through a function to debug with real data.
 
-The code snippet below illustrates a more complete example of how to use launch a function via localrun programmatically.
+The following code snippet is a more complete example on how to programmatically launch a function in localrun mode.
 
 ```java
 public class ExclamationFunction implements Function<String, String> {
