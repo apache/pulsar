@@ -396,6 +396,10 @@
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.logging</shadedPattern>
                 </relocation>
                 -->
+                <relocation>
+                  <pattern>io.swagger</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.swagger</shadedPattern>
+                </relocation>
               </relocations>
             </configuration>
           </execution>
