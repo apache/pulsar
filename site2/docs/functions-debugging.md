@@ -4,6 +4,9 @@ title: Debugging Pulsar Functions
 sidebar_label: Debugging functions
 ---
 
+
+## Use unit test
+
 A Pulsar Function at its core is just a function with inputs and outputs, thus testing a Pulsar Function can be done in a similar way as testing any function.
 
 For example, if a user has the following Pulsar Function:
@@ -44,7 +47,7 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
-The user can write a unit test for this function as well. Just be remember to mock out the ```Context``` parameter.
+The user can write a unit test for this function as well. Remember to mock out the ```Context``` parameter.
 
 For example:
 
@@ -61,7 +64,7 @@ public void testExclamationFunction() {
 
 > Please note that there is currenlty only support for this for Pulsar Functions written in Java.  Users will need a Pulsar version > 2.4.9 to do the following. Even though localrun is available in older version of Pulsar, it does not have the functionally to be executed programmatically and run functions as threads.
 
-To test in a more realistic fashion, a Pulsar Function can be run via localrun mode which will launch a instance of the function on your local machine as a thread.
+To test in a more realistic fashion, a Pulsar Function can be run via localrun mode which will launch an instance of the Function on your local machine as a thread.
 
 In this mode, the Pulsar Function can consume and produce actual data to a Pulsar Cluster and mirrors how the function will actually run in a Pulsar Cluster.
 
@@ -118,4 +121,4 @@ To use localrun like above programmatically please addd the following dependency
 
 For complete code samples please visit [here](https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging)
 
-In the future, we will add native local run support for Pulsar Functions written in other languages.
+In the future, debugging with localrun mode for Pulsar Functions written in other languages will be supported.
