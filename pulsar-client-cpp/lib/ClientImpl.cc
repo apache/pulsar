@@ -35,6 +35,9 @@
 #include <algorithm>
 #include <regex>
 #include <mutex>
+#ifdef USE_LOG4CXX
+#include "Log4CxxLogger.h"
+#endif
 
 DECLARE_LOG_OBJECT()
 
