@@ -417,6 +417,29 @@ public class LoggerFunction implements Function<String, Void> {
 }
 ```
 
+The following is an example of [Go function](functions-api.md#go-logging) that logs at different log levels based on the function input.
+
+```
+import (
+	"context"
+
+	"github.com/apache/pulsar/pulsar-function-go/log"
+	"github.com/apache/pulsar/pulsar-function-go/pf"
+)
+
+func loggerFunc(ctx context.Context, input []byte) {
+	if len(input) <= 100 {
+		log.Infof("This input has a length of: %d", len(input))
+	} else {
+		log.Warnf("This input is getting too long! It has {%d} characters", len(input))
+	}
+}
+
+func main() {
+	pf.Start(loggerFunc)
+}
+```
+
 ### User configuration
 
 You can pass arbitrary key-values to Pulsar Functions via the command line (both keys and values must be string). This set of key-values is called the functions **user configuration**. User configuration must consist of JSON strings.
