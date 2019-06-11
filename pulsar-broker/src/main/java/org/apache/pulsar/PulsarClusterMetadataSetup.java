@@ -270,7 +270,7 @@ public class PulsarClusterMetadataSetup {
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
 
-    private static ZooKeeper initZk(String connection, int sessionTimeout) throws Exception {
+    public static ZooKeeper initZk(String connection, int sessionTimeout) throws Exception {
         ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
         int chrootIndex = connection.indexOf("/");
         if (chrootIndex > 0) {
