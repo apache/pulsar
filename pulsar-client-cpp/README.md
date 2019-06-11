@@ -131,8 +131,7 @@ export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
 export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # For Protobuf
-brew tap homebrew/versions
-brew install protobuf260 boost boost-python log4cxx jsoncpp
+brew install protobuf boost boost-python log4cxx jsoncpp
 
 # For gtest
 cd $HOME
