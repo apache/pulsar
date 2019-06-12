@@ -58,12 +58,12 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private static final Logger log = LoggerFactory.getLogger(FileSystemManagedLedgerOffloader.class);
     private static final String STORAGE_BASE_PATH = "storageBasePath";
     private static final String[] DRIVER_NAMES = {"filesystem"};
-    private Configuration configuration;
+    private final Configuration configuration;
     private final String driverName;
     private final String storageBasePath;
-    private FileSystem fileSystem;
+    private final FileSystem fileSystem;
     private OrderedScheduler scheduler;
-    private long ENTRIES_PER_READ = 100;
+    private static final long ENTRIES_PER_READ = 100;
     public static boolean driverSupported(String driver) {
         return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
     }
@@ -198,7 +198,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
         String storagePath = getStoragePath(storageBasePath, offloadDriverMetadata.get("ManagedLedgerName"));
         String dataFilePath = getDataFilePath(storagePath, ledgerId, uid);
-        System.out.println(dataFilePath);
         CompletableFuture<Void> promise = new CompletableFuture<>();
         try {
             fileSystem.delete(new Path(dataFilePath), true);
