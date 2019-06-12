@@ -74,69 +74,56 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                              final @PathParam("namespace") String namespace,
                              @ApiParam(value = "The sink's name")
                              final @PathParam("sinkName") String sinkName,
-                             @ApiParam(value = "Package file for the sink")
                              final @FormDataParam("data") InputStream uploadedInputStream,
-                             @ApiParam(value = "Package file description")
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                             @ApiParam(value = "Url-path [http/https/file (file protocol assumes that file " +
-                                 "already exists on worker host)] from which worker can download the package.")
                              final @FormDataParam("url") String functionPkgUrl,
                              @ApiParam(
                                  value =
-                                     "--auto-ack\n" +
-                                     "   Whether or not the framework will automatically acknowledge\n" +
-                                     "   messages\n" +
-                                     "--classname\n" +
-                                     "   The sink's class name if archive is file-url-path (file://)\n" +
-                                     "--cpu\n" +
-                                     "   The CPU (in cores) that needs to be allocated per sink instance\n" +
-                                     "   (applicable only to Docker runtime)\n" +
-                                     "--custom-schema-inputs\n" +
-                                     "   The map of input topics to Schema types or class names (as a JSON\n" +
-                                     "   string)\n" +
-                                     "--custom-serde-inputs\n" +
-                                     "   The map of input topics to SerDe class names (as a JSON string)\n" +
-                                     "--disk\n" +
-                                     "   The disk (in bytes) that need to be allocated per sink instance\n" +
-                                     "   (applicable only to Docker runtime)\n" +
-                                     "-i, --inputs\n" +
-                                     "   The sink's input topic or topics (multiple topics can be specified\n" +
-                                     "   as a comma-separated list)\n" +
-                                     "--parallelism\n" +
-                                     "   The sink's parallelism factor (i.e. the number of sink instances to\n" +
-                                     "   run)\n" +
-                                     "--processing-guarantees\n" +
-                                     "   The processing guarantees (aka delivery semantics) applied to the\n" +
-                                     "   sink\n" +
-                                     "   Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]\n" +
-                                     "--ram\n" +
-                                     "   The RAM (in bytes) that need to be allocated per sink instance\n" +
-                                     "   (applicable only to the process and Docker runtimes)\n" +
-                                     "--retain-ordering\n" +
-                                     "   Sink consumes and sinks messages in order\n" +
-                                     "--sink-config\n" +
-                                     "   User defined configs key/values\n" +
-                                     "--sink-config-file\n" +
-                                     "   The path to a YAML config file specifying the sink's configuration\n" +
-                                     "-t, --sink-type\n" +
-                                     "   The sinks's connector provider\n" +
-                                     "--subs-name\n" +
-                                     "   Pulsar source subscription name if user wants a specific\n" +
-                                     "   subscription-name for input-topic consumer\n" +
-                                     "--timeout-ms\n" +
-                                     "   The message timeout in milliseconds\n" +
-                                     "--topics-pattern\n" +
-                                     "   TopicsPattern to consume from list of topics under a namespace that\n" +
-                                     "   match the pattern. [--input] and [--topicsPattern] are mutually\n" +
-                                     "   exclusive. Add SerDe class name for a pattern in --customSerdeInputs\n" +
+                                     "autoAck  \n" +
+                                     "   Whether or not the framework will automatically acknowledge messages  \n" +
+                                     "classname  \n" +
+                                     "   The sink's class name if archive is file-url-path (file://)  \n" +
+                                     "cpu  \n" +
+                                     "   The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime)  \n" +
+                                     "customSchemaInputs  \n" +
+                                     "   The map of input topics to Schema types or class names (as a JSON string)  \n" +
+                                     "customSerdeInputs  \n" +
+                                     "   The map of input topics to SerDe class names (as a JSON string)  \n" +
+                                     "disk  \n" +
+                                     "   The disk (in bytes) that need to be allocated per sink instance (applicable only to Docker runtime)  \n" +
+                                     "inputs  \n" +
+                                     "   The sink's input topic or topics (multiple topics can be specified as a comma-separated list)  \n" +
+                                     "parallelism  \n" +
+                                     "   The sink's parallelism factor (i.e. the number of sink instances to run \n" +
+                                     "processingGuarantees  \n" +
+                                     "   The processing guarantees (aka delivery semantics) applied to the sink. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
+                                     "ram  \n" +
+                                     "   The RAM (in bytes) that need to be allocated per sink instance (applicable only to the process and Docker runtimes)  \n" +
+                                     "retainOrdering  \n" +
+                                     "   Sink consumes and sinks messages in order  \n" +
+                                     "sinkConfig  \n" +
+                                     "   User defined configs key/values  \n" +
+                                     "sinkConfigFile  \n" +
+                                     "   The path to a YAML config file specifying the sink's configuration  \n" +
+                                     "sinkType  \n" +
+                                     "   The sinks's connector provider  \n" +
+                                     "subsName  \n" +
+                                     "   Pulsar source subscription name if user wants a specific  \n" +
+                                     "   subscription-name for input-topic consumer  \n" +
+                                     "timeoutMs  \n" +
+                                     "   The message timeout in milliseconds  \n" +
+                                     "topicsPattern  \n" +
+                                     "   TopicsPattern to consume from list of topics under a namespace that " +
+                                     "   match the pattern. [input] and [topicsPattern] are mutually " +
+                                     "   exclusive. Add SerDe class name for a pattern in customSerdeInputs " +
                                      "   (supported for java fun only)",
                                  examples = @Example(
                                      value = @ExampleProperty(
                                          mediaType = MediaType.APPLICATION_JSON,
-                                         value =
+                                         value = "{  \n" +
                                              "\t\"classname\": \"org.example.MySinkTest\",\n" +
                                              "\t\"inputs\": \"persistent://public/default/sink-input\",\n" +
-                                             "\t\"processing-guarantees\": \"EFFECTIVELY_ONCE\",\n" +
+                                             "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n" +
                                              "\t\"parallelism\": \"10\"\n" +
                                              "}"
                                      )
@@ -165,69 +152,56 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                            final @PathParam("namespace") String namespace,
                            @ApiParam(value = "The sink's name")
                            final @PathParam("sinkName") String sinkName,
-                           @ApiParam(value = "Archive file for the sink")
                            final @FormDataParam("data") InputStream uploadedInputStream,
-                           @ApiParam(value = "Archive file description")
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                           @ApiParam(value = "Url-path [http/https/file (file protocol assumes that file " +
-                               "already exists on worker host)] from which worker can download the package.")
                            final @FormDataParam("url") String functionPkgUrl,
                            @ApiParam(
                                value =
-                                   "--auto-ack\n" +
-                                       "   Whether or not the framework will automatically acknowledge\n" +
-                                       "   messages\n" +
-                                       "--classname\n" +
-                                       "   The sink's class name if archive is file-url-path (file://)\n" +
-                                       "--cpu\n" +
-                                       "   The CPU (in cores) that needs to be allocated per sink instance\n" +
-                                       "   (applicable only to Docker runtime)\n" +
-                                       "--custom-schema-inputs\n" +
-                                       "   The map of input topics to Schema types or class names (as a JSON\n" +
-                                       "   string)\n" +
-                                       "--custom-serde-inputs\n" +
-                                       "   The map of input topics to SerDe class names (as a JSON string)\n" +
-                                       "--disk\n" +
-                                       "   The disk (in bytes) that need to be allocated per sink instance\n" +
-                                       "   (applicable only to Docker runtime)\n" +
-                                       "-i, --inputs\n" +
-                                       "   The sink's input topic or topics (multiple topics can be specified\n" +
-                                       "   as a comma-separated list)\n" +
-                                       "--parallelism\n" +
-                                       "   The sink's parallelism factor (i.e. the number of sink instances to\n" +
-                                       "   run)\n" +
-                                       "--processing-guarantees\n" +
-                                       "   The processing guarantees (aka delivery semantics) applied to the\n" +
-                                       "   sink\n" +
-                                       "   Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]\n" +
-                                       "--ram\n" +
-                                       "   The RAM (in bytes) that need to be allocated per sink instance\n" +
-                                       "   (applicable only to the process and Docker runtimes)\n" +
-                                       "--retain-ordering\n" +
-                                       "   Sink consumes and sinks messages in order\n" +
-                                       "--sink-config\n" +
-                                       "   User defined configs key/values\n" +
-                                       "--sink-config-file\n" +
-                                       "   The path to a YAML config file specifying the sink's configuration\n" +
-                                       "-t, --sink-type\n" +
-                                       "   The sinks's connector provider\n" +
-                                       "--subs-name\n" +
-                                       "   Pulsar source subscription name if user wants a specific\n" +
-                                       "   subscription-name for input-topic consumer\n" +
-                                       "--timeout-ms\n" +
-                                       "   The message timeout in milliseconds\n" +
-                                       "--topics-pattern\n" +
-                                       "   TopicsPattern to consume from list of topics under a namespace that\n" +
-                                       "   match the pattern. [--input] and [--topicsPattern] are mutually\n" +
-                                       "   exclusive. Add SerDe class name for a pattern in --customSerdeInputs\n" +
+                                   "autoAck  \n" +
+                                       "   Whether or not the framework will automatically acknowledge messages  \n" +
+                                       "className  \n" +
+                                       "   The sink's class name if archive is file-url-path (file://)  \n" +
+                                       "cpu  \n" +
+                                       "   The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime)  \n" +
+                                       "customSchemaInputs  \n" +
+                                       "   The map of input topics to Schema types or class names (as a JSON string)  \n" +
+                                       "customSerdeInputs  \n" +
+                                       "   The map of input topics to SerDe class names (as a JSON string)  \n" +
+                                       "disk  \n" +
+                                       "   The disk (in bytes) that need to be allocated per sink instance (applicable only to Docker runtime)\n" +
+                                       "inputs  \n" +
+                                       "   The sink's input topic or topics (multiple topics can be specified as a comma-separated list)\n" +
+                                       "parallelism  \n" +
+                                       "   The sink's parallelism factor (i.e. the number of sink instances to run)  \n" +
+                                       "processingGuarantees  \n" +
+                                       "   The processing guarantees (aka delivery semantics) applied to the sink " +
+                                       "   Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
+                                       "ram  \n" +
+                                       "   The RAM (in bytes) that need to be allocated per sink instance (applicable only to the process and Docker runtimes)  \n" +
+                                       "retainOrdering  \n" +
+                                       "   Sink consumes and sinks messages in order  \n" +
+                                       "sinkConfig  \n" +
+                                       "   User defined configs key/values  \n" +
+                                       "sinkConfigFile  \n" +
+                                       "   The path to a YAML config file specifying the sink's configuration  \n" +
+                                       "sinkType  \n" +
+                                       "   The sinks's connector provider  \n" +
+                                       "subsName  \n" +
+                                       "   Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer  \n" +
+                                       "timeoutMs  \n" +
+                                       "   The message timeout in milliseconds  \n" +
+                                       "topicsPattern  \n" +
+                                       "   TopicsPattern to consume from list of topics under a namespace that " +
+                                       "   match the pattern. [input] and [topicsPattern] are mutually " +
+                                       "   exclusive. Add SerDe class name for a pattern in customSerdeInputs " +
                                        "   (supported for java fun only)",
                                examples = @Example(
                                    value = @ExampleProperty(
                                        mediaType = MediaType.APPLICATION_JSON,
-                                       value =
-                                           "\t\"classname\": \"org.example.SinkStressTest\",\n" +
+                                       value = "{  \n" +
+                                           "\t\"classname\": \"org.example.SinkStressTest\",  \n" +
                                                "\t\"inputs\": \"persistent://public/default/sink-input\",\n" +
-                                               "\t\"processing-guarantees\": \"EFFECTIVELY_ONCE\",\n" +
+                                               "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n" +
                                                "\t\"parallelism\": \"5\"\n" +
                                                "}"
                                    )
