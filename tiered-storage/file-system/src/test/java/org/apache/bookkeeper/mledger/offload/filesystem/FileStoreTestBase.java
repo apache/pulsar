@@ -22,25 +22,20 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 public class FileStoreTestBase {
-    private static final Logger log = LoggerFactory.getLogger(FileStoreTestBase.class);
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
     protected OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
-    protected final String basePath = "test_hdfs";
+    protected final String basePath = "user";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
-    private static final String READ_BUFFER_SIZE = "100";
 
     @BeforeMethod
     public void start() throws Exception {
@@ -51,14 +46,10 @@ public class FileStoreTestBase {
         hdfsCluster = builder.build();
 
         hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
-        FileSystemLedgerOffloaderFactory factory = new FileSystemLedgerOffloaderFactory();
         Properties properties = new Properties();
-        properties.put("hdfsFileSystemManagedLedgerOffloadAccessUri", hdfsURI);
-        properties.put("hdfsFileSystemManagedLedgerOffloadStorageBasePath", basePath);
-        properties.put("managedLedgerOffloadDriver", "hdfs");
-        properties.put("hdfsFileSystemReadHandleReadBufferSize", READ_BUFFER_SIZE);
-        Map<String, String> map = new HashMap<>();
-        fileSystemManagedLedgerOffloader = factory.create(properties, map,OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build());
+        fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
+                TieredStorageConfigurationData.create(properties),
+                scheduler, hdfsURI);
     }
 
     @AfterMethod
@@ -69,9 +60,5 @@ public class FileStoreTestBase {
 
     public String getURI() {
         return hdfsURI;
-    }
-
-    public long getReadBufferSize() {
-        return Long.parseLong(READ_BUFFER_SIZE);
     }
 }

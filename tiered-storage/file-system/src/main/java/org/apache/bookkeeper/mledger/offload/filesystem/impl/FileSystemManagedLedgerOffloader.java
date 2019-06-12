@@ -18,43 +18,52 @@
  */
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import io.netty.buffer.ByteBuf;
+import com.google.protobuf.ByteString;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemEntryBytesReader;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemLedgerOffloaderFactory;
-import org.apache.bookkeeper.mledger.offload.filesystem.OffloadIndexFileBuilder;
 import org.apache.bookkeeper.mledger.offload.filesystem.TieredStorageConfigurationData;
+import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.IOUtils;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.MapFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 
 public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
     private static final Logger log = LoggerFactory.getLogger(FileSystemManagedLedgerOffloader.class);
     private static final String STORAGE_BASE_PATH = "storageBasePath";
-    private static final String[] DRIVER_NAMES = {"hdfs"};
+    private static final String[] DRIVER_NAMES = {"filesystem"};
+    private Configuration configuration;
     private final String driverName;
-    private final String userName;
     private final String storageBasePath;
     private FileSystem fileSystem;
     private OrderedScheduler scheduler;
-    private Map<String, String> configMap = new HashMap<>();
-    private final int readBufferSize;
+    private long ENTRIES_PER_READ = 100;
     public static boolean driverSupported(String driver) {
         return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
     }
@@ -63,31 +72,38 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         return driverName;
     }
 
-    public static FileSystemManagedLedgerOffloader create(TieredStorageConfigurationData data, Map<String, String> userMetadata, OrderedScheduler scheduler) throws IOException {
-        return new FileSystemManagedLedgerOffloader(data.getManagedLedgerOffloadDriver(),
-                data.getHdfsFileSystemManagedLedgerOffloadUserName(),
-                data.getHdfsFileSystemManagedLedgerOffloadStorageBasePath(),
-                data.getHdfsFileSystemManagedLedgerOffloadAccessUri(),
-                data.getHdfsFileSystemReadHandleReadBufferSize(),
-                scheduler);
+    public static FileSystemManagedLedgerOffloader create(TieredStorageConfigurationData conf, OrderedScheduler scheduler) throws IOException {
+        return new FileSystemManagedLedgerOffloader(conf, scheduler);
     }
 
-    private FileSystemManagedLedgerOffloader(String diverName, String userName, String storageBasePath, String accessUri, int readBufferSize, OrderedScheduler scheduler) throws IOException {
-        this.driverName = diverName;
-        this.userName = userName;
-        this.storageBasePath = storageBasePath;
-        this.scheduler = scheduler;
-        this.readBufferSize = readBufferSize;
-        Configuration configuration = new Configuration();
-        configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
-        configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
-        try {
-            this.fileSystem = this.userName == null ? FileSystem.get(URI.create(accessUri), configuration) :
-                    FileSystem.get(URI.create(accessUri), configuration, userName);
-        } catch (InterruptedException e) {
-            log.error("File system offloader init fail, execute thread was interrupted");
-            throw new IOException(e);
+    private FileSystemManagedLedgerOffloader(TieredStorageConfigurationData conf, OrderedScheduler scheduler) throws IOException {
+        this.configuration = new Configuration();
+        if (conf.getFileSystemProfilePath() != null) {
+            String[] paths = conf.getFileSystemProfilePath().split(",");
+            for (int i =0 ; i < paths.length; i++) {
+                configuration.addResource(new Path(paths[i]));
+            }
         }
+        if (configuration.get("fs.hdfs.impl") == null) {
+            this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
+        }
+        this.configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
+        this.driverName = conf.getManagedLedgerOffloadDriver();
+        this.storageBasePath = configuration.get("hadoop.tmp.dir");
+        this.scheduler = scheduler;
+        this.fileSystem = FileSystem.get(configuration);
+    }
+    @VisibleForTesting
+    public FileSystemManagedLedgerOffloader(TieredStorageConfigurationData conf, OrderedScheduler scheduler, String testHDFSPath) throws IOException {
+        this.configuration = new Configuration();
+        this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
+        this.configuration.set("fs.defaultFS", testHDFSPath);
+        this.configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
+        this.driverName = conf.getManagedLedgerOffloadDriver();
+        this.storageBasePath = configuration.get("hadoop.tmp.dir");
+        this.scheduler = scheduler;
+        this.fileSystem = FileSystem.get(configuration);
+
     }
 
     @Override
@@ -108,32 +124,43 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             }
             long ledgerId = readHandle.getId();
             String storagePath = getStoragePath(storageBasePath, extraMetadata.get("ManagedLedgerName"));
-            String indexFilePath = getIndexFilePath(storagePath, ledgerId, uid);
             String dataFilePath = getDataFilePath(storagePath, ledgerId, uid);
-
-            OffloadIndexFileBuilder indexFileBuilder = OffloadIndexFileBuilder.create()
-                    .withLedgerMetadata(readHandle.getLedgerMetadata())
-                    .withDataHeaderLength(FileSystemEntryBytesReader.getDataHeaderLength());
+            LongWritable key = new LongWritable();
+            BytesWritable value = new BytesWritable();
             try {
-                FSDataOutputStream dataOutputStream = fileSystem.create(new Path(dataFilePath));
-                FSDataOutputStream indexOutputStream = fileSystem.create(new Path(indexFilePath));
-
-                FileSystemEntryBytesReader reader = new FileSystemEntryBytesReaderImpl(readHandle, configMap, indexFileBuilder);
-                dataOutputStream.writeInt(FileSystemEntryBytesReader.getDataFileMagicWord());
-                dataOutputStream.write(FileSystemEntryBytesReader.getHeaderUnUseBytes());
+                FileSystem fileSystem = FileSystem.get(configuration);
+                Path dataDirPath = new Path(dataFilePath);
+                fileSystem.mkdirs(dataDirPath);
+                MapFile.Writer dataWriter = new MapFile.Writer(configuration,
+                        new Path(dataFilePath),
+                        MapFile.Writer.keyClass(LongWritable.class),
+                        MapFile.Writer.valueClass(BytesWritable.class));
+                key.set(-1);
+                byte[] ledgerMetadata = buildLedgerMetadataFormat(readHandle.getLedgerMetadata());
+                value.set(buildLedgerMetadataFormat(readHandle.getLedgerMetadata()), 0, ledgerMetadata.length);
+                dataWriter.append(key, value);
+                long lastEntryId = 0;
                 do {
-                    //every time read 100 entry
-                    ByteBuf entryBuf = reader.readEntries();
-                    byte[] entryBytes = new byte[entryBuf.readableBytes()];
-                    entryBuf.readBytes(entryBytes);
-                    dataOutputStream.write(entryBytes);
-                } while (reader.whetherCanContinueRead());
-                dataOutputStream.close();
-                indexFileBuilder.withDataHeaderLength(FileSystemEntryBytesReader.getDataHeaderLength())
-                        .withDataObjectLength(reader.getDataObjectLength());
-                indexFileBuilder.build().writeIndexDataIntoFile(indexOutputStream);
+                    long end = Math.min(lastEntryId + ENTRIES_PER_READ - 1, readHandle.getLastAddConfirmed());
+                    LedgerEntries ledgerEntriesOnce = readHandle.readAsync(lastEntryId, end).get();
+                    log.debug("read ledger entries. start: {}, end: {}", lastEntryId, end);
+                    lastEntryId = end + 1;
+                    Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
+                    while (iterator.hasNext()) {
+                        LedgerEntry entry = iterator.next();
+                        long entryId = entry.getEntryId();
+                        key.set(entryId);
+                        value.set(entry.getEntryBytes(), 0, (int)entry.getLength());
+                        dataWriter.append(key, value);
+                    }
+                } while (lastEntryId <= readHandle.getLastAddConfirmed());
+                IOUtils.closeStream(dataWriter);
                 promise.complete(null);
-            } catch (IOException e) {
+            } catch (InterruptedException | ExecutionException | IOException e) {
+                log.error("Exception when get CompletableFuture<LedgerEntries>. ", e);
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 promise.completeExceptionally(e);
             }
         });
@@ -145,13 +172,12 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String storagePath = getStoragePath(storageBasePath, offloadDriverMetadata.get("ManagedLedgerName"));
-        String indexFilePath = getIndexFilePath(storagePath, ledgerId, uuid);
         String dataFilePath = getDataFilePath(storagePath, ledgerId, uuid);
         scheduler.chooseThread(ledgerId).submit(() -> {
             try {
-                promise.complete(FileStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
-                        dataFilePath,
-                        indexFilePath, fileSystem, ledgerId, readBufferSize));
+                MapFile.Reader reader = new MapFile.Reader(new Path(dataFilePath),
+                        configuration);
+                promise.complete(FileStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId), reader, ledgerId));
             } catch (Throwable t) {
                 log.error("Failed to open FileStoreBackedReadHandleImpl: ", t);
                 promise.completeExceptionally(t);
@@ -164,27 +190,49 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         return storageBasePath + "/" + managedLedgerName + "/";
     }
 
-    private static String getIndexFilePath(String storagePath, long ledgerId, UUID uuid) {
-        return storagePath + ledgerId + "-" + uuid + ".index";
+    private static String getDataFilePath(String storagePath, long ledgerId, UUID uuid) {
+        return storagePath + ledgerId + "-" + uuid.toString();
     }
 
-    private static String getDataFilePath(String storagePath, long ledgerId, UUID uuid) {
-        return storagePath + ledgerId + "-" + uuid + ".log";
-    }
     @Override
     public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
         String storagePath = getStoragePath(storageBasePath, offloadDriverMetadata.get("ManagedLedgerName"));
-        String indexFilePath = getIndexFilePath(storagePath, ledgerId, uid);
         String dataFilePath = getDataFilePath(storagePath, ledgerId, uid);
+        System.out.println(dataFilePath);
         CompletableFuture<Void> promise = new CompletableFuture<>();
         try {
-            fileSystem.delete(new Path(indexFilePath), false);
-            fileSystem.delete(new Path(dataFilePath), false);
+            fileSystem.delete(new Path(dataFilePath), true);
             promise.complete(null);
         } catch (IOException e) {
             log.error("Failed to delete Offloaded: ", e);
             promise.completeExceptionally(e);
         }
         return promise;
+    }
+
+    private static byte[] buildLedgerMetadataFormat(LedgerMetadata metadata) {
+        DataFormats.LedgerMetadataFormat.Builder builder = DataFormats.LedgerMetadataFormat.newBuilder();
+        builder.setQuorumSize(metadata.getWriteQuorumSize())
+                .setAckQuorumSize(metadata.getAckQuorumSize())
+                .setEnsembleSize(metadata.getEnsembleSize())
+                .setLength(metadata.getLength())
+                .setState(metadata.isClosed() ? DataFormats.LedgerMetadataFormat.State.CLOSED : DataFormats.LedgerMetadataFormat.State.OPEN)
+                .setLastEntryId(metadata.getLastEntryId())
+                .setCtime(metadata.getCtime())
+                .setDigestType(BookKeeper.DigestType.toProtoDigestType(
+                        BookKeeper.DigestType.fromApiDigestType(metadata.getDigestType())));
+
+        for (Map.Entry<String, byte[]> e : metadata.getCustomMetadata().entrySet()) {
+            builder.addCustomMetadataBuilder()
+                    .setKey(e.getKey()).setValue(ByteString.copyFrom(e.getValue()));
+        }
+
+        for (Map.Entry<Long, ? extends List<BookieSocketAddress>> e : metadata.getAllEnsembles().entrySet()) {
+            builder.addSegmentBuilder()
+                    .setFirstEntryId(e.getKey())
+                    .addAllEnsembleMember(e.getValue().stream().map(a -> a.toString()).collect(Collectors.toList()));
+        }
+
+        return builder.build().toByteArray();
     }
 }

@@ -37,14 +37,7 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable {
     // Driver to use to offload old data to long term storage
     private String managedLedgerOffloadDriver = null;
 
-    /**** ---  File System Configuration  --- ****/
-    // The base path for storage
-    private String hdfsFileSystemManagedLedgerOffloadStorageBasePath = null;
-    // The user name for file system
-    private String hdfsFileSystemManagedLedgerOffloadUserName = null;
-    // The uri of file system
-    private String hdfsFileSystemManagedLedgerOffloadAccessUri = null;
-    private int hdfsFileSystemReadHandleReadBufferSize = 1024 * 1024;
+    private String fileSystemProfilePath = null;
 
     /**
      * Create a tiered storage configuration from the provided <tt>properties</tt>.
@@ -68,5 +61,4 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable {
         });
         return data;
     }
-
 }
