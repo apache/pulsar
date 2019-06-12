@@ -1348,6 +1348,13 @@
     "Message" : {
       "type" : "object",
       "properties" : {
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
@@ -1355,9 +1362,6 @@
         "eventTime" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "producerName" : {
-          "type" : "string"
         },
         "topicName" : {
           "type" : "string"
@@ -1369,12 +1373,8 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "producerName" : {
+          "type" : "string"
         },
         "orderingKey" : {
           "type" : "array",

@@ -3388,11 +3388,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         } ],
@@ -3425,11 +3427,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         } ],
@@ -3443,11 +3447,20 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
+          },
+          "412" : {
+            "description" : "Namespace name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -3504,26 +3517,33 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3532,6 +3552,9 @@
           },
           "412" : {
             "description" : "Failed Reason : Name is invalid or Namespace does not have any clusters configured"
+          },
+          "500" : {
+            "description" : "Internal server error"
           },
           "503" : {
             "description" : "Failed to validate global cluster configuration"
@@ -3547,32 +3570,40 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "force",
           "in" : "query",
+          "description" : "Stop all producer/consumer/replicator and delete topic forcefully",
           "required" : false,
           "type" : "boolean",
           "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3581,6 +3612,9 @@
           },
           "412" : {
             "description" : "Topic has active producers/subscriptions"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -3588,44 +3622,65 @@
     "/non-persistent/{tenant}/{namespace}/{topic}/all_subscription/expireMessages/{expireTimeInSeconds}" : {
       "post" : {
         "tags" : [ "non-persistent topic" ],
-        "summary" : "Expire messages on all subscriptions of topic.",
+        "summary" : "Expiry messages on all subscriptions of topic.",
         "description" : "",
         "operationId" : "expireMessagesForAllSubscriptions",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "expireTimeInSeconds",
           "in" : "path",
+          "description" : "Expires beyond the specified number of seconds",
           "required" : true,
           "type" : "integer",
+          "default" : 0,
           "format" : "int32"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic or subscription does not exist"
+          },
+          "405" : {
+            "description" : "Expiry messages on a non-persistent topic is not allowed"
+          },
+          "412" : {
+            "description" : "Can't find owner for topic"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -3640,21 +3695,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -3666,11 +3725,14 @@
               "$ref" : "#/definitions/PersistentOfflineTopicStats"
             }
           },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
           "404" : {
             "description" : "Namespace does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -3685,21 +3747,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -3711,6 +3777,9 @@
               "$ref" : "#/definitions/LongRunningProcessStatus"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3718,7 +3787,16 @@
             "description" : "Topic does not exist, or compaction hasn't run"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       },
@@ -3731,26 +3809,33 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3758,10 +3843,19 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
           },
           "409" : {
             "description" : "Compaction already running"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -3776,25 +3870,40 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -3809,21 +3918,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -3854,21 +3967,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -3880,6 +3997,9 @@
               "$ref" : "#/definitions/MessageId"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3887,7 +4007,16 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -3902,21 +4031,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -3928,6 +4061,9 @@
               "$ref" : "#/definitions/OffloadProcessStatus"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3935,7 +4071,16 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       },
@@ -3948,26 +4093,33 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -3975,10 +4127,19 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
           },
           "409" : {
             "description" : "Offload already running"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -3993,26 +4154,33 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -4021,6 +4189,12 @@
           },
           "412" : {
             "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4035,21 +4209,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -4075,28 +4253,53 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The number of partitions for the topic",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant does not exist"
+          },
+          "406" : {
+            "description" : "The number of partitions should be more than 1"
           },
           "409" : {
             "description" : "Partitioned topic does not exist"
           },
           "412" : {
             "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       },
@@ -4109,18 +4312,31 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The number of partitions for the topic",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
         } ],
         "responses" : {
           "403" : {
@@ -4146,40 +4362,54 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "force",
           "in" : "query",
+          "description" : "Stop all producer/consumer/replicator and delete topic forcefully",
           "required" : false,
           "type" : "boolean",
           "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Partitioned topic does not exist"
           },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
           "412" : {
             "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -4194,16 +4424,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         } ],
@@ -4217,11 +4450,20 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -4236,33 +4478,58 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "role",
           "in" : "path",
+          "description" : "Client role to which grant permissions",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Actions to be granted (produce,functions,consume)",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "produce", "consume", "functions" ]
+            }
+          }
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
           },
           "409" : {
             "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       },
@@ -4275,33 +4542,43 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "role",
           "in" : "path",
+          "description" : "Client role to which grant permissions",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
           },
           "412" : {
             "description" : "Permissions are not set at the topic level"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -4316,21 +4593,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -4361,31 +4642,39 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscription to be deleted",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -4394,6 +4683,12 @@
           },
           "412" : {
             "description" : "Subscription has active consumers"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4401,49 +4696,68 @@
     "/non-persistent/{tenant}/{namespace}/{topic}/subscription/{subName}/expireMessages/{expireTimeInSeconds}" : {
       "post" : {
         "tags" : [ "non-persistent topic" ],
-        "summary" : "Expire messages on a topic subscription.",
+        "summary" : "Expiry messages on a topic subscription.",
         "description" : "",
         "operationId" : "expireTopicMessages",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscription to be Expiry messages on",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "expireTimeInSeconds",
           "in" : "path",
+          "description" : "Expires beyond the specified number of seconds",
           "required" : true,
           "type" : "integer",
+          "default" : 0,
           "format" : "int32"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic or subscription does not exist"
+          },
+          "405" : {
+            "description" : "Expiry messages on a non-persistent topic is not allowed"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4458,42 +4772,64 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscribed message expired",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "messagePosition",
           "in" : "path",
+          "description" : "The number of messages (default 1)",
           "required" : true,
           "type" : "integer",
+          "default" : 1,
           "format" : "int32"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic, subscription or the message position does not exist"
+          },
+          "405" : {
+            "description" : "Skipping messages on a non-persistent topic is not allowed"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4508,31 +4844,47 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscription to reset position on",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
+        }, {
+          "in" : "body",
+          "name" : "messageId",
+          "description" : "messageId to reset back to (ledgerId:entryId)",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/MessageIdImpl"
+          }
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -4541,6 +4893,15 @@
           },
           "405" : {
             "description" : "Not supported for partitioned topics"
+          },
+          "412" : {
+            "description" : "Unable to find position for position specified"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4555,42 +4916,63 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscription to reset position on",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "timestamp",
           "in" : "path",
+          "description" : "time in minutes to reset back to (or minutes, hours,days,weeks eg:100m, 3h, 2d, 5w)",
           "required" : true,
           "type" : "integer",
           "format" : "int64"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic/Subscription does not exist"
+          },
+          "405" : {
+            "description" : "Method Not Allowed"
+          },
+          "412" : {
+            "description" : "Failed to reset cursor on subscription or Unable to find position for timestamp specified"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4598,49 +4980,68 @@
     "/non-persistent/{tenant}/{namespace}/{topic}/subscription/{subName}/skip/{numMessages}" : {
       "post" : {
         "tags" : [ "non-persistent topic" ],
-        "summary" : "Skip messages on a topic subscription.",
+        "summary" : "Skipping messages on a topic subscription.",
         "description" : "",
         "operationId" : "skipMessages",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Name of subscription",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "numMessages",
           "in" : "path",
+          "description" : "The number of messages to skip",
           "required" : true,
           "type" : "integer",
+          "default" : 0,
           "format" : "int32"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic or subscription does not exist"
+          },
+          "405" : {
+            "description" : "Skipping messages on a partitioned topic is not allowed"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4655,31 +5056,39 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Name of subscription",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -4688,6 +5097,15 @@
           },
           "405" : {
             "description" : "Operation not allowed on non-persistent topic"
+          },
+          "412" : {
+            "description" : "Can't find owner for topic"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4702,36 +5120,46 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subscriptionName",
           "in" : "path",
+          "description" : "Subscription to create position on",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "messageId where to create the subscription. It can be 'latest', 'earliest' or (ledgerId:entryId)",
           "required" : false,
           "type" : "boolean",
-          "default" : false
+          "default" : "latest",
+          "enum" : [ "latest", "earliest", "ledgerId:entryId" ]
         }, {
           "name" : "replicated",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean"
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -4740,6 +5168,12 @@
           },
           "405" : {
             "description" : "Not supported for partitioned topics"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4754,21 +5188,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -4783,11 +5221,23 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4802,21 +5252,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -4828,6 +5282,9 @@
               "$ref" : "#/definitions/MessageId"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -4835,7 +5292,16 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on non-persistent topic"
+            "description" : "Termination of a partitioned topic is not allowed"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4850,21 +5316,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -4889,11 +5359,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         } ],
@@ -4907,11 +5379,20 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
+          },
+          "412" : {
+            "description" : "Namespace name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -4926,11 +5407,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         } ],
@@ -4944,11 +5427,20 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
+          },
+          "412" : {
+            "description" : "Namespace name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -4963,26 +5455,33 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -4991,6 +5490,9 @@
           },
           "412" : {
             "description" : "Failed Reason : Name is invalid or Namespace does not have any clusters configured"
+          },
+          "500" : {
+            "description" : "Internal server error"
           },
           "503" : {
             "description" : "Failed to validate global cluster configuration"
@@ -5006,32 +5508,40 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "force",
           "in" : "query",
+          "description" : "Stop all producer/consumer/replicator and delete topic forcefully",
           "required" : false,
           "type" : "boolean",
           "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5040,6 +5550,9 @@
           },
           "412" : {
             "description" : "Topic has active producers/subscriptions"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -5047,44 +5560,65 @@
     "/persistent/{tenant}/{namespace}/{topic}/all_subscription/expireMessages/{expireTimeInSeconds}" : {
       "post" : {
         "tags" : [ "persistent topic" ],
-        "summary" : "Expire messages on all subscriptions of topic.",
+        "summary" : "Expiry messages on all subscriptions of topic.",
         "description" : "",
         "operationId" : "expireMessagesForAllSubscriptions",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "expireTimeInSeconds",
           "in" : "path",
+          "description" : "Expires beyond the specified number of seconds",
           "required" : true,
           "type" : "integer",
+          "default" : 0,
           "format" : "int32"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic or subscription does not exist"
+          },
+          "405" : {
+            "description" : "Expiry messages on a non-persistent topic is not allowed"
+          },
+          "412" : {
+            "description" : "Can't find owner for topic"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5099,21 +5633,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5125,11 +5663,14 @@
               "$ref" : "#/definitions/PersistentOfflineTopicStats"
             }
           },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
           "404" : {
             "description" : "Namespace does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5144,21 +5685,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5170,6 +5715,9 @@
               "$ref" : "#/definitions/LongRunningProcessStatus"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5177,7 +5725,16 @@
             "description" : "Topic does not exist, or compaction hasn't run"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       },
@@ -5190,26 +5747,33 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5217,10 +5781,19 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
           },
           "409" : {
             "description" : "Compaction already running"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5235,25 +5808,40 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5268,21 +5856,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5294,11 +5886,23 @@
               "$ref" : "#/definitions/PersistentTopicInternalStats"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5313,21 +5917,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5339,6 +5947,9 @@
               "$ref" : "#/definitions/MessageId"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5346,7 +5957,16 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5361,21 +5981,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5387,6 +6011,9 @@
               "$ref" : "#/definitions/OffloadProcessStatus"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5394,7 +6021,16 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       },
@@ -5407,26 +6043,33 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5434,10 +6077,19 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on persistent topic"
+            "description" : "Operation is not allowed on the persistent topic"
           },
           "409" : {
             "description" : "Offload already running"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5452,26 +6104,33 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5480,6 +6139,12 @@
           },
           "412" : {
             "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5494,21 +6159,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5520,14 +6189,23 @@
               "$ref" : "#/definitions/PartitionedTopicMetadata"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
+          "404" : {
+            "description" : "Tenant does not exist"
+          },
           "409" : {
-            "description" : "Partitioned topic does not exist"
+            "description" : "Concurrent modification"
           },
           "412" : {
             "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       },
@@ -5540,28 +6218,53 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The number of partitions for the topic",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to adminisActions to be grantedtrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant does not exist"
+          },
+          "406" : {
+            "description" : "The number of partitions should be more than 1"
           },
           "409" : {
             "description" : "Partitioned topic does not exist"
           },
           "412" : {
             "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       },
@@ -5574,28 +6277,50 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The number of partitions for the topic",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant does not exist"
           },
           "409" : {
             "description" : "Partitioned topic already exist"
           },
           "412" : {
             "description" : "Failed Reason : Name is invalid or Namespace does not have any clusters configured"
+          },
+          "500" : {
+            "description" : "Internal server error"
           },
           "503" : {
             "description" : "Failed to validate global cluster configuration"
@@ -5611,40 +6336,54 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "force",
           "in" : "query",
+          "description" : "Stop all producer/consumer/replicator and delete topic forcefully",
           "required" : false,
           "type" : "boolean",
           "default" : false
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Partitioned topic does not exist"
           },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
           "412" : {
             "description" : "Partitioned topic name is invalid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -5659,16 +6398,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         } ],
@@ -5682,11 +6424,20 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -5701,33 +6452,58 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "role",
           "in" : "path",
+          "description" : "Client role to which grant permissions",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Actions to be granted (produce,functions,consume)",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "produce", "consume", "functions" ]
+            }
+          }
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
           },
           "409" : {
             "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       },
@@ -5740,33 +6516,43 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "role",
           "in" : "path",
+          "description" : "Client role to which grant permissions",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "tenant/namespace/topic doesn't exit"
           },
           "412" : {
             "description" : "Permissions are not set at the topic level"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -5781,21 +6567,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5807,11 +6597,23 @@
               "$ref" : "#/definitions/TopicStats"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5826,31 +6628,39 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscription to be deleted",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -5859,6 +6669,12 @@
           },
           "412" : {
             "description" : "Subscription has active consumers"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5866,49 +6682,68 @@
     "/persistent/{tenant}/{namespace}/{topic}/subscription/{subName}/expireMessages/{expireTimeInSeconds}" : {
       "post" : {
         "tags" : [ "persistent topic" ],
-        "summary" : "Expire messages on a topic subscription.",
+        "summary" : "Expiry messages on a topic subscription.",
         "description" : "",
         "operationId" : "expireTopicMessages",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscription to be Expiry messages on",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "expireTimeInSeconds",
           "in" : "path",
+          "description" : "Expires beyond the specified number of seconds",
           "required" : true,
           "type" : "integer",
+          "default" : 0,
           "format" : "int32"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic or subscription does not exist"
+          },
+          "405" : {
+            "description" : "Expiry messages on a non-persistent topic is not allowed"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5923,42 +6758,64 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscribed message expired",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "messagePosition",
           "in" : "path",
+          "description" : "The number of messages (default 1)",
           "required" : true,
           "type" : "integer",
+          "default" : 1,
           "format" : "int32"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic, subscription or the message position does not exist"
+          },
+          "405" : {
+            "description" : "Skipping messages on a non-persistent topic is not allowed"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -5973,31 +6830,47 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscription to reset position on",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
+        }, {
+          "in" : "body",
+          "name" : "messageId",
+          "description" : "messageId to reset back to (ledgerId:entryId)",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/MessageIdImpl"
+          }
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -6006,6 +6879,15 @@
           },
           "405" : {
             "description" : "Not supported for partitioned topics"
+          },
+          "412" : {
+            "description" : "Unable to find position for position specified"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -6020,42 +6902,63 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Subscription to reset position on",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "timestamp",
           "in" : "path",
+          "description" : "time in minutes to reset back to (or minutes, hours,days,weeks eg:100m, 3h, 2d, 5w)",
           "required" : true,
           "type" : "integer",
           "format" : "int64"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic/Subscription does not exist"
+          },
+          "405" : {
+            "description" : "Method Not Allowed"
+          },
+          "412" : {
+            "description" : "Failed to reset cursor on subscription or Unable to find position for timestamp specified"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -6063,49 +6966,68 @@
     "/persistent/{tenant}/{namespace}/{topic}/subscription/{subName}/skip/{numMessages}" : {
       "post" : {
         "tags" : [ "persistent topic" ],
-        "summary" : "Skip messages on a topic subscription.",
+        "summary" : "Skipping messages on a topic subscription.",
         "description" : "",
         "operationId" : "skipMessages",
         "produces" : [ "application/json" ],
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Name of subscription",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "numMessages",
           "in" : "path",
+          "description" : "The number of messages to skip",
           "required" : true,
           "type" : "integer",
+          "default" : 0,
           "format" : "int32"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic or subscription does not exist"
+          },
+          "405" : {
+            "description" : "Skipping messages on a partitioned topic is not allowed"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -6120,31 +7042,39 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subName",
           "in" : "path",
+          "description" : "Name of subscription",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -6153,6 +7083,15 @@
           },
           "405" : {
             "description" : "Operation not allowed on non-persistent topic"
+          },
+          "412" : {
+            "description" : "Can't find owner for topic"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -6167,36 +7106,46 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "subscriptionName",
           "in" : "path",
+          "description" : "Subscription to create position on",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "messageId where to create the subscription. It can be 'latest', 'earliest' or (ledgerId:entryId)",
           "required" : false,
           "type" : "boolean",
-          "default" : false
+          "default" : "latest",
+          "enum" : [ "latest", "earliest", "ledgerId:entryId" ]
         }, {
           "name" : "replicated",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean"
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -6205,6 +7154,12 @@
           },
           "405" : {
             "description" : "Not supported for partitioned topics"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -6219,21 +7174,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -6248,11 +7207,23 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -6267,21 +7238,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -6293,6 +7268,9 @@
               "$ref" : "#/definitions/MessageId"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
@@ -6300,7 +7278,16 @@
             "description" : "Topic does not exist"
           },
           "405" : {
-            "description" : "Operation not allowed on non-persistent topic"
+            "description" : "Termination of a partitioned topic is not allowed"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -6315,31 +7302,50 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "topic",
           "in" : "path",
+          "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "authoritative",
           "in" : "query",
+          "description" : "Is authentication required to perform this operation",
           "required" : false,
           "type" : "boolean",
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Topic does not exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "Topic name is not valid or can't find owner for topic"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -7437,29 +8443,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -7470,8 +8457,27 @@
           "type" : "number",
           "format" : "double"
         },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -7630,13 +8636,13 @@
           "type" : "number",
           "format" : "double"
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -8301,13 +9307,13 @@
             "type" : "string"
           }
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -8409,11 +9415,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
