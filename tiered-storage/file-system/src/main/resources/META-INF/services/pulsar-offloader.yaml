@@ -17,6 +17,6 @@
 # under the License.
 #
 
-name: hdfs
+name: filesystem
 description: fileSystem based offloader implementation
 offloaderFactoryClass: org.apache.bookkeeper.mledger.offload.filesystem.FileSystemLedgerOffloaderFactory
