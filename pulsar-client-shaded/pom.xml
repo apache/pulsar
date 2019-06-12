@@ -116,6 +116,8 @@
                   <include>commons-*:*</include>
                   <include>io.swagger:*</include>
 
+                  <include>org.apache.pulsar:protobuf-shaded</include>
+                  <include>org.apache.pulsar:pulsar-client-api</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
