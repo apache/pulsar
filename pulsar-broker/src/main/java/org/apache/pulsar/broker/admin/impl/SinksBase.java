@@ -79,6 +79,7 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                              final @FormDataParam("url") String functionPkgUrl,
                              @ApiParam(
                                  value =
+                                     "A JSON value presenting a sink config playload. All available configuration options are:  \n" +
                                      "autoAck  \n" +
                                      "   Whether or not the framework will automatically acknowledge messages  \n" +
                                      "classname  \n" +
@@ -157,7 +158,8 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                            final @FormDataParam("url") String functionPkgUrl,
                            @ApiParam(
                                value =
-                                   "autoAck  \n" +
+                                   "A JSON value presenting a sink config playload. All available configuration options are:  \n" +
+                                       "autoAck  \n" +
                                        "   Whether or not the framework will automatically acknowledge messages  \n" +
                                        "className  \n" +
                                        "   The sink's class name if archive is file-url-path (file://)  \n" +
