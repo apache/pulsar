@@ -276,25 +276,27 @@ public class PersistentSubscription implements Subscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
+            // Check if message is acknowledged by ongoing transaction.
+            if ((pendingAckMessages != null && pendingAckMessages.size() != 0) || pendingCumulativeAckMessage != null) {
+                synchronized (PersistentSubscription.this) {
+                    positions.forEach(position -> {
+                        checkArgument(position instanceof PositionImpl);
+                        // If single ack try to ack message in pending_ack status, fail the ack.
+                        if (pendingAckMessages != null && this.pendingAckMessages.contains(position)) {
+                            log.warn("[{}][{}] Invalid acks position conflict with an ongoing transaction:{}.",
+                                    topicName, subName, this.pendingCumulativeAckTxnId.toString());
+                            return;
+                        }
 
-            synchronized (PersistentSubscription.this) {
-                positions.forEach(position -> {
-                    checkArgument(position instanceof PositionImpl);
-                    // If single ack try to ack message in pending_ack status, fail the ack.
-                    if (pendingAckMessages != null && this.pendingAckMessages.contains(position)) {
-                        log.warn("[{}][{}] Invalid acks position conflict with an ongoing transaction:{}.",
-                                 topicName, subName, this.pendingCumulativeAckTxnId.toString());
-                        return;
-                    }
-
-                    // If single ack is within range of cumulative ack of an ongoing transaction, fail the ack.
-                    if (null != this.pendingCumulativeAckMessage &&
-                            ((PositionImpl) position).compareTo((PositionImpl) this.pendingCumulativeAckMessage) <= 0) {
-                        log.warn("[{}][{}] Invalid acks position within cumulative ack position of an ongoing " +
-                                 "transaction:{}.", topicName, subName, this.pendingCumulativeAckTxnId.toString());
-                        return;
-                    }
-                });
+                        // If single ack is within range of cumulative ack of an ongoing transaction, fail the ack.
+                        if (null != this.pendingCumulativeAckMessage &&
+                                ((PositionImpl) position).compareTo((PositionImpl) this.pendingCumulativeAckMessage) <= 0) {
+                            log.warn("[{}][{}] Invalid acks position within cumulative ack position of an ongoing " +
+                                    "transaction:{}.", topicName, subName, this.pendingCumulativeAckTxnId.toString());
+                            return;
+                        }
+                    });
+                }
             }
 
             cursor.asyncDelete(positions, deleteCallback, positions);
@@ -840,10 +842,11 @@ public class PersistentSubscription implements Subscription {
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
         ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
-        // Check if message is in pending_ack status.
-        if (null != positionMap) {
+        // Only check if message is in pending_ack status when there's ongoing transaction.
+        if (null != positionMap && ((pendingAckMessages != null && pendingAckMessages.size() != 0)
+                                                                            || pendingCumulativeAckMessage != null)) {
             List<PositionImpl> pendingPositions = new ArrayList<>();
-            PositionImpl cumulativeAckPosition = null == this.pendingCumulativeAckMessage ? null :
+            PositionImpl cumulativeAckPosition = (null == this.pendingCumulativeAckMessage) ? null :
                     (PositionImpl) this.pendingCumulativeAckMessage;
 
             positionMap.asMap().entrySet().forEach(entry -> {
@@ -864,21 +867,25 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-        // Check if message is in pending_ack status.
-        List<PositionImpl> pendingPositions = new ArrayList<>();
-        PositionImpl cumulativeAckPosition = null == this.pendingCumulativeAckMessage? null :
-                (PositionImpl)this.pendingCumulativeAckMessage;
+        // If there's ongoing transaction.
+        if ((pendingAckMessages != null && pendingAckMessages.size() != 0) || pendingCumulativeAckMessage != null) {
+            // Check if message is in pending_ack status.
+            List<PositionImpl> pendingPositions = new ArrayList<>();
+            PositionImpl cumulativeAckPosition = (null == this.pendingCumulativeAckMessage) ? null :
+                    (PositionImpl) this.pendingCumulativeAckMessage;
 
-        positions.forEach(position -> {
-            if ((pendingAckMessages == null || (pendingAckMessages != null &&
-                    !this.pendingAckMessages.contains(position))) &&
-                    (null == cumulativeAckPosition ||
-                            (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0))) {
-                pendingPositions.add(position);
-            }
-        });
-
-        dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
+            positions.forEach(position -> {
+                if ((pendingAckMessages == null || (pendingAckMessages != null &&
+                        !this.pendingAckMessages.contains(position))) &&
+                        (null == cumulativeAckPosition ||
+                                (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0))) {
+                    pendingPositions.add(position);
+                }
+            });
+            dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
+        } else {
+            dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
+        }
     }
 
     @Override
