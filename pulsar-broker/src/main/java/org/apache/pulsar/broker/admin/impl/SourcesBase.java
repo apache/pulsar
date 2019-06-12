@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.functions.UpdateOptions;
@@ -63,20 +61,76 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @POST
     @ApiOperation(value = "Creates a new Pulsar Source in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+            @ApiResponse(code = 200, message = "Pulsar Function successfully created"),
+            @ApiResponse(code = 400, message = "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 500, message = "Internal Server Error")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public void registerSource(final @PathParam("tenant") String tenant,
-                               final @PathParam("namespace") String namespace,
-                               final @PathParam("sourceName") String sourceName,
-                               final @FormDataParam("data") InputStream uploadedInputStream,
-                               final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                               final @FormDataParam("url") String functionPkgUrl,
-                               final @FormDataParam("sourceConfig") String sourceConfigJson) {
+    public void registerSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of source")
+            final @PathParam("sourceName") String sourceName,
+            final @FormDataParam("data") InputStream uploadedInputStream,
+            final @FormDataParam("data") FormDataContentDisposition fileDetail,
+            final @FormDataParam("url") String functionPkgUrl,
+            @ApiParam(
+                    value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
+                            "archive  \n" +
+                            "  The path to the NAR archive for the Source. It also supports url-path " +
+                            "  [http/https/file (file protocol assumes that file already exists on worker host)] " +
+                            "  from which worker can download the package.  \n" +
+                            "classname  \n" +
+                            "  The source's class name if archive is file-url-path (file://).  \n" +
+                            "cpu  \n" +
+                            "  The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime). \n" +
+                            "deserialization-classname  \n" +
+                            "  The SerDe classname for the source.  \n" +
+                            "destination-topic-name  \n" +
+                            "  The Pulsar topic to which data is sent.  \n" +
+                            "disk  \n" +
+                            "  The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime).  \n" +
+                            "name  \n" +
+                            "  The name of source.  \n" +
+                            "namespace  \n" +
+                            "  The namespace of source.  \n" +
+                            "parallelism  \n" +
+                            "  The source's parallelism factor (i.e. the number of source instances to run).  \n" +
+                            "processing-guarantees  \n" +
+                            "  The processing guarantees (aka delivery semantics) applied to the source  " +
+                            "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
+                            "ram  \n" +
+                            "  The RAM (in bytes) that need to be allocated per source instance " +
+                            "  (applicable only to the process and Docker runtimes).  \n" +
+                            "schema-type  \n" +
+                            "  The schema type (either a builtin schema like 'avro', 'json', etc.. or  " +
+                            "  custom Schema class name to be used to encode messages emitted from the source  \n" +
+                            "source-config  \n" +
+                            "  Source config key/values  \n" +
+                            "source-config-file  \n" +
+                            "  The path to a YAML config file specifying the source's configuration  \n" +
+                            "source-type  \n" +
+                            "  The source's connector provider  \n" +
+                            "tenant  \n" +
+                            "  The tenant of source.  \n",
+                    examples = @Example(
+                            value = @ExampleProperty(
+                                    mediaType = MediaType.APPLICATION_JSON,
+                                    value = "{\n"
+                                            + "  \"archive\": ./connectors/pulsar-io-mysql-0.0.1.nar\n"
+                                            + "  \"name\": pulsar-io-mysql\n"
+                                            + "  \"destination-topic-name\": pulsar-io-mysql\n"
+                                            + "  \"source-config-file\": pulsar/connectors/mysql-source-config.yaml\n"
+                                            + "  \"st\": avro\n"
+                                            + "}\n"
+                            )
+                    )
+            )
+            final @FormDataParam("sourceConfig") String sourceConfigJson) {
 
         source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
             functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
@@ -86,19 +140,78 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Updates a Pulsar Source currently running in cluster mode")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function doesn't exist, etc.)"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+            @ApiResponse(code = 400, message = "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 200, message = "Pulsar Function successfully updated"),
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 500, message = "Internal Server Error")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public void updateSource(final @PathParam("tenant") String tenant,
-                             final @PathParam("namespace") String namespace,
-                             final @PathParam("sourceName") String sourceName,
-                             final @FormDataParam("data") InputStream uploadedInputStream,
-                             final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                             final @FormDataParam("url") String functionPkgUrl,
-                             final @FormDataParam("sourceConfig") String sourceConfigJson,
-                             final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
+    public void updateSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of source")
+            final @PathParam("sourceName") String sourceName,
+            final @FormDataParam("data") InputStream uploadedInputStream,
+            final @FormDataParam("data") FormDataContentDisposition fileDetail,
+            final @FormDataParam("url") String functionPkgUrl,
+            @ApiParam(
+                    value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
+                            "archive  \n" +
+                            "  The path to the NAR archive for the Source. It also supports url-path " +
+                            "  [http/https/file (file protocol assumes that file already exists on worker host)] " +
+                            "  from which worker can download the package.  \n" +
+                            "classname  \n" +
+                            "  The source's class name if archive is file-url-path (file://).  \n" +
+                            "cpu  \n" +
+                            "  The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime). \n" +
+                            "deserialization-classname  \n" +
+                            "  The SerDe classname for the source.  \n" +
+                            "destination-topic-name  \n" +
+                            "  The Pulsar topic to which data is sent.  \n" +
+                            "disk  \n" +
+                            "  The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime).  \n" +
+                            "name  \n" +
+                            "  The name of source.  \n" +
+                            "namespace  \n" +
+                            "  The namespace of source.  \n" +
+                            "parallelism  \n" +
+                            "  The source's parallelism factor (i.e. the number of source instances to run).  \n" +
+                            "processing-guarantees  \n" +
+                            "  The processing guarantees (aka delivery semantics) applied to the source  " +
+                            "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
+                            "ram  \n" +
+                            "  The RAM (in bytes) that need to be allocated per source instance " +
+                            "  (applicable only to the process and Docker runtimes).  \n" +
+                            "schema-type  \n" +
+                            "  The schema type (either a builtin schema like 'avro', 'json', etc.. or  " +
+                            "  custom Schema class name to be used to encode messages emitted from the source  \n" +
+                            "source-config  \n" +
+                            "  Source config key/values  \n" +
+                            "source-config-file  \n" +
+                            "  The path to a YAML config file specifying the source's configuration  \n" +
+                            "source-type  \n" +
+                            "  The source's connector provider  \n" +
+                            "tenant  \n" +
+                            "  The tenant of source.  \n",
+                    examples = @Example(
+                            value = @ExampleProperty(
+                                    mediaType = MediaType.APPLICATION_JSON,
+                                    value = "{\n"
+                                            + "  \"archive\": ./connectors/pulsar-io-mysql-0.0.1.nar\n"
+                                            + "  \"name\": pulsar-io-mysql\n"
+                                            + "  \"destination-topic-name\": pulsar-io-mysql\n"
+                                            + "  \"source-config-file\": pulsar/connectors/mysql-source-config.yaml\n"
+                                            + "  \"st\": avro\n"
+                                            + "}\n"
+                            )
+                    )
+            )
+            final @FormDataParam("sourceConfig") String sourceConfigJson,
+            final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
         source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
             functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData(), updateOptions);
@@ -108,16 +221,21 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @DELETE
     @ApiOperation(value = "Deletes a Pulsar Source currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function doesn't exist"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
             @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "The function was successfully deleted")
+            @ApiResponse(code = 200, message = "The function was successfully deleted"),
+            @ApiResponse(code = 500, message = "Internal Server Error")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
-    public void deregisterSource(final @PathParam("tenant") String tenant,
-                                       final @PathParam("namespace") String namespace,
-                                       final @PathParam("sourceName") String sourceName) {
+    public void deregisterSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName) {
         source.deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
@@ -127,15 +245,17 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             response = SourceConfig.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
-    public SourceConfig getSourceInfo(final @PathParam("tenant") String tenant,
-                                      final @PathParam("namespace") String namespace,
-                                      final @PathParam("sourceName") String sourceName) throws IOException {
+    public SourceConfig getSourceInfo(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName) throws IOException {
         return source.getSourceInfo(tenant, namespace, sourceName);
     }
 
@@ -145,16 +265,18 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             response = SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The source doesn't exist")
+            @ApiResponse(code = 500, message = "Internal Server Error")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/status")
     public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(
+            @ApiParam(value = "The name of tenant")
             final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
             final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
             final @PathParam("sourceName") String sourceName,
+            @ApiParam(value = "The source instanceId (if instance-id is not provided, the stats of all instances is returned).")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return source.getSourceInstanceStatus(
             tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
@@ -166,15 +288,17 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             response = SourceStatus.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The source doesn't exist")
+            @ApiResponse(code = 500, message = "Internal Server Error")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/status")
-    public SourceStatus getSourceStatus(final @PathParam("tenant") String tenant,
-                                        final @PathParam("namespace") String namespace,
-                                        final @PathParam("sourceName") String sourceName) throws IOException {
+    public SourceStatus getSourceStatus(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName) throws IOException {
         return source.getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -186,12 +310,16 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 500, message = "Internal Server Error")
     })
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}")
-    public List<String> listSources(final @PathParam("tenant") String tenant,
-                                    final @PathParam("namespace") String namespace) {
+    public List<String> listSources(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace) {
         return source.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
@@ -199,14 +327,20 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Restart source instance", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void restartSource(final @PathParam("tenant") String tenant,
-                              final @PathParam("namespace") String namespace,
-                              final @PathParam("sourceName") String sourceName,
-                              final @PathParam("instanceId") String instanceId) {
+    public void restartSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName,
+            @ApiParam(value = "The source instanceId (if instance-id is not provided, the stats of all instances is returned).")
+            final @PathParam("instanceId") String instanceId) {
         source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -214,13 +348,18 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Restart all source instances", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void restartSource(final @PathParam("tenant") String tenant,
-                              final @PathParam("namespace") String namespace,
-                              final @PathParam("sourceName") String sourceName) {
+    public void restartSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName) {
         source.restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
@@ -228,14 +367,20 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Stop source instance", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void stopSource(final @PathParam("tenant") String tenant,
-                           final @PathParam("namespace") String namespace,
-                           final @PathParam("sourceName") String sourceName,
-                           final @PathParam("instanceId") String instanceId) {
+    public void stopSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName,
+            @ApiParam(value = "The source instanceId (if instance-id is not provided, the stats of all instances is returned).")
+            final @PathParam("instanceId") String instanceId) {
         source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -243,13 +388,18 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Stop all source instances", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void stopSource(final @PathParam("tenant") String tenant,
-                           final @PathParam("namespace") String namespace,
-                           final @PathParam("sourceName") String sourceName) {
+    public void stopSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName) {
         source.stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
@@ -257,14 +407,20 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Start source instance", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void startSource(final @PathParam("tenant") String tenant,
-                            final @PathParam("namespace") String namespace,
-                            final @PathParam("sourceName") String sourceName,
-                            final @PathParam("instanceId") String instanceId) {
+    public void startSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName,
+            @ApiParam(value = "The source instanceId (if instance-id is not provided, the stats of all instances is returned).")
+            final @PathParam("instanceId") String instanceId) {
         source.startFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
@@ -272,13 +428,18 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiOperation(value = "Start all source instances", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
+            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void startSource(final @PathParam("tenant") String tenant,
-                            final @PathParam("namespace") String namespace,
-                            final @PathParam("sourceName") String sourceName) {
+    public void startSource(
+            @ApiParam(value = "The name of tenant")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The name of namespace")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of name")
+            final @PathParam("sourceName") String sourceName) {
         source.startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
