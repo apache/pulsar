@@ -1,7 +1,7 @@
 ---
 id: functions-debugging
-title: Debugging Pulsar Functions
-sidebar_label: Debugging functions
+title: How to debug Pulsar Functions
+sidebar_label: Debugging
 ---
 
 
@@ -60,7 +60,7 @@ public void testExclamationFunction() {
 }
 ```
 
-## Debugging with localrun mode
+## Debug with localrun mode
 
 > Note
 >
