@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -551,6 +552,30 @@ public class Namespaces extends NamespacesBase {
         internalSetPersistence(persistence);
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @ApiOperation(hidden = true, value = "Set the bookie-affinity-group to namespace-local policy.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void setBookieAffinityGroup(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, BookieAffinityGroupData bookieAffinityGroup) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetBookieAffinityGroup(bookieAffinityGroup);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @ApiOperation(hidden = true, value = "Get the bookie-affinity-group from namespace-local policy.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public BookieAffinityGroupData getBookieAffinityGroup(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetBookieAffinityGroup();
+    }
+    
     @GET
     @Path("/{property}/{cluster}/{namespace}/persistence")
     @ApiOperation(hidden = true, value = "Get the persistence configuration for a namespace.")

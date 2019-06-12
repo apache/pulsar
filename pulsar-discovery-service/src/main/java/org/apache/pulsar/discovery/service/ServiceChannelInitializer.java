@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.discovery.service;
 
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.NettySslContextBuilder;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 

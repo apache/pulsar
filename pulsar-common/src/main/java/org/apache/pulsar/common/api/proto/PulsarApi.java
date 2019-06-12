@@ -3096,6 +3096,10 @@ public final class PulsarApi {
     boolean hasOrderingKey();
     org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey();
     
+    // optional int64 deliver_at_time = 19;
+    boolean hasDeliverAtTime();
+    long getDeliverAtTime();
+    
     // optional int32 marker_type = 20;
     boolean hasMarkerType();
     int getMarkerType();
@@ -3419,11 +3423,21 @@ public final class PulsarApi {
       return orderingKey_;
     }
     
+    // optional int64 deliver_at_time = 19;
+    public static final int DELIVER_AT_TIME_FIELD_NUMBER = 19;
+    private long deliverAtTime_;
+    public boolean hasDeliverAtTime() {
+      return ((bitField0_ & 0x00004000) == 0x00004000);
+    }
+    public long getDeliverAtTime() {
+      return deliverAtTime_;
+    }
+    
     // optional int32 marker_type = 20;
     public static final int MARKER_TYPE_FIELD_NUMBER = 20;
     private int markerType_;
     public boolean hasMarkerType() {
-      return ((bitField0_ & 0x00004000) == 0x00004000);
+      return ((bitField0_ & 0x00008000) == 0x00008000);
     }
     public int getMarkerType() {
       return markerType_;
@@ -3447,6 +3461,7 @@ public final class PulsarApi {
       schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       partitionKeyB64Encoded_ = false;
       orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      deliverAtTime_ = 0L;
       markerType_ = 0;
     }
     private byte memoizedIsInitialized = -1;
@@ -3542,6 +3557,9 @@ public final class PulsarApi {
         output.writeBytes(18, orderingKey_);
       }
       if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        output.writeInt64(19, deliverAtTime_);
+      }
+      if (((bitField0_ & 0x00008000) == 0x00008000)) {
         output.writeInt32(20, markerType_);
       }
     }
@@ -3626,6 +3644,10 @@ public final class PulsarApi {
           .computeBytesSize(18, orderingKey_);
       }
       if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeInt64Size(19, deliverAtTime_);
+      }
+      if (((bitField0_ & 0x00008000) == 0x00008000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(20, markerType_);
       }
@@ -3776,8 +3798,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00008000);
         orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00010000);
-        markerType_ = 0;
+        deliverAtTime_ = 0L;
         bitField0_ = (bitField0_ & ~0x00020000);
+        markerType_ = 0;
+        bitField0_ = (bitField0_ & ~0x00040000);
         return this;
       }
       
@@ -3886,6 +3910,10 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00020000) == 0x00020000)) {
           to_bitField0_ |= 0x00004000;
         }
+        result.deliverAtTime_ = deliverAtTime_;
+        if (((from_bitField0_ & 0x00040000) == 0x00040000)) {
+          to_bitField0_ |= 0x00008000;
+        }
         result.markerType_ = markerType_;
         result.bitField0_ = to_bitField0_;
         return result;
@@ -3964,6 +3992,9 @@ public final class PulsarApi {
         }
         if (other.hasOrderingKey()) {
           setOrderingKey(other.getOrderingKey());
+        }
+        if (other.hasDeliverAtTime()) {
+          setDeliverAtTime(other.getDeliverAtTime());
         }
         if (other.hasMarkerType()) {
           setMarkerType(other.getMarkerType());
@@ -4112,8 +4143,13 @@ public final class PulsarApi {
               orderingKey_ = input.readBytes();
               break;
             }
-            case 160: {
+            case 152: {
               bitField0_ |= 0x00020000;
+              deliverAtTime_ = input.readInt64();
+              break;
+            }
+            case 160: {
+              bitField0_ |= 0x00040000;
               markerType_ = input.readInt32();
               break;
             }
@@ -4723,22 +4759,43 @@ public final class PulsarApi {
         return this;
       }
       
+      // optional int64 deliver_at_time = 19;
+      private long deliverAtTime_ ;
+      public boolean hasDeliverAtTime() {
+        return ((bitField0_ & 0x00020000) == 0x00020000);
+      }
+      public long getDeliverAtTime() {
+        return deliverAtTime_;
+      }
+      public Builder setDeliverAtTime(long value) {
+        bitField0_ |= 0x00020000;
+        deliverAtTime_ = value;
+        
+        return this;
+      }
+      public Builder clearDeliverAtTime() {
+        bitField0_ = (bitField0_ & ~0x00020000);
+        deliverAtTime_ = 0L;
+        
+        return this;
+      }
+      
       // optional int32 marker_type = 20;
       private int markerType_ ;
       public boolean hasMarkerType() {
-        return ((bitField0_ & 0x00020000) == 0x00020000);
+        return ((bitField0_ & 0x00040000) == 0x00040000);
       }
       public int getMarkerType() {
         return markerType_;
       }
       public Builder setMarkerType(int value) {
-        bitField0_ |= 0x00020000;
+        bitField0_ |= 0x00040000;
         markerType_ = value;
         
         return this;
       }
       public Builder clearMarkerType() {
-        bitField0_ = (bitField0_ & ~0x00020000);
+        bitField0_ = (bitField0_ & ~0x00040000);
         markerType_ = 0;
         
         return this;

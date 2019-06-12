@@ -23,6 +23,8 @@ import org.testng.ITest;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
+import java.util.function.Predicate;
+
 public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
 
     @BeforeSuite
@@ -40,5 +42,15 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
     @Override
     public String getTestName() {
         return "pulsar-test-suite";
+    }
+
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+            throws Exception {
+        for (int i = 0; i < retryCount; i++) {
+            if (predicate.test(null) || i == (retryCount - 1)) {
+                break;
+            }
+            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
+        }
     }
 }

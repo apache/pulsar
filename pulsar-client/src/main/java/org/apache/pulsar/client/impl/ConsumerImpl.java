@@ -20,8 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
-import static org.apache.pulsar.common.api.Commands.hasChecksum;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
+import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
@@ -63,7 +63,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -1268,15 +1268,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     .collect(Collectors.toSet()), MAX_REDELIVER_UNACKNOWLEDGED);
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             batches.forEach(ids -> {
-                List<MessageIdData> messageIdDatas = ids.stream().map(messageId -> {
-                    // process message possible to dead letter topic
-                    processPossibleToDLQ(messageId);
-                    // attempt to remove message from batchMessageAckTracker
-                    builder.setPartition(messageId.getPartitionIndex());
-                    builder.setLedgerId(messageId.getLedgerId());
-                    builder.setEntryId(messageId.getEntryId());
-                    return builder.build();
-                }).collect(Collectors.toList());
+                List<MessageIdData> messageIdDatas = ids.stream()
+                    .filter(messageId -> !processPossibleToDLQ(messageId))
+                    .map(messageId -> {
+                            builder.setPartition(messageId.getPartitionIndex());
+                            builder.setLedgerId(messageId.getLedgerId());
+                            builder.setEntryId(messageId.getEntryId());
+                            return builder.build();
+                        }).collect(Collectors.toList());
+
                 ByteBuf cmd = Commands.newRedeliverUnacknowledgedMessages(consumerId, messageIdDatas);
                 cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
                 messageIdDatas.forEach(MessageIdData::recycle);
@@ -1299,7 +1299,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private void processPossibleToDLQ(MessageIdImpl messageId) {
+    private boolean processPossibleToDLQ(MessageIdImpl messageId) {
         List<MessageImpl<T>> deadLetterMessages = null;
         if (possibleSendToDeadLetterTopicMessages != null) {
             if (messageId instanceof BatchMessageIdImpl) {
@@ -1329,11 +1329,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .send();
                     }
                     acknowledge(messageId);
+                    return true;
                 } catch (Exception e) {
                     log.error("Send to dead letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
                 }
             }
         }
+        return false;
     }
 
     @Override

@@ -157,6 +157,9 @@ public class PulsarCluster {
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
+                        // used in s3 tests
+                        .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
+                        .withEnv("AWS_SECRET_KEY", "secretkey")
                 )
         );
 

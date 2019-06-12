@@ -63,6 +63,8 @@ class ProducerImpl : public HandlerBase,
                  const ProducerConfiguration& producerConfiguration);
     ~ProducerImpl();
 
+    int keepMaxMessageSize_;
+
     virtual const std::string& getTopic() const;
 
     virtual void sendAsync(const Message& msg, SendCallback callback);

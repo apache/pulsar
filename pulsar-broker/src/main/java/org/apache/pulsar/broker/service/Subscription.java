@@ -50,6 +50,10 @@ public interface Subscription {
 
     long getNumberOfEntriesInBacklog();
 
+    default long getNumberOfEntriesDelayed() {
+        return 0;
+    }
+
     List<Consumer> getConsumers();
 
     CompletableFuture<Void> close();
@@ -85,4 +89,13 @@ public interface Subscription {
     String getTypeString();
 
     void addUnAckedMessages(int unAckMessages);
+
+    // Subscription utils
+    static boolean isCumulativeAckMode(SubType subType) {
+        return SubType.Exclusive.equals(subType) || SubType.Failover.equals(subType);
+    }
+
+    static boolean isIndividualAckMode(SubType subType) {
+        return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
+    }
 }

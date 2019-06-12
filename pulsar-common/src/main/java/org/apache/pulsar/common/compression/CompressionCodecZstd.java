@@ -21,10 +21,11 @@ package org.apache.pulsar.common.compression;
 import com.github.luben.zstd.Zstd;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
  * Zstandard Compression
@@ -38,7 +39,7 @@ public class CompressionCodecZstd implements CompressionCodec {
         int uncompressedLength = source.readableBytes();
         int maxLength = (int) Zstd.compressBound(uncompressedLength);
 
-        ByteBuf target = PooledByteBufAllocator.DEFAULT.directBuffer(maxLength, maxLength);
+        ByteBuf target = PulsarByteBufAllocator.DEFAULT.directBuffer(maxLength, maxLength);
         int compressedLength;
 
         if (source.hasMemoryAddress()) {
@@ -58,7 +59,7 @@ public class CompressionCodecZstd implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PooledByteBufAllocator.DEFAULT.directBuffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.directBuffer(uncompressedLength, uncompressedLength);
 
         if (encoded.hasMemoryAddress()) {
             Zstd.decompressUnsafe(uncompressed.memoryAddress(), uncompressedLength,

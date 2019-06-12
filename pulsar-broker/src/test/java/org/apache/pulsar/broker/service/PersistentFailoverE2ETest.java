@@ -325,14 +325,16 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
     public void testSimpleConsumerEventsWithPartition() throws Exception {
         int numPartitions = 4;
 
-        final String topicName = "persistent://prop/use/ns-abc/failover-topic2";
+        final String topicName = "persistent://prop/use/ns-abc/testSimpleConsumerEventsWithPartition-" + System.nanoTime();
         final TopicName destName = TopicName.get(topicName);
         final String subName = "sub1";
         final int numMsgs = 100;
         Set<String> uniqueMessages = new HashSet<>();
         admin.topics().createPartitionedTopic(topicName, numPartitions);
 
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover);
 
         // 1. two consumers on the same subscription
@@ -358,16 +360,14 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         PersistentDispatcherSingleActiveConsumer disp3 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
-            futures.add(producer.sendAsync(message.getBytes()));
+            producer.sendAsync(message.getBytes());
         }
-        FutureUtil.waitForAll(futures).get();
-        futures.clear();
+        producer.flush();
 
         // equal distribution between both consumers
         int totalMessages = 0;
@@ -412,10 +412,9 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
-            futures.add(producer.sendAsync(message.getBytes()));
+            producer.sendAsync(message.getBytes());
         }
-        FutureUtil.waitForAll(futures).get();
-        futures.clear();
+        producer.flush();
 
         // add a consumer
         for (int i = 0; i < 20; i++) {
@@ -469,10 +468,9 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
-            futures.add(producer.sendAsync(message.getBytes()));
+            producer.sendAsync(message.getBytes());
         }
-        FutureUtil.waitForAll(futures).get();
-        futures.clear();
+        producer.flush();
 
         // remove a consumer
         for (int i = 0; i < 10; i++) {

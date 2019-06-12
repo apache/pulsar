@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 import com.google.common.base.MoreObjects;
 import java.util.Arrays;
 import java.util.Objects;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
 public class StoredSchema {
     public final byte[] data;

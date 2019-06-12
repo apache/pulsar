@@ -31,10 +31,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.Backoff;
@@ -68,6 +70,7 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
 
     private final ClientConfigurationData clientConf;
     private final PulsarSpoutConfiguration pulsarSpoutConf;
+    private final ConsumerConfigurationData<byte[]> consumerConf;
     private final long failedRetriesTimeoutNano;
     private final int maxFailedRetries;
     private final ConcurrentMap<MessageId, MessageRetries> pendingMessageRetries = new ConcurrentHashMap<>();
@@ -86,14 +89,28 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
     private volatile long pendingAcks = 0;
     private volatile long messageSizeReceived = 0;
 
+    public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf) {
+        this(pulsarSpoutConf, PulsarClient.builder());
+    }
+    
     public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf, ClientBuilder clientBuilder) {
+        this(pulsarSpoutConf, ((ClientBuilderImpl) clientBuilder).getClientConfigurationData().clone(),
+                new ConsumerConfigurationData<byte[]>());
+    }
+
+    public PulsarSpout(PulsarSpoutConfiguration pulsarSpoutConf, ClientConfigurationData clientConfig,
+            ConsumerConfigurationData<byte[]> consumerConfig) {
         Objects.requireNonNull(pulsarSpoutConf.getServiceUrl());
         Objects.requireNonNull(pulsarSpoutConf.getTopic());
         Objects.requireNonNull(pulsarSpoutConf.getSubscriptionName());
         Objects.requireNonNull(pulsarSpoutConf.getMessageToValuesMapper());
 
-        this.clientConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData().clone();
+        checkNotNull(pulsarSpoutConf, "spout configuration can't be null");
+        checkNotNull(clientConfig, "client configuration can't be null");
+        checkNotNull(consumerConfig, "consumer configuration can't be null");
+        this.clientConf = clientConfig;
         this.clientConf.setServiceUrl(pulsarSpoutConf.getServiceUrl());
+        this.consumerConf = consumerConfig;
         this.pulsarSpoutConf = pulsarSpoutConf;
         this.failedRetriesTimeoutNano = pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.NANOSECONDS);
         this.maxFailedRetries = pulsarSpoutConf.getMaxFailedRetries();
@@ -276,15 +293,15 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         PulsarSpoutConsumer consumer;
         if (pulsarSpoutConf.isSharedConsumerEnabled()) {
             consumer = pulsarSpoutConf.isDurableSubscription()
-                    ? new SpoutConsumer(sharedPulsarClient.getSharedConsumer(newConsumerConfiguration(pulsarSpoutConf)))
-                    : new SpoutReader(sharedPulsarClient.getSharedReader(newReaderConfiguration(pulsarSpoutConf)));
+                    ? new SpoutConsumer(sharedPulsarClient.getSharedConsumer(newConsumerConfiguration()))
+                    : new SpoutReader(sharedPulsarClient.getSharedReader(newReaderConfiguration()));
         } else {
             try {
                 consumer = pulsarSpoutConf.isDurableSubscription()
                         ? new SpoutConsumer(sharedPulsarClient.getClient()
-                                .subscribeAsync(newConsumerConfiguration(pulsarSpoutConf)).join())
+                                .subscribeAsync(newConsumerConfiguration()).join())
                         : new SpoutReader(sharedPulsarClient.getClient()
-                                .createReaderAsync(newReaderConfiguration(pulsarSpoutConf)).join());
+                                .createReaderAsync(newReaderConfiguration()).join());
             } catch (CompletionException e) {
                 throw (PulsarClientException) e.getCause();
             }
@@ -376,20 +393,26 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         return metrics;
     }
 
-    private ReaderConfigurationData<byte[]> newReaderConfiguration(PulsarSpoutConfiguration pulsarSpoutConf) {
-        ReaderConfigurationData<byte[]> readerConf = new ReaderConfigurationData<> ();
+    private ReaderConfigurationData<byte[]> newReaderConfiguration() {
+        ReaderConfigurationData<byte[]> readerConf = new ReaderConfigurationData<>();
         readerConf.setTopicName(pulsarSpoutConf.getTopic());
         readerConf.setReaderName(pulsarSpoutConf.getSubscriptionName());
         readerConf.setStartMessageId(pulsarSpoutConf.getNonDurableSubscriptionReadPosition());
+        if (this.consumerConf != null) {
+            readerConf.setCryptoFailureAction(consumerConf.getCryptoFailureAction());
+            readerConf.setCryptoKeyReader(consumerConf.getCryptoKeyReader());
+            readerConf.setReadCompacted(consumerConf.isReadCompacted());
+            readerConf.setReceiverQueueSize(consumerConf.getReceiverQueueSize());
+        }
         return readerConf;
     }
 
-    private ConsumerConfigurationData<byte[]> newConsumerConfiguration(PulsarSpoutConfiguration pulsarSpoutConf2) {
-        ConsumerConfigurationData<byte[]> consumerConf = new ConsumerConfigurationData<>();
+    private ConsumerConfigurationData<byte[]> newConsumerConfiguration() {
+        ConsumerConfigurationData<byte[]> consumerConf = this.consumerConf != null ? this.consumerConf
+                : new ConsumerConfigurationData<>();
         consumerConf.setTopicNames(Collections.singleton(pulsarSpoutConf.getTopic()));
         consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
         consumerConf.setSubscriptionType(pulsarSpoutConf.getSubscriptionType());
-        consumerConf.setReceiverQueueSize(pulsarSpoutConf.getConsumerReceiverQueueSize());
         return consumerConf;
     }
 

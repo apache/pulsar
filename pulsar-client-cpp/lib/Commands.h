@@ -49,7 +49,7 @@ class Commands {
     };
     enum WireFormatConstant
     {
-        MaxMessageSize = (5 * 1024 * 1024 - (10 * 1024)),
+        DefaultMaxMessageSize = (5 * 1024 * 1024 - (10 * 1024)),
         MaxFrameSize = (5 * 1024 * 1024)
     };
 

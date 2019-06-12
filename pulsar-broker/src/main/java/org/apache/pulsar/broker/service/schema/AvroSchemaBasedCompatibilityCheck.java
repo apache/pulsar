@@ -28,7 +28,7 @@ import org.apache.avro.SchemaParseException;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import lombok.extern.slf4j.Slf4j;
 
 /**
