@@ -48,7 +48,7 @@ public class FileStoreTestBase {
         hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
         fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
-                TieredStorageConfigurationData.create(properties),
+                FileSystemConfigurationData.create(properties),
                 scheduler, hdfsURI, basePath);
     }
 

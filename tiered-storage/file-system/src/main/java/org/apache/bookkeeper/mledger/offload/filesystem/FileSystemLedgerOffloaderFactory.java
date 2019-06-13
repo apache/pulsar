@@ -34,7 +34,7 @@ public class FileSystemLedgerOffloaderFactory implements LedgerOffloaderFactory<
 
     @Override
     public FileSystemManagedLedgerOffloader create(Properties properties, Map<String, String> userMetadata, OrderedScheduler scheduler) throws IOException {
-        TieredStorageConfigurationData data = TieredStorageConfigurationData.create(properties);
+        FileSystemConfigurationData data = FileSystemConfigurationData.create(properties);
         return FileSystemManagedLedgerOffloader.create(data, scheduler);
     }
 }

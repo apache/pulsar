@@ -22,6 +22,7 @@ import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -43,8 +44,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -63,13 +62,13 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         LongWritable key = new LongWritable();
         BytesWritable value = new BytesWritable();
         try {
-            key.set(-1);
+            key.set(FileSystemManagedLedgerOffloader.METADATA_KEY_INDEX);
             reader.get(key, value);
             this.ledgerMetadata = parseLedgerMetadata(value.copyBytes());
         } catch (IOException e) {
-            log.error("Fail to read LedgerMetadata for key {}",
-                    key.get());
-            throw new IOException("Fail to read LedgerMetadata for key " + key.get());
+            log.error("Fail to read LedgerMetadata for ledgerId {}",
+                    ledgerId);
+            throw new IOException("Fail to read LedgerMetadata for ledgerId " + key.get());
         }
     }
 
@@ -99,7 +98,9 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
+        if (log.isDebugEnabled()) {
+            log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
+        }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.submit(() -> {
             if (firstEntry > lastEntry
@@ -184,138 +185,55 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId);
     }
 
-    static private class InternalLedgerMetadata implements LedgerMetadata {
-        private DataFormats.LedgerMetadataFormat ledgerMetadataFormat;
-
-        private int ensembleSize;
-        private int writeQuorumSize;
-        private int ackQuorumSize;
-        private long lastEntryId;
-        private long length;
-        private DataFormats.LedgerMetadataFormat.DigestType digestType;
-        private long ctime;
-        private byte[] password;
-        private State state;
-        private Map<String, byte[]> customMetadata = Maps.newHashMap();
-        private TreeMap<Long, ArrayList<BookieSocketAddress>> ensembles = new TreeMap<Long, ArrayList<BookieSocketAddress>>();
-
-        InternalLedgerMetadata(DataFormats.LedgerMetadataFormat ledgerMetadataFormat) {
-            this.ensembleSize = ledgerMetadataFormat.getEnsembleSize();
-            this.writeQuorumSize = ledgerMetadataFormat.getQuorumSize();
-            this.ackQuorumSize = ledgerMetadataFormat.getAckQuorumSize();
-            this.lastEntryId = ledgerMetadataFormat.getLastEntryId();
-            this.length = ledgerMetadataFormat.getLength();
-            this.digestType = ledgerMetadataFormat.getDigestType();
-            this.ctime = ledgerMetadataFormat.getCtime();
-            this.state = State.CLOSED;
-            this.password = ledgerMetadataFormat.getPassword().toByteArray();
-
-            if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-                ledgerMetadataFormat.getCustomMetadataList().forEach(
-                        entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
-            }
-
-            ledgerMetadataFormat.getSegmentList().forEach(segment -> {
-                ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<BookieSocketAddress>();
-                segment.getEnsembleMemberList().forEach(address -> {
-                    try {
-                        addressArrayList.add(new BookieSocketAddress(address));
-                    } catch (IOException e) {
-                        log.error("Exception when create BookieSocketAddress. ", e);
-                    }
-                });
-                this.ensembles.put(segment.getFirstEntryId(), addressArrayList);
-            });
-        }
-
-        @Override
-        public boolean hasPassword() { return true; }
-
-        @Override
-        public byte[] getPassword() { return password; }
-
-        @Override
-        public State getState() { return state; }
-
-        @Override
-        public int getMetadataFormatVersion() { return 2; }
-
-        @Override
-        public int getEnsembleSize() {
-            return this.ensembleSize;
-        }
-
-        @Override
-        public int getWriteQuorumSize() {
-            return this.writeQuorumSize;
-        }
-
-        @Override
-        public int getAckQuorumSize() {
-            return this.ackQuorumSize;
-        }
-
-        @Override
-        public long getLastEntryId() {
-            return this.lastEntryId;
-        }
-
-        @Override
-        public long getLength() {
-            return this.length;
-        }
-
-        @Override
-        public DigestType getDigestType() {
-            switch (this.digestType) {
-                case HMAC:
-                    return DigestType.MAC;
-                case CRC32:
-                    return DigestType.CRC32;
-                case CRC32C:
-                    return DigestType.CRC32C;
-                case DUMMY:
-                    return DigestType.DUMMY;
-                default:
-                    throw new IllegalArgumentException("Unable to convert digest type " + digestType);
-            }
-        }
-
-        @Override
-        public long getCtime() {
-            return this.ctime;
-        }
-
-        @Override
-        public boolean isClosed() {
-            return this.state == State.CLOSED;
-        }
-
-        @Override
-        public Map<String, byte[]> getCustomMetadata() {
-            return this.customMetadata;
-        }
-
-        @Override
-        public List<BookieSocketAddress> getEnsembleAt(long entryId) {
-            return ensembles.get(ensembles.headMap(entryId + 1).lastKey());
-        }
-
-        @Override
-        public NavigableMap<Long, ? extends List<BookieSocketAddress>> getAllEnsembles() {
-            return this.ensembles;
-        }
-
-        @Override
-        public String toSafeString() {
-            return toString();
-        }
-    }
-
     private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        DataFormats.LedgerMetadataFormat.Builder builder = DataFormats.LedgerMetadataFormat.newBuilder();
-        builder.mergeFrom(bytes);
-        return new InternalLedgerMetadata(builder.build());
+        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder().mergeFrom(bytes).build();
+        LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
+                .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
+                .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
+                .withClosedState()
+                .withMetadataFormatVersion(2)
+                .withLength(ledgerMetadataFormat.getLength())
+                .withAckQuorumSize(ledgerMetadataFormat.getAckQuorumSize())
+                .withCreationTime(ledgerMetadataFormat.getCtime())
+                .withWriteQuorumSize(ledgerMetadataFormat.getQuorumSize())
+                .withEnsembleSize(ledgerMetadataFormat.getEnsembleSize());
+        ledgerMetadataFormat.getSegmentList().forEach(segment -> {
+            ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<>();
+            segment.getEnsembleMemberList().forEach(address -> {
+                try {
+                    addressArrayList.add(new BookieSocketAddress(address));
+                } catch (IOException e) {
+                    log.error("Exception when create BookieSocketAddress. ", e);
+                }
+            });
+            builder.newEnsembleEntry(segment.getFirstEntryId(), addressArrayList);
+        });
+
+        if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
+            Map<String, byte[]> customMetadata = Maps.newHashMap();
+            ledgerMetadataFormat.getCustomMetadataList().forEach(
+                    entry -> customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
+            builder.withCustomMetadata(customMetadata);
+        }
+
+        switch (ledgerMetadataFormat.getDigestType()) {
+            case HMAC:
+                builder.withDigestType(DigestType.MAC);
+                break;
+            case CRC32:
+                builder.withDigestType(DigestType.CRC32);
+                break;
+            case CRC32C:
+                builder.withDigestType(DigestType.CRC32C);
+                break;
+            case DUMMY:
+                builder.withDigestType(DigestType.DUMMY);
+                break;
+            default:
+                throw new IllegalArgumentException("Unable to convert digest type " + ledgerMetadataFormat.getDigestType());
+        }
+
+        return builder.build();
     }
 
 }

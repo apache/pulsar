@@ -28,10 +28,10 @@ import java.util.Properties;
 import static org.apache.pulsar.common.util.FieldParser.value;
 
 /**
- * Configuration for tiered storage.
+ * Configuration for file system.
  */
 @Data
-public class TieredStorageConfigurationData implements Serializable, Cloneable {
+public class FileSystemConfigurationData implements Serializable, Cloneable {
 
     /**** --- Ledger Offloading --- ****/
     // Driver to use to offload old data to long term storage
@@ -47,9 +47,9 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable {
      * @param properties the configuration properties
      * @return tiered storage configuration
      */
-    public static TieredStorageConfigurationData create(Properties properties) {
-        TieredStorageConfigurationData data = new TieredStorageConfigurationData();
-        Field[] fields = TieredStorageConfigurationData.class.getDeclaredFields();
+    public static FileSystemConfigurationData create(Properties properties) {
+        FileSystemConfigurationData data = new FileSystemConfigurationData();
+        Field[] fields = FileSystemConfigurationData.class.getDeclaredFields();
         Arrays.stream(fields).forEach(f -> {
             if (properties.containsKey(f.getName())) {
                 try {
