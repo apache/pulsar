@@ -39,6 +39,8 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable {
 
     private String fileSystemProfilePath = null;
 
+    private String fileSystemURI = null;
+
     /**
      * Create a tiered storage configuration from the provided <tt>properties</tt>.
      *

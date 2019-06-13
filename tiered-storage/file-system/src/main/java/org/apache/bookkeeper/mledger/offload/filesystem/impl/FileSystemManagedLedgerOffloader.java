@@ -85,6 +85,10 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 configuration.addResource(new Path(paths[i]));
             }
         }
+
+        if (conf.getFileSystemURI() != null) {
+            configuration.set("fs.defaultFS", conf.getFileSystemURI());
+        }
         if (configuration.get("fs.hdfs.impl") == null) {
             this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
         }
@@ -115,6 +119,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         );
     }
 
+    /*
+    * ledgerMetadata stored in an index of -1
+    * */
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle, UUID uid, Map<String, String> extraMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
@@ -134,6 +141,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                         new Path(dataFilePath),
                         MapFile.Writer.keyClass(LongWritable.class),
                         MapFile.Writer.valueClass(BytesWritable.class));
+                //store the ledgerMetadata in -1 index
                 key.set(-1);
                 byte[] ledgerMetadata = buildLedgerMetadataFormat(readHandle.getLedgerMetadata());
                 value.set(buildLedgerMetadataFormat(readHandle.getLedgerMetadata()), 0, ledgerMetadata.length);
