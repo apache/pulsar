@@ -506,7 +506,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{property}/{namespace}/persistence/bookieAffinity")
-    @ApiOperation(hidden = true, value = "Get the bookie-affinity-group from namespace-local policy.")
+    @ApiOperation(value = "Get the bookie-affinity-group from namespace-local policy.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
@@ -518,7 +518,7 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{property}/{namespace}/persistence/bookieAffinity")
-    @ApiOperation(hidden = true, value = "Delete the bookie-affinity-group from namespace-local policy.")
+    @ApiOperation(value = "Delete the bookie-affinity-group from namespace-local policy.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
