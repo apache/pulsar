@@ -40,5 +40,9 @@
         <name>io.seqfile.compression.type</name>
         <value>BLOCK</value>
     </property>
+    <property>
+        <name>io.map.index.interval</name>
+        <value>128</value>
+    </property>
 
 </configuration>

@@ -51,6 +51,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.zip.Checksum;
 
 
 public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
@@ -128,9 +129,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             LongWritable key = new LongWritable();
             BytesWritable value = new BytesWritable();
             try {
-                FileSystem fileSystem = FileSystem.get(configuration);
-                Path dataDirPath = new Path(dataFilePath);
-                fileSystem.mkdirs(dataDirPath);
                 MapFile.Writer dataWriter = new MapFile.Writer(configuration,
                         new Path(dataFilePath),
                         MapFile.Writer.keyClass(LongWritable.class),
@@ -139,21 +137,25 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 byte[] ledgerMetadata = buildLedgerMetadataFormat(readHandle.getLedgerMetadata());
                 value.set(buildLedgerMetadataFormat(readHandle.getLedgerMetadata()), 0, ledgerMetadata.length);
                 dataWriter.append(key, value);
-                long lastEntryId = 0;
+                long haveOffloadEntryNumber = 0;
                 do {
-                    long end = Math.min(lastEntryId + ENTRIES_PER_READ - 1, readHandle.getLastAddConfirmed());
-                    LedgerEntries ledgerEntriesOnce = readHandle.readAsync(lastEntryId, end).get();
-                    log.debug("read ledger entries. start: {}, end: {}", lastEntryId, end);
-                    lastEntryId = end + 1;
+                    long end = Math.min(haveOffloadEntryNumber + ENTRIES_PER_READ - 1, readHandle.getLastAddConfirmed());
+                    LedgerEntries ledgerEntriesOnce = readHandle.readAsync(haveOffloadEntryNumber, end).get();
+                    log.debug("read ledger entries. start: {}, end: {}", haveOffloadEntryNumber, end);
                     Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
                     while (iterator.hasNext()) {
                         LedgerEntry entry = iterator.next();
                         long entryId = entry.getEntryId();
                         key.set(entryId);
-                        value.set(entry.getEntryBytes(), 0, (int)entry.getLength());
+                        value.set(entry.getEntryBytes(), 0, entry.getEntryBytes().length);
                         dataWriter.append(key, value);
+                        haveOffloadEntryNumber ++;
                     }
-                } while (lastEntryId <= readHandle.getLastAddConfirmed());
+                } while (haveOffloadEntryNumber - 1 < readHandle.getLastAddConfirmed());
+                if (haveOffloadEntryNumber - 1 != readHandle.getLastAddConfirmed()) {
+                    log.error("The expected number of entries in offload does not match the actual number");
+                    throw new IOException();
+                }
                 IOUtils.closeStream(dataWriter);
                 promise.complete(null);
             } catch (InterruptedException | ExecutionException | IOException e) {
@@ -162,6 +164,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     Thread.currentThread().interrupt();
                 }
                 promise.completeExceptionally(e);
+                return;
             }
         });
         return promise;
