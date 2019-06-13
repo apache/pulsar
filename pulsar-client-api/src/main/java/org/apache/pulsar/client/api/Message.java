@@ -202,4 +202,21 @@ public interface Message<T> {
      * @return Schema version of the message if the message is produced with schema otherwise null.
      */
     byte[] getSchemaVersion();
+
+    /**
+     * Check whether the message is replicated from other cluster.
+     *
+     * @since 2.4.0
+     * @return true if the message is replicated from other cluster.
+     *         false otherwise.
+     */
+    boolean isReplicated();
+
+    /**
+     * Get name of cluster, from which the message is replicated.
+     *
+     * @since 2.4.0
+     * @return the name of cluster, from which the message is replicated.
+     */
+    String getReplicatedFrom();
 }
