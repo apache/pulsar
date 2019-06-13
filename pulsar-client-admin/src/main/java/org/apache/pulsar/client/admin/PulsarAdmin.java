@@ -187,22 +187,23 @@ public class PulsarAdmin implements Closeable {
                 Math.toIntExact(readTimeoutUnit.toMillis(this.readTimeout)),
                 Math.toIntExact(requestTimeoutUnit.toMillis(this.requestTimeout))).getHttpClient();
 
-        this.clusters = new ClustersImpl(root, auth);
-        this.brokers = new BrokersImpl(root, auth);
-        this.brokerStats = new BrokerStatsImpl(root, auth);
-        this.tenants = new TenantsImpl(root, auth);
-        this.properties = new TenantsImpl(root, auth);;
-        this.namespaces = new NamespacesImpl(root, auth);
-        this.topics = new TopicsImpl(root, auth);
-        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
-        this.resourceQuotas = new ResourceQuotasImpl(root, auth);
-        this.lookups = new LookupImpl(root, auth, useTls);
-        this.functions = new FunctionsImpl(root, auth, httpAsyncClient);
-        this.sources = new SourcesImpl(root, auth, httpAsyncClient);
-        this.sinks = new SinksImpl(root, auth, httpAsyncClient);
-        this.worker = new WorkerImpl(root, auth);
-        this.schemas = new SchemasImpl(root, auth);
-        this.bookies = new BookiesImpl(root, auth);
+        long readTimeoutMs = readTimeoutUnit.toMillis(this.readTimeout);
+        this.clusters = new ClustersImpl(root, auth, readTimeoutMs);
+        this.brokers = new BrokersImpl(root, auth, readTimeoutMs);
+        this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs);
+        this.tenants = new TenantsImpl(root, auth, readTimeoutMs);
+        this.properties = new TenantsImpl(root, auth, readTimeoutMs);
+        this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
+        this.topics = new TopicsImpl(root, auth, readTimeoutMs);
+        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs);
+        this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs);
+        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs);
+        this.functions = new FunctionsImpl(root, auth, httpAsyncClient, readTimeoutMs);
+        this.sources = new SourcesImpl(root, auth, httpAsyncClient, readTimeoutMs);
+        this.sinks = new SinksImpl(root, auth, httpAsyncClient, readTimeoutMs);
+        this.worker = new WorkerImpl(root, auth, readTimeoutMs);
+        this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
+        this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
     }
 
     /**
