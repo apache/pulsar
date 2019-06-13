@@ -148,10 +148,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     }
 
     private String createIndexFilePath(String storagePath, long ledgerId, UUID uuid) {
-        return storagePath + ledgerId + "-" + uuid;
+        return storagePath + ledgerId + "-" + uuid + "/index";
     }
 
     private String createDataFilePath(String storagePath, long ledgerId, UUID uuid) {
-        return storagePath + ledgerId + "-" + uuid;
+        return storagePath + ledgerId + "-" + uuid + "/data";
     }
 }

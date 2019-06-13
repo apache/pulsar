@@ -33,7 +33,7 @@ import java.util.Properties;
 public class FileStoreTestBase {
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
     protected OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
-    protected final String basePath = "user";
+    protected final String basePath = "pulsar";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
 
@@ -49,7 +49,7 @@ public class FileStoreTestBase {
         Properties properties = new Properties();
         fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
                 TieredStorageConfigurationData.create(properties),
-                scheduler, hdfsURI);
+                scheduler, hdfsURI, basePath);
     }
 
     @AfterMethod
