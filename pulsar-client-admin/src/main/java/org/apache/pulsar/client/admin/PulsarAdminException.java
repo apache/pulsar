@@ -136,6 +136,11 @@ public class PulsarAdminException extends Exception {
             super(e);
         }
     }
+    public static class TimeoutException extends PulsarAdminException {
+        public TimeoutException(Throwable t) {
+            super(t);
+        }
+    }
 
     public static class ServerSideErrorException extends PulsarAdminException {
         public ServerSideErrorException(ServerErrorException e, String msg) {
