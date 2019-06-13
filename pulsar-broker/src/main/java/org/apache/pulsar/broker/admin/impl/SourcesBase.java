@@ -80,52 +80,52 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
                     value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
+                            "tenant  \n" +
+                            "  The tenant of source.  \n" +
+                            "namespace  \n" +
+                            "  The namespace of source.  \n" +
+                            "name  \n" +
+                            "  The name of source.  \n" +
+                            "classname  \n" +
+                            "  The source's class name if archive is file-url-path (file://).  \n" +
+                            "topicName  \n" +
+                            "  The Pulsar topic to which data is sent.  \n" +
+                            "serdeClassName  \n" +
+                            "  The SerDe classname for the source.  \n" +
+                            "schemaType  \n" +
+                            "  The schema type (either a builtin schema like 'avro', 'json', etc.. or  " +
+                            "  custom Schema class name to be used to encode messages emitted from the source  \n" +
+                            "configs  \n" +
+                            "  Source config key/values  \n" +
+                            "secrets  \n" +
+                            "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
+                            "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
+                            "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
+                            "parallelism  \n" +
+                            "  The source's parallelism factor (i.e. the number of source instances to run).  \n" +
+                            "processingGuarantees  \n" +
+                            "  The processing guarantees (aka delivery semantics) applied to the source  " +
+                            "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
+                            "resources  \n" +
+                            "  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \n" +
                             "archive  \n" +
                             "  The path to the NAR archive for the Source. It also supports url-path " +
                             "  [http/https/file (file protocol assumes that file already exists on worker host)] " +
                             "  from which worker can download the package.  \n" +
-                            "classname  \n" +
-                            "  The source's class name if archive is file-url-path (file://).  \n" +
-                            "cpu  \n" +
-                            "  The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime). \n" +
-                            "deserialization-classname  \n" +
-                            "  The SerDe classname for the source.  \n" +
-                            "destination-topic-name  \n" +
-                            "  The Pulsar topic to which data is sent.  \n" +
-                            "disk  \n" +
-                            "  The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime).  \n" +
-                            "name  \n" +
-                            "  The name of source.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of source.  \n" +
-                            "parallelism  \n" +
-                            "  The source's parallelism factor (i.e. the number of source instances to run).  \n" +
-                            "processing-guarantees  \n" +
-                            "  The processing guarantees (aka delivery semantics) applied to the source  " +
-                            "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
-                            "ram  \n" +
-                            "  The RAM (in bytes) that need to be allocated per source instance " +
-                            "  (applicable only to the process and Docker runtimes).  \n" +
-                            "schema-type  \n" +
-                            "  The schema type (either a builtin schema like 'avro', 'json', etc.. or  " +
-                            "  custom Schema class name to be used to encode messages emitted from the source  \n" +
-                            "source-config  \n" +
-                            "  Source config key/values  \n" +
-                            "source-config-file  \n" +
-                            "  The path to a YAML config file specifying the source's configuration  \n" +
-                            "source-type  \n" +
-                            "  The source's connector provider  \n" +
-                            "tenant  \n" +
-                            "  The tenant of source.  \n",
+                            "runtimeFlags  \n" +
+                            "  Any flags that you want to pass to the runtime.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
                                     value = "{\n"
-                                            + "  \"archive\": ./connectors/pulsar-io-mysql-0.0.1.nar\n"
+                                            + "  \"tenant\": public\n"
+                                            + "  \"namespace\": default\n"
                                             + "  \"name\": pulsar-io-mysql\n"
-                                            + "  \"destination-topic-name\": pulsar-io-mysql\n"
-                                            + "  \"source-config-file\": pulsar/connectors/mysql-source-config.yaml\n"
-                                            + "  \"st\": avro\n"
+                                            + "  \"className\": TestSourceMysql\n"
+                                            + "  \"topicName\": pulsar-io-mysql\n"
+                                            + "  \"parallelism\": 1\n"
+                                            + "  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n"
+                                            + "  \"schemaType\": avro\n"
                                             + "}\n"
                             )
                     )
@@ -160,52 +160,52 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
                     value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
+                            "tenant  \n" +
+                            "  The tenant of source.  \n" +
+                            "namespace  \n" +
+                            "  The namespace of source.  \n" +
+                            "name  \n" +
+                            "  The name of source.  \n" +
+                            "classname  \n" +
+                            "  The source's class name if archive is file-url-path (file://).  \n" +
+                            "topicName  \n" +
+                            "  The Pulsar topic to which data is sent.  \n" +
+                            "serdeClassName  \n" +
+                            "  The SerDe classname for the source.  \n" +
+                            "schemaType  \n" +
+                            "  The schema type (either a builtin schema like 'avro', 'json', etc.. or  " +
+                            "  custom Schema class name to be used to encode messages emitted from the source  \n" +
+                            "configs  \n" +
+                            "  Source config key/values  \n" +
+                            "secrets  \n" +
+                            "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
+                            "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
+                            "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
+                            "parallelism  \n" +
+                            "  The source's parallelism factor (i.e. the number of source instances to run).  \n" +
+                            "processingGuarantees  \n" +
+                            "  The processing guarantees (aka delivery semantics) applied to the source  " +
+                            "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
+                            "resources  \n" +
+                            "  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \n" +
                             "archive  \n" +
                             "  The path to the NAR archive for the Source. It also supports url-path " +
                             "  [http/https/file (file protocol assumes that file already exists on worker host)] " +
                             "  from which worker can download the package.  \n" +
-                            "classname  \n" +
-                            "  The source's class name if archive is file-url-path (file://).  \n" +
-                            "cpu  \n" +
-                            "  The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime). \n" +
-                            "deserialization-classname  \n" +
-                            "  The SerDe classname for the source.  \n" +
-                            "destination-topic-name  \n" +
-                            "  The Pulsar topic to which data is sent.  \n" +
-                            "disk  \n" +
-                            "  The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime).  \n" +
-                            "name  \n" +
-                            "  The name of source.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of source.  \n" +
-                            "parallelism  \n" +
-                            "  The source's parallelism factor (i.e. the number of source instances to run).  \n" +
-                            "processing-guarantees  \n" +
-                            "  The processing guarantees (aka delivery semantics) applied to the source  " +
-                            "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
-                            "ram  \n" +
-                            "  The RAM (in bytes) that need to be allocated per source instance " +
-                            "  (applicable only to the process and Docker runtimes).  \n" +
-                            "schema-type  \n" +
-                            "  The schema type (either a builtin schema like 'avro', 'json', etc.. or  " +
-                            "  custom Schema class name to be used to encode messages emitted from the source  \n" +
-                            "source-config  \n" +
-                            "  Source config key/values  \n" +
-                            "source-config-file  \n" +
-                            "  The path to a YAML config file specifying the source's configuration  \n" +
-                            "source-type  \n" +
-                            "  The source's connector provider  \n" +
-                            "tenant  \n" +
-                            "  The tenant of source.  \n",
+                            "runtimeFlags  \n" +
+                            "  Any flags that you want to pass to the runtime.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
                                     value = "{\n"
-                                            + "  \"archive\": ./connectors/pulsar-io-mysql-0.0.1.nar\n"
+                                            + "  \"tenant\": public\n"
+                                            + "  \"namespace\": default\n"
                                             + "  \"name\": pulsar-io-mysql\n"
-                                            + "  \"destination-topic-name\": pulsar-io-mysql\n"
-                                            + "  \"source-config-file\": pulsar/connectors/mysql-source-config.yaml\n"
-                                            + "  \"st\": avro\n"
+                                            + "  \"className\": TestSourceMysql\n"
+                                            + "  \"topicName\": pulsar-io-mysql\n"
+                                            + "  \"parallelism\": 1\n"
+                                            + "  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n"
+                                            + "  \"schemaType\": avro\n"
                                             + "}\n"
                             )
                     )
