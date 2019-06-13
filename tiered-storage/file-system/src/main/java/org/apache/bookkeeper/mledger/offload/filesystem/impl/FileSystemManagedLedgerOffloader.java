@@ -95,13 +95,14 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         this.fileSystem = FileSystem.get(configuration);
     }
     @VisibleForTesting
-    public FileSystemManagedLedgerOffloader(TieredStorageConfigurationData conf, OrderedScheduler scheduler, String testHDFSPath) throws IOException {
+    public FileSystemManagedLedgerOffloader(TieredStorageConfigurationData conf, OrderedScheduler scheduler, String testHDFSPath, String baseDir) throws IOException {
         this.configuration = new Configuration();
         this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
         this.configuration.set("fs.defaultFS", testHDFSPath);
         this.configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
         this.driverName = conf.getManagedLedgerOffloadDriver();
-        this.storageBasePath = configuration.get("hadoop.tmp.dir");
+        this.configuration.set("hadoop.tmp.dir", baseDir);
+        this.storageBasePath = baseDir;
         this.scheduler = scheduler;
         this.fileSystem = FileSystem.get(configuration);
 
