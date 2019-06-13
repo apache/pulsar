@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
@@ -40,7 +41,17 @@ public class MessageTest {
         Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
 
         assertTrue(msg.isReplicated());
-        assertEquals(from, msg.getReplicatedFrom());
+        assertEquals(msg.getReplicatedFrom(), from);
+    }
+
+    @Test
+    public void testMessageImplNoReplicatedInfo() {
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder();
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+
+        assertFalse(msg.isReplicated());
+        assertTrue(msg.getReplicatedFrom().isEmpty());
     }
 
     @Test
@@ -54,6 +65,19 @@ public class MessageTest {
         TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg);
 
         assertTrue(topicMessage.isReplicated());
-        assertEquals(from, msg.getReplicatedFrom());
+        assertEquals(msg.getReplicatedFrom(), from);
+    }
+
+    @Test
+    public void testTopicMessageImplNoReplicatedInfo() {
+        String topicName = "myTopic";
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder();
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        msg.setMessageId(new MessageIdImpl(-1, -1, -1));
+        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg);
+
+        assertFalse(topicMessage.isReplicated());
+        assertTrue(topicMessage.getReplicatedFrom().isEmpty());
     }
 }
