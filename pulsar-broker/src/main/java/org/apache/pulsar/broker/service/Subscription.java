@@ -95,7 +95,7 @@ public interface Subscription {
         // Default is no-op
     }
 
-        // Subscription utils
+    // Subscription utils
     static boolean isCumulativeAckMode(SubType subType) {
         return SubType.Exclusive.equals(subType) || SubType.Failover.equals(subType);
     }
