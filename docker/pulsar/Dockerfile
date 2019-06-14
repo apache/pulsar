@@ -46,12 +46,14 @@ RUN apt-get update \
      && apt-get install -y netcat dnsutils \
                  python2.7 python-setuptools \
                  python3 python3-setuptools \
+                 curl \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
-RUN easy_install pip
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+RUN python2.7 get-pip.py
 RUN pip install kazoo pyyaml
-RUN easy_install3 pip
+RUN python3 get-pip.py
 
 ADD target/python-client/ /pulsar/pulsar-client
 RUN /pulsar/bin/install-pulsar-client-27.sh

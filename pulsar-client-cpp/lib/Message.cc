@@ -110,6 +110,20 @@ const std::string& Message::getPartitionKey() const {
     return impl_->getPartitionKey();
 }
 
+bool Message::hasOrderingKey() const {
+    if (impl_) {
+        return impl_->hasOrderingKey();
+    }
+    return false;
+}
+
+const std::string& Message::getOrderingKey() const {
+    if (!impl_) {
+        return emptyString;
+    }
+    return impl_->getOrderingKey();
+}
+
 const std::string& Message::getTopicName() const {
     if (!impl_) {
         return emptyString;

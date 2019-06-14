@@ -26,6 +26,7 @@ import com.beust.jcommander.Parameter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -106,7 +107,7 @@ public class CompactorTool {
                                               ZooKeeperClientFactory.SessionType.ReadWrite,
                                               (int)brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
-        BookKeeper bk = bkClientFactory.create(brokerConfig, zk);
+        BookKeeper bk = bkClientFactory.create(brokerConfig, zk, Optional.empty(), null);
         try (PulsarClient pulsar = clientBuilder.build()) {
             Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
             long ledgerId = compactor.compact(arguments.topic).get();

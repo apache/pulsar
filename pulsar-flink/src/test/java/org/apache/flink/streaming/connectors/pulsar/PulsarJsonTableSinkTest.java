@@ -85,10 +85,16 @@ public class PulsarJsonTableSinkTest {
     }
 
     private PulsarJsonTableSink spySink() throws Exception {
+        ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
+        clientConfigurationData.setServiceUrl(SERVICE_URL);
+
+        ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
+        producerConfigurationData.setTopicName(TOPIC_NAME);
+
         PulsarJsonTableSink sink = new PulsarJsonTableSink(
-                ClientConfigurationData.builder().serviceUrl(SERVICE_URL).build(),
-                ProducerConfigurationData.builder().topicName(TOPIC_NAME).build(),
+                clientConfigurationData, producerConfigurationData,
                 ROUTING_KEY);
+
         FlinkPulsarProducer producer = Mockito.mock(FlinkPulsarProducer.class);
         PowerMockito.whenNew(
                 FlinkPulsarProducer.class

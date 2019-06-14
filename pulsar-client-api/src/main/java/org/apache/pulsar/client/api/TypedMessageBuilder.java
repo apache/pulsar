@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Message builder that constructs a message to be published through a producer.
@@ -185,6 +186,36 @@ public interface TypedMessageBuilder<T> extends Serializable {
     TypedMessageBuilder<T> disableReplication();
 
     /**
+     * Deliver the message only at or after the specified absolute timestamp.
+     * <p>
+     * The timestamp is milliseconds and based on UTC (eg: {@link System#currentTimeMillis()}.
+     * <p>
+     * <b>Note</b>: messages are only delivered with delay when a consumer is consuming
+     * through a {@link SubscriptionType#Shared} subscription. With other subscription
+     * types, the messages will still be delivered immediately.
+     *
+     * @param timestamp
+     *            absolute timestamp indicating when the message should be delivered to consumers
+     * @return the message builder instance
+     */
+    TypedMessageBuilder<T> deliverAt(long timestamp);
+
+    /**
+     * Request to deliver the message only after the specified relative delay.
+     * <p>
+     * <b>Note</b>: messages are only delivered with delay when a consumer is consuming
+     * through a {@link SubscriptionType#Shared} subscription. With other subscription
+     * types, the messages will still be delivered immediately.
+     *
+     * @param delay
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return the message builder instance
+     */
+    TypedMessageBuilder<T> deliverAfter(long delay, TimeUnit unit);
+
+    /**
      * Configure the {@link TypedMessageBuilder} from a config map, as an alternative compared
      * to call the individual builder methods.
      * <p>
@@ -212,6 +243,8 @@ public interface TypedMessageBuilder<T> extends Serializable {
      *  <tr><td>{@link #CONF_SEQUENCE_ID}</td><td>{@code sequenceId}</td><td>{@code long}</td><td>{@link #sequenceId(long)}</td></tr>
      *  <tr><td>{@link #CONF_REPLICATION_CLUSTERS}</td><td>{@code replicationClusters}</td><td>{@code List<String>}</td><td>{@link #replicationClusters(List)}</td></tr>
      *  <tr><td>{@link #CONF_DISABLE_REPLICATION}</td><td>{@code disableReplication}</td><td>{@code boolean}</td><td>{@link #disableReplication()}</td></tr>
+     *  <tr><td>{@link #CONF_DELIVERY_AFTER_SECONDS}</td><td>{@code deliverAfterSeconds}</td><td>{@code long}</td><td>{@link #deliverAfter(long, TimeUnit)}</td></tr>
+     *  <tr><td>{@link #CONF_DELIVERY_AT}</td><td>{@code deliverAt}</td><td>{@code long}</td><td>{@link #deliverAt(long)}</td></tr>
      * </table>
      *
      * @param config a map with the configuration options for the message
@@ -225,4 +258,6 @@ public interface TypedMessageBuilder<T> extends Serializable {
     static final String CONF_SEQUENCE_ID = "sequenceId";
     static final String CONF_REPLICATION_CLUSTERS = "replicationClusters";
     static final String CONF_DISABLE_REPLICATION = "disableReplication";
+    static final String CONF_DELIVERY_AFTER_SECONDS = "deliverAfterSeconds";
+    static final String CONF_DELIVERY_AT = "deliverAt";
 }

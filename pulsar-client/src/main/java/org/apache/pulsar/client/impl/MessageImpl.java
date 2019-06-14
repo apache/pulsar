@@ -42,7 +42,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
@@ -189,11 +189,13 @@ public class MessageImpl<T> implements Message<T> {
         msgMetadataBuilder.setReplicatedFrom(cluster);
     }
 
+    @Override
     public boolean isReplicated() {
         checkNotNull(msgMetadataBuilder);
         return msgMetadataBuilder.hasReplicatedFrom();
     }
 
+    @Override
     public String getReplicatedFrom() {
         checkNotNull(msgMetadataBuilder);
         return msgMetadataBuilder.getReplicatedFrom();
@@ -330,7 +332,7 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public String getProperty(String name) {
-        return properties.get(name);
+        return this.getProperties().get(name);
     }
 
     public MessageMetadata.Builder getMessageBuilder() {

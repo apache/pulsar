@@ -28,6 +28,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
@@ -40,8 +41,8 @@ import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
 import org.apache.pulsar.client.admin.internal.SchemasImpl;
-import org.apache.pulsar.client.admin.internal.SinkImpl;
-import org.apache.pulsar.client.admin.internal.SourceImpl;
+import org.apache.pulsar.client.admin.internal.SinksImpl;
+import org.apache.pulsar.client.admin.internal.SourcesImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.WorkerImpl;
@@ -87,8 +88,8 @@ public class PulsarAdmin implements Closeable {
     private final String serviceUrl;
     private final Lookup lookups;
     private final Functions functions;
-    private final Source source;
-    private final Sink sink;
+    private final Sources sources;
+    private final Sinks sinks;
     private final Worker worker;
     private final Schemas schemas;
     protected final WebTarget root;
@@ -155,6 +156,10 @@ public class PulsarAdmin implements Closeable {
         if (auth != null) {
             auth.start();
         }
+        
+        if (StringUtils.isBlank(clientConfigData.getServiceUrl())) {
+            clientConfigData.setServiceUrl(serviceUrl);
+        }
 
         AsyncHttpConnectorProvider asyncConnectorProvider = new AsyncHttpConnectorProvider(clientConfigData);
 
@@ -182,22 +187,23 @@ public class PulsarAdmin implements Closeable {
                 Math.toIntExact(readTimeoutUnit.toMillis(this.readTimeout)),
                 Math.toIntExact(requestTimeoutUnit.toMillis(this.requestTimeout))).getHttpClient();
 
-        this.clusters = new ClustersImpl(root, auth);
-        this.brokers = new BrokersImpl(root, auth);
-        this.brokerStats = new BrokerStatsImpl(root, auth);
-        this.tenants = new TenantsImpl(root, auth);
-        this.properties = new TenantsImpl(root, auth);;
-        this.namespaces = new NamespacesImpl(root, auth);
-        this.topics = new TopicsImpl(root, auth);
-        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
-        this.resourceQuotas = new ResourceQuotasImpl(root, auth);
-        this.lookups = new LookupImpl(root, auth, useTls);
-        this.functions = new FunctionsImpl(root, auth, httpAsyncClient);
-        this.source = new SourceImpl(root, auth, httpAsyncClient);
-        this.sink = new SinkImpl(root, auth, httpAsyncClient);
-        this.worker = new WorkerImpl(root, auth);
-        this.schemas = new SchemasImpl(root, auth);
-        this.bookies = new BookiesImpl(root, auth);
+        long readTimeoutMs = readTimeoutUnit.toMillis(this.readTimeout);
+        this.clusters = new ClustersImpl(root, auth, readTimeoutMs);
+        this.brokers = new BrokersImpl(root, auth, readTimeoutMs);
+        this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs);
+        this.tenants = new TenantsImpl(root, auth, readTimeoutMs);
+        this.properties = new TenantsImpl(root, auth, readTimeoutMs);
+        this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
+        this.topics = new TopicsImpl(root, auth, readTimeoutMs);
+        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs);
+        this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs);
+        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs);
+        this.functions = new FunctionsImpl(root, auth, httpAsyncClient, readTimeoutMs);
+        this.sources = new SourcesImpl(root, auth, httpAsyncClient, readTimeoutMs);
+        this.sinks = new SinksImpl(root, auth, httpAsyncClient, readTimeoutMs);
+        this.worker = new WorkerImpl(root, auth, readTimeoutMs);
+        this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
+        this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
     }
 
     /**
@@ -340,23 +346,35 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     *
-     * @return the source management object
+     * @return the sources management object
+     * @deprecated in favor of {@link #sources()}
      */
+    @Deprecated
     public Source source() {
-        return source;
+        return (Source) sources;
+    }
+
+    public Sources sources() {
+        return sources;
     }
 
     /**
-     *
-     * @return the sink management object
+     * @return the sinks management object
+     * @deprecated in favor of {@link #sinks}
      */
+    @Deprecated
     public Sink sink() {
-        return sink;
+        return (Sink) sinks;
     }
 
     /**
-    *
+     * @return the sinks management object
+     */
+    public Sinks sinks() {
+        return sinks;
+    }
+
+    /**
     * @return the Worker stats
     */
    public Worker worker() {

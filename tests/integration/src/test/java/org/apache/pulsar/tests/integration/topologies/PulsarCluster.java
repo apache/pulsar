@@ -157,6 +157,9 @@ public class PulsarCluster {
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
+                        // used in s3 tests
+                        .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
+                        .withEnv("AWS_SECRET_KEY", "secretkey")
                 )
         );
 
@@ -525,6 +528,12 @@ public class PulsarCluster {
         return runAdminCommandOnAnyBroker(
             "namespaces", "create", "public/" + nsName,
             "--clusters", clusterName);
+    }
+
+    public ContainerExecResult createPartitionedTopic(String topicName, int partitions) throws Exception {
+        return runAdminCommandOnAnyBroker(
+                "topics", "create-partitioned-topic", topicName,
+                "-p", String.valueOf(partitions));
     }
 
     public ContainerExecResult enableDeduplication(String nsName, boolean enabled) throws Exception {

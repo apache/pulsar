@@ -41,6 +41,10 @@
       <version>${project.version}</version>
     </dependency>
     
+    <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-annotations</artifactId>
+    </dependency>
   
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -75,6 +79,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-common-allocator</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.lz4</groupId>
       <artifactId>lz4-java</artifactId>
     </dependency>
@@ -83,7 +92,12 @@
       <groupId>com.github.luben</groupId>
       <artifactId>zstd-jni</artifactId>
     </dependency>
-    
+
+    <dependency>
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
@@ -110,10 +124,10 @@
       <artifactId>netty-tcnative-boringssl-static</artifactId>
     </dependency>
 
-	<dependency>
-		<groupId>org.eclipse.jetty</groupId>
-		<artifactId>jetty-util</artifactId>
-	</dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-util</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.commons</groupId>

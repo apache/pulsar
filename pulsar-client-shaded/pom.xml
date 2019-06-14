@@ -66,6 +66,15 @@
                   <includes>**/ProtobufSchema.class</includes>
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
+                <artifactItem>
+                  <groupId>org.apache.pulsar</groupId>
+                  <artifactId>pulsar-client-original</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <includes>**/ahc.properties</includes>
+                  <outputDirectory>${project.build.directory}/classes/org/asynchttpclient/config</outputDirectory>
+                </artifactItem>
               </artifactItems>
 
 
@@ -92,6 +101,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
+                  <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
@@ -113,6 +123,7 @@
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>commons-*:*</include>
+                  <include>io.swagger:*</include>
 
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
@@ -171,6 +182,10 @@
                 <relocation>
                   <pattern>io.netty</pattern>
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.swagger</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.pulsar.policies</pattern>
@@ -248,6 +263,10 @@
                 <relocation>
                   <pattern>org.tukaani</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.bookkeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>

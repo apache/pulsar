@@ -41,7 +41,8 @@
     <module>runtime-all</module>
     <module>worker</module>
     <module>secrets</module>
-    <module>windowing</module>
+    <module>localrun</module>
+    <module>localrun-shaded</module>
   </modules>
 
 </project>

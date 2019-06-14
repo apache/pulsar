@@ -71,7 +71,7 @@ if (LINK_STATIC)
     if (USE_LOG4CXX)
         if (LOG4CXX_USE_DYNAMIC_LIBS)
             find_library(LOG4CXX_LIBRARY_PATH log4cxx)
-        elseif (LOG4CXX_USE_DYNAMIC_LIBS)
+        else ()
             find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
 
             # Libraries needed by log4cxx to link statically with
@@ -119,6 +119,8 @@ if (NOT CURL_FOUND)
 endif()
 
 find_library(LIB_ZSTD zstd libzstd)
+
+find_library(LIB_SNAPPY snappy libsnappy)
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
@@ -183,6 +185,12 @@ else ()
 endif ()
 MESSAGE(STATUS "HAS_ZSTD: ${HAS_ZSTD}")
 
+if (LIB_SNAPPY)
+    set(HAS_SNAPPY 1)
+else ()
+    set(HAS_SNAPPY 0)
+endif ()
+MESSAGE(STATUS "HAS_SNAPPY: ${HAS_SNAPPY}")
 
 set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
 link_directories( $ENV{PULSAR_ADDITIONAL_LIBRARY_PATH} )
@@ -240,6 +248,12 @@ if (HAS_ZSTD)
 endif ()
 
 add_definitions(-DHAS_ZSTD=${HAS_ZSTD})
+
+if (HAS_SNAPPY)
+    set(COMMON_LIBS ${COMMON_LIBS} ${LIB_SNAPPY} )
+endif ()
+
+add_definitions(-DHAS_SNAPPY=${HAS_SNAPPY})
 
 if(NOT APPLE AND NOT MSVC)
     set(COMMON_LIBS ${COMMON_LIBS} rt)

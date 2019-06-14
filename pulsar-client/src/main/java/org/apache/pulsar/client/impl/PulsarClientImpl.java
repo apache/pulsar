@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -57,6 +58,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -127,6 +129,7 @@ public class PulsarClientImpl implements PulsarClient {
             throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
         }
         this.eventLoopGroup = eventLoopGroup;
+        setAuth(conf);
         this.conf = conf;
         conf.getAuthentication().start();
         this.cnxPool = cnxPool;
@@ -140,6 +143,14 @@ public class PulsarClientImpl implements PulsarClient {
         producers = Maps.newIdentityHashMap();
         consumers = Maps.newIdentityHashMap();
         state.set(State.Open);
+    }
+
+    private void setAuth(ClientConfigurationData conf) throws PulsarClientException {
+        if (StringUtils.isBlank(conf.getAuthPluginClassName()) || StringUtils.isBlank( conf.getAuthParams())) {
+            return;
+        }
+
+        conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
     }
 
     public ClientConfigurationData getConfiguration() {
@@ -730,13 +741,16 @@ public class PulsarClientImpl implements PulsarClient {
 
             if (schema instanceof AutoConsumeSchema) {
                 SchemaInfo schemaInfo = schemaInfoProvider.getLatestSchema();
-                if (schemaInfo.getType() != SchemaType.AVRO){
+                if (schemaInfo.getType() != SchemaType.AVRO && schemaInfo.getType() != SchemaType.JSON){
                     throw new RuntimeException("Currently schema detection only works for topics with avro schemas");
-
                 }
-                GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfoProvider.getLatestSchema());
+
+                // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
+                // to decode the messages.
+                GenericSchema genericSchema = GenericSchemaImpl.of(
+                    schemaInfoProvider.getLatestSchema(), false /*useProvidedSchemaAsReaderSchema*/);
                 log.info("Auto detected schema for topic {} : {}",
-                        topicName, new String(schemaInfo.getSchema(), UTF_8));
+                        topicName, schemaInfo.getSchemaDefinition());
                 ((AutoConsumeSchema) schema).setSchema(genericSchema);
             }
             schema.setSchemaInfoProvider(schemaInfoProvider);

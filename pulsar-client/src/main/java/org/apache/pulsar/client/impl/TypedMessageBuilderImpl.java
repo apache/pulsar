@@ -28,6 +28,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -165,6 +166,17 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         return this;
     }
 
+    @Override
+    public TypedMessageBuilder<T> deliverAfter(long delay, TimeUnit unit) {
+        return deliverAt(System.currentTimeMillis() + unit.toMillis(delay));
+    }
+
+    @Override
+    public TypedMessageBuilder<T> deliverAt(long timestamp) {
+        msgMetadataBuilder.setDeliverAtTime(timestamp);
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public TypedMessageBuilder<T> loadConf(Map<String, Object> config) {
@@ -184,6 +196,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 if (disableReplication) {
                     this.disableReplication();
                 }
+            } else if (key.equals(CONF_DELIVERY_AFTER_SECONDS)) {
+                this.deliverAfter(checkType(value, Long.class), TimeUnit.SECONDS);
+            } else if (key.equals(CONF_DELIVERY_AT)) {
+                this.deliverAt(checkType(value, Long.class));
             } else {
                 throw new RuntimeException("Invalid message config key '" + key + "'");
             }

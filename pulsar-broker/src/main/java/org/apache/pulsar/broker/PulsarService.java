@@ -32,7 +32,10 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -95,9 +98,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
-import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
@@ -543,7 +546,7 @@ public class PulsarService implements AutoCloseable {
         this.localZkCache = new LocalZooKeeperCache(getZkClient(), config.getZooKeeperOperationTimeoutSeconds(),
                 getOrderedExecutor());
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(), 
+                (int) config.getZooKeeperSessionTimeoutMillis(),
                 config.getZooKeeperOperationTimeoutSeconds(), config.getConfigurationStoreServers(),
                 getOrderedExecutor(), this.cacheExecutor);
         try {
@@ -688,6 +691,10 @@ public class PulsarService implements AutoCloseable {
         return managedLedgerClientFactory.getManagedLedgerFactory();
     }
 
+    public ManagedLedgerClientFactory getManagedLedgerClientFactory() {
+        return managedLedgerClientFactory;
+    }
+    
     public LedgerOffloader getManagedLedgerOffloader() {
         return offloader;
     }
@@ -830,9 +837,13 @@ public class PulsarService implements AutoCloseable {
                     builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                 }
+                
+                // most of the admin request requires to make zk-call so, keep the max read-timeout based on
+                // zk-operation timeout
+                builder.readTimeout(conf.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
                 this.adminClient = builder.build();
-                LOG.info("Admin api url: " + adminApiUrl);
+                LOG.info("created admin with url {} ", adminApiUrl);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
@@ -883,7 +894,7 @@ public class PulsarService implements AutoCloseable {
     }
 
     public static String webAddress(ServiceConfiguration config) {
-        if (config.getWebServicePort().isPresent()) {        
+        if (config.getWebServicePort().isPresent()) {
             return webAddress(advertisedAddress(config), config.getWebServicePort().get());
         } else {
             return null;

@@ -33,8 +33,8 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -156,6 +156,11 @@ public interface Topic {
      * schema.
      */
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
+
+    /**
+     * Delete the schema if this topic has a schema defined for it.
+     */
+    CompletableFuture<SchemaVersion> deleteSchema();
 
     /**
      * Check if schema is compatible with current topic schema.

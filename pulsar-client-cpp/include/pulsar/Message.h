@@ -111,6 +111,21 @@ class PULSAR_PUBLIC Message {
     bool hasPartitionKey() const;
 
     /**
+     * Get the ordering key of the message
+     *
+     * @return the ordering key of the message
+     */
+    const std::string& getOrderingKey() const;
+
+    /**
+     * Check whether the message has a ordering key
+     *
+     * @return true if the ordering key was set while creating the message
+     *         false if the ordering key was not set while creating the message
+     */
+    bool hasOrderingKey() const;
+
+    /**
      * Get the UTC based timestamp in milliseconds referring to when the message was published by the client
      * producer
      */

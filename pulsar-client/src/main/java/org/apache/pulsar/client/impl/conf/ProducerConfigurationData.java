@@ -42,7 +42,6 @@ import com.google.common.collect.Sets;
 import lombok.Data;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProducerConfigurationData implements Serializable, Cloneable {

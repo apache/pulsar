@@ -91,12 +91,11 @@ public class PulsarAvroTableSinkTest {
 
     private PulsarAvroTableSink spySink() throws Exception {
 
-        ClientConfigurationData clientConf = ClientConfigurationData.builder()
-                .serviceUrl(SERVICE_URL)
-                .build();
-        ProducerConfigurationData producerConf = ProducerConfigurationData.builder()
-                .topicName(TOPIC_NAME)
-                .build();
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl(SERVICE_URL);
+
+        ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        producerConf.setTopicName(TOPIC_NAME);
 
         PulsarAvroTableSink sink =
                 new PulsarAvroTableSink(clientConf, producerConf, ROUTING_KEY, NasaMission.class);

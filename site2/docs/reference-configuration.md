@@ -159,7 +159,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
 |bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementatation specifics parameters name and values  ||
-|bookkeeperClientAuthenticationParameters|||   
+|bookkeeperClientAuthenticationParameters|||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0|
 |bookkeeperClientHealthCheckEnabled|  Enable bookies health check. Bookies that have more than the configured number of failure within the interval will be quarantined for some time. During this period, new ledgers won’t be created on these bookies  |true|
@@ -225,6 +225,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) ||
 |s3ManagedLedgerOffloadMaxBlockSizeInBytes| For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum) |67108864|
 |s3ManagedLedgerOffloadReadBufferSizeInBytes| For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)  |1048576|
+|s3ManagedLedgerOffloadRole| For Amazon S3 ledger offload, provide a role to assume before writing to s3 ||
+|s3ManagedLedgerOffloadRoleSessionName| For Amazon S3 ledger offload, provide a role session name when using a role |pulsar-s3-offload|
 
 
 
@@ -240,7 +242,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |authPlugin|  The authentication plugin.  ||
 |authParams|  The authentication parameters for the cluster, as a comma-separated string. ||
 |useTls|  Whether or not TLS authentication will be enforced in the cluster.  |false|
-|tlsAllowInsecureConnection|||    
+|tlsAllowInsecureConnection|||
 |tlsTrustCertsFilePath|||
 
 
@@ -335,7 +337,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |authenticationEnabled| Enable authentication for the broker. |false|
 |authenticationProviders| A comma-separated list of class names for authentication providers. |false|
 |authorizationEnabled|  Enforce authorization in brokers. |false|
-|superUserRoles|  Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks. ||  
+|superUserRoles|  Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks. ||
 |brokerClientAuthenticationPlugin|  The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters. ||
 |brokerClientAuthenticationParameters|  The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.  ||
 |athenzDomainNames| Supported Athenz authentication provider domain names as a comma-separated list.  ||
@@ -351,7 +353,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |bookkeeperClientRackawarePolicyEnabled|    |true|
 |bookkeeperClientRegionawarePolicyEnabled|    |false|
 |bookkeeperClientReorderReadSequenceEnabled|    |false|
-|bookkeeperClientIsolationGroups|||   
+|bookkeeperClientIsolationGroups|||
 |managedLedgerDefaultEnsembleSize|    |1|
 |managedLedgerDefaultWriteQuorum|   |1|
 |managedLedgerDefaultAckQuorum|   |1|
@@ -409,7 +411,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |bindAddress||0.0.0.0|
 |clusterName |||
 |authenticationEnabled||false|
-|authenticationProviders|||   
+|authenticationProviders|||
 |authorizationEnabled||false|
 |superUserRoles |||
 |brokerClientAuthenticationPlugin|||

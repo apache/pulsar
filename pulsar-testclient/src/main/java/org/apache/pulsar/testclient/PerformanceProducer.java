@@ -22,16 +22,29 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.RateLimiter;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -50,19 +63,10 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PerformanceProducer {
 
@@ -135,8 +139,13 @@ public class PerformanceProducer {
         @Parameter(names = { "-z", "--compression" }, description = "Compress messages payload")
         public CompressionType compression = CompressionType.NONE;
 
-        @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from a file instead of empty buffer")
+        @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from an UTF-8 encoded text file and a payload " +
+            "will be randomly selected when publishing messages")
         public String payloadFilename = null;
+
+        @Parameter(names = { "-e", "--payload-delimiter" }, description = "The delimiter used to split lines when using payload from a file")
+        public String payloadDelimiter = "\\n"; // here escaping \n since default value will be printed with the help text
+
         @Parameter(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
@@ -159,6 +168,9 @@ public class PerformanceProducer {
                 "--encryption-key-value-file" }, description = "The file which contains the public key to encrypt payload")
         public String encKeyFile = null;
 
+        @Parameter(names = { "-d",
+                "--delay" }, description = "Mark messages with a given delay in seconds")
+        public long delay = 0;
     }
 
     public static void main(String[] args) throws Exception {
@@ -222,11 +234,25 @@ public class PerformanceProducer {
         log.info("Starting Pulsar perf producer with config: {}", w.writeValueAsString(arguments));
 
         // Read payload data from file if needed
-        byte payloadData[];
+        final byte[] payloadBytes = new byte[arguments.msgSize];
+        Random random = new Random(0);
+        List<byte[]> payloadByteList = Lists.newArrayList();
         if (arguments.payloadFilename != null) {
-            payloadData = Files.readAllBytes(Paths.get(arguments.payloadFilename));
+            Path payloadFilePath = Paths.get(arguments.payloadFilename);
+            if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
+                throw new IllegalArgumentException("Payload file doesn't exist or it is empty.");
+            }
+            // here escaping the default payload delimiter to correct value
+            String delimiter = arguments.payloadDelimiter.equals("\\n") ? "\n" : arguments.payloadDelimiter;
+            String[] payloadList = new String(Files.readAllBytes(payloadFilePath), StandardCharsets.UTF_8).split(delimiter);
+            log.info("Reading payloads from {} and {} records read", payloadFilePath.toAbsolutePath(), payloadList.length);
+            for (String payload : payloadList) {
+                payloadByteList.add(payload.getBytes(StandardCharsets.UTF_8));
+            }
         } else {
-            payloadData = new byte[arguments.msgSize];
+            for (int i = 0; i < payloadBytes.length; ++i) {
+                payloadBytes[i] = (byte) (random.nextInt(26) + 65);
+            }
         }
 
         // Now processing command line arguments
@@ -355,7 +381,20 @@ public class PerformanceProducer {
 
                         final long sendTime = System.nanoTime();
 
-                        producer.sendAsync(payloadData).thenRun(() -> {
+                        byte[] payloadData;
+
+                        if (arguments.payloadFilename != null) {
+                            payloadData = payloadByteList.get(random.nextInt(payloadByteList.size()));
+                        } else {
+                            payloadData = payloadBytes;
+                        }
+
+                        TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage()
+                                .value(payloadData);
+                        if (arguments.delay >0) {
+                            messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                        }
+                        messageBuilder.sendAsync().thenRun(() -> {
                             messagesSent.increment();
                             bytesSent.add(payloadData.length);
 

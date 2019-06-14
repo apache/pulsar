@@ -44,6 +44,10 @@ const (
 	// Multiple consumer will be able to use the same subscription name but only 1 consumer will receive the messages.
 	// If that consumer disconnects, one of the other connected consumers will start receiving messages.
 	Failover
+
+	// Multiple consumer will be able to use the same subscription and all messages with the same key
+	// will be dispatched to only one consumer
+	KeyShared
 )
 
 type InitialPosition int

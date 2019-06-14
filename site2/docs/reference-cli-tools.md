@@ -288,8 +288,8 @@ Commands
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{\"key1\":\"val1\",\"key2\":\"val2\"}"||
-|`--auth-plugin`|Authentication plugin class name||
+|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{\"key1\":\"val1\",\"key2\":\"val2\"}"|{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}|
+|`--auth-plugin`|Authentication plugin class name|org.apache.pulsar.client.impl.auth.AuthenticationSasl|
 |`--url`|Broker URL to which to connect|pulsar://localhost:6650/|
 
 
@@ -322,10 +322,10 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--hex`|Display binary messages in hexadecimal format.|false|
-|`-n`, `--num-messages`|Number of messages to consume, 0 means to consume forever.|0|
+|`-n`, `--num-messages`|Number of messages to consume, 0 means to consume forever.|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to consume; a value 0 means to consume messages as fast as possible|0.0|
 |`-s`, `--subscription-name`|Subscription name||
-|`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover.|Exclusive|
+|`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 
 
 
@@ -444,7 +444,7 @@ Options
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
 |`--auth_plugin`|Authentication plugin class name||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
-|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB or ZSTD.||
+|`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.||
 |`--conf-file`|Configuration file||
 |`-k`, `--encryption-key-name`|The public key name to encrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the public key to encrypt payload||
@@ -455,7 +455,8 @@ Options
 |`-m`, `--num-messages`|Number of messages to publish in total. If set to 0, it will keep publishing.|0|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
 |`-t`, `--num-topic`|The number of topics|1|
-|`-f`, `--payload-file`|Use payload from a file instead of an empty buffer||
+|`-f`, `--payload-file`|Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages||
+|`-e`, `--payload-delimiter`|The delimiter used to split lines when using payload from a file|\n|
 |`-r`, `--rate`|Publish rate msg/s across topics|100|
 |`-u`, `--service-url`|Pulsar service URL||
 |`-s`, `--size`|Message size (in bytes)|1024|
