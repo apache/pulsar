@@ -40,7 +40,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
@@ -48,20 +47,22 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.PulsarConsumerKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarKafkaSchema;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -73,8 +74,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private final PulsarClient client;
 
-    private final Deserializer<K> keyDeserializer;
-    private final Deserializer<V> valueDeserializer;
+    private final Schema<K> keyDeserializer;
+    private final Schema<V> valueDeserializer;
 
     private final String groupId;
     private final boolean isAutoCommit;
@@ -112,39 +113,39 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         this(configs, null, null);
     }
 
-    public PulsarKafkaConsumer(Map<String, Object> configs, Deserializer<K> keyDeserializer,
-            Deserializer<V> valueDeserializer) {
-        this(new ConsumerConfig(ConsumerConfig.addDeserializerToConfig(configs, keyDeserializer, valueDeserializer)),
-                keyDeserializer, valueDeserializer);
+    public PulsarKafkaConsumer(Map<String, Object> configs, Schema<K> keyDeserializer,
+            Schema<V> valueDeserializer) {
+        this(configs, new Properties(),keyDeserializer, valueDeserializer);
     }
 
     public PulsarKafkaConsumer(Properties properties) {
         this(properties, null, null);
     }
 
-    public PulsarKafkaConsumer(Properties properties, Deserializer<K> keyDeserializer,
-            Deserializer<V> valueDeserializer) {
-        this(new ConsumerConfig(ConsumerConfig.addDeserializerToConfig(properties, keyDeserializer, valueDeserializer)),
-                keyDeserializer, valueDeserializer);
+    public PulsarKafkaConsumer(Properties properties, Schema<K> keyDeserializer,
+            Schema<V> valueDeserializer) {
+        this(new HashMap<>(), properties, keyDeserializer, valueDeserializer);
     }
 
     @SuppressWarnings("unchecked")
-    private PulsarKafkaConsumer(ConsumerConfig config, Deserializer<K> keyDeserializer,
-            Deserializer<V> valueDeserializer) {
+    private PulsarKafkaConsumer(Map<String, Object> conf, Properties properties, Schema<K> keyDeserializer,
+            Schema<V> valueDeserializer) {
 
+        properties.forEach((k, v) -> conf.put((String) k, v));
+        ConsumerConfig config = new ConsumerConfig(conf);
         if (keyDeserializer == null) {
-            this.keyDeserializer = config.getConfiguredInstance(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                    Deserializer.class);
-            this.keyDeserializer.configure(config.originals(), true);
+            this.keyDeserializer = new PulsarKafkaSchema<>();
+            ((PulsarKafkaSchema<K>) this.keyDeserializer).initDeserialize(
+                    config, ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, true);
         } else {
             this.keyDeserializer = keyDeserializer;
             config.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
         }
 
         if (valueDeserializer == null) {
-            this.valueDeserializer = config.getConfiguredInstance(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                    Deserializer.class);
-            this.valueDeserializer.configure(config.originals(), true);
+            this.valueDeserializer = new PulsarKafkaSchema<>();
+            ((PulsarKafkaSchema<V>) this.valueDeserializer).initDeserialize(
+                    config, ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, true);
         } else {
             this.valueDeserializer = valueDeserializer;
             config.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
@@ -346,7 +347,10 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 }
 
                 K key = getKey(topic, msg);
-                V value = valueDeserializer.deserialize(topic, msg.getData());
+                if (valueDeserializer instanceof PulsarKafkaSchema) {
+                    ((PulsarKafkaSchema<V>) valueDeserializer).setTopic(topic);
+                }
+                V value = valueDeserializer.decode(msg.getData());
 
                 TimestampType timestampType = TimestampType.LOG_APPEND_TIME;
                 long timestamp = msg.getPublishTime();
@@ -392,13 +396,18 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             return null;
         }
 
-        if (keyDeserializer instanceof StringDeserializer) {
-            return (K) msg.getKey();
-        } else {
-            // Assume base64 encoding
-            byte[] data = Base64.getDecoder().decode(msg.getKey());
-            return keyDeserializer.deserialize(topic, data);
+        if (keyDeserializer instanceof PulsarKafkaSchema) {
+            PulsarKafkaSchema<K> pulsarKafkaSchema = (PulsarKafkaSchema) keyDeserializer;
+            Deserializer<K> kafkaDeserializer = pulsarKafkaSchema.getKafkaDeserializer();
+            if (kafkaDeserializer instanceof StringDeserializer) {
+                return (K) msg.getKey();
+            }
+            pulsarKafkaSchema.setTopic(topic);
         }
+        // Assume base64 encoding
+        byte[] data = Base64.getDecoder().decode(msg.getKey());
+        return keyDeserializer.decode(data);
+
     }
 
     @Override

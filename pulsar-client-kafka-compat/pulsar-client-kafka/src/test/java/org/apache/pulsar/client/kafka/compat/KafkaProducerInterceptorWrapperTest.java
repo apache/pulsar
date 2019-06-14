@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.kafka.compat;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.api.ProducerInterceptor;
@@ -82,9 +83,13 @@ public class KafkaProducerInterceptorWrapperTest {
             }
         }).when(mockInterceptor2).onSend(any(ProducerRecord.class));
 
+        PulsarKafkaSchema<String> pulsarKeySerializeSchema = new PulsarKafkaSchema<>();
+        pulsarKeySerializeSchema.setKafkaSerializer(new StringSerializer());
+        PulsarKafkaSchema<byte[]> pulsarValueSerializeSchema = new PulsarKafkaSchema<>();
+        pulsarValueSerializeSchema.setKafkaSerializer(new ByteArraySerializer());
         ProducerInterceptors producerInterceptors = new ProducerInterceptors(Arrays.asList(new ProducerInterceptor[]{
-                new KafkaProducerInterceptorWrapper(mockInterceptor1, new StringSerializer(), new ByteArraySerializer(), topic),
-                new KafkaProducerInterceptorWrapper(mockInterceptor2, new StringSerializer(), new ByteArraySerializer(), topic)}));
+                new KafkaProducerInterceptorWrapper(mockInterceptor1, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic),
+                new KafkaProducerInterceptorWrapper(mockInterceptor2, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic)}));
 
         TypedMessageBuilderImpl typedMessageBuilder = new TypedMessageBuilderImpl(null, new BytesSchema());
         typedMessageBuilder.key("original key");
