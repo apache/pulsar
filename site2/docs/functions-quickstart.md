@@ -4,9 +4,9 @@ title: Get started with Pulsar Functions
 sidebar_label: Get started  
 ---
 
-This tutorial walks you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine and then running your first function using that cluster. The first function runs in the local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second runs in the cluster mode (inside your cluster).
+This tutorial walks you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine, and then running your first function using that cluster. The first function runs in local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second runs in cluster mode (inside your cluster).
 
-> In the local run mode, Pulsar Functions communicate with Pulsar cluster, but run outside of the cluster.
+> In local run mode, Pulsar Functions communicate with Pulsar cluster, but run outside of the cluster.
 
 ## Prerequisites
 
@@ -138,7 +138,7 @@ You will see the following JSON output.
 }
 ```
 
-As you can see, the instance is currently running, and an instance with the ID of `0` is running. You can get other information about the function (for example, topics, tenant, namespace) using the `get` command instead of the `getstatus` command.
+As you can see, the instance is currently running, and an instance with the ID of `0` is running. With the `get` command, you can get other information about the function, for example, topics, tenant, namespace, and so on.
 
 ```bash
 $ bin/pulsar-admin functions get \
@@ -195,7 +195,7 @@ You will see `Updated successfully` in the output. If you enter the `get` comman
 }
 ```
 
-Finally, you can shut down the running function with the `delete` command.
+Shut down the running function with the `delete` command.
 
 ```bash
 $ bin/pulsar-admin functions delete \
@@ -204,11 +204,11 @@ $ bin/pulsar-admin functions delete \
   --name exclamation
 ```
 
-If you see `Deleted successfully` in the output, you've succesfully run, updated, and shut down functions running in cluster mode. 
+When you see `Deleted successfully` in the output, you've successfully run, updated, and shut down functions running in cluster mode. 
 
 ## Write and run a new function
 
-In order to write and run the [Python](functions-api.md#functions-for-python) function, you need to install a few dependencies.
+In order to write and run [Python](functions-api.md#functions-for-python) functions, you need to install some dependencies.
 
 ```bash
 $ pip install pulsar-client
@@ -229,7 +229,7 @@ def process(input):
     return input[::-1]
 ```
 
-The `process` method defines the processing logic of Pulsar Functions. It simply uses some Python slice magic to reverse each incoming string. You can deploy the function using the `create` command.
+The `process` method defines the processing logic of Pulsar Functions. It uses Python slice magic to reverse each incoming string. You can deploy the function using the `create` command.
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -242,7 +242,7 @@ $ bin/pulsar-admin functions create \
   --name reverse
 ```
 
-If you see `Created successfully`, the function is ready to accept incoming messages. Because the function is running in cluster mode, you can **trigger** the function using the [`trigger`](reference-pulsar-admin.md#trigger) command. This command sends a message that you specify to the function and also returns the function output. The following is an example.
+If you see `Created successfully`, the function is ready to accept incoming messages. Because the function is running in cluster mode, you can **trigger** the function using the [`trigger`](reference-pulsar-admin.md#trigger) command. This command sends a message that you specify to the function and returns the function output. The following is an example.
 
 ```bash
 $ bin/pulsar-admin functions trigger \
@@ -258,7 +258,7 @@ You will get the following output.
 This string was backwards but is now forwards
 ```
 
-You have created a brand new Pulsar function, deployed it in your Pulsar standalone cluster in [cluster mode](#run-a-pulsar-function-in-cluster-mode), and triggered the function. 
+You have created a new Pulsar function, deployed it in your Pulsar standalone cluster in [cluster mode](#run-a-pulsar-function-in-cluster-mode), and triggered the function. 
 
 ## Write and run a Go function
 Go function depends on `pulsar-client-go`. Make sure that you have built `pulsar-client-go` before using Go function.
@@ -272,7 +272,7 @@ touch helloFunc.go
 ```
 
 
-2. Append a byte for messages from the input topic. 
+2. Append a byte for messages from the input topic.    
 The following is a `helloFunc.go` example. Each message from the input topic is appended with a `110` byte, and then delivered to the output topic.
 
 ```
@@ -356,7 +356,7 @@ pip download \
 
 ```
 
-Sample ouptut
+Sample output
 
 ```
 Collecting sh==1.12.14 (from -r requirements.txt (line 1))
@@ -370,7 +370,7 @@ Successfully downloaded sh
 
 
 #### Package
-Create a destination folder with the desired package name, for example, **exclamation**. Copy the **src** and **deps** folders into it, and finally compress the folder into a ZIP archive.
+Create a destination folder with the desired package name, for example, **exclamation**. Copy the **src** and **deps** folders into it, and compress the folder into a ZIP archive.
 
 Sample sequence
 
@@ -388,4 +388,4 @@ drwxr-xr-x   3 a.ahmed  staff   96 Nov  6 17:51 src
 zip -r exclamation.zip exclamation
 ```
 
-After package all the required dependencies into the **exclamation.zip** file, you can deploy functions in a Pulsar worker. The Pulsar worker does not need internet connectivity to download packages, becasuse they are all included in the ZIP file.
+After package all the required dependencies into the **exclamation.zip** file, you can deploy functions in a Pulsar worker. The Pulsar worker does not need internet connectivity to download packages, because they are all included in the ZIP file.
