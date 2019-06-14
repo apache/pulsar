@@ -775,6 +775,13 @@ public interface Namespaces {
     void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup)
             throws PulsarAdminException;
     
+    /**
+     * Delete bookie affinity group configured for a namespace.
+     * 
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void deleteBookieAffinityGroup(String namespace) throws PulsarAdminException;
 
     /**
      * Get bookie affinity group configured for a namespace.
