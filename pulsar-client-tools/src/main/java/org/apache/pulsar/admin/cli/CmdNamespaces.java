@@ -37,6 +37,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -418,6 +419,51 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(admin.namespaces().getRetention(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the bookie-affinity group name")
+    private class SetBookieAffinityGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--primary-group",
+                "-pg" }, description = "Bookie-affinity primary-groups (comma separated) name where namespace messages should be written", required = true)
+        private String bookieAffinityGroupNamePrimary;
+        @Parameter(names = { "--secondary-group",
+                "-sg" }, description = "Bookie-affinity secondary-group (comma separated) name where namespace messages should be written", required = false)
+        private String bookieAffinityGroupNameSecondary;
+
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setBookieAffinityGroup(namespace,
+                    new BookieAffinityGroupData(bookieAffinityGroupNamePrimary, bookieAffinityGroupNameSecondary));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the bookie-affinity group name")
+    private class DeleteBookieAffinityGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().deleteBookieAffinityGroup(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the bookie-affinity group name")
+    private class GetBookieAffinityGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getBookieAffinityGroup(namespace));
         }
     }
 
@@ -1125,6 +1171,10 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
+        
+        jcommander.addCommand("set-bookie-affinity-group", new SetBookieAffinityGroup());
+        jcommander.addCommand("get-bookie-affinity-group", new GetBookieAffinityGroup());
+        jcommander.addCommand("delete-bookie-affinity-group", new DeleteBookieAffinityGroup());
 
         jcommander.addCommand("unload", new Unload());
 

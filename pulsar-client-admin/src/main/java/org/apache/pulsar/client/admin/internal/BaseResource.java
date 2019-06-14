@@ -56,9 +56,11 @@ public abstract class BaseResource {
     private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
     protected final Authentication auth;
+    protected final long readTimeoutMs;
 
-    protected BaseResource(Authentication auth) {
+    protected BaseResource(Authentication auth, long readTimeoutMs) {
         this.auth = auth;
+        this.readTimeoutMs = readTimeoutMs;
     }
 
     public Builder request(final WebTarget target) throws PulsarAdminException {

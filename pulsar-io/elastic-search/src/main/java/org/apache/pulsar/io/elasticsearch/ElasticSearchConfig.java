@@ -111,10 +111,10 @@ public class ElasticSearchConfig implements Serializable {
         }
 
         if (indexNumberOfShards < 1) {
-            throw new IllegalArgumentException("indexNumberOfShards must be a positive integer");
+            throw new IllegalArgumentException("indexNumberOfShards must be a strictly positive integer");
         }
 
-        if (indexNumberOfReplicas < 1) {
+        if (indexNumberOfReplicas < 0) {
             throw new IllegalArgumentException("indexNumberOfReplicas must be a positive integer");
         }
     }

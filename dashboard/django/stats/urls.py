@@ -24,6 +24,7 @@ from . import views
 urlpatterns = [
     url(r'^property/(?P<property_name>.+)/$', views.property, name='property'),
     url(r'^namespace/(?P<namespace_name>.+)/$', views.namespace, name='namespace'),
+    url(r'^deleteNamespace/(?P<namespace_name>.+)$', views.deleteNamespace, name='deleteNamespace'),
 
 
     url(r'^brokers/$', views.brokers, name='brokers'),
@@ -34,4 +35,8 @@ urlpatterns = [
     url(r'^topic/(?P<topic_name>.+)/$', views.topic, name='topic'),
 
     url(r'^clusters/$', views.clusters, name='clusters'),
+    url(r'^clearSubscription/(?P<topic_name>.+)/(?P<subscription_name>.+)$', views.clearSubscription, name='clearSubscription'),
+    url(r'^deleteSubscription/(?P<topic_name>.+)/(?P<subscription_name>.+)$', views.deleteSubscription, name='deleteSubscription'),
+    url(r'^peek/(?P<topic_name>.+)/(?P<subscription_name>.+)/(?P<message_number>.+)$', views.peek, name='peek'),
+    url(r'^messages/(?P<topic_name>.+)/(?P<subscription_name>.+)$', views.messages, name='messages'),
 ]

@@ -162,7 +162,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
     public List<String> getList(@PathParam("property") String property, @PathParam("cluster") String cluster,
                                 @PathParam("namespace") String namespace) {
-        log.info("[{}] list of topics on namespace {}/{}/{}/{}", clientAppId(), property, cluster, namespace);
+        log.info("[{}] list of topics on namespace {}/{}/{}", clientAppId(), property, cluster, namespace);
         validateAdminAccessForTenant(property);
         Policies policies = getNamespacePolicies(property, cluster, namespace);
         NamespaceName nsName = NamespaceName.get(property, cluster, namespace);

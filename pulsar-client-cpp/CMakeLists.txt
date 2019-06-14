@@ -71,7 +71,7 @@ if (LINK_STATIC)
     if (USE_LOG4CXX)
         if (LOG4CXX_USE_DYNAMIC_LIBS)
             find_library(LOG4CXX_LIBRARY_PATH log4cxx)
-        elseif (LOG4CXX_USE_DYNAMIC_LIBS)
+        else ()
             find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
 
             # Libraries needed by log4cxx to link statically with

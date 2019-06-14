@@ -64,8 +64,8 @@ public class ProducerInterceptors<T> implements Closeable {
             try {
                 interceptorMessage = interceptors.get(i).beforeSend(producer, interceptorMessage);
             } catch (Exception e) {
-                if (message != null && producer != null) {
-                    log.warn("Error executing interceptor beforeSend callback for messageId: {}, topicName:{} ", message.getMessageId(), producer.getTopic(), e);
+                if (producer != null) {
+                    log.warn("Error executing interceptor beforeSend callback for topicName:{} ", producer.getTopic(), e);
                 } else {
                     log.warn("Error Error executing interceptor beforeSend callback ", e);
                 }

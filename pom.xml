@@ -151,7 +151,7 @@ flexible messaging model and an intuitive client API.</description>
     <bookkeeper.version>4.9.2</bookkeeper.version>
     <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.32.Final</netty.version>
-    <storm.version>1.0.5</storm.version>
+    <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.12.v20180830</jetty.version>
     <jersey.version>2.27</jersey.version>
     <athenz.version>1.8.17</athenz.version>
@@ -1364,7 +1364,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.21.0</version>
+          <version>3.0.0-M3</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

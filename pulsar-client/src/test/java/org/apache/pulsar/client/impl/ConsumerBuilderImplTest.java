@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static org.mockito.Mockito.mock;
@@ -218,6 +219,34 @@ public class ConsumerBuilderImplTest {
     @Test(expectedExceptions = NullPointerException.class)
     public void testConsumerBuilderImplWhenSubscriptionTopicsModeIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionTopicsMode(null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenNegativeAckRedeliveryDelayPropertyIsNegative() {
+        consumerBuilderImpl.negativeAckRedeliveryDelay(-1, TimeUnit.MILLISECONDS);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenPriorityLevelPropertyIsNegative() {
+        consumerBuilderImpl.priorityLevel(-1);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenMaxTotalReceiverQueueSizeAcrossPartitionsPropertyIsNegative() {
+        consumerBuilderImpl.maxTotalReceiverQueueSizeAcrossPartitions(-1);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPropertyIsNegative() {
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(-1);
+    }
+
+    @Test
+    public void testConsumerBuilderImplWhenNumericPropertiesAreValid() {
+        consumerBuilderImpl.negativeAckRedeliveryDelay(1, TimeUnit.MILLISECONDS);
+        consumerBuilderImpl.priorityLevel(1);
+        consumerBuilderImpl.maxTotalReceiverQueueSizeAcrossPartitions(1);
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(1);
     }
 
 }

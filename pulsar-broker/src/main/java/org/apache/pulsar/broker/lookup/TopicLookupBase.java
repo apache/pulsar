@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.lookup;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
-import static org.apache.pulsar.common.api.Commands.newLookupResponse;
+import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
+import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
 
 import io.netty.buffer.ByteBuf;
 

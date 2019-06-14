@@ -45,7 +45,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {

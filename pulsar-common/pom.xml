@@ -41,6 +41,10 @@
       <version>${project.version}</version>
     </dependency>
     
+    <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-annotations</artifactId>
+    </dependency>
   
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -93,7 +97,7 @@
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
@@ -120,10 +124,10 @@
       <artifactId>netty-tcnative-boringssl-static</artifactId>
     </dependency>
 
-	<dependency>
-		<groupId>org.eclipse.jetty</groupId>
-		<artifactId>jetty-util</artifactId>
-	</dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-util</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.commons</groupId>

@@ -59,7 +59,7 @@ fi
 OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
 OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
 
-MAINCLASS="org.apache.pulsar.functions.runtime.LocalRunner"
+MAINCLASS="org.apache.pulsar.functions.LocalRunner"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"

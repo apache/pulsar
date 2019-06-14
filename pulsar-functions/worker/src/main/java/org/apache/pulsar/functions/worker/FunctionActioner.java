@@ -346,7 +346,7 @@ public class FunctionActioner {
                                                             List<Map<String, String>> existingConsumers = Collections.emptyList();
                                                             try {
                                                                 TopicStats stats = pulsarAdmin.topics().getStats(topic);
-                                                                SubscriptionStats sub = stats.subscriptions.get(InstanceUtils.getDefaultSubscriptionName(details));
+                                                                SubscriptionStats sub = stats.subscriptions.get(subscriptionName);
                                                                 if (sub != null) {
                                                                     existingConsumers = sub.consumers.stream()
                                                                             .map(consumerStats -> consumerStats.metadata)

@@ -93,13 +93,13 @@ public class AuthenticationProviderTokenTest {
         String privateKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
         String publicKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
 
-        String token = AuthTokenUtils.createToken(AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey)),
+        String token = AuthTokenUtils.createToken(AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey), SignatureAlgorithm.RS256),
                 SUBJECT,
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
         Jwt<?, Claims> jwt = Jwts.parser()
-                .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey)))
+                .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
                 .parse(token);
 
         assertNotNull(jwt);
@@ -274,7 +274,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(conf);
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr));
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
@@ -318,7 +318,7 @@ public class AuthenticationProviderTokenTest {
 
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr));
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, authRole);
@@ -340,6 +340,46 @@ public class AuthenticationProviderTokenTest {
             }
         });
         assertEquals(role, authRole);
+
+        provider.close();
+    }
+
+    @Test
+    public void testAuthSecretKeyPairWithECDSA() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.ES256);
+
+        String privateKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
+        String publicKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        // Use public key for validation
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, publicKeyStr);
+        // Set that we are using EC keys
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG, SignatureAlgorithm.ES256.getValue());
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // Use private key to generate token
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.ES256);
+        String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
+
+        // Pulsar protocol auth
+        String subject = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+        assertEquals(subject, SUBJECT);
 
         provider.close();
     }
@@ -475,6 +515,18 @@ public class AuthenticationProviderTokenTest {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
                 "file://" + "invalid_public_key_file");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testValidationWhenPublicKeyAlgIsInvalid() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG,
+                "invalid");
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
