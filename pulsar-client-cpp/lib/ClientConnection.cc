@@ -119,6 +119,9 @@ static Result getResult(ServerError serverError) {
 }
 
 static bool file_exists(const std::string& path) {
+    if (path.empty()) {
+        return false;
+    }
     std::ifstream f(path);
     return f.good();
 }
