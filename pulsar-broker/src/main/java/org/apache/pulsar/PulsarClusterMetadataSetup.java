@@ -31,7 +31,6 @@ import java.util.List;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -93,7 +92,7 @@ public class PulsarClusterMetadataSetup {
         private String globalZookeeper;
 
         @Parameter(names = { "-cs",
-            "--configuration-store" }, description = "Configuration Store connection string", required = false)
+            "--configuration-store" }, description = "Configuration Store connection string", required = true)
         private String configurationStore;
 
         @Parameter(names = {
@@ -136,13 +135,11 @@ public class PulsarClusterMetadataSetup {
             arguments.configurationStore = arguments.globalZookeeper;
         }
 
-        log.info("Setting up cluster {} with zk={} configuration-store ={}", arguments.cluster, arguments.zookeeper,
+        log.info("Setting up cluster {} with zk={} configuration-store={}", arguments.cluster, arguments.zookeeper,
                 arguments.configurationStore);
-        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
-        ZooKeeper localZk = zkfactory.create(
-            arguments.zookeeper, SessionType.ReadWrite, arguments.zkSessionTimeoutMillis).get();
-        ZooKeeper configStoreZk = zkfactory.create(
-            arguments.configurationStore, SessionType.ReadWrite, arguments.zkSessionTimeoutMillis).get();
+
+        ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
+        ZooKeeper configStoreZk = initZk(arguments.configurationStore, arguments.zkSessionTimeoutMillis);
 
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
@@ -271,6 +268,29 @@ public class PulsarClusterMetadataSetup {
         }
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
+    }
+
+    public static ZooKeeper initZk(String connection, int sessionTimeout) throws Exception {
+        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
+        int chrootIndex = connection.indexOf("/");
+        if (chrootIndex > 0) {
+            String chrootPath = connection.substring(chrootIndex);
+            String zkConnectForChrootCreation = connection.substring(0, chrootIndex);
+            ZooKeeper chrootZk = zkfactory.create(
+                zkConnectForChrootCreation, SessionType.ReadWrite, sessionTimeout).get();
+            if (chrootZk.exists(chrootPath, false) == null) {
+                try {
+                    ZkUtils.createFullPathOptimistic(chrootZk, chrootPath, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                        CreateMode.PERSISTENT);
+                } catch (NodeExistsException e) {
+                    // Ignore
+                }
+                log.info("Created zookeeper chroot path {} successfully", chrootPath);
+            }
+            chrootZk.close();
+        }
+        ZooKeeper zkConnect = zkfactory.create(connection, SessionType.ReadWrite, sessionTimeout).get();
+        return zkConnect;
     }
 
     private static BundlesData getBundles(int numBundles) {

@@ -176,7 +176,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // - topic names are unique.
     private static boolean topicNamesValid(Collection<String> topics) {
         checkState(topics != null && topics.size() >= 1,
-            "topics should should contain more than 1 topic");
+            "topics should contain more than 1 topic");
 
         final String namespace = TopicName.get(topics.stream().findFirst().get()).getNamespace();
 
@@ -196,7 +196,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }).findFirst();
 
         if (result.isPresent()) {
-            log.warn("[{}] Received invalid topic name.  {}/{}", result.get());
+            log.warn("Received invalid topic name: {}", result.get());
             return false;
         }
 

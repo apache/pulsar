@@ -99,7 +99,8 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
 
         namespace, _ = Namespace.objects.get_or_create(
             name=namespace_name,
-            property=property)
+            property=property,
+            timestamp=timestamp)
         namespace.clusters.add(cluster)
         namespace.save()
 
@@ -324,6 +325,18 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
             replication.topic = replication.topic
             replication.save()
 
+    tenants = get(broker_url, '/admin/v2/tenants')
+    for tenant_name in tenants:
+        namespaces = get(broker_url, '/admin/v2/namespaces/' + tenant_name)
+        for namespace_name in namespaces:
+            property, _ = Property.objects.get_or_create(name=tenant_name)
+            namespace, _ = Namespace.objects.get_or_create(
+                name=namespace_name,
+                property=property,
+                timestamp=timestamp)
+            namespace.clusters.add(cluster)
+            namespace.save()
+
 
 def update_or_create_object(db_bundles, db_topics, db_consumers, db_subscriptions):
     # For DB providers we have to insert or update one by one
@@ -404,7 +417,8 @@ def purge_db():
     Topic.objects.filter(timestamp__lt=threshold).delete()
     Subscription.objects.filter(timestamp__lt=threshold).delete()
     Consumer.objects.filter(timestamp__lt=threshold).delete()
-    logger.info("Finsihed purge db")
+    Namespace.objects.filter(timestamp__lt=threshold).delete()
+    logger.info("Finished purge db")
 
 
 def collect_and_purge():

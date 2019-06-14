@@ -69,8 +69,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     private final WebTarget functions;
     private final AsyncHttpClient asyncHttpClient;
 
-    public FunctionsImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient) {
-        super(auth);
+    public FunctionsImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         this.functions = web.path("/admin/v3/functions");
         this.asyncHttpClient = asyncHttpClient;
     }

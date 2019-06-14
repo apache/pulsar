@@ -189,11 +189,13 @@ public class MessageImpl<T> implements Message<T> {
         msgMetadataBuilder.setReplicatedFrom(cluster);
     }
 
+    @Override
     public boolean isReplicated() {
         checkNotNull(msgMetadataBuilder);
         return msgMetadataBuilder.hasReplicatedFrom();
     }
 
+    @Override
     public String getReplicatedFrom() {
         checkNotNull(msgMetadataBuilder);
         return msgMetadataBuilder.getReplicatedFrom();

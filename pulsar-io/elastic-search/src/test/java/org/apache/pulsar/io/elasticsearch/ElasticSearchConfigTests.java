@@ -70,6 +70,19 @@ public class ElasticSearchConfigTests {
         config.validate();
     }
     
+    @Test
+    public final void zeroReplicasValidateTest() throws IOException {
+        Map<String, Object> map = new HashMap<String, Object> ();
+        map.put("elasticSearchUrl", "http://localhost:90902");
+        map.put("indexName", "myIndex");
+        map.put("username", "racerX");
+        map.put("password", "go-speedie-go");
+        map.put("indexNumberOfReplicas", "0");
+        
+        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        config.validate();
+    }
+
     @Test(expectedExceptions = IllegalArgumentException.class, 
             expectedExceptionsMessageRegExp = "Required property not set.")
     public final void missingRequiredPropertiesTest() throws IOException {
@@ -81,7 +94,7 @@ public class ElasticSearchConfigTests {
     }
     
     @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "indexNumberOfShards must be a positive integer")
+            expectedExceptionsMessageRegExp = "indexNumberOfShards must be a strictly positive integer")
     public final void invalidPropertyValueTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
