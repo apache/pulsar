@@ -67,7 +67,7 @@ $ mvn test
 Run Individual Unit Test:
 
 ```bash
-cd related-module (e.g: pulsar-client)
+$ cd related-module (e.g: pulsar-client)
 $ mvn test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
 ```
 
