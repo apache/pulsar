@@ -31,6 +31,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
@@ -46,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -278,28 +280,33 @@ public class PersistentSubscription implements Subscription {
             }
             // Check if message is acknowledged by ongoing transaction.
             if ((pendingAckMessages != null && pendingAckMessages.size() != 0) || pendingCumulativeAckMessage != null) {
+                List<Position> positionsSafeToAck;
                 synchronized (PersistentSubscription.this) {
-                    positions.forEach(position -> {
+                    positionsSafeToAck = positions.stream().filter(position -> {
                         checkArgument(position instanceof PositionImpl);
-                        // If single ack try to ack message in pending_ack status, fail the ack.
+                        // If single ack try to ack message in pending_ack status, skip this ack.
                         if (pendingAckMessages != null && this.pendingAckMessages.contains(position)) {
                             log.warn("[{}][{}] Invalid acks position conflict with an ongoing transaction:{}.",
                                     topicName, subName, this.pendingCumulativeAckTxnId.toString());
-                            return;
+                            return false;
                         }
 
-                        // If single ack is within range of cumulative ack of an ongoing transaction, fail the ack.
+                        // If single ack is within range of cumulative ack of an ongoing transaction, skip this ack.
                         if (null != this.pendingCumulativeAckMessage &&
                                 ((PositionImpl) position).compareTo((PositionImpl) this.pendingCumulativeAckMessage) <= 0) {
                             log.warn("[{}][{}] Invalid acks position within cumulative ack position of an ongoing " +
                                     "transaction:{}.", topicName, subName, this.pendingCumulativeAckTxnId.toString());
-                            return;
+                            return false;
                         }
-                    });
+
+                        return true;
+                    }).collect(Collectors.toList());
                 }
+                cursor.asyncDelete(positionsSafeToAck, deleteCallback, positionsSafeToAck);
+            } else {
+                cursor.asyncDelete(positions, deleteCallback, positions);
             }
 
-            cursor.asyncDelete(positions, deleteCallback, positions);
             dispatcher.getRedeliveryTracker().removeBatch(positions);
         }
 
@@ -353,6 +360,14 @@ public class PersistentSubscription implements Subscription {
             Position position = positions.get(0);
             checkArgument(position instanceof PositionImpl);
 
+            if (((PositionImpl) position).compareTo((PositionImpl) cursor.getMarkDeletedPosition()) <= 0) {
+                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
+                        " try to cumulative ack position: " + position + "within range of cursor's " +
+                        "markDeletePosition:" + cursor.getMarkDeletedPosition();
+                log.error(errorMsg);
+                throw new TransactionConflictException(errorMsg);
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] TxnID:[{}] Cumulative ack on {}.", topicName, subName, txnId.toString(), position);
             }
@@ -382,11 +397,19 @@ public class PersistentSubscription implements Subscription {
                     pendingAckMessagesMap.computeIfAbsent(txnId, txn -> new ConcurrentOpenHashSet<>());
 
             for (Position position : positions) {
-                // If try to ack message already acked by some transaction(can be itself), throw exception.
+                // If try to ack message already acked by some ongoign transaction(can be itself), throw exception.
                 // Acking single message within range of cumulative ack(if exist) is considered valid operation.
                 if (this.pendingAckMessages.contains(position)) {
                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
-                                      " try to ack message:" + position + " already acked before.";
+                                      " try to ack message:" + position + " in pending ack status.";
+                    log.error(errorMsg);
+                    throw new TransactionConflictException(errorMsg);
+                }
+
+                // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
+                if (((ManagedCursorImpl) cursor).isMessageDeleted(position)) {
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
+                            " try to ack message:" + position + " already acked before.";
                     log.error(errorMsg);
                     throw new TransactionConflictException(errorMsg);
                 }
@@ -975,9 +998,8 @@ public class PersistentSubscription implements Subscription {
 
         // It's valid to create transaction then commit without doing any operation, which will cause
         // pendingAckMessagesMap to be null.
-        ConcurrentOpenHashSet<Position> pendingAckMessageForCurrentTxn = pendingAckMessagesMap != null ?
-                                                this.pendingAckMessagesMap.remove(txnId) : new ConcurrentOpenHashSet();
-        List<Position> positions = pendingAckMessageForCurrentTxn.values();
+        List<Position> positions = pendingAckMessagesMap != null ? this.pendingAckMessagesMap.remove(txnId).values() :
+                                                                                             Collections.emptyList();
         // Materialize all single acks.
         cursor.asyncDelete(positions, deleteCallback, positions);
         if (pendingAckMessages != null) {
@@ -1004,9 +1026,12 @@ public class PersistentSubscription implements Subscription {
      * Abort a transaction.
      *
      * @param txnId  {@link TxnID} to identify the transaction.
+     * @param consumer {@link Consumer} which aborting transaction.
+     *
      * @throws IllegalArgumentException if given {@link TxnID} is not found in this subscription.
      */
-    public synchronized CompletableFuture<Void> abortTxn(TxnID txnId) {
+
+    public synchronized CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer) {
         if (pendingAckMessagesMap != null && !this.pendingAckMessagesMap.containsKey(txnId)) {
             String errorMsg = "[" + topicName + "][" + subName + "] Transaction with id:" + txnId + " not found.";
             throw new IllegalArgumentException(errorMsg);
@@ -1021,6 +1046,8 @@ public class PersistentSubscription implements Subscription {
         // Reset txdID and position for cumulative ack.
         PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
         POSITION_UPDATER.set(this, null);
+        dispatcher.redeliverUnacknowledgedMessages(consumer, (List<PositionImpl>)
+                                                                    (List<?>)pendingAckMessageForCurrentTxn.values());
         abortFuture.complete(null);
 
         return abortFuture;

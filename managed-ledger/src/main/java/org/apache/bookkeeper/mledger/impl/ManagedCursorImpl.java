@@ -2518,6 +2518,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         return individualDeletedMessages;
     }
 
+    public boolean isMessageDeleted(Position position) {
+        checkArgument(position instanceof PositionImpl);
+        return individualDeletedMessages.contains(((PositionImpl) position).getLedgerId(),
+                ((PositionImpl) position).getEntryId()) || ((PositionImpl) position).compareTo(markDeletePosition) <= 0 ;
+    }
+
     /**
      * Checks given position is part of deleted-range and returns next position of upper-end as all the messages are
      * deleted up to that point.
