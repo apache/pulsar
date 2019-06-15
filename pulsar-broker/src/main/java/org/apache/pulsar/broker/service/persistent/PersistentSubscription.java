@@ -362,8 +362,8 @@ public class PersistentSubscription implements Subscription {
 
             if (((PositionImpl) position).compareTo((PositionImpl) cursor.getMarkDeletedPosition()) <= 0) {
                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
-                        " try to cumulative ack position: " + position + "within range of cursor's " +
-                        "markDeletePosition:" + cursor.getMarkDeletedPosition();
+                        " try to cumulative ack position: " + position + " within range of cursor's " +
+                        "markDeletePosition: " + cursor.getMarkDeletedPosition();
                 log.error(errorMsg);
                 throw new TransactionConflictException(errorMsg);
             }

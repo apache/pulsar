@@ -138,6 +138,7 @@ public class PersistentSubscriptionTest {
         cursorMock = mock(ManagedCursorImpl.class);
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
+        doReturn(new PositionImpl(1, 50)).when(cursorMock).getMarkDeletedPosition();
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerMock);
 
@@ -239,7 +240,7 @@ public class PersistentSubscriptionTest {
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (TransactionConflictException e) {
             assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                    "Transaction:(1,2) try to ack message:2:1 already acked before.");
+                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
         positions.clear();
