@@ -47,6 +47,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     private boolean readCompacted = false;
+    private boolean resetIncludeHead = false;
 
     @SuppressWarnings("unchecked")
     public ReaderConfigurationData<T> clone() {
