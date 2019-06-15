@@ -3074,6 +3074,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // disable timeout task checker if timeout <= 0
         if (config.getAddEntryTimeoutSeconds() > 0 || config.getReadEntryTimeoutSeconds() > 0) {
             long timeoutSec = Math.min(config.getAddEntryTimeoutSeconds(), config.getReadEntryTimeoutSeconds());
+            timeoutSec = timeoutSec <= 0
+                    ? Math.max(config.getAddEntryTimeoutSeconds(), config.getReadEntryTimeoutSeconds())
+                    : timeoutSec;
             this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(safeRun(() -> {
                 checkAddTimeout();
                 checkReadTimeout();
