@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.kafka.compat;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.api.ProducerInterceptor;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerInterceptors;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
@@ -83,8 +83,9 @@ public class KafkaProducerInterceptorWrapperTest {
             }
         }).when(mockInterceptor2).onSend(any(ProducerRecord.class));
 
-        PulsarKafkaSchema<String> pulsarKeySerializeSchema = new PulsarKafkaSchema<>(new StringSerializer());
-        PulsarKafkaSchema<byte[]> pulsarValueSerializeSchema = new PulsarKafkaSchema<>(new ByteArraySerializer());
+
+        Schema<String> pulsarKeySerializeSchema = new PulsarKafkaSchema<>(new StringSerializer());
+        Schema<byte[]> pulsarValueSerializeSchema = new PulsarKafkaSchema<>(new ByteArraySerializer());
         ProducerInterceptors producerInterceptors = new ProducerInterceptors(Arrays.asList(new ProducerInterceptor[]{
                 new KafkaProducerInterceptorWrapper(mockInterceptor1, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic),
                 new KafkaProducerInterceptorWrapper(mockInterceptor2, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic)}));
