@@ -64,7 +64,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 200, message = "Pulsar Function successfully created"),
             @ApiResponse(code = 400, message = "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 500, message = "Internal Server Error")
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -144,7 +146,8 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 200, message = "Pulsar Function successfully updated"),
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
-            @ApiResponse(code = 500, message = "Internal Server Error")
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -226,7 +229,8 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
             @ApiResponse(code = 408, message = "Request timeout"),
             @ApiResponse(code = 200, message = "The function was successfully deleted"),
-            @ApiResponse(code = 500, message = "Internal Server Error")
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     public void deregisterSource(
@@ -247,6 +251,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     public SourceConfig getSourceInfo(
@@ -265,7 +270,8 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             response = SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 500, message = "Internal Server Error")
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/status")
@@ -288,7 +294,8 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             response = SourceStatus.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 500, message = "Internal Server Error")
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/status")
@@ -311,7 +318,8 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 500, message = "Internal Server Error")
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}")
@@ -329,7 +337,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(
@@ -350,7 +360,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
     @Path("/{tenant}/{namespace}/{sourceName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(
@@ -369,7 +381,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(
@@ -390,7 +404,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
     @Path("/{tenant}/{namespace}/{sourceName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(
@@ -409,7 +425,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startSource(
@@ -430,7 +448,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
-            @ApiResponse(code = 500, message = "Internal server error") })
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
     @Path("/{tenant}/{namespace}/{sourceName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startSource(
@@ -451,7 +471,8 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout")
+            @ApiResponse(code = 408, message = "Request timeout"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/builtinsources")
