@@ -99,18 +99,18 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         ProducerConfig producerConfig = new ProducerConfig(conf);
 
         if (keySerializer == null) {
-            this.keySerializer = new PulsarKafkaSchema<>();
-            ((PulsarKafkaSchema<K>) this.keySerializer).initSerialize(
-                    producerConfig, ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, true);
+            Serializer<K> kafkaKeySerializer = producerConfig.getConfiguredInstance(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, Serializer.class);
+            kafkaKeySerializer.configure(producerConfig.originals(), true);
+            this.keySerializer = new PulsarKafkaSchema<>(kafkaKeySerializer);
         } else {
             this.keySerializer = keySerializer;
             producerConfig.ignore(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG);
         }
 
         if (valueSerializer == null) {
-            this.valueSerializer = new PulsarKafkaSchema<>();
-            ((PulsarKafkaSchema<V>) this.valueSerializer).initSerialize(
-                    producerConfig, ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, false);
+            Serializer<V> kafkaValueSerializer = producerConfig.getConfiguredInstance(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, Serializer.class);
+            kafkaValueSerializer.configure(producerConfig.originals(), true);
+            this.valueSerializer = new PulsarKafkaSchema<>(kafkaValueSerializer);
         } else {
             this.valueSerializer = valueSerializer;
             producerConfig.ignore(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG);

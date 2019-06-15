@@ -115,7 +115,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     public PulsarKafkaConsumer(Map<String, Object> configs, Schema<K> keyDeserializer,
             Schema<V> valueDeserializer) {
-        this(configs, new Properties(),keyDeserializer, valueDeserializer);
+        this(configs, new Properties(), null, keyDeserializer, valueDeserializer);
     }
 
     public PulsarKafkaConsumer(Properties properties) {
@@ -124,31 +124,46 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     public PulsarKafkaConsumer(Properties properties, Schema<K> keyDeserializer,
             Schema<V> valueDeserializer) {
-        this(new HashMap<>(), properties, keyDeserializer, valueDeserializer);
+        this(new HashMap<>(), properties, null, keyDeserializer, valueDeserializer);
     }
 
     @SuppressWarnings("unchecked")
-    private PulsarKafkaConsumer(Map<String, Object> conf, Properties properties, Schema<K> keyDeserializer,
+    private PulsarKafkaConsumer(ConsumerConfig consumerConfig, Schema<K> keyDeserializer,
+                                Schema<V> valueDeserializer) {
+        this(new HashMap<>(), new Properties(), consumerConfig, keyDeserializer, valueDeserializer);
+    }
+
+    @SuppressWarnings("unchecked")
+    private PulsarKafkaConsumer(
+            Map<String, Object> conf, Properties properties, ConsumerConfig consumerConfig, Schema<K> keyDeserializer,
             Schema<V> valueDeserializer) {
 
-        properties.forEach((k, v) -> conf.put((String) k, v));
-        ConsumerConfig config = new ConsumerConfig(conf);
+        ConsumerConfig config;
+        if (consumerConfig == null) {
+            properties.forEach((k, v) -> conf.put((String) k, v));
+            config = new ConsumerConfig(conf);
+        } else {
+            config = consumerConfig;
+        }
+
         if (keyDeserializer == null) {
-            this.keyDeserializer = new PulsarKafkaSchema<>();
-            ((PulsarKafkaSchema<K>) this.keyDeserializer).initDeserialize(
-                    config, ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, true);
+            Deserializer<K> kafkaKeyDeserializer = consumerConfig.getConfiguredInstance(
+                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Deserializer.class);
+            kafkaKeyDeserializer.configure(consumerConfig.originals(), true);
+            this.keyDeserializer = new PulsarKafkaSchema<>(kafkaKeyDeserializer);
         } else {
             this.keyDeserializer = keyDeserializer;
-            config.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+            consumerConfig.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
         }
 
         if (valueDeserializer == null) {
-            this.valueDeserializer = new PulsarKafkaSchema<>();
-            ((PulsarKafkaSchema<V>) this.valueDeserializer).initDeserialize(
-                    config, ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, true);
+            Deserializer<V> kafkaValueDeserializer = consumerConfig.getConfiguredInstance(
+                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Deserializer.class);
+            kafkaValueDeserializer.configure(consumerConfig.originals(), true);
+            this.valueDeserializer = new PulsarKafkaSchema<>(kafkaValueDeserializer);
         } else {
             this.valueDeserializer = valueDeserializer;
-            config.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+            consumerConfig.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
         }
 
         groupId = config.getString(ConsumerConfig.GROUP_ID_CONFIG);

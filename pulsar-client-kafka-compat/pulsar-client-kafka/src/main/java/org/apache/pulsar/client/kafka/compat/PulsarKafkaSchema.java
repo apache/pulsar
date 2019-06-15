@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.kafka.compat;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class PulsarKafkaSchema<T> implements Schema<T> {
 
@@ -33,30 +33,20 @@ public class PulsarKafkaSchema<T> implements Schema<T> {
 
     private String topic;
 
-    public void setKafkaSerializer(Serializer<T> serializer) {
+    public PulsarKafkaSchema(Serializer<T> serializer) {
         this.kafkaSerializer = serializer;
+    }
+
+    public PulsarKafkaSchema(Deserializer<T> deserializer) {
+        this.kafkaDeserializer = deserializer;
     }
 
     public Serializer<T> getKafkaSerializer() {
         return kafkaSerializer;
     }
 
-    public void setKafkaDeserializer(Deserializer<T> deserializer) {
-        this.kafkaDeserializer = deserializer;
-    }
-
     public Deserializer<T> getKafkaDeserializer() {
         return kafkaDeserializer;
-    }
-
-    public void initSerialize(ProducerConfig producerConfig, String classConfig, boolean isKey) {
-        this.kafkaSerializer = producerConfig.getConfiguredInstance(classConfig, Serializer.class);
-        this.kafkaSerializer.configure(producerConfig.originals(), isKey);
-    }
-
-    public void initDeserialize(ConsumerConfig consumerConfig, String classConfig, boolean isKey) {
-        this.kafkaDeserializer = consumerConfig.getConfiguredInstance(classConfig, Deserializer.class);
-        this.kafkaDeserializer.configure(consumerConfig.originals(), isKey);
     }
 
     public void setTopic(String topic) {
@@ -65,11 +55,13 @@ public class PulsarKafkaSchema<T> implements Schema<T> {
 
     @Override
     public byte[] encode(T message) {
+        checkArgument(kafkaSerializer != null, "Kafka serializer is not initialized yet");
         return kafkaSerializer.serialize(this.topic, message);
     }
 
     @Override
     public T decode(byte[] message) {
+        checkArgument(kafkaDeserializer != null, "Kafka deserializer is not initialized yet");
         return kafkaDeserializer.deserialize(this.topic, message);
     }
 

@@ -83,10 +83,8 @@ public class KafkaProducerInterceptorWrapperTest {
             }
         }).when(mockInterceptor2).onSend(any(ProducerRecord.class));
 
-        PulsarKafkaSchema<String> pulsarKeySerializeSchema = new PulsarKafkaSchema<>();
-        pulsarKeySerializeSchema.setKafkaSerializer(new StringSerializer());
-        PulsarKafkaSchema<byte[]> pulsarValueSerializeSchema = new PulsarKafkaSchema<>();
-        pulsarValueSerializeSchema.setKafkaSerializer(new ByteArraySerializer());
+        PulsarKafkaSchema<String> pulsarKeySerializeSchema = new PulsarKafkaSchema<>(new StringSerializer());
+        PulsarKafkaSchema<byte[]> pulsarValueSerializeSchema = new PulsarKafkaSchema<>(new ByteArraySerializer());
         ProducerInterceptors producerInterceptors = new ProducerInterceptors(Arrays.asList(new ProducerInterceptor[]{
                 new KafkaProducerInterceptorWrapper(mockInterceptor1, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic),
                 new KafkaProducerInterceptorWrapper(mockInterceptor2, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic)}));
