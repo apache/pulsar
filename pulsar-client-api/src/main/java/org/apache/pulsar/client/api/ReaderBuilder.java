@@ -108,6 +108,7 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * The initial reader positioning is done by specifying a message id. The options are:
+     * <p>
      * <ul>
      * <li>{@link MessageId#earliest}: Start reading from the earliest message available in the topic</li>
      * <li>{@link MessageId#latest}: Start reading from end of the topic. The first message read will be the one
@@ -116,10 +117,23 @@ public interface ReaderBuilder<T> extends Cloneable {
      * immediately <b>*after*</b> the specified message</li>
      * </ul>
      *
+     * <p>
+     * If the first message <b>*after*</b> the specified message is not the desired behaviour, use
+     * {@link ReaderBuilder#startMessageIdInclusive()}.
+     *
      * @param startMessageId the message id where the reader will be initially positioned on
      * @return the reader builder instance
      */
     ReaderBuilder<T> startMessageId(MessageId startMessageId);
+
+    /**
+     * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}
+     * <p>
+     * This configuration option also applies for any cursor reset operation like {@link Reader#seek(MessageId)}.
+     *
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> startMessageIdInclusive();
 
     /**
      * Sets a {@link ReaderListener} for the reader

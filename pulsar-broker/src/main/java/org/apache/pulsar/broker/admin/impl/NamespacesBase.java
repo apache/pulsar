@@ -637,6 +637,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeleteBookieAffinityGroup() {
+        internalSetBookieAffinityGroup(null);
+    }
+
     protected BookieAffinityGroupData internalGetBookieAffinityGroup() {
         validateSuperUserAccess();
 

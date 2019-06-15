@@ -837,9 +837,13 @@ public class PulsarService implements AutoCloseable {
                     builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                 }
+                
+                // most of the admin request requires to make zk-call so, keep the max read-timeout based on
+                // zk-operation timeout
+                builder.readTimeout(conf.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
                 this.adminClient = builder.build();
-                LOG.info("Admin api url: " + adminApiUrl);
+                LOG.info("created admin with url {} ", adminApiUrl);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }

@@ -55,6 +55,11 @@ public class UnAckedMessageTracker implements Closeable {
         }
 
         @Override
+        long size() {
+            return 0;
+        }
+
+        @Override
         public boolean add(MessageId m) {
             return true;
         }

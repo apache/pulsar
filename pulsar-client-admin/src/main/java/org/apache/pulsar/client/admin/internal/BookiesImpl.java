@@ -32,8 +32,8 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
 
-    public BookiesImpl(WebTarget web, Authentication auth) {
-        super(auth);
+    public BookiesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         adminBookies = web.path("/admin/v2/bookies");
     }
 

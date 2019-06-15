@@ -47,18 +47,18 @@ the brokers to allow them to validate the clients.
 
 #### Creating a secret key
 
-> Output file will be generated in the root of your pulsar installation directory. You can also provide absolute path for the output file. 
+> Output file will be generated in the root of your pulsar installation directory. You can also provide absolute path for the output file.
 ```shell
 $ bin/pulsar tokens create-secret-key --output my-secret.key
 ```
-To generate base64 encoded private key 
+To generate base64 encoded private key
 ```shell
 $ bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
 ```
 
 ### Public/Private keys
 
-With public/private, we need to create a pair of keys.
+With public/private, we need to create a pair of keys. Pulsar supports all algorithms supported by the Java JWT library shown [here](https://github.com/jwtk/jjwt#signature-algorithms-keys)
 
 #### Creating a key pair
 

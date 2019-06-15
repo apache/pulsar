@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -46,6 +47,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
+import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
@@ -94,6 +96,30 @@ public class ZooKeeperClientAspectJTest {
             }
 
             executor.shutdown();
+        }
+    }
+
+    @Test
+    public void testInitZk() throws Exception {
+        try {
+            ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
+            CompletableFuture<ZooKeeper> zkFuture = zkfactory.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
+                (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
+            localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            assertTrue(localZkc.getState().isConnected());
+            assertNotEquals(localZkc.getState(), States.CONNECTEDREADONLY);
+
+            String connection = "127.0.0.1:" + LOCAL_ZOOKEEPER_PORT + "/prefix";
+            ZooKeeper chrootZkc = PulsarClusterMetadataSetup.initZk(connection, (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
+            assertTrue(chrootZkc.getState().isConnected());
+            assertNotEquals(chrootZkc.getState(), States.CONNECTEDREADONLY);
+            chrootZkc.close();
+
+            assertTrue(localZkc.exists("/prefix", false) != null);
+        } finally {
+            if (localZkc != null) {
+                localZkc.close();
+            }
         }
     }
 
