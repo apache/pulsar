@@ -153,7 +153,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             this.keyDeserializer = new PulsarKafkaSchema<>(kafkaKeyDeserializer);
         } else {
             this.keyDeserializer = keyDeserializer;
-            consumerConfig.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+            config.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
         }
 
         if (valueDeserializer == null) {
@@ -163,7 +163,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             this.valueDeserializer = new PulsarKafkaSchema<>(kafkaValueDeserializer);
         } else {
             this.valueDeserializer = valueDeserializer;
-            consumerConfig.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+            config.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
         }
 
         groupId = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
