@@ -1205,6 +1205,74 @@
         }
       }
     },
+    "/namespaces/{property}/{namespace}/persistence/bookieAffinity" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Get the bookie-affinity-group from namespace-local policy.",
+        "description" : "",
+        "operationId" : "getBookieAffinityGroup",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/BookieAffinityGroupData"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Delete the bookie-affinity-group from namespace-local policy.",
+        "description" : "",
+        "operationId" : "deleteBookieAffinityGroup",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "property",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace does not exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -8001,6 +8069,17 @@
         }
       }
     },
+    "BookieAffinityGroupData" : {
+      "type" : "object",
+      "properties" : {
+        "bookkeeperAffinityGroupPrimary" : {
+          "type" : "string"
+        },
+        "bookkeeperAffinityGroupSecondary" : {
+          "type" : "string"
+        }
+      }
+    },
     "BookieInfo" : {
       "type" : "object",
       "properties" : {
@@ -8443,30 +8522,30 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthOut" : {
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "memory" : {
+        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "cpu" : {
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "directMemory" : {
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputOut" : {
+        "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputIn" : {
+        "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
         },
@@ -9415,11 +9494,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
