@@ -4,7 +4,7 @@ title: Get started with Pulsar Functions
 sidebar_label: Get started  
 ---
 
-This tutorial walks you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine, and then running your first function using that cluster. The first function runs in local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second runs in cluster mode (inside your cluster).
+This tutorial walks you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine, and then running your first Pulsar Functions using that cluster. The first Pulsar Functions run in local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second runs in cluster mode (inside your cluster).
 
 > In local run mode, Pulsar Functions communicate with Pulsar cluster, but run outside of the cluster.
 
