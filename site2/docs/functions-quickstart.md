@@ -4,7 +4,7 @@ title: Get started with Pulsar Functions
 sidebar_label: Get started  
 ---
 
-This tutorial walks you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine, and then running your first Pulsar Functions using that cluster. The first Pulsar Functions run in local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second runs in cluster mode (inside your cluster).
+This tutorial walks you through running a [standalone](reference-terminology.md#standalone) Pulsar [cluster](reference-terminology.md#cluster) on your machine, and then running your first Pulsar Function using that cluster. The first Pulsar Function runs in local run mode (outside your Pulsar [cluster](reference-terminology.md#cluster)), while the second runs in cluster mode (inside your cluster).
 
 > In local run mode, Pulsar Functions communicate with Pulsar cluster, but run outside of the cluster.
 
@@ -26,7 +26,7 @@ $ bin/pulsar standalone \
 
 When running Pulsar in standalone mode, the `public` tenant and the `default` namespace are created automatically. The tenant and namespace are used throughout this tutorial.
 
-## Run a Pulsar function in local run mode
+## Run a Pulsar Function in local run mode
 
 You can start with a simple function that takes a string as input from a Pulsar topic, adds an exclamation point to the end of the string, and then publishes the new string to another Pulsar topic. The following is the code for the function.
 
@@ -93,7 +93,7 @@ Hello world!
 * The exclamation function processes the message (providing a result of `Hello world!`) and publishes the result to the output topic (`persistent://public/default/exclamation-output`).
 * If the exclamation function *does not* run, Pulsar will durably store the message data published to the input topic in [Apache BookKeeper](https://bookkeeper.apache.org) until a consumer consumes and acknowledges the message.
 
-## Run a Pulsar function in cluster mode
+## Run a Pulsar Function in cluster mode
 
 [Local run mode](#run-a-pulsar-function-in-local-run-mode) is useful for development and test. However, when you use Pulsar for real deployment, you run it in **cluster mode**. In cluster mode, Pulsar Functions run *inside* of your Pulsar cluster and are managed using the same [`pulsar-admin functions`](reference-pulsar-admin.md#functions) interface.
 
@@ -258,7 +258,7 @@ You will get the following output.
 This string was backwards but is now forwards
 ```
 
-You have created a new Pulsar function, deployed it in your Pulsar standalone cluster in [cluster mode](#run-a-pulsar-function-in-cluster-mode), and triggered the function. 
+You have created a new Pulsar Function, deployed it in your Pulsar standalone cluster in [cluster mode](#run-a-pulsar-function-in-cluster-mode), and triggered the Function. 
 
 ## Write and run a Go function
 Go function depends on `pulsar-client-go`. Make sure that you have built `pulsar-client-go` before using Go function.
@@ -319,7 +319,6 @@ The `--classname` parameter is not specified when running Go function, because t
 > Note   
 > When you use the `--go` command to specify an executable file, make sure you have executable permissions.
 
-
 ## Package Python dependencies
 
 When you deploy Python functions in a cluster offline, you need to package the required dependencies in a ZIP file before deployment.
@@ -342,7 +341,7 @@ A file named **requirements.txt** is needed with required dependencies for the P
 sh==1.12.14
 ```
 
-Prepare the Pulsar function in the **src** folder.
+Prepare the Pulsar Function in the **src** folder.
 
 Run the following command to gather Python dependencies in the **deps** folder.
 
@@ -367,7 +366,6 @@ Successfully downloaded sh
 
 > Note   
 > `pulsar-client` is not needed as a dependency as it has already installed in the worker node.
-
 
 #### Package
 Create a destination folder with the desired package name, for example, **exclamation**. Copy the **src** and **deps** folders into it, and compress the folder into a ZIP archive.
