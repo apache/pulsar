@@ -46,6 +46,7 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class FunctionsBase extends AdminResource implements Supplier<WorkerService> {
@@ -168,10 +169,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             )
                     )
             )
-            final @FormDataParam("functionConfig") String functionConfigJson) {
+            final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
 
         functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-            functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
+            functionPkgUrl, functionConfig, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -280,12 +281,12 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             )
                     )
             )
-            final @FormDataParam("functionConfig") String functionConfigJson,
+            final @FormDataParam("functionConfig") FunctionConfig functionConfig,
             @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateOptions);
+                functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
 

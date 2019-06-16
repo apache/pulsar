@@ -484,7 +484,7 @@ public class FunctionApiV3ResourceTest {
                 inputStream,
                 details,
                 functionPkgUrl,
-                new Gson().toJson(functionConfig),
+                functionConfig,
                 null, null);
 
     }
@@ -498,7 +498,7 @@ public class FunctionApiV3ResourceTest {
             mockedInputStream,
             mockedFormData,
             null,
-            new Gson().toJson(functionConfig),
+            functionConfig,
                 null, null);
     }
 
@@ -912,7 +912,7 @@ public class FunctionApiV3ResourceTest {
             inputStream,
             details,
             null,
-            new Gson().toJson(functionConfig),
+            functionConfig,
                 null, null, null);
 
     }
@@ -936,7 +936,7 @@ public class FunctionApiV3ResourceTest {
             mockedInputStream,
             mockedFormData,
             null,
-            new Gson().toJson(functionConfig),
+            functionConfig,
                 null, null, null);
     }
 
@@ -1024,7 +1024,7 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             filePackageUrl,
-            new Gson().toJson(functionConfig),
+            functionConfig,
                 null, null, null);
 
     }
@@ -1469,7 +1469,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, new Gson().toJson(functionConfig), null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
 
     }
 
@@ -1500,7 +1500,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, new Gson().toJson(functionConfig), null, null);
+        resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, functionConfig, null, null);
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {

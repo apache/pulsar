@@ -75,11 +75,11 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                              final @PathParam("sinkName") String sinkName,
                              final @FormDataParam("data") InputStream uploadedInputStream,
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                             final @FormDataParam("url") String functionPkgUrl,
-                             final @FormDataParam("sinkConfig") String sinkConfigJson) {
+                             final @FormDataParam("url") String sinkPkgUrl,
+                             final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
 
-        sink.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData());
+        sink.registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -96,12 +96,12 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                            final @PathParam("sinkName") String sinkName,
                            final @FormDataParam("data") InputStream uploadedInputStream,
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                           final @FormDataParam("url") String functionPkgUrl,
-                           final @FormDataParam("sinkConfig") String sinkConfigJson,
+                           final @FormDataParam("url") String sinkPkgUrl,
+                           final @FormDataParam("sinkConfig") SinkConfig sinkConfig,
                            final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
-         sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData(), updateOptions);
+         sink.updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData(), updateOptions);
 
     }
 

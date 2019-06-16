@@ -603,6 +603,7 @@ public class FunctionConfigUtils {
         return retval;
     }
 
+
     public static ClassLoader validate(FunctionConfig functionConfig, File functionPackageFile) {
         doCommonChecks(functionConfig);
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
