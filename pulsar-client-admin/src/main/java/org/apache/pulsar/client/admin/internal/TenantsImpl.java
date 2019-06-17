@@ -36,8 +36,8 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 public class TenantsImpl extends BaseResource implements Tenants, Properties {
     private final WebTarget adminTenants;
 
-    public TenantsImpl(WebTarget web, Authentication auth) {
-        super(auth);
+    public TenantsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         adminTenants = web.path("/admin/v2/tenants");
     }
 

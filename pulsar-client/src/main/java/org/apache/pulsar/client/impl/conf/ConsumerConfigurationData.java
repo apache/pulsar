@@ -101,6 +101,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean replicateSubscriptionState = false;
 
+    private boolean resetIncludeHead = false;
+
     @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);
