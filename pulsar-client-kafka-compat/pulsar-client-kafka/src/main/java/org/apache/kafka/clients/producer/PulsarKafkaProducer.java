@@ -246,16 +246,13 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         try {
             // Add the partitions info for the new topic
             cluster = cluster.withPartitions(readPartitionsInfo(topic));
-            if (keySerializer instanceof PulsarKafkaSchema && valueSerializer instanceof PulsarKafkaSchema) {
-                List<org.apache.pulsar.client.api.ProducerInterceptor> wrappedInterceptors = interceptors.stream()
-                        .map(interceptor -> new KafkaProducerInterceptorWrapper(interceptor, keySerializer, valueSerializer, topic))
-                        .collect(Collectors.toList());
-                return pulsarProducerBuilder.clone()
-                        .topic(topic)
-                        .intercept(wrappedInterceptors.toArray(new org.apache.pulsar.client.api.ProducerInterceptor[wrappedInterceptors.size()]))
-                        .create();
-            }
-            return pulsarProducerBuilder.clone().topic(topic).create();
+            List<org.apache.pulsar.client.api.ProducerInterceptor> wrappedInterceptors = interceptors.stream()
+                    .map(interceptor -> new KafkaProducerInterceptorWrapper(interceptor, keySerializer, valueSerializer, topic))
+                    .collect(Collectors.toList());
+            return pulsarProducerBuilder.clone()
+                    .topic(topic)
+                    .intercept(wrappedInterceptors.toArray(new org.apache.pulsar.client.api.ProducerInterceptor[wrappedInterceptors.size()]))
+                    .create();
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
