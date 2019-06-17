@@ -1892,6 +1892,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);;
+     }
+
+    Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
+        return replicatedSubscriptionsController;
     }
 
     public CompactedTopic getCompactedTopic() {
