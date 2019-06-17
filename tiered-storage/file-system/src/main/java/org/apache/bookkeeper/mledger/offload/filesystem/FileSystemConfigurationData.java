@@ -41,6 +41,8 @@ public class FileSystemConfigurationData implements Serializable, Cloneable {
 
     private String fileSystemURI = null;
 
+    private int managedLedgerOffloadMaxThreads = 2;
+
     /**
      * Create a tiered storage configuration from the provided <tt>properties</tt>.
      *
