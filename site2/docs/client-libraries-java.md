@@ -308,18 +308,18 @@ consumerBuilder
 
 ### Subscription modes
 
-Pulsar have various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. For a topic, can subscribe with different subscription mode at the same time by using different subscription names. 
+Pulsar has various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
 
-Subscription name is the identity of a subscription, a subscription name can secifies only one subscription mode at the same time and subscription mode can be changed, need to let all exists consumers of this subscription offline before change subscription mode.
+A subscription is identified with the subscription name, and a subscription name can specify only one subscription mode at a time. You can change the subscription mode, yet you have to let all existing consumers of this subscription offline first.
 
-Different subscription modes have different message distribution modes. This section will describes the difference of each subscription mode and how to use them.
+Different subscription modes have different message distribution modes. This section describes the differences of subscription modes and how to use them.
 
-In order to better reflect their differences, assuming have a topic named "my-topic" and there are 10 messages that producer already published:
+In order to better describe their differences, assuming you have a topic named "my-topic", and the producer has published 10 messages.
 
 ```java
 Producer<String> producer = client.newProducer(Schema.STRING)
         .topic("my-topic")
-  			.enableBatch(false)
+        .enableBatch(false)
         .create();
 // 3 messages with "key-1", 3 messages with "key-2", 2 messages with "key-3" and 2 messages with "key-4"
 producer.newMessage().key("key-1").value("message-1-1").send();
@@ -336,7 +336,7 @@ producer.newMessage().key("key-4").value("message-4-2").send();
 
 #### Exclusive
 
-Create a new consumer and subscribe with `Exclusive` subscription mode:
+Create a new consumer and subscribe with the `Exclusive` subscription mode.
 
 ```java
 Consumer consumer = client.newConsumer()
@@ -346,15 +346,15 @@ Consumer consumer = client.newConsumer()
         .subscribe()
 ```
 
-Only the first consumer allow to attach to the subscription, others will receives an error. the first consumer will received all 10 messages and the order of consuming is same as order produced.
+Only the first consumer is allowed to the subscription, other consumers receive an error. The first consumer receives all 10 messages, and the consuming order is the same as the producing order.
 
 > Note:
 >
-> If topic is a partitioned topic, first consumer will subscribe to all partition topics, other consumers will not be assigned partitions and will receives an error. 
+> If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error. 
 
 #### Failover
 
-Create new consumers and subscribe with `Failover` subscription mode:
+Create new consumers and subscribe with the`Failover` subscription mode.
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -368,14 +368,14 @@ Consumer consumer2 = client.newConsumer()
         .subscriptionType(SubscriptionType.Failover)
         .subscribe()
 //conumser1 is the active consumer, consumer2 is the standby consumer.
-//consumer1 receive 5 messages and then consumer crashed, consumer 2 will promoted to active consumer
+//consumer1 receives 5 messages and then crashes, consumer2 takes over as an  active consumer.
 
   
 ```
 
-Multiple consumers can attach to the same subscription but only first consumer is active, others is standby. When the active consumer disconnected, messages will dispatch to one of standby consumers and it will be the active consumer.
+Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer becomes active consumer. 
 
-If the first active consumer received 5 then disconnected and then the standby consumer become active consumer, consumer1 will received:
+If the first active consumer receives 5 messages and is disconnected, the standby consumer becomes active consumer. Consumer1 will receive:
 
 ```
 ("key-1", "message-1-1")
@@ -385,7 +385,7 @@ If the first active consumer received 5 then disconnected and then the standby c
 ("key-2", "message-2-2")
 ```
 
-consumer2 will received:
+consumer2 will receive:
 
 ```
 ("key-2", "message-2-3")
@@ -397,7 +397,7 @@ consumer2 will received:
 
 > Note:
 >
-> If topic is a partitioined topic, a partition topic only have one active consumer and partitions will distributed to multiple consumers. 
+> If a topic is a partitioned topic, the partitioned topic only has one active consumer, and messages of the partition are distributed to multiple consumers. 
 
 #### Shared
 
@@ -420,7 +420,7 @@ Consumer consumer2 = client.newConsumer()
 
 In shared subscription mode, multiple consumers can attach to the same subscription and message are delivered in a round robin distribution across consumers.
 
-If broker dispatch only one message at a time, consumer 1 will received:
+If a broker dispatches only one message at a time, consumer1 will receive:
 
 ```
 ("key-1", "message-1-1")
@@ -430,7 +430,7 @@ If broker dispatch only one message at a time, consumer 1 will received:
 ("key-4", "message-4-1")
 ```
 
-consumer 2 will received:
+consumer 2 will receive:
 
 ```
 ("key-1", "message-1-2")
@@ -440,11 +440,11 @@ consumer 2 will received:
 ("key-4", "message-4-2")
 ```
 
-`Shared` subscription has big difference with `Exclusive` and `Failover`, `Shared` subscription have better flexibility but cannot provide order guarantee.
+`Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
 #### Key_shared
 
-This is a new subscription mode since `2.4.0` , create new consumers and subscribe with `Key_Shared` subscription mode:
+This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode:
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -458,12 +458,10 @@ Consumer consumer2 = client.newConsumer()
         .subscriptionName("my-subscription")
         .subscriptionType(SubscriptionType.Key_Shared)
         .subscribe()
-//Both consumer1 and consumer 2 is active consumers.
+//Both consumer1 and consumer2 are active consumers.
 ```
 
-`Key_Shared` subscription like `Shared` subscription, all consumers can attach to the same subscription. But it's defferent with `Key_Shared` subscription, messages with same key are delivered to only one consumer in order. The messages received by consumer1 and consumer2 may be the following:
-
-consumer1 will received:
+`Key_Shared` subscription is like `Shared` subscription, all consumers can attach to the same subscription. But it is different from `Key_Shared` subscription, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers(by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time. ) consumer1 will receive:
 
 ```
 ("key-1", "message-1-1")
@@ -473,7 +471,7 @@ consumer1 will received:
 ("key-3", "message-3-2")
 ```
 
-consumer 2 will received:
+consumer 2 will receive:
 
 ```
 ("key-2", "message-2-1")
@@ -485,7 +483,7 @@ consumer 2 will received:
 
 > Note:
 >
-> If message key is not specified, message without key will dispatch to one consumer in order.
+> If the message key is not specified, messages without key will be dispatched to one consumer in order by default.
 
 ## Reader interface
 
