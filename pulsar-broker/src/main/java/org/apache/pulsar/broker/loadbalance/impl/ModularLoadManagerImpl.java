@@ -263,10 +263,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        lastData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData.setBrokerVersionString(pulsar.getBrokerVersion());
         // configure broker-topic mode
         lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
@@ -783,7 +783,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Register the brokers in zk list
             createZPathIfNotExists(zkClient, LoadManager.LOADBALANCE_BROKERS_ROOT);
 
-            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort().get();
+            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
+                    + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
+                            : conf.getWebServicePortTls().get());
             brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
             updateLocalBrokerData();
@@ -960,6 +962,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             log.info("Cluster domain refreshed {}", brokerToFailureDomainMap);
         } catch (Exception e) {
             log.warn("Failed to get domain-list for cluster {}", e.getMessage());
+        }
+    }
+    
+    @Override
+    public LocalBrokerData getBrokerLocalData(String broker) {
+        String key = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker);
+        try {
+            return brokerDataCache.get(key).orElse(null);
+        } catch (Exception e) {
+            log.warn("Failed to get local-broker data for {}",broker, e);
+            return null;
         }
     }
 }
