@@ -290,7 +290,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         builder.value(value);
 
         if (record.partition() != null) {
-            // Partition was explicitly set on theKafkaProducerInterceptorWrapper record
+            // Partition was explicitly set on the record
             builder.property(KafkaMessageRouter.PARTITION_ID, record.partition().toString());
         } else {
             // Get the partition id from the partitioner
