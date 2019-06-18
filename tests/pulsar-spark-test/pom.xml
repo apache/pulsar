@@ -36,9 +36,10 @@
     <dependencies>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-spark</artifactId>
-            <version>${project.version}</version>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-spark</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -46,6 +47,7 @@
           <artifactId>integration</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
+          <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -55,13 +57,15 @@
         </dependency>
 
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
+          <groupId>org.mockito</groupId>
+          <artifactId>mockito-core</artifactId>
+          <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.apache.spark</groupId>
-            <artifactId>spark-streaming_2.10</artifactId>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-streaming_2.10</artifactId>
+          <scope>test</scope>
         </dependency>
 
     </dependencies>
