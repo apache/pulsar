@@ -57,7 +57,7 @@ Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme 
 pulsar://localhost:6650
 ```
 
-If you have more than one broker, the URL will look like something like this:
+If you have more than one broker, the URL may look like this:
 ```http
 pulsar://localhost:6550,localhost:6651,localhost:6652
 ```
