@@ -162,7 +162,9 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
     private Message<byte[]> toPulsarMessage(ProducerRecord<K, V> producerRecord) {
         TypedMessageBuilderImpl typedMessageBuilder = new TypedMessageBuilderImpl(null, scheme);
         typedMessageBuilder.key(serializeKey(topic, producerRecord.key()));
-        ((PulsarKafkaSchema<V>) valueSerializer).setTopic(topic);
+        if (valueSerializer instanceof PulsarKafkaSchema) {
+            ((PulsarKafkaSchema<V>) valueSerializer).setTopic(topic);
+        }
         typedMessageBuilder.value(valueSerializer.encode(producerRecord.value()));
         typedMessageBuilder.eventTime(eventTime);
         typedMessageBuilder.property(KafkaMessageRouter.PARTITION_ID, partitionID);
@@ -179,8 +181,13 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
      */
     private ProducerRecord<K, V> toKafkaRecord(Message<byte[]> message) {
         PulsarKafkaSchema<V> pulsarKeyKafkaSchema = (PulsarKafkaSchema<V>) valueSerializer;
-        Deserializer valueDeserializer = getDeserializer((pulsarKeyKafkaSchema.getKafkaSerializer()));
-        V value = (V) valueDeserializer.deserialize(topic, message.getValue());
+        V value;
+        if (valueSerializer instanceof PulsarKafkaSchema) {
+            Deserializer valueDeserializer = getDeserializer((pulsarKeyKafkaSchema.getKafkaSerializer()));
+            value = (V) valueDeserializer.deserialize(topic, message.getValue());
+        } else {
+            value = valueSerializer.decode(message.getValue());
+        }
         try {
             scheme = (Schema<byte[]>) FieldUtils.readField(message, "schema", true);
             PulsarApi.MessageMetadata.Builder messageMetadataBuilder = ((MessageImpl<byte[]>)message).getMessageBuilder();
@@ -198,26 +205,29 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
     }
 
     private String serializeKey(String topic, K key) {
-        PulsarKafkaSchema<K> pulsarKeyKafkaSchema = (PulsarKafkaSchema<K>) keySerializer;
         // If key is a String, we can use it as it is, otherwise, serialize to byte[] and encode in base64
-        if (pulsarKeyKafkaSchema.getKafkaSerializer() instanceof StringSerializer) {
+        if (key instanceof String) {
             return (String) key;
-        } else {
-            pulsarKeyKafkaSchema.setTopic(topic);
-            byte[] keyBytes = keySerializer.encode(key);
-            return Base64.getEncoder().encodeToString(keyBytes);
         }
+        if (keySerializer instanceof PulsarKafkaSchema) {
+            ((PulsarKafkaSchema<K>) keySerializer).setTopic(topic);
+        }
+        byte[] keyBytes = keySerializer.encode(key);
+        return Base64.getEncoder().encodeToString(keyBytes);
     }
 
     private K deserializeKey(String topic, String key) {
-        PulsarKafkaSchema<K> pulsarKeyKafkaSchema = (PulsarKafkaSchema<K>) keySerializer;
-        // If key is a String, we can use it as it is, otherwise, serialize to byte[] and encode in base64
-        if (pulsarKeyKafkaSchema.getKafkaSerializer() instanceof StringSerializer) {
-            return (K) key;
-        } else {
+        if (keySerializer instanceof PulsarKafkaSchema) {
+            PulsarKafkaSchema<K> pulsarKeyKafkaSchema = (PulsarKafkaSchema<K>) keySerializer;
+            // If key is a String, we can use it as it is, otherwise, serialize to byte[] and encode in base64
+            if (pulsarKeyKafkaSchema.getKafkaSerializer() instanceof StringSerializer) {
+                return (K) key;
+            }
+
             Deserializer keyDeserializer = getDeserializer(pulsarKeyKafkaSchema.getKafkaSerializer());
             return (K) keyDeserializer.deserialize(topic, Base64.getDecoder().decode(key));
         }
+        return keySerializer.decode(Base64.getDecoder().decode(key));
     }
 
     /**

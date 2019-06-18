@@ -74,8 +74,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private final PulsarClient client;
 
-    private final Schema<K> keyDeserializer;
-    private final Schema<V> valueDeserializer;
+    private final Schema<K> keySchema;
+    private final Schema<V> valueSchema;
 
     private final String groupId;
     private final boolean isAutoCommit;
@@ -115,76 +115,61 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     public PulsarKafkaConsumer(Map<String, Object> configs, Schema<K> keyDeserializer,
             Schema<V> valueDeserializer) {
-        this(configs, new Properties(), null, keyDeserializer, valueDeserializer);
+        this(new ConsumerConfig(configs), keyDeserializer, valueDeserializer);
     }
 
     public PulsarKafkaConsumer(Properties properties) {
-        this(properties, null, null);
+        this(new ConsumerConfig(properties), null, null);
     }
 
     public PulsarKafkaConsumer(Properties properties, Schema<K> keyDeserializer,
             Schema<V> valueDeserializer) {
-        this(new HashMap<>(), properties, null, keyDeserializer, valueDeserializer);
+        this(new ConsumerConfig(properties), keyDeserializer, valueDeserializer);
     }
 
     @SuppressWarnings("unchecked")
     private PulsarKafkaConsumer(ConsumerConfig consumerConfig, Schema<K> keyDeserializer,
-                                Schema<V> valueDeserializer) {
-        this(new HashMap<>(), new Properties(), consumerConfig, keyDeserializer, valueDeserializer);
-    }
-
-    @SuppressWarnings("unchecked")
-    private PulsarKafkaConsumer(
-            Map<String, Object> conf, Properties properties, ConsumerConfig consumerConfig, Schema<K> keyDeserializer,
             Schema<V> valueDeserializer) {
-
-        ConsumerConfig config;
-        if (consumerConfig == null) {
-            properties.forEach((k, v) -> conf.put((String) k, v));
-            config = new ConsumerConfig(conf);
-        } else {
-            config = consumerConfig;
-        }
 
         if (keyDeserializer == null) {
             Deserializer<K> kafkaKeyDeserializer = consumerConfig.getConfiguredInstance(
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Deserializer.class);
             kafkaKeyDeserializer.configure(consumerConfig.originals(), true);
-            this.keyDeserializer = new PulsarKafkaSchema<>(kafkaKeyDeserializer);
+            this.keySchema = new PulsarKafkaSchema<>(kafkaKeyDeserializer);
         } else {
-            this.keyDeserializer = keyDeserializer;
-            config.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+            this.keySchema = keyDeserializer;
+            consumerConfig.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
         }
 
         if (valueDeserializer == null) {
             Deserializer<V> kafkaValueDeserializer = consumerConfig.getConfiguredInstance(
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Deserializer.class);
             kafkaValueDeserializer.configure(consumerConfig.originals(), true);
-            this.valueDeserializer = new PulsarKafkaSchema<>(kafkaValueDeserializer);
+            this.valueSchema = new PulsarKafkaSchema<>(kafkaValueDeserializer);
         } else {
-            this.valueDeserializer = valueDeserializer;
-            config.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+            this.valueSchema = valueDeserializer;
+            consumerConfig.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
         }
 
-        groupId = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
-        isAutoCommit = config.getBoolean(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
-        strategy = getStrategy(config.getString(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
+        groupId = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+        isAutoCommit = consumerConfig.getBoolean(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
+        strategy = getStrategy(consumerConfig.getString(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
         log.info("Offset reset strategy has been assigned value {}", strategy);
 
-        String serviceUrl = config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
+        String serviceUrl = consumerConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
 
         // If MAX_POLL_RECORDS_CONFIG is provided then use the config, else use default value.
-        if(config.values().containsKey(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)){
-            maxRecordsInSinglePoll = config.getInt(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
+        if(consumerConfig.values().containsKey(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)){
+            maxRecordsInSinglePoll = consumerConfig.getInt(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
         } else {
             maxRecordsInSinglePoll = 1000;
         }
 
-        interceptors = (List) config.getConfiguredInstances(
+        interceptors = (List) consumerConfig.getConfiguredInstances(
                 ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG, ConsumerInterceptor.class);
 
         this.properties = new Properties();
-        config.originals().forEach((k, v) -> properties.put(k, v));
+        consumerConfig.originals().forEach((k, v) -> properties.put(k, v));
         ClientBuilder clientBuilder = PulsarClientKafkaConfig.getClientBuilder(properties);
         // Since this client instance is going to be used just for the consumers, we can enable Nagle to group
         // all the acknowledgments sent to broker within a short time frame
@@ -362,10 +347,10 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 }
 
                 K key = getKey(topic, msg);
-                if (valueDeserializer instanceof PulsarKafkaSchema) {
-                    ((PulsarKafkaSchema<V>) valueDeserializer).setTopic(topic);
+                if (valueSchema instanceof PulsarKafkaSchema) {
+                    ((PulsarKafkaSchema<V>) valueSchema).setTopic(topic);
                 }
-                V value = valueDeserializer.decode(msg.getData());
+                V value = valueSchema.decode(msg.getData());
 
                 TimestampType timestampType = TimestampType.LOG_APPEND_TIME;
                 long timestamp = msg.getPublishTime();
@@ -411,8 +396,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             return null;
         }
 
-        if (keyDeserializer instanceof PulsarKafkaSchema) {
-            PulsarKafkaSchema<K> pulsarKafkaSchema = (PulsarKafkaSchema) keyDeserializer;
+        if (keySchema instanceof PulsarKafkaSchema) {
+            PulsarKafkaSchema<K> pulsarKafkaSchema = (PulsarKafkaSchema) keySchema;
             Deserializer<K> kafkaDeserializer = pulsarKafkaSchema.getKafkaDeserializer();
             if (kafkaDeserializer instanceof StringDeserializer) {
                 return (K) msg.getKey();
@@ -421,7 +406,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         }
         // Assume base64 encoding
         byte[] data = Base64.getDecoder().decode(msg.getKey());
-        return keyDeserializer.decode(data);
+        return keySchema.decode(data);
 
     }
 
