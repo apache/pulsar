@@ -18,13 +18,9 @@
  */
 package org.apache.pulsar.client.kafka.compat.examples;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
-import org.apache.avro.reflect.Nullable;
+import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.PulsarKafkaProducer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -58,7 +54,7 @@ public class ProducerAvroExample {
         foo.setField3(3);
 
 
-        Producer<Foo, Bar> producer = new PulsarKafkaProducer<>(props, fooSchema, barSchema);
+        Producer<Foo, Bar> producer = new KafkaProducer<>(props, fooSchema, barSchema);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new ProducerRecord<Foo, Bar>(topic, i, foo, bar));

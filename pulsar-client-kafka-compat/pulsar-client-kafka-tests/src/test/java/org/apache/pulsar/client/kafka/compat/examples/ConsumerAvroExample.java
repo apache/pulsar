@@ -20,7 +20,7 @@ package org.apache.pulsar.client.kafka.compat.examples;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.PulsarKafkaConsumer;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -57,7 +57,7 @@ public class ConsumerAvroExample {
         foo.setField3(3);
 
         @SuppressWarnings("resource")
-        Consumer<Foo, Bar> consumer = new PulsarKafkaConsumer<>(props, fooSchema, barSchema);
+        Consumer<Foo, Bar> consumer = new KafkaConsumer<>(props, fooSchema, barSchema);
         consumer.subscribe(Arrays.asList(topic));
 
         while (true) {
