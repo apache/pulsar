@@ -27,17 +27,22 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 public class PulsarKafkaSchema<T> implements Schema<T> {
 
-    private Serializer<T> kafkaSerializer;
+    private final Serializer<T> kafkaSerializer;
 
-    private Deserializer<T> kafkaDeserializer;
+    private final Deserializer<T> kafkaDeserializer;
 
     private String topic;
 
     public PulsarKafkaSchema(Serializer<T> serializer) {
-        this.kafkaSerializer = serializer;
+        this(serializer, null);
     }
 
     public PulsarKafkaSchema(Deserializer<T> deserializer) {
+        this(null, deserializer);
+    }
+
+    public PulsarKafkaSchema(Serializer<T> serializer, Deserializer<T> deserializer) {
+        this.kafkaSerializer = serializer;
         this.kafkaDeserializer = deserializer;
     }
 
