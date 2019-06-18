@@ -84,7 +84,7 @@ PulsarClient client = PulsarClient.builder()
         .build();
 ```
 
-If you have mutliple brokers, you can instantiate a PulsarClient like this:
+If you have multiple brokers, you can initiate a PulsarClient like this:
 ```java
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650,localhost:6651,localhost:6652")
