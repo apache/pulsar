@@ -16,37 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.impl.common;
-
-import com.google.common.annotations.Beta;
-import java.io.Serializable;
-import lombok.Data;
-
 /**
- * An identifier for representing a transaction.
+ * Common exception used by pulsar transaction related modules.
  */
-@Beta
-@Data
-public class TxnID implements Serializable {
-
-    private static final long serialVersionUID = 0L;
-
-    /*
-     * The most significant 64 bits of this TxnID.
-     *
-     * @serial
-     */
-    private final long mostSigBits;
-
-    /*
-     * The least significant 64 bits of this TxnID.
-     *
-     * @serial
-     */
-    private final long leastSigBits;
-
-    @Override
-    public String toString() {
-        return "(" + mostSigBits + "," + leastSigBits + ")";
-    }
-}
+package org.apache.pulsar.transaction.common.exception;
