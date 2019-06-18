@@ -180,9 +180,9 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
      * @return Kafka record.
      */
     private ProducerRecord<K, V> toKafkaRecord(Message<byte[]> message) {
-        PulsarKafkaSchema<V> pulsarKeyKafkaSchema = (PulsarKafkaSchema<V>) valueSerializer;
         V value;
         if (valueSerializer instanceof PulsarKafkaSchema) {
+            PulsarKafkaSchema<V> pulsarKeyKafkaSchema = (PulsarKafkaSchema<V>) valueSerializer;
             Deserializer valueDeserializer = getDeserializer((pulsarKeyKafkaSchema.getKafkaSerializer()));
             value = (V) valueDeserializer.deserialize(topic, message.getValue());
         } else {
