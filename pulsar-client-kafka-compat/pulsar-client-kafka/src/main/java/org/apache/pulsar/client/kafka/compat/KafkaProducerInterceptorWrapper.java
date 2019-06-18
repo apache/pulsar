@@ -66,9 +66,9 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
     final private org.apache.kafka.clients.producer.ProducerInterceptor<K, V> kafkaProducerInterceptor;
 
     // For serializer key/value, and to determine the deserializer for key/value.
-    private final Schema<K> keySerializer;
+    private final Schema<K> keySchema;
 
-    private final Schema<V> valueSerializer;
+    private final Schema<V> valueSchema;
 
     // Keep the topic, as each Pulsar producer will tie to a Kafka topic, and ProducerInterceptor will tie to a Pulsar
     // producer, it's safe to set it as final.
@@ -90,12 +90,12 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
      * @param topic                    Topic this {@link ProducerInterceptor} will be associated to.
      */
     public KafkaProducerInterceptorWrapper(org.apache.kafka.clients.producer.ProducerInterceptor<K, V> kafkaProducerInterceptor,
-                                           Schema<K> keySerializer,
-                                           Schema<V> valueSerializer,
+                                           Schema<K> keySchema,
+                                           Schema<V> valueSchema,
                                            String topic) {
         this.kafkaProducerInterceptor = kafkaProducerInterceptor;
-        this.keySerializer = keySerializer;
-        this.valueSerializer = valueSerializer;
+        this.keySchema = keySchema;
+        this.valueSchema = valueSchema;
         this.topic = topic;
     }
 
@@ -162,10 +162,10 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
     private Message<byte[]> toPulsarMessage(ProducerRecord<K, V> producerRecord) {
         TypedMessageBuilderImpl typedMessageBuilder = new TypedMessageBuilderImpl(null, scheme);
         typedMessageBuilder.key(serializeKey(topic, producerRecord.key()));
-        if (valueSerializer instanceof PulsarKafkaSchema) {
-            ((PulsarKafkaSchema<V>) valueSerializer).setTopic(topic);
+        if (valueSchema instanceof PulsarKafkaSchema) {
+            ((PulsarKafkaSchema<V>) valueSchema).setTopic(topic);
         }
-        typedMessageBuilder.value(valueSerializer.encode(producerRecord.value()));
+        typedMessageBuilder.value(valueSchema.encode(producerRecord.value()));
         typedMessageBuilder.eventTime(eventTime);
         typedMessageBuilder.property(KafkaMessageRouter.PARTITION_ID, partitionID);
         return typedMessageBuilder.getMessage();
@@ -181,12 +181,12 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
      */
     private ProducerRecord<K, V> toKafkaRecord(Message<byte[]> message) {
         V value;
-        if (valueSerializer instanceof PulsarKafkaSchema) {
-            PulsarKafkaSchema<V> pulsarKeyKafkaSchema = (PulsarKafkaSchema<V>) valueSerializer;
+        if (valueSchema instanceof PulsarKafkaSchema) {
+            PulsarKafkaSchema<V> pulsarKeyKafkaSchema = (PulsarKafkaSchema<V>) valueSchema;
             Deserializer valueDeserializer = getDeserializer((pulsarKeyKafkaSchema.getKafkaSerializer()));
             value = (V) valueDeserializer.deserialize(topic, message.getValue());
         } else {
-            value = valueSerializer.decode(message.getValue());
+            value = valueSchema.decode(message.getValue());
         }
         try {
             scheme = (Schema<byte[]>) FieldUtils.readField(message, "schema", true);
@@ -209,16 +209,16 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
         if (key instanceof String) {
             return (String) key;
         }
-        if (keySerializer instanceof PulsarKafkaSchema) {
-            ((PulsarKafkaSchema<K>) keySerializer).setTopic(topic);
+        if (keySchema instanceof PulsarKafkaSchema) {
+            ((PulsarKafkaSchema<K>) keySchema).setTopic(topic);
         }
-        byte[] keyBytes = keySerializer.encode(key);
+        byte[] keyBytes = keySchema.encode(key);
         return Base64.getEncoder().encodeToString(keyBytes);
     }
 
     private K deserializeKey(String topic, String key) {
-        if (keySerializer instanceof PulsarKafkaSchema) {
-            PulsarKafkaSchema<K> pulsarKeyKafkaSchema = (PulsarKafkaSchema<K>) keySerializer;
+        if (keySchema instanceof PulsarKafkaSchema) {
+            PulsarKafkaSchema<K> pulsarKeyKafkaSchema = (PulsarKafkaSchema<K>) keySchema;
             // If key is a String, we can use it as it is, otherwise, serialize to byte[] and encode in base64
             if (pulsarKeyKafkaSchema.getKafkaSerializer() instanceof StringSerializer) {
                 return (K) key;
@@ -227,7 +227,7 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
             Deserializer keyDeserializer = getDeserializer(pulsarKeyKafkaSchema.getKafkaSerializer());
             return (K) keyDeserializer.deserialize(topic, Base64.getDecoder().decode(key));
         }
-        return keySerializer.decode(Base64.getDecoder().decode(key));
+        return keySchema.decode(Base64.getDecoder().decode(key));
     }
 
     /**
