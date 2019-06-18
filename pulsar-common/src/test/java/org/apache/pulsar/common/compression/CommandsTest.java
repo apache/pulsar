@@ -21,20 +21,20 @@ package org.apache.pulsar.common.compression;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-import java.io.IOException;
-
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.Commands.ChecksumType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-import org.testng.annotations.Test;
-
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
+
+import java.io.IOException;
+
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.testng.annotations.Test;
 
 public class CommandsTest {
 
@@ -80,7 +80,7 @@ public class CommandsTest {
     private int computeChecksum(MessageMetadata msgMetadata, ByteBuf compressedPayload) throws IOException {
         int metadataSize = msgMetadata.getSerializedSize();
         int metadataFrameSize = 4 + metadataSize;
-        ByteBuf metaPayloadFrame = PooledByteBufAllocator.DEFAULT.buffer(metadataFrameSize, metadataFrameSize);
+        ByteBuf metaPayloadFrame = PulsarByteBufAllocator.DEFAULT.buffer(metadataFrameSize, metadataFrameSize);
         ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(metaPayloadFrame);
         metaPayloadFrame.writeInt(metadataSize);
         msgMetadata.writeTo(outStream);

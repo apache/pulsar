@@ -43,7 +43,13 @@ typedef enum {
     /** Only one consumer is active on the subscription; Subscription can have N consumers
      *  connected one of which will get promoted to master if the current master becomes inactive
      */
-    pulsar_ConsumerFailover
+    pulsar_ConsumerFailover,
+
+    /**
+     * Multiple consumer will be able to use the same subscription and all messages with the same key
+     * will be dispatched to only one consumer
+     */
+    pulsar_ConsumerKeyShared
 } pulsar_consumer_type;
 
 typedef enum {

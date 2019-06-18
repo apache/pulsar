@@ -175,7 +175,7 @@ public class NamespaceName implements ServiceUnitId {
             NamedEntity.checkName(namespace);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException(
-                    String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, namespace), e);
+                    String.format("Invalid namespace format. namespace: %s/%s", tenant, namespace), e);
         }
     }
 

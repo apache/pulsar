@@ -35,8 +35,8 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 public class BrokersImpl extends BaseResource implements Brokers {
     private final WebTarget adminBrokers;
 
-    public BrokersImpl(WebTarget web, Authentication auth) {
-        super(auth);
+    public BrokersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         adminBrokers = web.path("/admin/v2/brokers");
     }
 

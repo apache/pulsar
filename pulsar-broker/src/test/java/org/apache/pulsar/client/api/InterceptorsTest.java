@@ -118,6 +118,34 @@ public class InterceptorsTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testProducerInterceptorsWithExceptions() throws PulsarClientException {
+        ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
+            @Override
+            public void close() {
+
+            }
+
+            @Override
+            public Message<String> beforeSend(Producer<String> producer, Message<String> message) {
+                throw new NullPointerException();
+            }
+
+            @Override
+            public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId, Throwable exception) {
+                throw new NullPointerException();
+            }
+        };
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+            .topic("persistent://my-property/my-ns/my-topic")
+            .intercept(interceptor)
+            .create();
+
+        MessageId messageId = producer.newMessage().value("Hello Pulsar!").send();
+        Assert.assertNotNull(messageId);
+        producer.close();
+    }
+
+    @Test
     public void testConsumerInterceptorWithSingleTopicSubscribe() throws PulsarClientException {
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override

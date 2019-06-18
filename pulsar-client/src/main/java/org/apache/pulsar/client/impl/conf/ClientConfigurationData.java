@@ -28,14 +28,12 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.io.Serializable;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * This is a simple holder of the client configuration values.
  */
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ClientConfigurationData implements Serializable, Cloneable {
@@ -47,10 +45,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @JsonIgnore
     private transient Authentication authentication = new AuthenticationDisabled();
-    @JsonIgnore
-    private transient String authPluginClassName;
-    @JsonIgnore
-    private transient Map<String, String> authParams;
+    private String authPluginClassName;
+    private String authParams;
 
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
@@ -73,6 +69,23 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int requestTimeoutMs = 60000;
     private long defaultBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
+
+    public Authentication getAuthentication() {
+        if (authentication == null) {
+            this.authentication = new AuthenticationDisabled();
+        }
+        return authentication;
+    }
+
+    public boolean isUseTls() {
+        if (useTls)
+            return true;
+        if (getServiceUrl() != null && (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https"))) {
+            this.useTls = true;
+            return true;
+        }
+        return false;
+    }
 
     public ClientConfigurationData clone() {
         try {

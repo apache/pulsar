@@ -156,9 +156,7 @@ func createProducerAsync(client *client, schema Schema, options ProducerOptions,
 		C._pulsar_producer_configuration_set_message_router(conf, savePointer(&options.MessageRouter))
 	}
 
-	if options.Batching {
-		C.pulsar_producer_configuration_set_batching_enabled(conf, cBool(options.Batching))
-	}
+	C.pulsar_producer_configuration_set_batching_enabled(conf, cBool(options.Batching))
 
 	if options.BatchingMaxPublishDelay != 0 {
 		delayMillis := options.BatchingMaxPublishDelay.Nanoseconds() / int64(time.Millisecond)

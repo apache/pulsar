@@ -180,7 +180,7 @@ Pulsar provides the [CLI](reference-cli-tools.md) for running and managing Pulsa
 We can run following command to sink a sink connector with type `cassandra` and config file `examples/cassandra-sink.yml`.
 
 ```shell
-bin/pulsar-admin sink create \
+bin/pulsar-admin sinks create \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink \
@@ -200,7 +200,7 @@ for inspecting and managing the IO connectors.
 #### Retrieve Sink Info
 
 ```bash
-bin/pulsar-admin sink get \
+bin/pulsar-admin sinks get \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -237,7 +237,7 @@ Example output:
 #### Check Sink running status
 
 ```bash
-bin/pulsar-admin sink status \
+bin/pulsar-admin sinks status \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -279,7 +279,7 @@ for i in {0..9}; do bin/pulsar-client produce -m "key-$i" -n 1 test_cassandra; d
 Inspect the sink running status again. You should be able to see 10 messages are processed by the Cassandra sink.
 
 ```bash
-bin/pulsar-admin sink status \
+bin/pulsar-admin sinks status \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -339,7 +339,7 @@ cqlsh:pulsar_test_keyspace> select * from pulsar_test_table;
 ### Delete the Cassandra Sink
 
 ```shell
-bin/pulsar-admin sink delete \
+bin/pulsar-admin sinks delete \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -480,12 +480,7 @@ Now that we have a MySQL running locally. In this section, we will configure a J
     The schema has been uploaded successfully if the following message appears.
 
     ```text
-    {
-      "name" : "pulsar-mysql-jdbc-sink-topic",
-      "schema" : "eyJ0eXBlIjoicmVjb3JkIiwibmFtZSI6IlRlc3QiLCJmaWVsZHMiOlt7Im5hbWUiOiJpZCIsInR5cGUiOlsibnVsbCIsImludCJdfSx7Im5hbWUiOiJuYW1lIiwidHlwZSI6WyJudWxsIiwic3RyaW5nIl19XX0=",
-      "type" : "AVRO",
-      "properties" : { }
-    }
+    {"name":"pulsar-mysql-jdbc-sink-topic","schema":"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}","type":"AVRO","properties":{}}
     ```
 
 ### Submit a JDBC sink
@@ -495,7 +490,7 @@ Pulsar provides the [CLI](admin-api-overview.md) for running and managing Pulsar
 This example creates a sink connector and specifies the desired information.
 
 ```text
-$ bin/pulsar-admin sink create \
+$ bin/pulsar-admin sinks create \
 --archive ./connectors/pulsar-io-jdbc-{{pulsar:version}}.nar \
 --inputs pulsar-mysql-jdbc-sink-topic \
 --name pulsar-mysql-jdbc-sink \
@@ -514,7 +509,7 @@ Once the command is executed, Pulsar will create a sink connector named _pulsar-
 > `--name` | The name of the sink. | _pulsar-mysql-jdbc-sink_
 > `--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | _pulsar-mysql-jdbc-sink.yaml_ 
 > `--parallelism` | The parallelism factor of the sink. <br> For example, the number of sink instances to run. |  _1_
-> For more information about `pulsar-admin sink create options`, see [here](pulsar-admin/#create-3).
+> For more information about `pulsar-admin sinks create options`, see [here](pulsar-admin/#create-3).
 
 The sink has been created successfully if the following message appears.
 
@@ -529,7 +524,7 @@ The sink has been created successfully if the following message appears.
 This example lists all running sink connectors.
 
 ```text
-$ bin/pulsar-admin sink list \
+$ bin/pulsar-admin sinks list \
 --tenant public \
 --namespace default
 ```
@@ -547,7 +542,7 @@ The result shows that only the _mysql-jdbc-sink_ sink is running.
 This example gets the information about the _pulsar-mysql-jdbc-sink_ sink connector.
 
 ```text
-$ bin/pulsar-admin sink get \
+$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
@@ -584,7 +579,7 @@ The result show the information of the sink connector, including tenant, namespa
 This example checks the current status of the _pulsar-mysql-jdbc-sink_ sink connector.
 
 ```text
-$ bin/pulsar-admin sink status \
+$ bin/pulsar-admin sinks status \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
@@ -620,7 +615,7 @@ The result shows the current status of sink connector, including the number of i
 This example stops the _pulsar-mysql-jdbc-sink_ sink instance.
 
 ```text
-$ bin/pulsar-admin sink stop \
+$ bin/pulsar-admin sinks stop \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink \
@@ -638,7 +633,7 @@ The sink instance has been stopped successfully if the following message disappe
 This example starts the _pulsar-mysql-jdbc-sink_ sink instance.
 
 ```text
-$ bin/pulsar-admin sink start \
+$ bin/pulsar-admin sinks start \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink \
@@ -652,24 +647,24 @@ The sink instance has been started successfully if the following message disappe
 ```
 
 > #### Tip
-> Optionally, you can run a standalone sink connector using `pulsar-admin sink localrun options`. 
+> Optionally, you can run a standalone sink connector using `pulsar-admin sinks localrun options`. 
 > 
-> Note that `pulsar-admin sink localrun options` runs a sink connector locally, while `pulsar-admin sink start options` starts a sink connector in a cluster.
+> Note that `pulsar-admin sinks localrun options` runs a sink connector locally, while `pulsar-admin sinks start options` starts a sink connector in a cluster.
 >
-> For more information about `pulsar-admin sink localrun options`, see [here](pulsar-admin/#localrun-1).
+> For more information about `pulsar-admin sinks localrun options`, see [here](pulsar-admin/#localrun-1).
 
 ### Update a JDBC sink
 
 This example updates the parallelism of the _pulsar-mysql-jdbc-sink_ sink connector to 2.
 
 ```text
-$ bin/pulsar-admin sink update \
+$ bin/pulsar-admin sinks update \
 --name pulsar-mysql-jdbc-sink \
 --parallelism 2
 ```
 
 > #### Tip
-> For more information about `pulsar-admin sink update options`, see [here](pulsar-admin/#update-2).
+> For more information about `pulsar-admin sinks update options`, see [here](pulsar-admin/#update-2).
 
 The sink connector has been updated successfully if the following message disappears.
 
@@ -680,7 +675,7 @@ The sink connector has been updated successfully if the following message disapp
 This example double-checks the information.
 
 ```text
-$ bin/pulsar-admin sink get \
+$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
@@ -717,14 +712,14 @@ The result shows that the parallelism is 2.
 This example deletes the _pulsar-mysql-jdbc-sink_ sink connector.
 
 ```text
-$ bin/pulsar-admin sink delete \
+$ bin/pulsar-admin sinks delete \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink
 ```
 
 > #### Tip
-> For more information about `pulsar-admin sink delete options`, see [here](pulsar-admin/#delete-4).
+> For more information about `pulsar-admin sinks delete options`, see [here](pulsar-admin/#delete-4).
 
 The sink connector has been deleted successfully if the following message appears.
 
@@ -735,7 +730,7 @@ The sink connector has been deleted successfully if the following message appear
 This example double-checks the existence of the sink connector.
 
 ```text
-$ bin/pulsar-admin sink get \
+$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
 --name pulsar-mysql-jdbc-sink

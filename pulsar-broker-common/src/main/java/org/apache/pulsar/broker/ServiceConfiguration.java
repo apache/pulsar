@@ -33,7 +33,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -108,6 +108,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests"
     )
+
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -154,6 +155,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // having the possibility of getting into a deadlock where a Jetty thread is
     // waiting for another HTTP call to complete in same thread.
     private int numHttpServerThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
+    private boolean delayedDeliveryEnabled = true;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Class name of the factory that implements the delayed deliver tracker")
+    private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory";
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Control the tick time for when retrying on delayed delivery, "
+            + " affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second.")
+    private long delayedDeliveryTickTimeMillis = 1000;
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -209,9 +220,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int backlogQuotaCheckIntervalInSeconds = 60;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default per-topic backlog quota limit. Increase it if you want to allow larger msg backlog"
+        doc = "Default per-topic backlog quota limit, less than 0 means no limitation. default is -1."
+                + " Increase it if you want to allow larger msg backlog"
     )
-    private long backlogQuotaDefaultLimitGB = 50;
+    private long backlogQuotaDefaultLimitGB = -1;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default backlog quota retention policy. Default is producer_request_hold\n\n"
@@ -510,6 +522,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
         maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+        doc = "Enable tracking of replicated subscriptions state across clusters.")
+    private boolean enableReplicatedSubscriptions = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Frequency of snapshots for replicated subscriptions tracking.")
+    private int replicatedSubscriptionsSnapshotFrequencyMillis = 1_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Timeout for building a consistent snapshot for tracking replicated subscriptions state. ")
+    private int replicatedSubscriptionsSnapshotTimeoutSeconds = 30;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Max number of snapshot to be cached per subscription.")
+    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -730,12 +762,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available."
                 )
     private String bookkeeperClientSecondaryIsolationGroups;
-    @FieldContext(
-            category = CATEGORY_STORAGE_BK,
-            required = false,
-            doc = "Minimum bookies that should be available as part of bookkeeperClientIsolationGroups \n\n"
-                + "else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.")
-    private int bookkeeperClientMinAvailableBookiesInIsolationGroups = 0;
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable having read operations for a ledger to be sticky to "
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
@@ -885,7 +911,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)" 
+            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
         )
     private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
@@ -906,11 +932,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Read entries timeout when broker tries to read messages from bookkeeper "
                     + "(0 to disable it)"
         )
-    private long managedLedgerReadEntryTimeoutSeconds = 120;
+    private long managedLedgerReadEntryTimeoutSeconds = 0;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
-    private long managedLedgerAddEntryTimeoutSeconds = 120;
+    private long managedLedgerAddEntryTimeoutSeconds = 0;
 
     /*** --- Load balancer --- ****/
     @FieldContext(

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.collect.Maps;
 
 
 /**
@@ -94,7 +95,7 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.pulsarServiceUrlTls = pulsarServiceUrlTls;
-        lastStats = new HashMap<>();
+        lastStats = Maps.newConcurrentMap();
         lastUpdate = System.currentTimeMillis();
         cpu = new ResourceUsage();
         memory = new ResourceUsage();

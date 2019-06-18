@@ -25,8 +25,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import io.netty.util.internal.PlatformDependent;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;

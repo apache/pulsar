@@ -43,8 +43,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     private final WebTarget adminNonPersistentTopics;
     private final WebTarget adminV2NonPersistentTopics;
 
-    public NonPersistentTopicsImpl(WebTarget web, Authentication auth) {
-        super(auth);
+    public NonPersistentTopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         adminNonPersistentTopics = web.path("/admin");
         adminV2NonPersistentTopics = web.path("/admin/v2");
     }
@@ -57,7 +57,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -77,7 +77,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -110,7 +110,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -143,7 +143,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -176,7 +176,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -195,7 +195,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 
@@ -226,7 +226,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
         }
     }
 

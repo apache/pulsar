@@ -95,6 +95,8 @@
                   <include>io.opencensus:*</include>
                   <include>org.objenesis:*</include>
                   <include>org.yaml:snakeyaml</include>
+                  <include>io.swagger:*</include>
+                  <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -218,6 +220,14 @@
                   <relocation>
                       <pattern>org.yaml</pattern>
                       <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
+                  </relocation>
+                  <relocation>
+                      <pattern>io.swagger</pattern>
+                      <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>org.apache.bookkeeper</pattern>
+                    <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                   </relocation>
               </relocations>
               <transformers>
