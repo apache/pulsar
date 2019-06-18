@@ -78,41 +78,41 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         this(configs, null, null);
     }
 
-    public PulsarKafkaProducer(Map<String, Object> configs, Schema<K> keySerializer,
-            Schema<V> valueSerializer) {
-        this(configs, new Properties(), keySerializer, valueSerializer);
+    public PulsarKafkaProducer(Map<String, Object> configs, Schema<K> keySchema,
+            Schema<V> valueSchema) {
+        this(configs, new Properties(), keySchema, valueSchema);
     }
 
     public PulsarKafkaProducer(Properties properties) {
         this(properties, null, null);
     }
 
-    public PulsarKafkaProducer(Properties properties, Schema<K> keySerializer, Schema<V> valueSerializer) {
-        this(new HashMap<>(), properties, keySerializer, valueSerializer);
+    public PulsarKafkaProducer(Properties properties, Schema<K> keySchema, Schema<V> valueSchema) {
+        this(new HashMap<>(), properties, keySchema, valueSchema);
     }
 
     @SuppressWarnings({ "unchecked", "deprecation" })
-    private PulsarKafkaProducer(Map<String, Object> conf, Properties properties, Schema<K> keySerializer,
-            Schema<V> valueSerializer) {
+    private PulsarKafkaProducer(Map<String, Object> conf, Properties properties, Schema<K> keySchema,
+            Schema<V> valueSchema) {
         properties.forEach((k, v) -> conf.put((String) k, v));
 
         ProducerConfig producerConfig = new ProducerConfig(conf);
 
-        if (keySerializer == null) {
+        if (keySchema == null) {
             Serializer<K> kafkaKeySerializer = producerConfig.getConfiguredInstance(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, Serializer.class);
             kafkaKeySerializer.configure(producerConfig.originals(), true);
             this.keySchema = new PulsarKafkaSchema<>(kafkaKeySerializer);
         } else {
-            this.keySchema = keySerializer;
+            this.keySchema = keySchema;
             producerConfig.ignore(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG);
         }
 
-        if (valueSerializer == null) {
+        if (valueSchema == null) {
             Serializer<V> kafkaValueSerializer = producerConfig.getConfiguredInstance(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, Serializer.class);
             kafkaValueSerializer.configure(producerConfig.originals(), true);
             this.valueSchema = new PulsarKafkaSchema<>(kafkaValueSerializer);
         } else {
-            this.valueSchema = valueSerializer;
+            this.valueSchema = valueSchema;
             producerConfig.ignore(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG);
         }
 

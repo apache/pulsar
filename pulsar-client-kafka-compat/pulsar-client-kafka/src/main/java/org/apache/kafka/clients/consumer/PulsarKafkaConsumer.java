@@ -113,41 +113,41 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         this(configs, null, null);
     }
 
-    public PulsarKafkaConsumer(Map<String, Object> configs, Schema<K> keyDeserializer,
-            Schema<V> valueDeserializer) {
-        this(new ConsumerConfig(configs), keyDeserializer, valueDeserializer);
+    public PulsarKafkaConsumer(Map<String, Object> configs, Schema<K> keySchema,
+            Schema<V> valueSchema) {
+        this(new ConsumerConfig(configs), keySchema, valueSchema);
     }
 
     public PulsarKafkaConsumer(Properties properties) {
         this(new ConsumerConfig(properties), null, null);
     }
 
-    public PulsarKafkaConsumer(Properties properties, Schema<K> keyDeserializer,
-            Schema<V> valueDeserializer) {
-        this(new ConsumerConfig(properties), keyDeserializer, valueDeserializer);
+    public PulsarKafkaConsumer(Properties properties, Schema<K> keySchema,
+            Schema<V> valueSchema) {
+        this(new ConsumerConfig(properties), keySchema, valueSchema);
     }
 
     @SuppressWarnings("unchecked")
-    private PulsarKafkaConsumer(ConsumerConfig consumerConfig, Schema<K> keyDeserializer,
-            Schema<V> valueDeserializer) {
+    private PulsarKafkaConsumer(ConsumerConfig consumerConfig, Schema<K> keySchema,
+            Schema<V> valueSchema) {
 
-        if (keyDeserializer == null) {
+        if (keySchema == null) {
             Deserializer<K> kafkaKeyDeserializer = consumerConfig.getConfiguredInstance(
                     ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Deserializer.class);
             kafkaKeyDeserializer.configure(consumerConfig.originals(), true);
             this.keySchema = new PulsarKafkaSchema<>(kafkaKeyDeserializer);
         } else {
-            this.keySchema = keyDeserializer;
+            this.keySchema = keySchema;
             consumerConfig.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
         }
 
-        if (valueDeserializer == null) {
+        if (valueSchema == null) {
             Deserializer<V> kafkaValueDeserializer = consumerConfig.getConfiguredInstance(
                     ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Deserializer.class);
             kafkaValueDeserializer.configure(consumerConfig.originals(), true);
             this.valueSchema = new PulsarKafkaSchema<>(kafkaValueDeserializer);
         } else {
-            this.valueSchema = valueDeserializer;
+            this.valueSchema = valueSchema;
             consumerConfig.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
         }
 
