@@ -317,4 +317,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerConfigurationData<T> getConf() {
         return conf;
     }
+    
+    @Override
+    public String toString() {
+        return conf != null ? conf.toString() : null;
+    }
 }

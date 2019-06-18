@@ -270,4 +270,9 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
                     "should be set as " + MessageRoutingMode.CustomPartition);
         }
     }
+    
+    @Override
+    public String toString() {
+        return conf != null ? conf.toString() : null;
+    }
 }

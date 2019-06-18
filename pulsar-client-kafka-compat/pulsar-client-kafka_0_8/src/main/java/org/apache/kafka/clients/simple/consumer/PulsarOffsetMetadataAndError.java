@@ -16,29 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.kafka.compat;
+package org.apache.kafka.clients.simple.consumer;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.util.MessageIdUtils;
 
-public class MessageIdUtils {
-    public static final long getOffset(MessageId messageId) {
-        MessageIdImpl msgId = (MessageIdImpl) messageId;
-        long ledgerId = msgId.getLedgerId();
-        long entryId = msgId.getEntryId();
+import kafka.common.OffsetMetadataAndError;
 
-        // Combine ledger id and entry id to form offset
-        // Use less than 32 bits to represent entry id since it will get
-        // rolled over way before overflowing the max int range
-        long offset = (ledgerId << 28) | entryId;
-        return offset;
+public class PulsarOffsetMetadataAndError extends OffsetMetadataAndError {
+
+    private static final long serialVersionUID = 1L;
+    private final MessageId messageId;
+
+    public PulsarOffsetMetadataAndError(long offset, String metadata, short error) {
+        super(offset, metadata, error);
+        this.messageId = null;
     }
 
-    public static final MessageId getMessageId(long offset) {
-        // Demultiplex ledgerId and entryId from offset
-        long ledgerId = offset >>> 28;
-        long entryId = offset & 0x0F_FF_FF_FFL;
+    public PulsarOffsetMetadataAndError(MessageId messageId, String metadata, short error) {
+        super(MessageIdUtils.getOffset(messageId), metadata, error);
+        this.messageId = messageId;
+    }
 
-        return new MessageIdImpl(ledgerId, entryId, -1);
+    public MessageId getMessageId() {
+        return messageId;
     }
 }
