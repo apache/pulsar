@@ -82,11 +82,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
             }
 
             return sendFuture.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
         } catch (Exception e) {
-            throw new PulsarClientException(e);
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -94,11 +91,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     public void flush() throws PulsarClientException {
         try {
             flushAsync().get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
         } catch (Exception e) {
-            throw new PulsarClientException(e);
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -108,11 +102,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     public void close() throws PulsarClientException {
         try {
             closeAsync().get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
         } catch (Exception e) {
-            throw new PulsarClientException(e);
+            throw PulsarClientException.unwrap(e);
         }
     }
 

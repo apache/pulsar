@@ -65,11 +65,8 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     public Reader<T> create() throws PulsarClientException {
         try {
             return createAsync().get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
         } catch (Exception e) {
-            throw new PulsarClientException(e);
+            throw PulsarClientException.unwrap(e);
         }
     }
 

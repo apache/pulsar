@@ -519,11 +519,8 @@ public class PulsarClientImpl implements PulsarClient {
     public void close() throws PulsarClientException {
         try {
             closeAsync().get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
         } catch (Exception e) {
-            throw new PulsarClientException(e);
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -576,7 +573,7 @@ public class PulsarClientImpl implements PulsarClient {
             conf.getAuthentication().close();
         } catch (Throwable t) {
             log.warn("Failed to shutdown Pulsar client", t);
-            throw new PulsarClientException(t);
+            throw PulsarClientException.unwrap(t);
         }
     }
 
