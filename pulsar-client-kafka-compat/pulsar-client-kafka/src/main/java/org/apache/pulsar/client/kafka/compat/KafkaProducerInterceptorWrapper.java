@@ -34,6 +34,7 @@ import org.apache.kafka.common.serialization.DoubleSerializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
+import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -232,10 +233,10 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
                                     .getValue();
     }
 
-    private Deserializer getDeserializer(Serializer serializer) {
+    static Deserializer getDeserializer(Serializer serializer) {
         if (serializer instanceof StringSerializer) {
             return new StringDeserializer();
-        } else if (serializer instanceof LongDeserializer) {
+        } else if (serializer instanceof LongSerializer) {
             return new LongDeserializer();
         } else if (serializer instanceof IntegerSerializer) {
             return new IntegerDeserializer();
