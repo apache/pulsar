@@ -228,7 +228,9 @@ public class PulsarClientException extends IOException {
 
     public static PulsarClientException unwrap(Throwable t) {
         if (t instanceof PulsarClientException) {
-            return (PulsarClientException)t;
+            return (PulsarClientException) t;
+        } else if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
         } else if (!(t instanceof ExecutionException)) {
             // Generic exception
             return new PulsarClientException(t);
@@ -243,14 +245,16 @@ public class PulsarClientException extends IOException {
         String msg = cause.getMessage();
         if (cause instanceof TimeoutException) {
             return new TimeoutException(msg);
+        } else if (cause instanceof InvalidConfigurationException) {
+            return new InvalidConfigurationException(msg);
         } else if (cause instanceof AuthenticationException) {
             return new AuthenticationException(msg);
         } else if (cause instanceof IncompatibleSchemaException) {
             return new IncompatibleSchemaException(msg);
-        } else if (cause instanceof LookupException) {
-            return new LookupException(msg);
         } else if (cause instanceof TooManyRequestsException) {
             return new TooManyRequestsException(msg);
+        } else if (cause instanceof LookupException) {
+            return new LookupException(msg);
         } else if (cause instanceof ConnectException) {
             return new ConnectException(msg);
         } else if (cause instanceof AlreadyClosedException) {
