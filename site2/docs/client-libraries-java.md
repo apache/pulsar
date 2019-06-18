@@ -397,7 +397,7 @@ consumer2 will receive:
 
 > Note:
 >
-> If a topic is a partitioned topic, the partitioned topic only has one active consumer, and messages of the partition are distributed to multiple consumers. 
+> If a topic is a partitioned topic, each partition only has one active consumer, messages of one partition only distributed to one consumer, messages of multiple partitions are distributed to multiple consumers. 
 
 #### Shared
 
