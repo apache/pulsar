@@ -82,12 +82,6 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
                     value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
-                            "tenant  \n" +
-                            "  The tenant of source.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of source.  \n" +
-                            "name  \n" +
-                            "  The name of source.  \n" +
                             "classname  \n" +
                             "  The source's class name if archive is file-url-path (file://).  \n" +
                             "topicName  \n" +
@@ -163,12 +157,6 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
                     value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
-                            "tenant  \n" +
-                            "  The tenant of source.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of source.  \n" +
-                            "name  \n" +
-                            "  The name of source.  \n" +
                             "classname  \n" +
                             "  The source's class name if archive is file-url-path (file://).  \n" +
                             "topicName  \n" +
