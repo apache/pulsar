@@ -20,7 +20,7 @@ package org.apache.pulsar.common.schema;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
-import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.api.Schema;
 
 /**
  * A simple KeyValue class
@@ -94,10 +94,10 @@ public class KeyValue<K, V> {
      * @param valueWriter a writer to encode value object
      * @return the encoded bytes array
      */
-    public static <K, V> byte[] encode(K key, SchemaWriter<K> keyWriter,
-                                       V value, SchemaWriter<V> valueWriter) {
-        byte [] keyBytes = keyWriter.write(key);
-        byte [] valueBytes = valueWriter.write(value);
+    public static <K, V> byte[] encode(K key, Schema<K> keyWriter,
+                                       V value, Schema<V> valueWriter) {
+        byte [] keyBytes = keyWriter.encode(key);
+        byte [] valueBytes = valueWriter.encode(value);
         ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
         byteBuffer.putInt(keyBytes.length).put(keyBytes).putInt(valueBytes.length).put(valueBytes);
         return byteBuffer.array();
