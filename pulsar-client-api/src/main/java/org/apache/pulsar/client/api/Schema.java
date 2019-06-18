@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -36,7 +37,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Message schema definition
  */
-public interface Schema<T> {
+public interface Schema<T> extends SchemaWriter<T> {
 
     /**
      * Check if the message is a valid object for this schema.
@@ -52,6 +53,13 @@ public interface Schema<T> {
      */
     default void validate(byte[] message) {
         decode(message);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    default byte[] write(T message) {
+        return encode(message);
     }
 
     /**
