@@ -108,7 +108,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
         if (valueSchema == null) {
             Serializer<V> kafkaValueSerializer = producerConfig.getConfiguredInstance(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, Serializer.class);
-            kafkaValueSerializer.configure(producerConfig.originals(), true);
+            kafkaValueSerializer.configure(producerConfig.originals(), false);
             this.valueSchema = new PulsarKafkaSchema<>(kafkaValueSerializer);
         } else {
             this.valueSchema = valueSchema;
