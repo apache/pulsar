@@ -178,8 +178,8 @@ public class PulsarBrokerStarter {
                     "c-" + brokerConfig.getClusterName()
                         + "-fw-" + hostname
                         + "-" + workerConfig.getWorkerPort());
-                // inherit broker authorization setting
-                workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
+
+                workerConfig.setAuthenticationEnabled(brokerConfig.isFunctionWorkerAuthenticationEnabled());
                 workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
 
                 workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());

@@ -1208,6 +1208,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean functionsWorkerEnabled = false;
 
+    @FieldContext(
+        category = CATEGORY_FUNCTIONS,
+        doc = "Enable function worker authentication"
+    )
+    private boolean functionWorkerAuthenticationEnabled = false;
+
     /**** --- Broker Web Stats --- ****/
     @FieldContext(
         category = CATEGORY_METRICS,
