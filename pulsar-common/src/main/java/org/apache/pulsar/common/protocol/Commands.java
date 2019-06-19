@@ -1158,6 +1158,9 @@ public class Commands {
             singleMessageMetadataBuilder = singleMessageMetadataBuilder.setPartitionKey(msgBuilder.getPartitionKey())
                 .setPartitionKeyB64Encoded(msgBuilder.getPartitionKeyB64Encoded());
         }
+        if (msgBuilder.hasOrderingKey()) {
+            singleMessageMetadataBuilder = singleMessageMetadataBuilder.setOrderingKey(msgBuilder.getOrderingKey());
+        }
         if (!msgBuilder.getPropertiesList().isEmpty()) {
             singleMessageMetadataBuilder = singleMessageMetadataBuilder
                     .addAllProperties(msgBuilder.getPropertiesList());
