@@ -70,3 +70,23 @@ config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
 
 PulsarAdmin admin = new PulsarAdmin(url, config);
 ```
+
+If you have multiple brokers to use, you can use multi-host like Pulsar service. For example,
+```java
+URL url = new URL("http://localhost:8080,localhost:8081,localhost:8082");
+// Pass auth-plugin class fully-qualified name if Pulsar-security is enabled.
+String authPluginClassName = "com.org.MyAuthPluginClass"; 
+// Pass auth-param if auth-plugin class requires it
+String authParams = "param1=value1";
+boolean useTls = false;
+boolean tlsAllowInsecureConnection = false;
+String tlsTrustCertsFilePath = null;
+
+ClientConfiguration config = new ClientConfiguration();
+config.setAuthentication(authPluginClassName, authParams);
+config.setUseTls(useTls);
+config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
+config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+
+PulsarAdmin admin = new PulsarAdmin(url, config);
+```
