@@ -31,8 +31,8 @@ public class LookupImpl extends BaseResource implements Lookup {
     private final WebTarget v2lookup;
     private final boolean useTls;
 
-    public LookupImpl(WebTarget web, Authentication auth, boolean useTls) {
-        super(auth);
+    public LookupImpl(WebTarget web, Authentication auth, boolean useTls, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         this.useTls = useTls;
         v2lookup = web.path("/lookup/v2");
     }

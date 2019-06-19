@@ -124,6 +124,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final Map<String, String> metadata;
 
     private final boolean readCompacted;
+    private final boolean resetIncludeHead;
 
     private final SubscriptionInitialPosition subscriptionInitialPosition;
     private final ConnectionHandler connectionHandler;
@@ -187,6 +188,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
         this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
+        this.resetIncludeHead = conf.isResetIncludeHead();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -315,9 +317,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             messageProcessed(interceptMsg);
             return interceptMsg;
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
             stats.incrementNumReceiveFailed();
-            throw new PulsarClientException(e);
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -361,12 +362,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             return interceptMsg;
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
                 stats.incrementNumReceiveFailed();
-                throw new PulsarClientException(e);
+                throw PulsarClientException.unwrap(e);
             } else {
                 return null;
             }
@@ -795,9 +794,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
-            final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId,
-                                                             msgMetadata, uncompressedPayload,
-                                                             createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
+
+            if (isNonDurableAndSameEntryAndLedger(messageId) && isPriorEntryIndex(messageId.getEntryId())) {
+                // We need to discard entries that were prior to startMessageId
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Ignoring message from before the startMessageId: {}", subscription,
+                            consumerName, startMessageId);
+                }
+
+                uncompressedPayload.release();
+                msgMetadata.recycle();
+                return;
+            }
+
+            final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
+                    uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -938,15 +949,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
                         singleMessageMetadataBuilder, i, batchSize);
 
-                if (subscriptionMode == SubscriptionMode.NonDurable && startMessageId != null
-                        && messageId.getLedgerId() == startMessageId.getLedgerId()
-                        && messageId.getEntryId() == startMessageId.getEntryId()
-                        && i <= startMessageId.getBatchIndex()) {
+                if (isNonDurableAndSameEntryAndLedger(messageId) && isPriorBatchIndex(i)) {
                     // If we are receiving a batch message, we need to discard messages that were prior
                     // to the startMessageId
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Ignoring message from before the startMessageId", subscription,
-                                consumerName);
+                        log.debug("[{}] [{}] Ignoring message from before the startMessageId: {}", subscription,
+                                consumerName, startMessageId);
                     }
                     singleMessagePayload.release();
                     singleMessageMetadataBuilder.recycle();
@@ -954,6 +962,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     ++skippedMessages;
                     continue;
                 }
+
                 if (singleMessageMetadataBuilder.getCompactedOut()) {
                     // message has been compacted out, so don't send to the user
                     singleMessagePayload.release();
@@ -988,6 +997,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName);
             discardCorruptedMessage(messageId, cnx, ValidationError.BatchDeSerializeError);
         }
+
         if (possibleToDeadLetter != null && possibleSendToDeadLetterTopicMessages != null) {
             possibleSendToDeadLetterTopicMessages.put(batchMessage, possibleToDeadLetter);
         }
@@ -1000,6 +1010,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (skippedMessages > 0) {
             increaseAvailablePermits(cnx, skippedMessages);
         }
+    }
+
+    private boolean isPriorEntryIndex(long idx) {
+        return resetIncludeHead ? idx < startMessageId.getEntryId() : idx <= startMessageId.getEntryId();
+    }
+
+    private boolean isPriorBatchIndex(long idx) {
+        return resetIncludeHead ? idx < startMessageId.getBatchIndex() : idx <= startMessageId.getBatchIndex();
+    }
+
+    private boolean isNonDurableAndSameEntryAndLedger(MessageIdData messageId) {
+        return subscriptionMode == SubscriptionMode.NonDurable && startMessageId != null
+                && messageId.getLedgerId() == startMessageId.getLedgerId()
+                && messageId.getEntryId() == startMessageId.getEntryId();
     }
 
     /**
@@ -1342,8 +1366,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public void seek(MessageId messageId) throws PulsarClientException {
         try {
             seekAsync(messageId).get();
-        } catch (ExecutionException | InterruptedException e) {
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -1351,8 +1375,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public void seek(long timestamp) throws PulsarClientException {
         try {
             seekAsync(timestamp).get();
-        } catch (ExecutionException | InterruptedException e) {
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -1430,8 +1454,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             return hasMessageAvailableAsync().get();
-        } catch (ExecutionException | InterruptedException e) {
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 

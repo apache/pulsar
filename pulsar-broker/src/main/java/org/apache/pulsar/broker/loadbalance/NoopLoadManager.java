@@ -59,8 +59,8 @@ public class NoopLoadManager implements LoadManager {
                 new PulsarResourceDescription());
         zkClient = pulsar.getZkClient();
 
-        localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
     }
 
     @Override

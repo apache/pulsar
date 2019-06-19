@@ -108,6 +108,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests"
     )
+
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -536,6 +537,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Timeout for building a consistent snapshot for tracking replicated subscriptions state. ")
     private int replicatedSubscriptionsSnapshotTimeoutSeconds = 30;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Max number of snapshot to be cached per subscription.")
+    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -905,7 +911,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)" 
+            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
         )
     private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
@@ -926,11 +932,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Read entries timeout when broker tries to read messages from bookkeeper "
                     + "(0 to disable it)"
         )
-    private long managedLedgerReadEntryTimeoutSeconds = 120;
+    private long managedLedgerReadEntryTimeoutSeconds = 0;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
-    private long managedLedgerAddEntryTimeoutSeconds = 120;
+    private long managedLedgerAddEntryTimeoutSeconds = 0;
 
     /*** --- Load balancer --- ****/
     @FieldContext(

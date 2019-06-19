@@ -547,7 +547,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 future.completeExceptionally(e);
             }
         }).exceptionally(ex -> {
-            log.warn("[{}] Failed to create subscription for {}: ", topic, subscriptionName, ex.getMessage());
+            log.warn("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex.getMessage());
             USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
             future.completeExceptionally(new PersistenceException(ex));
             return null;
@@ -607,11 +607,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (msgId instanceof BatchMessageIdImpl) {
                 // When the start message is relative to a batch, we need to take one step back on the previous message,
                 // because the "batch" might not have been consumed in its entirety.
-                // The client will then be able to discard the first messages in the batch.
-                if (((BatchMessageIdImpl) msgId).getBatchIndex() >= 0) {
-                    entryId = msgId.getEntryId() - 1;
-                }
+                // The client will then be able to discard the first messages if needed.
+                entryId = msgId.getEntryId() - 1;
             }
+
             Position startPosition = new PositionImpl(ledgerId, entryId);
             ManagedCursor cursor = null;
             try {
@@ -1893,6 +1892,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);;
+     }
+
+    Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
+        return replicatedSubscriptionsController;
     }
 
     public CompactedTopic getCompactedTopic() {

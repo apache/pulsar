@@ -480,12 +480,7 @@ Now that we have a MySQL running locally. In this section, we will configure a J
     The schema has been uploaded successfully if the following message appears.
 
     ```text
-    {
-      "name" : "pulsar-mysql-jdbc-sink-topic",
-      "schema" : "eyJ0eXBlIjoicmVjb3JkIiwibmFtZSI6IlRlc3QiLCJmaWVsZHMiOlt7Im5hbWUiOiJpZCIsInR5cGUiOlsibnVsbCIsImludCJdfSx7Im5hbWUiOiJuYW1lIiwidHlwZSI6WyJudWxsIiwic3RyaW5nIl19XX0=",
-      "type" : "AVRO",
-      "properties" : { }
-    }
+    {"name":"pulsar-mysql-jdbc-sink-topic","schema":"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}","type":"AVRO","properties":{}}
     ```
 
 ### Submit a JDBC sink

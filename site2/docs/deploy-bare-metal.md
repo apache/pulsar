@@ -43,6 +43,8 @@ To run Pulsar on bare metal, you are recommended to have:
 > However if you don't have enough machines, or are trying out Pulsar in cluster mode (and expand the cluster later),
 > you can even deploy Pulsar in one node, where it will run zookeeper, bookie and broker in same machine.
 
+> If you don't have a DNS server, you can use multi-host in service URL instead.
+
 Each machine in your cluster will need to have [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html) or higher installed.
 
 Here's a diagram showing the basic setup:

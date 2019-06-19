@@ -96,8 +96,8 @@ public class OwnershipCacheTest {
         doReturn(Optional.ofNullable(new Integer(port))).when(config).getBrokerServicePort();
         doReturn(Optional.ofNullable(null)).when(config).getWebServicePort();
         doReturn(brokerService).when(pulsar).getBrokerService();
-        doReturn(webAddress(config)).when(pulsar).getWebServiceAddress();
-        doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();
+        doReturn(webAddress(config)).when(pulsar).getSafeWebServiceAddress();
+        doReturn(selfBrokerUrl).when(pulsar).getSafeBrokerServiceUrl();
     }
 
     @AfterMethod

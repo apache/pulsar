@@ -575,7 +575,19 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(property, cluster, namespace);
         return internalGetBookieAffinityGroup();
     }
-    
+
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/persistence/bookieAffinity")
+    @ApiOperation(hidden = true, value = "Delete the bookie-affinity-group from namespace-local policy.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void deleteBookieAffinityGroup(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        internalDeleteBookieAffinityGroup();
+    }
+
     @GET
     @Path("/{property}/{cluster}/{namespace}/persistence")
     @ApiOperation(hidden = true, value = "Get the persistence configuration for a namespace.")

@@ -83,7 +83,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
     @Test(dataProvider = "lookupType", timeOut = 10000)
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
-        // clean up peer-clusters
+     // clean up peer-clusters
         admin1.clusters().updatePeerClusterNames("r1", null);
         admin1.clusters().updatePeerClusterNames("r2", null);
         admin1.clusters().updatePeerClusterNames("r3", null);

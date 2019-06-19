@@ -436,16 +436,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         public MessageId send() throws PulsarClientException {
             try {
                 return sendAsync().get();
-            } catch (ExecutionException e) {
-                Throwable t = e.getCause();
-                if (t instanceof PulsarClientException) {
-                    throw (PulsarClientException) t;
-                } else {
-                    throw new PulsarClientException(t);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new PulsarClientException(e);
+            } catch (Exception e) {
+                throw PulsarClientException.unwrap(e);
             }
         }
 
