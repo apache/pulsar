@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service.schema.validator;
 
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 
 /**
  * Validate if the primitive schema is in expected form.

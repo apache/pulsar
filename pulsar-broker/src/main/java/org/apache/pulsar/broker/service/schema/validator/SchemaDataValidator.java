@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import org.apache.pulsar.broker.service.schema.KeyValueSchemaCompatibilityCheck;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.SchemaData;
 
 /**
  * A validator to validate the schema data is well formed.
