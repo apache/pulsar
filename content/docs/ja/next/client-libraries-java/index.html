@@ -115,6 +115,9 @@ dependencies {
 <p>Pulsar protocol URLs are assigned to specific clusters, use the <code>pulsar</code> scheme and have a default port of 6650. Here's an example for <code>localhost</code>:</p>
 <pre><code class="hljs css language-http">pulsar://localhost:6650
 </code></pre>
+<p>If you have more than one broker, the URL may look like this:</p>
+<pre><code class="hljs css language-http">pulsar://localhost:6550,localhost:6651,localhost:6652
+</code></pre>
 <p>A URL for a production Pulsar cluster may look something like this:</p>
 <pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
 </code></pre>
@@ -126,6 +129,11 @@ dependencies {
  object using just a URL for the target Pulsar <a href="/docs/ja/next/reference-terminology#cluster">cluster</a>, like this:</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
+        .build();
+</code></pre>
+<p>If you have multiple brokers, you can initiate a PulsarClient like this:</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650,localhost:6651,localhost:6652"</span>)
         .build();
 </code></pre>
 <blockquote>

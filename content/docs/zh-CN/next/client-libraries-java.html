@@ -115,6 +115,9 @@ dependencies {
 <p>Pulsar协议 url 使用 <code>pulsar</code> scheme来指定被连接的集群，默认端口为6650。以下是 <code>localhost</code> 的示例:</p>
 <pre><code class="hljs css language-http">pulsar://localhost:6650
 </code></pre>
+<p>If you have more than one broker, the URL may look like this:</p>
+<pre><code class="hljs css language-http">pulsar://localhost:6550,localhost:6651,localhost:6652
+</code></pre>
 <p>生产环境的Pulsar 集群URL类似这样：</p>
 <pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
 </code></pre>
@@ -126,6 +129,11 @@ dependencies {
 对象，像这样：</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
+        .build();
+</code></pre>
+<p>If you have multiple brokers, you can initiate a PulsarClient like this:</p>
+<pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
+        .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650,localhost:6651,localhost:6652"</span>)
         .build();
 </code></pre>
 <blockquote>
