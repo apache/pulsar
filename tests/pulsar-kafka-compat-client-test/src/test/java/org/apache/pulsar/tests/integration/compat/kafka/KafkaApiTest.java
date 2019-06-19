@@ -57,9 +57,12 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.kafka.compat.PulsarKafkaSchema;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -767,6 +770,111 @@ public class KafkaApiTest extends PulsarStandaloneTestSuite {
                 records.forEach(record -> {
                     Bar key = record.key();
                     Assert.assertTrue(key.isField1());
+                    Foo value = record.value();
+                    Assert.assertEquals(value.getField1(), "field1");
+                    Assert.assertEquals(value.getField2(), "field2");
+                    Assert.assertEquals(value.getField3(), received.get());
+                    received.incrementAndGet();
+                });
+
+                consumer.commitSync();
+            }
+        }
+    }
+
+    @Test
+    public void testProducerConsumerJsonSchemaWithPulsarKafkaClient() throws Exception {
+        String topic = "testProducerConsumerJsonSchemaWithPulsarKafkaClient";
+
+        JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
+        JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
+        props.put("group.id", "my-subscription-name");
+        props.put("enable.auto.commit", "false");
+        props.put("key.serializer", IntegerSerializer.class.getName());
+        props.put("value.serializer", StringSerializer.class.getName());
+        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+
+        @Cleanup
+        Consumer<Bar, Foo> consumer = new KafkaConsumer<>(props, barSchema, fooSchema);
+        consumer.subscribe(Arrays.asList(topic));
+
+        Producer<Bar, Foo> producer = new KafkaProducer<>(props, barSchema, fooSchema);
+
+        for (int i = 0; i < 10; i++) {
+            Bar bar = new Bar();
+            bar.setField1(true);
+
+            Foo foo = new Foo();
+            foo.setField1("field1");
+            foo.setField2("field2");
+            foo.setField3(i);
+            producer.send(new ProducerRecord<>(topic, bar, foo));
+        }
+        producer.flush();
+        producer.close();
+
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
+            ConsumerRecords<Bar, Foo> records = consumer.poll(100);
+            if (!records.isEmpty()) {
+                records.forEach(record -> {
+                    Bar key = record.key();
+                    Assert.assertTrue(key.isField1());
+                    Foo value = record.value();
+                    Assert.assertEquals(value.getField1(), "field1");
+                    Assert.assertEquals(value.getField2(), "field2");
+                    Assert.assertEquals(value.getField3(), received.get());
+                    received.incrementAndGet();
+                });
+
+                consumer.commitSync();
+            }
+        }
+    }
+
+    @Test
+    public void testProducerConsumerMixedSchemaWithPulsarKafkaClient() throws Exception {
+        String topic = "testProducerConsumerMixedSchemaWithPulsarKafkaClient";
+
+        Schema<String> keySchema = new PulsarKafkaSchema<>(new StringSerializer(), new StringDeserializer());
+        JSONSchema<Foo> valueSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+
+        Properties props = new Properties();
+        props.put("bootstrap.servers", getPlainTextServiceUrl());
+        props.put("group.id", "my-subscription-name");
+        props.put("enable.auto.commit", "false");
+        props.put("key.serializer", IntegerSerializer.class.getName());
+        props.put("value.serializer", StringSerializer.class.getName());
+        props.put("key.deserializer", StringDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
+
+        @Cleanup
+        Consumer<String, Foo> consumer = new KafkaConsumer<>(props, keySchema, valueSchema);
+        consumer.subscribe(Arrays.asList(topic));
+
+        Producer<String, Foo> producer = new KafkaProducer<>(props, keySchema, valueSchema);
+
+        for (int i = 0; i < 10; i++) {
+            Foo foo = new Foo();
+            foo.setField1("field1");
+            foo.setField2("field2");
+            foo.setField3(i);
+            producer.send(new ProducerRecord<>(topic, "hello" + i, foo));
+        }
+        producer.flush();
+        producer.close();
+
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
+            ConsumerRecords<String, Foo> records = consumer.poll(100);
+            if (!records.isEmpty()) {
+                records.forEach(record -> {
+                    String key = record.key();
+                    Assert.assertEquals(key, "hello" + received.get());
                     Foo value = record.value();
                     Assert.assertEquals(value.getField1(), "field1");
                     Assert.assertEquals(value.getField2(), "field2");
