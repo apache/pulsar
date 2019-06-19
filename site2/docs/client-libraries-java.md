@@ -57,6 +57,11 @@ Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme 
 pulsar://localhost:6650
 ```
 
+If you have more than one broker, the URL may look like this:
+```http
+pulsar://localhost:6550,localhost:6651,localhost:6652
+```
+
 A URL for a production Pulsar cluster may look something like this:
 
 ```http
@@ -76,6 +81,13 @@ You can instantiate a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/c
 ```java
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
+        .build();
+```
+
+If you have multiple brokers, you can initiate a PulsarClient like this:
+```java
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://localhost:6650,localhost:6651,localhost:6652")
         .build();
 ```
 
