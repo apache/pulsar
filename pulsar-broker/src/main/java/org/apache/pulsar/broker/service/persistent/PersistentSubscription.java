@@ -22,9 +22,6 @@ import com.google.common.base.MoreObjects;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -32,8 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -48,7 +43,13 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursor
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStore;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages.PendingAckMessageEntry;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages.PositionList;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -147,6 +148,7 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
         this.setReplicated(replicated);
         IS_FENCED_UPDATER.set(this, FALSE);
+        recoverPendingAckMessages();
     }
 
     @Override
@@ -438,6 +440,8 @@ public class PersistentSubscription implements Subscription {
                 this.pendingAckMessages.add(position);
             }
         }
+        // Persist pending ack messages info to cursor meta store.
+        persistPendingAckPositions();
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
@@ -957,6 +961,67 @@ public class PersistentSubscription implements Subscription {
                 // Immediately notify the consumer that there are no more available messages
                 dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
             }
+        }
+    }
+
+    /**
+     *
+     */
+    private void persistPendingAckPositions() {
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+
+        PendingAckMessageEntry.Builder pendingAckMessagesEntryBuilder = PendingAckMessageEntry.newBuilder();
+        PositionList.Builder positionListBuilder = PositionList.newBuilder();
+        PositionInfo.Builder positionInfoBuilder = PositionInfo.newBuilder();
+        PositionInfo.Builder pendingCumulativeAckPositionInfoBuilder = PositionInfo.newBuilder();
+        List<PendingAckMessageEntry> pendingAckMessagesEntryList = new ArrayList<>();
+
+        pendingCumulativeAckPositionInfoBuilder.setLedgerId(((PositionImpl) pendingCumulativeAckMessage).getLedgerId());
+        pendingCumulativeAckPositionInfoBuilder.setEntryId(((PositionImpl) pendingCumulativeAckMessage).getEntryId());
+        pendingAckMessagesMap.forEach((txnID, positionConcurrentOpenHashSet) -> {
+            positionListBuilder.clear();
+            List<PositionInfo> positionInfoList = new ArrayList<>();
+            positionConcurrentOpenHashSet.forEach(position -> {
+                positionInfoBuilder.setLedgerId(((PositionImpl)position).getLedgerId());
+                positionInfoBuilder.setEntryId(((PositionImpl)position).getEntryId());
+                positionInfoList.add(positionInfoBuilder.build());
+            });
+            positionListBuilder.addAllPositions(positionInfoList);
+
+            pendingAckMessagesEntryBuilder.setTxnId(txnID.toString());
+            pendingAckMessagesEntryBuilder.setPositionList(positionListBuilder.build());
+
+            pendingAckMessagesEntryList.add(pendingAckMessagesEntryBuilder.build());
+        });
+
+        ((ManagedCursorImpl) cursor).persistPendingAckPositionMetaInfo(pendingCumulativeAckPositionInfoBuilder,
+                pendingAckMessagesEntryList, subName, new MetaStoreCallback<Void>() {
+                    @Override
+                    public void operationComplete(Void result, MetaStore.Stat stat) {
+                        future.complete(true);
+                    }
+
+                    @Override
+                    public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                        future.complete(false);
+                    }
+                });
+        // Wait for persist to complete, so when acknowledgeMessages returns we know this operation has succeed.
+        try {
+            future.wait(1000);
+        } catch (InterruptedException e) {
+
+        }
+    }
+
+    private void recoverPendingAckMessages() {
+        SubscriptionPendingAckMessages subscriptionPendingAckMessages =
+                                                    ((ManagedCursorImpl) cursor).getPendingAckPositionMetaInfo(subName);
+        if (subscriptionPendingAckMessages.getPendingAckMessagesList() != null) {
+            //recover pending ack message map.
+        }
+        if (subscriptionPendingAckMessages.getPendingCumulativeAckMessagePosition() != null) {
+            //recover pending cumulative ack position.
         }
     }
 

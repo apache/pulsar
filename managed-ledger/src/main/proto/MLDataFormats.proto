@@ -98,5 +98,21 @@ message ManagedCursorInfo {
 	// the current cursor position
 	repeated LongProperty properties = 5;
 
-  optional int64 lastActive = 6;
+    optional int64 lastActive = 6;
+}
+
+message SubscriptionPendingAckMessages {
+
+    // List of Position.
+    message PositionList{
+        repeated PositionInfo positions  = 1;
+    }
+
+    message PendingAckMessageEntry {
+        required string txnId               = 1;
+        required PositionList positionList  = 2;
+    }
+
+    repeated PendingAckMessageEntry pendingAckMessages         = 1;
+    optional PositionInfo pendingCumulativeAckMessagePosition   = 2;
 }

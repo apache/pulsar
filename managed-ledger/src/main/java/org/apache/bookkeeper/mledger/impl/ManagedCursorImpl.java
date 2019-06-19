@@ -46,7 +46,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -85,6 +87,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages.PendingAckMessageEntry;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
@@ -130,6 +134,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile LedgerHandle cursorLedger;
     // Stat of the cursor z-node
     private volatile Stat cursorLedgerStat;
+    private volatile Stat pendingAckMessagesStoreStat;
 
     private static final LongPairConsumer<PositionImpl> positionRangeConverter = (key, value) -> new PositionImpl(key,
             value);
@@ -2013,6 +2018,64 @@ public class ManagedCursorImpl implements ManagedCursor {
                         callback.operationFailed(e);
                     }
                 });
+    }
+
+    public void persistPendingAckPositionMetaInfo(PositionInfo.Builder pendingCumulativeAckMessagePositionBuilder,
+                                                  List<PendingAckMessageEntry> pendingAckMessageEntryBuilderList,
+                                                  String subName, MetaStoreCallback<Void> callback) {
+        if (state == State.Closed) {
+            ledger.getExecutor().execute(safeRun(() -> {
+                callback.operationFailed(new MetaStoreException(
+                        new ManagedLedgerException.CursorAlreadyClosedException(name + " cursor already closed")));
+            }));
+            return;
+        }
+
+        SubscriptionPendingAckMessages.Builder subscriptionPendingAckMessageBuilder = SubscriptionPendingAckMessages.newBuilder()
+                    .setPendingCumulativeAckMessagePosition(pendingCumulativeAckMessagePositionBuilder)
+                    .addAllPendingAckMessages(pendingAckMessageEntryBuilderList);
+
+        log.debug("[{}] [{}] [{}] Persisting subscription's pending ack messages to meta-data store",
+                ledger.getName(), name, subName);
+        ledger.getStore().asyncUpdateSubscriptionPendingAckMessages(ledger.getName(), name, subName,
+                pendingAckMessagesStoreStat, subscriptionPendingAckMessageBuilder.build(),
+                new MetaStoreCallback<Void>() {
+                    @Override
+                    public void operationComplete(Void result, Stat stat) {
+                        pendingAckMessagesStoreStat = stat;
+                        callback.operationComplete(result, stat);
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        callback.operationFailed(e);
+                    }
+                });
+    }
+
+    public SubscriptionPendingAckMessages getPendingAckPositionMetaInfo(String subName) {
+        CompletableFuture<SubscriptionPendingAckMessages> future = new CompletableFuture<>();
+
+        ledger.getStore().asyncGetSubscriptionPendingAckMessages(ledger.getName(), name, subName,
+                new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+            @Override
+            public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
+                future.complete(result);
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        try {
+            future.wait(1000);
+            return future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            return null;
+        }
+
     }
 
     @Override

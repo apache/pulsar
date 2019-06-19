@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages;
 
 /**
  * Interface that describes the operations that the ManagedLedger need to do on the metadata store.
@@ -105,6 +106,13 @@ public interface MetaStore {
      */
     void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat version,
             MetaStoreCallback<Void> callback);
+
+    void asyncGetSubscriptionPendingAckMessages(String ledgerName, String cursorName, String subName,
+                                                 MetaStoreCallback<SubscriptionPendingAckMessages> callback);
+
+    void asyncUpdateSubscriptionPendingAckMessages(String ledgerName, String cursorName, String subName, Stat stat,
+                                                   SubscriptionPendingAckMessages subscriptionPendingAckMessages,
+                                                   MetaStoreCallback<Void> callback);
 
     /**
      * Drop the persistent state of a consumer from the metadata store.

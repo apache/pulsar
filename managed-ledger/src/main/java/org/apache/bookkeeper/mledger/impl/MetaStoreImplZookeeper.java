@@ -36,8 +36,10 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages;
 import org.apache.zookeeper.AsyncCallback.StringCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -296,6 +298,85 @@ public class MetaStoreImplZookeeper implements MetaStore {
     }
 
     @Override
+    public void asyncGetSubscriptionPendingAckMessages(String ledgerName, String cursorName, String subName,
+                                                       MetaStoreCallback<SubscriptionPendingAckMessages> callback) {
+        String zkPath = prefix + ledgerName + "/" + cursorName + "/" + subName;
+        if (log.isDebugEnabled()) {
+            log.debug("Reading subscription's pending ack messages from {}", zkPath);
+        }
+
+        zk.getData(zkPath, false, (rc, path, ctx, data, stat) -> executor.executeOrdered(ledgerName, safeRun(() -> {
+            if (rc != Code.OK.intValue()) {
+                callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
+            } else {
+                try {
+                    SubscriptionPendingAckMessages subscriptionPendingAckMessages = parseSubscriptionPendingAckMessages(data);
+                    callback.operationComplete(subscriptionPendingAckMessages, new ZKStat(stat));
+                } catch (ParseException e) {
+                    callback.operationFailed(new MetaStoreException(e));
+                }
+            }
+        })), null);
+
+        if (log.isDebugEnabled()) {
+            log.debug("Reading subscription's pending ack messages from {} succeeded", zkPath);
+        }
+    }
+
+    @Override
+    public void asyncUpdateSubscriptionPendingAckMessages(String ledgerName, String cursorName, String subName, Stat stat,
+                                                          SubscriptionPendingAckMessages subscriptionPendingAckMessages,
+                                                          MetaStoreCallback<Void> callback) {
+        log.info("[{}] [{}] [{}] Updating subscription's pending ack messages",
+                ledgerName, cursorName, subName);
+
+        String zkPath = prefix + ledgerName + "/" + cursorName;
+        byte[] data = subscriptionPendingAckMessages.toByteArray(); // Binary format
+
+        if (stat == null) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] [{}] Creating path for subscription's pending ack messages to meta-data " +
+                        "store with {}", ledgerName, cursorName, subName, subscriptionPendingAckMessages);
+            }
+            zk.create(zkPath, data, Acl, CreateMode.PERSISTENT,
+                    (rc, path, ctx, name) -> executor.executeOrdered(ledgerName, safeRun(() -> {
+                        if (rc != Code.OK.intValue()) {
+                            log.warn("[{}] [{}] [{}] Error creating path for subscription's pending ack messages " +
+                                            "to meta-data store with {}: ", ledgerName, cursorName, subName,
+                                            Code.get(rc), data);
+                            callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] [{}] [{}] Created path for subscription's pending ack messages " +
+                                        "to meta-data store with {}", ledgerName, cursorName, subName, data);
+                            }
+                            callback.operationComplete(null, new ZKStat());
+                        }
+                    })), null);
+        } else {
+            ZKStat zkStat = (ZKStat) stat;
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] [{}] Updating subscription's pending ack messages to meta-data store with {}",
+                                ledgerName, cursorName, subName,  data);
+            }
+            zk.setData(zkPath, data, zkStat.getVersion(),
+                    (rc, path, ctx, returnedStat) -> executor.executeOrdered(ledgerName, safeRun(() -> {
+                        if (rc == Code.BADVERSION.intValue()) {
+                            callback.operationFailed(new BadVersionException(KeeperException.create(Code.get(rc))));
+                        } else if (rc != Code.OK.intValue()) {
+                            callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] [{}] [{}] Updated subscription's pending ack messages " +
+                                        "to meta-data store with {}", ledgerName, cursorName, subName, data);
+                            }
+                            callback.operationComplete(null, new ZKStat(returnedStat));
+                        }
+                    })), null);
+        }
+    }
+
+    @Override
     public void asyncRemoveCursor(final String ledgerName, final String consumerName,
             final MetaStoreCallback<Void> callback) {
         log.info("[{}] Remove consumer={}", ledgerName, consumerName);
@@ -361,6 +442,17 @@ public class MetaStoreImplZookeeper implements MetaStore {
             return builder.build();
         }
 
+    }
+
+    private SubscriptionPendingAckMessages parseSubscriptionPendingAckMessages(byte[] data)
+            throws ParseException {
+        try {
+            return SubscriptionPendingAckMessages.parseFrom(data);
+        } catch (InvalidProtocolBufferException e) {
+            SubscriptionPendingAckMessages.Builder builder = SubscriptionPendingAckMessages.newBuilder();
+            TextFormat.merge(new String(data, Encoding), builder);
+            return builder.build();
+        }
     }
 
     void asyncCreateFullPathOptimistic(
