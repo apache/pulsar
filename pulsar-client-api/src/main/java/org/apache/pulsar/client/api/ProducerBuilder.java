@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MaximizeAction;
-
 import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
 
 /**
@@ -364,6 +362,16 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
+
+    /**
+     * Set the batcher builder {@link BatcherBuilder} of the producer. Producer will use the batcher builder to
+     * build a batch message container.This is only be used when batching is enabled
+     *
+     * @param batcherBuilder
+     *          batcher builder
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder);
 
     /**
      * Set the baseline for the sequence ids for messages published by the producer.
