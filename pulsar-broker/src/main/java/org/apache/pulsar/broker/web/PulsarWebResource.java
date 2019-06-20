@@ -619,7 +619,7 @@ public abstract class PulsarWebResource {
                 URI redirect = getRedirectionUrl(peerClusterData);
                 // redirect to the cluster requested
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Redirecting the rest call to {}: cluster={}", redirect, peerClusterData);
+                    log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(),redirect, peerClusterData);
 
                 }
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
