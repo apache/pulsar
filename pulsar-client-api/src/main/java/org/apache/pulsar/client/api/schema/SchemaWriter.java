@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+/**
+ * Serialize messages into bytes.
+ */
+@FunctionalInterface
 public interface SchemaWriter<T> {
 
     /**
