@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
@@ -41,6 +42,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -57,9 +61,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -104,6 +110,140 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testPublishTimestampBatchDisabled() throws Exception {
+
+        log.info("-- Starting {} test --", methodName);
+
+        AtomicLong ticker = new AtomicLong(0);
+
+        Clock clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneId.systemDefault();
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return Instant.ofEpochMilli(millis());
+            }
+
+            @Override
+            public long millis() {
+                return ticker.incrementAndGet();
+            }
+        };
+
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder()
+            .serviceUrl(lookupUrl.toString())
+            .clock(clock)
+            .build();
+
+        final String topic = "persistent://my-property/my-ns/test-publish-timestamp";
+
+        @Cleanup
+        Consumer<byte[]> consumer = newPulsarClient.newConsumer()
+            .topic(topic)
+            .subscriptionName("my-sub")
+            .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = newPulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        final int numMessages = 5;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage()
+                .value(("value-" + i).getBytes(UTF_8))
+                .eventTime((i + 1) * 100L)
+                .sendAsync();
+        }
+        producer.flush();
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<byte[]> msg = consumer.receive();
+            log.info("Received message '{}'.", new String(msg.getValue(), UTF_8));
+            assertEquals(1L + i, msg.getPublishTime());
+            assertEquals(100L * (i + 1), msg.getEventTime());
+        }
+    }
+
+    @Test
+    public void testPublishTimestampBatchEnabled() throws Exception {
+
+        log.info("-- Starting {} test --", methodName);
+
+        AtomicLong ticker = new AtomicLong(0);
+
+        Clock clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneId.systemDefault();
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return Instant.ofEpochMilli(millis());
+            }
+
+            @Override
+            public long millis() {
+                return ticker.incrementAndGet();
+            }
+        };
+
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder()
+            .serviceUrl(lookupUrl.toString())
+            .clock(clock)
+            .build();
+
+        final String topic = "persistent://my-property/my-ns/test-publish-timestamp";
+
+        @Cleanup
+        Consumer<byte[]> consumer = newPulsarClient.newConsumer()
+            .topic(topic)
+            .subscriptionName("my-sub")
+            .subscribe();
+
+        final int numMessages = 5;
+
+        @Cleanup
+        Producer<byte[]> producer = newPulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(10 * numMessages)
+                .create();
+
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage()
+                .value(("value-" + i).getBytes(UTF_8))
+                .eventTime((i + 1) * 100L)
+                .sendAsync();
+        }
+        producer.flush();
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<byte[]> msg = consumer.receive();
+            log.info("Received message '{}'.", new String(msg.getValue(), UTF_8));
+            assertEquals(1L, msg.getPublishTime());
+            assertEquals(100L * (i + 1), msg.getEventTime());
+        }
     }
 
     @DataProvider(name = "batch")

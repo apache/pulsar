@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -376,4 +377,17 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder maxBackoffInterval(long duration, TimeUnit unit);
+
+    /**
+     * The clock used by the pulsar client.
+     *
+     * <p>The clock is currently used by producer for setting publish timestamps.
+     * {@link Clock#millis()} is called to retrieve current timestamp as the publish
+     * timestamp when producers produce messages. The default clock is a system default zone
+     * clock. So the publish timestamp is same as calling {@link System#currentTimeMillis()}.
+     *
+     * @param clock the clock used by the pulsar client to retrieve time information
+     * @return the client builder instance
+     */
+    ClientBuilder clock(Clock clock);
 }
