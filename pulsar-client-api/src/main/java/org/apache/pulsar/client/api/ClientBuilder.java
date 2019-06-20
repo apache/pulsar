@@ -386,6 +386,9 @@ public interface ClientBuilder extends Cloneable {
      * timestamp when producers produce messages. The default clock is a system default zone
      * clock. So the publish timestamp is same as calling {@link System#currentTimeMillis()}.
      *
+     * <p>Warning: the clock is used for TTL enforcement and timestamp based seeks.
+     * so be aware of the impacts if you are going to use a different clock.
+     *
      * @param clock the clock used by the pulsar client to retrieve time information
      * @return the client builder instance
      */
