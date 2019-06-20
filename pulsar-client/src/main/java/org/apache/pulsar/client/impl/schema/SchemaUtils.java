@@ -18,14 +18,30 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
@@ -166,6 +182,147 @@ public final class SchemaUtils {
             return Base64.getEncoder().encodeToString(schemaVersionBytes);
         }
 
+    }
+
+    /**
+     * Jsonify the schema info.
+     *
+     * @param schemaInfo the schema info
+     * @return the jsonified schema info
+     */
+    public static String jsonifySchemaInfo(SchemaInfo schemaInfo) {
+        GsonBuilder gsonBuilder = new GsonBuilder()
+            .setPrettyPrinting()
+            .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToStringAdapter(schemaInfo))
+            .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
+
+        return gsonBuilder.create().toJson(schemaInfo);
+    }
+
+    private static class SchemaPropertiesSerializer implements JsonSerializer<Map<String, String>> {
+
+        @Override
+        public JsonElement serialize(Map<String, String> properties,
+                                     Type type,
+                                     JsonSerializationContext jsonSerializationContext) {
+            SortedMap<String, String> sortedProperties = new TreeMap<>();
+            sortedProperties.putAll(properties);
+            JsonObject object = new JsonObject();
+            sortedProperties.forEach((key, value) -> {
+                object.add(key, new JsonPrimitive(value));
+            });
+            return object;
+        }
+
+    }
+
+    private static class SchemaPropertiesDeserializer implements JsonDeserializer<Map<String, String>> {
+
+        @Override
+        public Map<String, String> deserialize(JsonElement jsonElement,
+                                               Type type,
+                                               JsonDeserializationContext jsonDeserializationContext)
+            throws JsonParseException {
+
+            SortedMap<String, String> sortedProperties = new TreeMap<>();
+            jsonElement.getAsJsonObject().entrySet().forEach(entry -> sortedProperties.put(
+                entry.getKey(),
+                entry.getValue().getAsString()
+            ));
+            return sortedProperties;
+        }
+
+    }
+
+    private static final SchemaPropertiesSerializer SCHEMA_PROPERTIES_SERIALIZER =
+        new SchemaPropertiesSerializer();
+
+    private static final SchemaPropertiesDeserializer SCHEMA_PROPERTIES_DESERIALIZER =
+        new SchemaPropertiesDeserializer();
+
+    private static class ByteArrayToStringAdapter implements JsonSerializer<byte[]> {
+
+        private final SchemaInfo schemaInfo;
+
+        public ByteArrayToStringAdapter(SchemaInfo schemaInfo) {
+            this.schemaInfo = schemaInfo;
+        }
+
+        public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
+            String schemaDef = schemaInfo.getSchemaDefinition();
+            SchemaType type = schemaInfo.getType();
+            switch (type) {
+                case AVRO:
+                case JSON:
+                case PROTOBUF:
+                    return toJsonObject(schemaInfo.getSchemaDefinition());
+                case KEY_VALUE:
+                    KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
+                        DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfo);
+                    JsonObject obj = new JsonObject();
+                    String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey());
+                    String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue());
+                    obj.add("key", toJsonObject(keyJson));
+                    obj.add("value", toJsonObject(valueJson));
+                    return obj;
+                default:
+                    return new JsonPrimitive(schemaDef);
+            }
+        }
+    }
+
+    private static JsonObject toJsonObject(String json) {
+        JsonParser parser = new JsonParser();
+        return parser.parse(json).getAsJsonObject();
+    }
+
+    private static class SchemaInfoToStringAdapter implements JsonSerializer<SchemaInfo> {
+
+        @Override
+        public JsonElement serialize(SchemaInfo schemaInfo,
+                                     Type type,
+                                     JsonSerializationContext jsonSerializationContext) {
+            return toJsonObject(jsonifySchemaInfo(schemaInfo));
+        }
+    }
+
+    private static final SchemaInfoToStringAdapter SCHEMAINFO_ADAPTER = new SchemaInfoToStringAdapter();
+
+    /**
+     * Jsonify the key/value schema info.
+     *
+     * @param kvSchemaInfo the key/value schema info
+     * @return the jsonified schema info
+     */
+    public static String jsonifyKeyValueSchemaInfo(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) {
+        GsonBuilder gsonBuilder = new GsonBuilder()
+            .registerTypeHierarchyAdapter(SchemaInfo.class, SCHEMAINFO_ADAPTER)
+            .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
+        return gsonBuilder.create().toJson(kvSchemaInfo);
+    }
+
+    /**
+     * Serialize schema properties
+     *
+     * @param properties schema properties
+     * @return the serialized schema properties
+     */
+    public static String serializeSchemaProperties(Map<String, String> properties) {
+        GsonBuilder gsonBuilder = new GsonBuilder()
+            .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
+        return gsonBuilder.create().toJson(properties);
+    }
+
+    /**
+     * Deserialize schema properties from a serialized schema properties.
+     *
+     * @param serializedProperties serialized properties
+     * @return the deserialized properties
+     */
+    public static Map<String, String> deserializeSchemaProperties(String serializedProperties) {
+        GsonBuilder gsonBuilder = new GsonBuilder()
+            .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_DESERIALIZER);
+        return gsonBuilder.create().fromJson(serializedProperties, Map.class);
     }
 
 }

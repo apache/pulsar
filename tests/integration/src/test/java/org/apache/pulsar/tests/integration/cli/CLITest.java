@@ -159,7 +159,7 @@ public class CLITest extends PulsarTestSuite {
             "schemas",
             "get",
             topicName);
-        assertTrue(result.getStdout().contains("\"type\":\"STRING\""));
+        assertTrue(result.getStdout().contains("\"type\": \"STRING\""));
 
         // delete the schema
         result = container.execCmd(

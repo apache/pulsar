@@ -22,16 +22,8 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
-import java.lang.reflect.Type;
 import java.net.URL;
 import java.net.URLClassLoader;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
@@ -66,21 +58,7 @@ public class CmdSchemas extends CmdBase {
             } else {
                 schemaInfo = admin.schemas().getSchemaInfo(topic, version);
             }
-            Gson customGson = new GsonBuilder().registerTypeHierarchyAdapter(byte[].class,
-                    new ByteArrayToStringAdapter(schemaInfo)).create();
-            System.out.println(customGson.toJson(schemaInfo));
-        }
-    }
-
-    // Using Android's base64 libraries. This can be replaced with any base64 library.
-    private class ByteArrayToStringAdapter implements JsonSerializer<byte[]> {
-        private SchemaInfo schemaInfo;
-        public ByteArrayToStringAdapter(SchemaInfo schemaInfo) {
-            this.schemaInfo = schemaInfo;
-        }
-
-        public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(schemaInfo.getSchemaDefinition());
+            System.out.println(schemaInfo);
         }
     }
 

@@ -30,6 +30,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 
 @Data
 @AllArgsConstructor
@@ -66,8 +67,18 @@ public class SchemaInfo {
             case JSON:
             case PROTOBUF:
                 return new String(schema, UTF_8);
+            case KEY_VALUE:
+                KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
+                    DefaultImplementation.decodeKeyValueSchemaInfo(this);
+                return DefaultImplementation.jsonifyKeyValueSchemaInfo(schemaInfoKeyValue);
             default:
                 return Base64.getEncoder().encodeToString(schema);
         }
     }
+
+    @Override
+    public String toString(){
+        return DefaultImplementation.jsonifySchemaInfo(this);
+    }
+
 }
