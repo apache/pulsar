@@ -123,7 +123,6 @@ public class PulsarClientTool {
             } catch (UnsupportedAuthenticationException exp) {
                 System.out.println("Failed to load an authentication plugin");
                 exp.printStackTrace();
-                commandParser.usage();
                 return -1;
             }
 
