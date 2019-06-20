@@ -161,13 +161,12 @@ public class PulsarBrokerStarter {
                 }
                 // worker talks to local broker
                 boolean useTls = workerConfig.isUseTls();
-                String localhost = "127.0.0.1";
                 String pulsarServiceUrl = useTls
-                        ? PulsarService.brokerUrlTls(localhost, brokerConfig.getBrokerServicePortTls().get())
-                        : PulsarService.brokerUrl(localhost, brokerConfig.getBrokerServicePort().get());
+                        ? PulsarService.brokerUrlTls(brokerConfig)
+                        : PulsarService.brokerUrl(brokerConfig);
                 String webServiceUrl = useTls
-                        ? PulsarService.webAddressTls(localhost, brokerConfig.getWebServicePortTls().get())
-                        : PulsarService.webAddress(localhost, brokerConfig.getWebServicePort().get());
+                        ? PulsarService.webAddressTls(brokerConfig)
+                        : PulsarService.webAddress(brokerConfig);
                 workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
                 workerConfig.setPulsarWebServiceUrl(webServiceUrl);
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
