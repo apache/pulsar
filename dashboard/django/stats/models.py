@@ -169,7 +169,7 @@ class Subscription(Model):
     unackedMessages  = BigIntegerField(default=0)
 
     class Meta:
-        index_together = ('name', 'topic', 'timestamp', 'deleted')
+        unique_together = ('name', 'topic', 'timestamp')
 
     def __str__(self):
         return self.name
