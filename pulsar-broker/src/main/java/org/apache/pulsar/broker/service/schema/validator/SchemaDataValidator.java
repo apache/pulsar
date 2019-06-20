@@ -67,7 +67,7 @@ public interface SchemaDataValidator {
                     "Schema " + schemaData.getType() + " is a client-side schema type");
             case KEY_VALUE:
                 KeyValue<SchemaData, SchemaData> kvSchema =
-                    KeyValueSchemaCompatibilityCheck.splitKeyValueSchemaData(schemaData);
+                    KeyValueSchemaCompatibilityCheck.decodeKeyValueSchemaData(schemaData);
                 validateSchemaData(kvSchema.getKey());
                 validateSchemaData(kvSchema.getValue());
                 break;
