@@ -254,7 +254,19 @@ public class RuntimeUtils {
             args.add("java");
             args.add("-cp");
 
-            String classpath = instanceFile;
+            String classpath = "/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-functions-api/2.4.0-SNAPSHOT/pulsar-functions-api-2.4.0-SNAPSHOT.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-client-api/2.4.0-SNAPSHOT/pulsar-client-api-2.4.0-SNAPSHOT.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-core/2.11.2/log4j-core-2.11.2.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-api/2.11.2/log4j-api-2.11.2.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-slf4j-impl/2.11.2/log4j-slf4j-impl-2.11.2.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-functions-instance/2.4.0-SNAPSHOT/pulsar-functions-instance-2.4.0-SNAPSHOT.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-functions-runtime/2.4.0-SNAPSHOT/pulsar-functions-runtime-2.4.0-SNAPSHOT.jar";
+
+            String additional = "/Users/jerrypeng/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar:" +
+                    "/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-web/2.10.0/log4j-web-2.10.0.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/slf4j/jul-to-slf4j/1.7.25/jul-to-slf4j-1.7.25.jar" +
+                    ":/Users/jerrypeng/.m2/repository/org/slf4j/jcl-over-slf4j/1.7.25/jcl-over-slf4j-1.7.25.jar";
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 classpath = classpath + ":" + extraDependenciesDir + "/*";
             }

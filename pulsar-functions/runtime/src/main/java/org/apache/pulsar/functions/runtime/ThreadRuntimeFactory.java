@@ -51,15 +51,18 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private volatile boolean closed;
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
-                                AuthenticationConfig authConfig, SecretsProvider secretsProvider, CollectorRegistry collectorRegistry) throws Exception {
-        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig), storageServiceUrl, secretsProvider, collectorRegistry);
+                                AuthenticationConfig authConfig, SecretsProvider secretsProvider,
+                                CollectorRegistry collectorRegistry, ClassLoader userClassloader) throws Exception {
+        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
+                storageServiceUrl, secretsProvider, collectorRegistry, userClassloader);
     }
 
     @VisibleForTesting
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
-                                SecretsProvider secretsProvider, CollectorRegistry collectorRegistry) {
+                                SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
+                                ClassLoader userClassloader) {
         this.secretsProvider = secretsProvider;
-        this.fnCache = new FunctionCacheManagerImpl();
+        this.fnCache = new FunctionCacheManagerImpl(userClassloader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;

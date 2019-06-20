@@ -37,8 +37,11 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     /** Registered Functions **/
     private final Map<String, FunctionCacheEntry> cacheFunctions;
 
-    public FunctionCacheManagerImpl() {
+    private ClassLoader userClassLoader;
+
+    public FunctionCacheManagerImpl(ClassLoader userClassloader) {
         this.cacheFunctions = new ConcurrentHashMap<>();
+        this.userClassLoader = userClassloader;
     }
 
     Map<String, FunctionCacheEntry> getCacheFunctions() {
@@ -93,7 +96,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
                             requiredJarFiles,
                             requiredClasspaths,
                             urls,
-                            eid));
+                            eid, userClassLoader));
                 } catch (Throwable cause) {
                     Exceptions.rethrowIOException(cause);
                 }

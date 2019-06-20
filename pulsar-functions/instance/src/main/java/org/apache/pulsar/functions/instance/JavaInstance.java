@@ -22,9 +22,11 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 
+import java.lang.reflect.Method;
 import java.util.Map;
 
 /**
@@ -37,18 +39,23 @@ public class JavaInstance implements AutoCloseable {
 
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
-    private Function function;
-    private java.util.function.Function javaUtilFunction;
+    private Object function;
+//    private Object javaUtilFunction;
+
+    private Method functionProcess;
+    private Method functionApply;
 
     public JavaInstance(ContextImpl contextImpl, Object userClassObject) {
-
         this.context = contextImpl;
+        this.function = userClassObject;
+    }
 
-        // create the functions
-        if (userClassObject instanceof Function) {
-            this.function = (Function) userClassObject;
+    public void initialize() throws NoSuchMethodException, ClassNotFoundException {
+        if (InstanceUtils.isAssignable(function.getClass(), Function.class)) {
+            functionProcess = function.getClass().getMethod("process", Object.class,
+                    Thread.currentThread().getContextClassLoader().loadClass(Context.class.getName()));
         } else {
-            this.javaUtilFunction = (java.util.function.Function) userClassObject;
+            functionApply = function.getClass().getMethod("apply", Object.class);
         }
     }
 
@@ -59,11 +66,29 @@ public class JavaInstance implements AutoCloseable {
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
             Object output;
-            if (function != null) {
-                output = function.process(input, context);
+
+//            Method method = function.getClass().getDeclaredMethod("process", Object.class,
+//                    Thread.currentThread().getContextClassLoader().loadClass("org.apache.pulsar.functions.api.Context"));
+//            output = method.invoke(function, input, null);
+
+            if (functionProcess != null) {
+                log.info("functionProcess: {}", functionProcess);
+                log.info("function: {} - {} - {} - {}", function, function.getClass().getClassLoader(), context.getClass().getClassLoader(), Thread.currentThread().getContextClassLoader());
+                log.info("function.getClass().getClassLoader(): {}", getClassloaderHierarchy(function.getClass().getClassLoader()));
+                log.info("context.getClass().getClassLoader()): {}", getClassloaderHierarchy(context.getClass().getClassLoader()));
+                log.info("Thread.currentThread().getContextClassLoader(): {}", getClassloaderHierarchy(Thread.currentThread().getContextClassLoader()));
+
+                output = functionProcess.invoke(function, input, context);
             } else {
-                output = javaUtilFunction.apply(input);
+                output = functionApply.invoke(function, input);
             }
+
+//            if (function != null) {
+//
+//                output = function.process(input, context);
+//            } else {
+//                output = javaUtilFunction.apply(input);
+//            }
             executionResult.setResult(output);
         } catch (Exception ex) {
             executionResult.setUserException(ex);
@@ -85,5 +110,20 @@ public class JavaInstance implements AutoCloseable {
 
     public Map<String, Double> getMetrics() {
         return context.getMetrics();
+    }
+
+    public static String getClassloaderHierarchy(ClassLoader classLoader) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Root: %s\n", classLoader));
+        ClassLoader c = classLoader;
+        while(true) {
+            c = c.getParent();
+            if (c != null) {
+                sb.append(String.format(" - > %s\n", c));
+            } else {
+                break;
+            }
+        }
+        return sb.toString();
     }
 }

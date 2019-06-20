@@ -50,8 +50,11 @@ class ReflectionUtils {
     @SuppressWarnings("unchecked")
     static <T> Class<T> newClassInstance(String className) {
         try {
-            return (Class<T>) DefaultImplementation.class.getClassLoader().loadClass(className);
+//            return (Class<T>) DefaultImplementation.class.getClassLoader().loadClass(className);
+            return (Class<T>) Thread.currentThread().getContextClassLoader().loadClass(className);
+
         } catch (ClassNotFoundException e) {
+            System.out.println("Classloader: " + Thread.currentThread().getContextClassLoader());
             throw new RuntimeException(e);
         }
     }
@@ -67,6 +70,8 @@ class ReflectionUtils {
 
     static <T> Method getStaticMethod(String className, String method, Class<?>... argTypes) {
         try {
+            System.out.println("Classloader: " + Thread.currentThread().getContextClassLoader());
+
             Class<T> clazz = newClassInstance(className);
             return clazz.getMethod(method, argTypes);
         } catch (NoSuchMethodException e) {

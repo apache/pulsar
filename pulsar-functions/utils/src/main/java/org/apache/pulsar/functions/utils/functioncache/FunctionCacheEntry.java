@@ -61,8 +61,10 @@ public class FunctionCacheEntry implements AutoCloseable {
     FunctionCacheEntry(Collection<String> requiredJarFiles,
                        Collection<URL> requiredClasspaths,
                        URL[] libraryURLs,
-                       String initialInstanceId) {
-        this.classLoader = FunctionClassLoaders.create(libraryURLs, FunctionClassLoaders.class.getClassLoader());
+                       String initialInstanceId, ClassLoader userClassLoader) {
+//        this.classLoader = FunctionClassLoaders.create(libraryURLs, FunctionClassLoaders.class.getClassLoader());
+        this.classLoader = FunctionClassLoaders.create(libraryURLs, userClassLoader);
+
         this.classpaths = requiredClasspaths.stream()
             .map(URL::toString)
             .collect(Collectors.toSet());

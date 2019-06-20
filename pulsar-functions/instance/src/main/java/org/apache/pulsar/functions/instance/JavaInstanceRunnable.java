@@ -171,7 +171,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     /**
      * NOTE: this method should be called in the instance thread, in order to make class loading work.
      */
-    JavaInstance setupJavaInstance(ContextImpl contextImpl) throws Exception {
+    JavaInstance setupJavaInstance() throws Exception {
         // initialize the thread context
         ThreadContext.put("function", FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
@@ -187,12 +187,28 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Object object = Reflections.createInstance(
                 instanceConfig.getFunctionDetails().getClassName(),
                 clsLoader);
-        if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
+
+        log.info("object: {} - {} - {} - {} - {} - {}", object, object.getClass(),
+                object.getClass().getSuperclass(), object.getClass().getClassLoader(),
+                Arrays.asList(object.getClass().getInterfaces()), Arrays.asList(object.getClass().getMethods()));
+//        if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
+//            throw new RuntimeException("User class must either be Function or java.util.Function");
+//        }
+
+        log.info("bool: {} - {}", InstanceUtils.isAssignable(object.getClass(), Function.class),
+                InstanceUtils.isAssignable(object.getClass(), java.util.function.Function.class));
+
+        if (!InstanceUtils.isAssignable(object.getClass(), Function.class)
+                && !InstanceUtils.isAssignable(object.getClass(), java.util.function.Function.class)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
 
+
         // start the state table
         setupStateTable();
+
+        ContextImpl contextImpl = setupContext();
+
         // start the output producer
         setupOutput(contextImpl);
         // start the input consumer
@@ -225,8 +241,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     this.instanceCache.getScheduledExecutorService(),
                     this.componentType);
 
-            ContextImpl contextImpl = setupContext();
-            javaInstance = setupJavaInstance(contextImpl);
+//            ContextImpl contextImpl = setupContext();
+            javaInstance = setupJavaInstance();
+            javaInstance.initialize();
             if (null != stateTable) {
                 StateContextImpl stateContext = new StateContextImpl(stateTable);
                 javaInstance.getContext().setStateContext(stateContext);
