@@ -389,6 +389,21 @@ public class FunctionConfigUtilsTest {
         );
     }
 
+    @Test
+    public void testMergeRuntimeFlags() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("runtimeFlags", "-Dfoo=bar2");
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getRuntimeFlags(), "-Dfoo=bar2"
+        );
+        mergedConfig.setRuntimeFlags(functionConfig.getRuntimeFlags());
+        assertEquals(
+                new Gson().toJson(functionConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
     private FunctionConfig createFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");
@@ -409,6 +424,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setTimeoutMs(2000l);
         functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
         functionConfig.setCleanupSubscription(true);
+        functionConfig.setRuntimeFlags("-Dfoo=bar");
         return functionConfig;
     }
 
