@@ -80,9 +80,9 @@
 <ul>
 <li>从一个或多个Pulsar的主题中消费消息</li>
 <li>将用户提供的处理逻辑应用于每个消息</li>
-<li>将计算结果发布到另一个主题</li>
+<li>publish the results of the computation to another topic.</li>
 </ul>
-<p>这是一个基于java的例子(使用<a href="/docs/zh-CN/next/functions-api#java-native-functions">原生接口</a>)</p>
+<p>The following is an example of a Pulsar Function written in Java (using the <a href="/docs/zh-CN/next/functions-api#java-native-functions">native interface</a>).</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Function;
 
 <span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
@@ -90,35 +90,48 @@
     <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">apply</span><span class="hljs-params">(String input)</span> </span>{ <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input); }
 }
 </code></pre>
-<p>这是一个基于Python实现的类似的函数(也使用了<a href="/docs/zh-CN/next/functions-api#python-native-functions">原生接口</a>)</p>
+<p>The following is an example of a Pulsar Function written in Python (using the <a href="/docs/zh-CN/next/functions-api#python-native-functions">native interface</a>).</p>
 <pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> <span class="hljs-string">"{0}!"</span>.format(input)
 </code></pre>
-<p>一条消息每次被发布到输入的主题时，函数都会被执行。 例如，如果一个函数监听在主题 <code>tweet-stream</code>上，在每次有消息发布到这个主题的时候函数都会运行。</p>
+<p>The following is an example of a Pulsar Function written in Go.</p>
+<pre><code class="hljs">import (
+    &quot;fmt&quot;
+    &quot;context&quot;
+
+    &quot;github.com/apache/pulsar/pulsar-function-go/pf&quot;
+)
+
+func HandleRequest(ctx context.Context, in []byte) error {
+    fmt.Println(string(in) + &quot;!&quot;)
+    return nil
+}
+
+func main() {
+    pf.Start(HandleRequest)
+}
+</code></pre>
+<p>A Pulsar Function is executed each time a message is published to its input topic. For example, if a function has an input topic called <code>tweet-stream</code>, the function runs each time a message is published to <code>tweet-stream</code>.</p>
 <h2><a class="anchor" aria-hidden="true" id="goals"></a><a href="#goals" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Goals</h2>
-<p>Pulsar Functions背后的核心目标是使您能够轻松创建各种级别的复杂的的处理逻辑，而无需部署单独的类似系统(例如 <a href="http://storm.apache.org/">Apache Storm</a>, <a href="https://apache.github.io/incubator-heron">Apache Heron</a>, <a href="https://flink.apache.org/">Apache Flink</a>, 等等) Pulsar Functions本质上是现成的计算基础设施，作为Pulsar消息系统的一部分，供你使用。 这个核心目标与一系列其他目标相关联：</p>
+<p>With Pulsar Functions, you can create complex processing logic without deploying a separate neighboring system (such as <a href="http://storm.apache.org/">Apache Storm</a>, <a href="https://apache.github.io/incubator-heron">Apache Heron</a>, <a href="https://flink.apache.org/">Apache Flink</a>). Pulsar Functions are computing infrastructure of Pulsar messaging system. The core goal is tied to a series of other goals:</p>
 <ul>
-<li>开发者生产力(<a href="#language-native-functions">language-native</a> vs. <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a> functions)</li>
+<li>Developer productivity (<a href="#language-native-functions">language-native</a> vs <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a> functions)</li>
 <li>简单的故障排查</li>
 <li>操作简单性(不需要外部处理系统)</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="inspirations"></a><a href="#inspirations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Inspirations</h2>
-<ol start="22">
-<li>Pulsar Functions功能受到若干系统和模式的启发(并从中汲取线索)：</li>
-</ol>
+<p>Pulsar Functions are inspired by (and take cues from) several systems and paradigms:</p>
 <ul>
 <li>流处理引擎，例如 <a href="http://storm.apache.org/">Apache Storm</a>, <a href="https://apache.github.io/incubator-heron">Apache Heron</a>, 和<a href="https://flink.apache.org">Apache Flink</a></li>
 <li>&quot;Serverless&quot; and &quot;Function as a Service&quot; (FaaS)云平台像<a href="https://aws.amazon.com/lambda/">Amazon Web Services Lambda</a>, <a href="https://cloud.google.com/functions/">Google Cloud Functions</a>, 和 <a href="https://azure.microsoft.com/en-us/services/functions/">Azure Cloud Functions</a></li>
 </ul>
-<p>Pulsar Functions能被这样描述</p>
+<p>Pulsar Functions can be described as</p>
 <ul>
 <li><a href="https://aws.amazon.com/lambda/">Lambda</a>-风格的函数</li>
-<li>专门设计的使用Pulsar来作为消息总线</li>
+<li>specifically designed to use Pulsar as a message bus.</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="programming-model"></a><a href="#programming-model" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Programming model</h2>
-<p>Pulsar Functions背后的核心编程模型非常简单:</p>
-<ul>
-<li>Functions 从一个或多个输入[主题](reference-terminology. md#topic)接收消息。 ** **每次收到消息时，函数可以做下面几件事情：
+<p>The core programming model of Pulsar Functions is simple. Functions receive messages from one or more <strong>input <a href="/docs/zh-CN/next/reference-terminology#topic">topics</a></strong>. Each time a message is received, the function will complete the following tasks.</p>
 <ul>
 <li>将某些处理逻辑应用到输入并写入到输出：
 <ul>
@@ -127,13 +140,12 @@
 </ul></li>
 <li>写入日志到 <strong>日志主题</strong> (可能用于调试目的)</li>
 <li>增量 <a href="#word-count-example">计数器</a></li>
-</ul></li>
 </ul>
 <p><img src="/docs/assets/pulsar-functions-overview.png" alt="Pulsar Functions core programming model"></p>
 <h3><a class="anchor" aria-hidden="true" id="word-count-example"></a><a href="#word-count-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Word count example</h3>
-<p>如果你使用Pulsar Functions 执行经典的字词计数示例，那么它可能看起来像这样：</p>
+<p>If you implement the classic word count example using Pulsar Functions, it looks something like this:</p>
 <p><img src="/docs/assets/pulsar-functions-word-count.png" alt="Pulsar Functions word count example"></p>
-<p>If you were writing the function in <a href="/docs/zh-CN/next/functions-api#functions-for-java">Java</a> using the <a href="/docs/zh-CN/next/functions-api#java-sdk-functions">Pulsar Functions SDK for Java</a>, you could write the function like below:</p>
+<p>To write the function in <a href="/docs/zh-CN/next/functions-api#functions-for-java">Java</a> with <a href="/docs/zh-CN/next/functions-api#java-sdk-functions">Pulsar Functions SDK for Java</a>, you can write the function as follows.</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">package</span> org.example.functions;
 
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
@@ -153,7 +165,7 @@
     }
 }
 </code></pre>
-<p>Next, you need to bundle and build the jar file to be deployed, the approaches can be found in <a href="#creating-an-uber-jar">&quot;Creating an Uber JAR&quot;</a> and <a href="#creating-a-nar-package">&quot;Creating a NAR package&quot;</a>. Then <a href="#cluster-run-mode">deploy it</a> in your Pulsar cluster using the <a href="#command-line-interface">command line</a> like below:</p>
+<p>Bundle and build the JAR file to be deployed. You can find approaches in <a href="#creating-an-uber-jar">Creating an Uber JAR</a> and <a href="#creating-a-nar-package">Creating a NAR package</a>. Then <a href="#cluster-run-mode">deploy it</a> in your Pulsar cluster using the <a href="#command-line-interface">command line</a> as follows.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar target/my-jar-with-dependencies.jar \
   --classname org.example.functions.WordCountFunction \
@@ -164,10 +176,10 @@
   --output persistent://public/default/count
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="content-based-routing-example"></a><a href="#content-based-routing-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Content-based routing example</h3>
-<p>Pulsar Functions的使用案例有很多，下面展示一个更复杂的例子，该示例涉及基于内容的路由。</p>
-<p>想象一个函数, 它将内容 (字符串) 作为输入, 并根据内容将它们发布到不同的主题中（例如fruits或者vegetables主题） 如果这个内容既不属于fruit也不属于vegetable主题，就会有一个警告被记录到<a href="#logging">日志主题</a>中. 下面是一个可视化表示形式:</p>
+<p>Pulsar Functions are used in many cases. The following is a sophisticated example that involves content-based routing.</p>
+<p>For example, a function takes items (strings) as input and publishes them to either a <code>fruits</code> or <code>vegetables</code> topic, depending on the item. Or, if an item is neither fruit nor vegetable, a warning is logged to a <a href="#logging">log topic</a>. The following is a visual representation.</p>
 <p><img src="/docs/assets/pulsar-functions-routing-example.png" alt="Pulsar Functions routing example"></p>
-<p>如果使用Python语言实现此路由功能, 它可能如下所示:</p>
+<p>If you implement this routing functionality in Python, it looks something like this:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RoutingFunction</span><span class="hljs-params">(Function)</span>:</span>
@@ -191,7 +203,7 @@
             context.get_logger().warn(warning)
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="command-line-interface"></a><a href="#command-line-interface" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Command-line interface</h2>
-<p>Pulsar Functions使用 <a href="/docs/zh-CN/next/pulsar-admin"><code>pulsar-admin</code></a> 工具进行管理 (主要是<a href="/docs/zh-CN/next/pulsar-admin#functions"><code>functions</code></a>命令). 这里是一个示例命令，它将运行一个函数在<a href="#local-run-mode">localrun模式</a>下：</p>
+<p>Pulsar Functions使用 <a href="/docs/zh-CN/next/pulsar-admin"><code>pulsar-admin</code></a> 工具进行管理 (主要是<a href="/docs/zh-CN/next/pulsar-admin#functions"><code>functions</code></a>命令). The following example runs a function in the <a href="#local-run-mode">local run mode</a>.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --inputs persistent://public/default/test_src \
   --output persistent://public/default/test_result \
@@ -199,21 +211,21 @@
   --classname org.apache.pulsar.functions.api.examples.ExclamationFunction
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="fully-qualified-function-name-fqfn"></a><a href="#fully-qualified-function-name-fqfn" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Fully Qualified Function Name (FQFN)</h2>
-<p>每个 Pulsar Function都有一个 <strong>Fully Qualified Function Name</strong> (简称FQFN) 包含三个要素：函数的租户、命名空间和函数名称。FQFN看起来类似于：</p>
+<p>Each Pulsar Function has a <strong>Fully Qualified Function Name</strong> (FQFN) that consists of three elements: the function tenant, namespace, and function name. FQFN looks like this:</p>
 <pre><code class="hljs css language-http">tenant/namespace/name
 </code></pre>
-<p>例如, FQFN使您能够创建具有相同名称的多个函数, 前提是它们位于不同的命名空间中。</p>
+<p>FQFNs enable you to create multiple functions with the same name provided that they are in different namespaces.</p>
 <h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
-<p>可以通过两种方式配置Pulsar Functions:</p>
+<p>You can configure a Pulsar Function in the following ways:</p>
 <ul>
 <li>基于 <a href="#command-line-interface">命令行参数</a>通过 <a href="/docs/zh-CN/next/pulsar-admin#functions">pulsar-admin functions</code></a> 接口</li>
 <li>基于<a href="http://yaml.org/">yaml</a> 配置文件</li>
 </ul>
-<p>如果要提供 yaml 配置, 则必须在命令行上指定文件的路径。下面是一个示例:</p>
+<p>If you use a YAML configuration file, you must specify a path to the file on the command line. The following is an example.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --<span class="hljs-keyword">function</span>-config-file ./my-function.yaml
 </code></pre>
-<p>下面是一个<code>my-function.yaml</code>文件的示例:</p>
+<p>The following is an example of the <code>my-function.yaml</code> file.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">name:</span> <span class="hljs-string">my-function</span>
 <span class="hljs-attr">tenant:</span> <span class="hljs-string">public</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">default</span>
@@ -223,39 +235,37 @@
 <span class="hljs-attr">- persistent:</span><span class="hljs-string">//public/default/test_src</span>
 <span class="hljs-attr">output:</span> <span class="hljs-attr">persistent://public/default/test_result</span>
 </code></pre>
-<p>您还可以通过命令行工具指定一些函数属性，通过 yaml 配置一些其他的函数属性, 从而同时使用这两种配置方法。</p>
+<p>You can specify some function attributes via CLI arguments or in a configuration file in YAML format.</p>
 <h2><a class="anchor" aria-hidden="true" id="supported-languages"></a><a href="#supported-languages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Supported languages</h2>
-<p>Pulsar Functions当前支持<a href="/docs/zh-CN/next/functions-api#functions-for-java">Java</a> and <a href="/docs/zh-CN/next/functions-api#functions-for-python">Python</a>两种语言. 对其他语言的支持即将推出。</p>
-<h2><a class="anchor" aria-hidden="true" id="the-pulsar-functions-api"></a><a href="#the-pulsar-functions-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Pulsar Functions API</h2>
-<p>使用Pulsar Functions api 您可以创建以下处理逻辑:</p>
+<p>Currently, you can write Pulsar Functions in <a href="/docs/zh-CN/next/functions-api#functions-for-java">Java</a>, <a href="/docs/zh-CN/next/functions-api#functions-for-python">Python</a>, and <a href="/docs/zh-CN/next/functions-api#functions-for-go">Go</a>. 对其他语言的支持即将推出。</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-functions-api"></a><a href="#pulsar-functions-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions API</h2>
+<p>Pulsar Functions API enables you to create processing logic that is:</p>
 <ul>
 <li>类型安全的。Pulsar Functions可以处理原始字节或更复杂的应用类型。</li>
 <li>基于SerDe的(序列化/反序列化)。支持多种“开箱即用”的类型，但您也可以创建自己的自定义SerDe逻辑。</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="function-context"></a><a href="#function-context" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function context</h3>
-<p>使用 <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a>创建的每个 Pulsar 函数</a> 都支持获取一个上下文对象：</p>
+<p>Each Pulsar Function created using <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a> has access to a context object that both provides:</p>
 <ol>
-<li>有关该函数的各种信息，包括:</li>
-</ol>
+<li>有关该函数的各种信息，包括:
 <ul>
 <li>函数的名称</li>
 <li>函数的租户和命名空间</li>
 <li><a href="#user-configuration">用户的配置</a></li>
-</ul>
-<ol start="2">
-<li>特殊功能，包括：</li>
-</ol>
+</ul></li>
+<li>特殊功能，包括：
 <ul>
 <li>生成 <a href="#logging">日志</a> 到指定日志主题的能力</li>
 <li>生成 <a href="#metrics">metircs</a>的能力</li>
-</ul>
+</ul></li>
+</ol>
 <h3><a class="anchor" aria-hidden="true" id="language-native-functions"></a><a href="#language-native-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Language-native functions</h3>
-<p>支持Java和Python的原生函数，即没有依赖的Pulsar Functions</p>
-<p>原生函数的好处是除了Java/Python中现有的“开箱即用”的变量之外，它们无需其他依赖。缺点是它们不提供对函数 <a href="#function-context">上下文</a>的访问，这对于各种功能都是必要的，包括 <a href="#logging">logging</a> <a href="#user-configuration">user configuration</a>等等。</p>
-<h2><a class="anchor" aria-hidden="true" id="the-pulsar-functions-sdk"></a><a href="#the-pulsar-functions-sdk" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Pulsar Functions SDK</h2>
-<p>如果你想通过Pulsar Function来获取 <a href="#function-context">上下文对象</a>, 你可以使用 <strong>Pulsar Functions SDK</strong>, 支持 <a href="/docs/zh-CN/next/functions-api#functions-for-java">Java</a> 和 <a href="/docs/zh-CN/next/functions-api#functions-for-python">Python</a>两种语言。</p>
+<p>&quot;Native&quot; functions are supported in Java and Python, which means a Pulsar Function can have no dependencies.</p>
+<p>The benefit of native functions is that they do not have any dependencies beyond what's already available in Java/Python &quot;out of the box.&quot; The downside is that they do not provide access to the function <a href="#function-context">context</a>, which is necessary for a variety of functionalities, including <a href="#logging">logging</a>, <a href="#user-configuration">user configuration</a>, and more.</p>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-functions-sdk"></a><a href="#pulsar-functions-sdk" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions SDK</h2>
+<p>To enable a Pulsar Function to access to a <a href="#function-context">context object</a>, you can use <strong>Pulsar Functions SDK</strong>, available for <a href="/docs/zh-CN/next/functions-api#functions-for-java">Java</a>, <a href="/docs/zh-CN/next/functions-api#functions-for-python">Python</a>, and <a href="/docs/zh-CN/next/functions-api#functions-for-go">Go</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h3>
-<p>下面是一个使用有关其上下文的信息的 java 函数示例:</p>
+<p>The following is a Java function example that uses information about its context.</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 <span class="hljs-keyword">import</span> org.slf4j.Logger;
@@ -273,7 +283,7 @@
 }
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="python"></a><a href="#python" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python</h3>
-<p>下面是一个使用有关其上下文的信息的 java 函数示例:</p>
+<p>The following is a Python function example that uses information about its context.</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Function
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ContextAwareFunction</span><span class="hljs-params">(Function)</span>:</span>
@@ -284,42 +294,65 @@
         function_name = context.get_function_name()
         log.info(<span class="hljs-string">"Function tenant/namespace/name: {0}/{1}/{2}"</span>.format(function_tenant, function_namespace, function_name))
 </code></pre>
+<h3><a class="anchor" aria-hidden="true" id="go"></a><a href="#go" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Go</h3>
+<p>The following is a Go function example that uses information about its context.</p>
+<pre><code class="hljs">import (
+    &quot;context&quot;
+    &quot;fmt&quot;
+
+    &quot;github.com/apache/pulsar/pulsar-function-go/log&quot;
+    &quot;github.com/apache/pulsar/pulsar-function-go/pf&quot;
+)
+
+func contextFunc(ctx context.Context) {
+    if fc, ok := pf.FromContext(ctx); ok {
+        tenant := fc.GetFuncTenant()
+        namespace := fc.GetFuncNamespace()
+        name := fc.GetFuncName()
+        log.Info(&quot;Function tenant/namespace/name: %s/%s/%s\n&quot;, tenant, namespace, name)
+    }
+}
+
+func main() {
+    pf.Start(contextFunc)
+}
+</code></pre>
 <h2><a class="anchor" aria-hidden="true" id="部署"></a><a href="#部署" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署</h2>
-<p>Pulsar Functions功能构建支持各种部署选项。目前, 有两种方法可以运行Pulsar Functions:</p>
+<p>Pulsar Functions support a variety of deployment options. You can deploy a Pulsar Function in the following ways.</p>
 <table>
 <thead>
 <tr><th style="text-align:left">部署模式</th><th style="text-align:left">说明：</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><a href="#local-run-mode">Local run mode</a></td><td style="text-align:left">The function runs in your local environment, for example on your laptop</td></tr>
-<tr><td style="text-align:left"><a href="#cluster-run-mode">Cluster mode</a></td><td style="text-align:left">函数在运行在你的Pulsar 集群上，与你的Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">brokers</a>在相同的机器上</td></tr>
+<tr><td style="text-align:left"><a href="#local-run-mode">Local run mode</a></td><td style="text-align:left">The function runs in your local environment, for example, on your laptop.</td></tr>
+<tr><td style="text-align:left"><a href="#cluster-run-mode">Cluster mode</a></td><td style="text-align:left">The function runs <em>inside of</em> your Pulsar cluster, on the same machines as your Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">brokers</a>.</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="local-run-mode"></a><a href="#local-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Local run mode</h3>
-<p>如果你使用 <strong>localrun</strong> 模式运行一Pulsar函数，它将在运行命令的机器上运行(这可能是你的笔记本电脑，<a href="https://aws.amazon.com/ec2/">AWS EC2</a> 实例等)。 这里是一个<a href="/docs/zh-CN/next/pulsar-admin#localrun"><code>localrun</code></a>模式下运行的命令：</p>
+<p>If you run a Pulsar Function in the <strong>local run</strong> mode, you run it on the machine where you run commands(for example, your laptop, an <a href="https://aws.amazon.com/ec2/">AWS EC2</a> instance). The following example is about the <a href="/docs/zh-CN/next/pulsar-admin#localrun"><code>localrun</code></a> command.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --py myfunc.py \
   --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 </code></pre>
-<p>默认情况下，函数连接到同一机器上运行的 Pulsar 集群通过本地的broker服务，URL是 <code>pulsar://localhost:6650</code>。 如果您想使用localrun模式来运行一个函数，但连接到非本地Pulsar 集群，你可以通过 <code>--brokerServiceUrl</code> 标志来指定一个不同的broker URL。 下面是一个示例：</p>
+<p>By default, the function connects to a Pulsar cluster running on the same machine, via a local broker service URL of <code>pulsar://localhost:6650</code>. If you run a function with the local run mode, and connect it to a non-local Pulsar cluster, specify a different broker URL using the <code>--brokerServiceUrl</code> flag. The following is an example.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
   --broker-service-url pulsar://my-cluster-host:6650 \
   <span class="hljs-comment"># Other function parameters</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="cluster-run-mode"></a><a href="#cluster-run-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster run mode</h3>
-<p>当你运行 Pulsar Function在<strong>集群模式</strong>下时, 函数代码将被上传到Pulsar broker上，并与<em>代理broker</em>一起运行，而不是在您的<a href="#local-run-mode">本地环境</a>中运行。 您可以使用 <a href="/docs/zh-CN/next/pulsar-admin#create-1"><code>create</code></a> 命令在群集模式下运行函数。 下面是一个示例：</p>
+<h3><a class="anchor" aria-hidden="true" id="cluster-mode"></a><a href="#cluster-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Cluster mode</h3>
+<p>When you run Pulsar Functions in the <strong>cluster mode</strong>, the function code is uploaded to a Pulsar broker and runs <em>alongside the broker</em> rather than in your <a href="#local-run-mode">local environment</a>. You can run a function in the cluster mode using the <a href="/docs/zh-CN/next/pulsar-admin#create-1"><code>create</code></a> command. The following is an example.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --py myfunc.py \
   --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
 </code></pre>
-<p>此命令将上传 <code>myfunc.py</code> 到 Pulsar，它将使用代码启动一个 <a href="#parallelism">或更多</a> 函数实例。</p>
-<h3><a class="anchor" aria-hidden="true" id="parallelism"></a><a href="#parallelism" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Parallelism</h3>
-<p>默认情况下，当您在<a href="#cluster-run-mode">集群模式</a>创建并运行Pulsar函数时，只有一个<strong>实例</strong>运行。 但是, 您也可以并行运行多个实例。 您可以在创建函数时指定实例数, 也可以使用新的并行性因子更新现有的单实例函数。</p>
-<p>例如, 此命令将创建并运行并行性为 5 (即5个实例) 的函数:</p>
+<p>This command uploads <code>myfunc.py</code> to Pulsar, which uses the code to start one <a href="#parallelism">or more</a> instances of the function.</p>
+<h3><a class="anchor" aria-hidden="true" id="run-instances-in-parallel"></a><a href="#run-instances-in-parallel" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run instances in parallel</h3>
+<p>When you create Pulsar Functions and run in the <a href="#cluster-mode">cluster mode</a>, only one <strong>instance</strong> of Pulsar Functions is running by default. However, you can run multiple instances in parallel. Specify the number of instances when you create Pulsar Functions, or update an existing single-instance function with a new parallel factor.</p>
+<p>This command, for example, creates and runs a function with 5 instances in parallel.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name parallel-fun \
   --tenant public \
@@ -329,7 +362,7 @@
   --parallelism 5
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="function-instance-resources"></a><a href="#function-instance-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function instance resources</h3>
-<p>在 <a href="#cluster-run-mode">群集模式</a>运行 pusar Functions 时, 可以指定资源分配给每个函数 <a href="#parallelism">实例</a>:</p>
+<p>When you run Pulsar Functions in the <a href="#cluster-mode">cluster mode</a>, you can specify the resources that are assigned to each function <a href="#run-instances-in-parallel">instance</a>.</p>
 <table>
 <thead>
 <tr><th style="text-align:left">Resource</th><th style="text-align:left">Specified as...</th><th style="text-align:left">Runtimes</th></tr>
@@ -340,7 +373,7 @@
 <tr><td style="text-align:left">Disk space</td><td style="text-align:left">The number of bytes</td><td style="text-align:left">Docker</td></tr>
 </tbody>
 </table>
-<p>下面是一个函数创建命令的示例, 它将分配8核、8GB内存和10GB的磁盘空间给一个函数:</p>
+<p>The following example allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --jar target/my-functions.jar \
   --classname org.example.functions.MyFunction \
@@ -350,13 +383,13 @@
 </code></pre>
 <p>有关资源的详细信息, 请参阅 <a href="/docs/zh-CN/next/functions-deploying#resources">Deploying and Managing Pulsar Functions</a> 文档。</p>
 <h3><a class="anchor" aria-hidden="true" id="logging"></a><a href="#logging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Logging</h3>
-<p>使用 <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a>创建的Pulsar Functions可以将日志发送到一个日志的主题，这个可以在你的函数配置里指定。 例如，使用下面的命令创建的函数将在 <code>persistent://public/default/my-func-1-log</code> 主题上生成所有日志：</p>
+<p>Pulsar Functions created using <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a> can send logs to a log topic that you specify as part of the function configuration. The function created using the following command produces all logs on the <code>persistent://public/default/my-func-1-log</code> topic.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name my-func-1 \
   --<span class="hljs-built_in">log</span>-topic persistent://public/default/my-func-1-log \
   <span class="hljs-comment"># Other configs</span>
 </code></pre>
-<p>这个<a href="/docs/zh-CN/next/functions-api#java-logging">Java function</a>的例子记录日志使用了不同的日志级别基于函数的输入:</p>
+<p>The following is an example of <a href="/docs/zh-CN/next/functions-api#java-logging">Java function</a> that logs at different log levels based on the function input.</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggerFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
@@ -369,14 +402,35 @@
     }
 }
 </code></pre>
+<p>The following is an example of <a href="/docs/zh-CN/next/functions-api#go-logging">Go function</a> that logs at different log levels based on the function input.</p>
+<pre><code class="hljs">import (
+    &quot;context&quot;
+
+    &quot;github.com/apache/pulsar/pulsar-function-go/log&quot;
+    &quot;github.com/apache/pulsar/pulsar-function-go/pf&quot;
+)
+
+func loggerFunc(ctx context.Context, input []byte) {
+    if len(input) &lt;= 100 {
+        log.Infof(&quot;This input has a length of: %d&quot;, len(input))
+    } else {
+        log.Warnf(&quot;This input is getting too long! It has {%d} characters&quot;, len(input))
+    }
+}
+
+func main() {
+    pf.Start(loggerFunc)
+}
+</code></pre>
+<p>When you use <code>logTopic</code> related functionalities in Go Function, import <code>github.com/apache/pulsar/pulsar-function-go/log</code>, and you do not have to use the <code>getLogger()</code> context object. The approach is different from Java Function and Python Function.</p>
 <h3><a class="anchor" aria-hidden="true" id="user-configuration"></a><a href="#user-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>User configuration</h3>
-<p>Pulsar Functions可以通过命令行传递任意的key-values(key和values必须是字符串)。 这些key-values的设置通过调用函数的<strong>用户配置</strong>. 用户配置必须包括 JSON 字符串.</p>
-<p>这是一个函数使用用户配置的额示例</p>
+<p>You can pass arbitrary key-values to Pulsar Functions via the command line (both keys and values must be string). 这些key-values的设置通过调用函数的<strong>用户配置</strong>. User configuration must consist of JSON strings.</p>
+<p>The following example passes user configuration to a function.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --user-config <span class="hljs-string">'{"key-1":"value-1","key-2","value-2"}'</span> \
   <span class="hljs-comment"># Other configs</span>
 </code></pre>
-<p>这是一个在函数中获取配置信息的示例</p>
+<p>The following example accesses that configuration map.</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ConfigMapFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
@@ -387,49 +441,51 @@
     }
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="triggering-pulsar-functions"></a><a href="#triggering-pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Triggering Pulsar Functions</h3>
-<p>Pulsar Functions 运行在<a href="#cluster-run-mode">集群模式</a>下可以使用<a href="/docs/zh-CN/next/functions-deploying#triggering-pulsar-functions">触发器</a>参考<a href="#command-line-interface">command line</a> 通过触发器，您可以轻松地将特定值传递给函数，并获得函数的返回值，而无需担心创建客户端、向正确的输入主题发送消息等。 触发器非常有用绝不限于测试和调试目的。</p>
+<h3><a class="anchor" aria-hidden="true" id="trigger-pulsar-functions"></a><a href="#trigger-pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Trigger Pulsar Functions</h3>
+<p>You can <a href="/docs/zh-CN/next/functions-deploying#triggering-pulsar-functions">trigger</a> a Pulsar Function running in the <a href="#cluster-mode">cluster mode</a> with the <a href="#command-line-interface">command line</a>. When triggering a Pulsar Function, you can pass a specific value to the Function and get the return value <em>without</em> creating a client. Triggering is useful for, but not limited to, testing and debugging purposes.</p>
 <blockquote>
-<p>Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. <a href="/docs/zh-CN/next/pulsar-admin#trigger"><code>pulsar-admin functions trigger</code></a>本质上是一种非常方便的机制用于向函数发送消息，而不需要使用<a href="/docs/zh-CN/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a>工具或指定语言的客户端库。</p>
+<p>Note<br>
+Triggering a function is no different from invoking a function by producing a message on one of the function input topics. The <a href="/docs/zh-CN/next/pulsar-admin#trigger"><code>pulsar-admin functions trigger</code></a> command is a convenient mechanism for sending messages to functions without using the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> tool or a language-specific client library.</p>
 </blockquote>
-<p>让我我们看一个基于Python的函数示例(<a href="/docs/zh-CN/next/functions-api#python-native-functions">原生接口</a>)，它简单地反转字符串输入:</p>
+<p>The following is an example of Pulsar Functions written in Python (using the <a href="/docs/zh-CN/next/functions-api#python-native-functions">native interface</a>) that simply reverses string inputs.</p>
 <pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> input[::<span class="hljs-number">-1</span>]
 </code></pre>
-<p>如果该函数在Pulsar集群中运行, 则可以像这样被触发:</p>
+<p>If the function is running in a Pulsar cluster, you can trigger it with the following commands.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
   --tenant public \
   --namespace default \
   --name reverse-func \
   --trigger-value <span class="hljs-string">"snoitcnuf raslup ot emoclew"</span>
 </code></pre>
-<p>这应该在控制台返回 <code>welcome to pulsar functions</code>。</p>
+<p>And then <code>welcome to Pulsar Functions</code> is displayed in the console output.</p>
 <blockquote>
-<p>您也可以使用<code>--triggerFile</code>标志，用文件的内容触发Pulsar函数，而不是通过命令行工具传递字符串。</p>
+<p>Note<br>
+Instead of passing a string via the CLI, you can trigger Pulsar Functions with the contents of a file using the <code>--triggerFile</code> flag.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="processing-guarantees"></a><a href="#processing-guarantees" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Processing guarantees</h2>
-<p>Pulsar 函数功能提供三种不同的信息语义，你可以应用于任何函数中：</p>
+<p>Pulsar Functions provide three different messaging semantics that you can apply to any function.</p>
 <table>
 <thead>
 <tr><th style="text-align:left">Delivery semantics</th><th style="text-align:left">说明：</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><strong>At-most-once</strong> delivery</td><td style="text-align:left">发送给函数的每个消息最多会被处理一次</td></tr>
-<tr><td style="text-align:left"><strong>At-least-once</strong> delivery</td><td style="text-align:left">发送给函数的每条消息至少被处理一次</td></tr>
-<tr><td style="text-align:left"><strong>Effectively-once</strong> delivery</td><td style="text-align:left">发送函数的每条消息没精确的处理一次</td></tr>
+<tr><td style="text-align:left"><strong>At-most-once</strong> delivery</td><td style="text-align:left">Each message sent to the function is likely to be processed, or not to be processed (hence &quot;at most&quot;).</td></tr>
+<tr><td style="text-align:left"><strong>At-least-once</strong> delivery</td><td style="text-align:left">Each message sent to the function can be processed more than once (hence the &quot;at least&quot;).</td></tr>
+<tr><td style="text-align:left"><strong>Effectively-once</strong> delivery</td><td style="text-align:left">Each message sent to the function will have one output associated with it.</td></tr>
 </tbody>
 </table>
-<p>例如, 此命令将在 <a href="#cluster-run-mode">群集模式</a> 中运行一个函数, 并effectively-once保证有效性:</p>
+<p>This command, for example, runs a function in the <a href="#cluster-mode">cluster mode</a> with effectively-once guarantees applied.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --name my-effectively-once-function \
   --processing-guarantees EFFECTIVELY_ONCE \
   <span class="hljs-comment"># Other function configs</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="metrics"></a><a href="#metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Metrics</h2>
-<p>Pulsar Functions使用<a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a>可以发布meitrics到Pulsar 关于更多信息，请参阅 <a href="/docs/zh-CN/next/functions-metrics">Metrics for Pulsar Functions</a>.</p>
+<p>Pulsar Functions that use <a href="#the-pulsar-functions-sdk">Pulsar Functions SDK</a> can publish metrics to Pulsar. 关于更多信息，请参阅 <a href="/docs/zh-CN/next/functions-metrics">Metrics for Pulsar Functions</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="state-storage"></a><a href="#state-storage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>State storage</h2>
-<p>Pulsar Functions使用 <a href="https://bookkeeper.apache.org">Apache Bookerper</a> 存储状态。 所有Pulsar安装，包括local standalone安装，BookKeeper bookies的部署等都将状态存储到[Apache BookKeeper](<a href="https://bookkeeper">https://bookkeeper</a>. apache. org)。</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/concepts-schema-registry"><span class="arrow-prev">← </span><span>Schema管理服务</span></a><a class="docs-next button" href="/docs/zh-CN/next/functions-quickstart"><span>Get started</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#goals">Goals</a></li><li><a href="#inspirations">Inspirations</a></li><li><a href="#programming-model">Programming model</a><ul class="toc-headings"><li><a href="#word-count-example">Word count example</a></li><li><a href="#content-based-routing-example">Content-based routing example</a></li></ul></li><li><a href="#command-line-interface">Command-line interface</a></li><li><a href="#fully-qualified-function-name-fqfn">Fully Qualified Function Name (FQFN)</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#supported-languages">Supported languages</a></li><li><a href="#the-pulsar-functions-api">The Pulsar Functions API</a><ul class="toc-headings"><li><a href="#function-context">Function context</a></li><li><a href="#language-native-functions">Language-native functions</a></li></ul></li><li><a href="#the-pulsar-functions-sdk">The Pulsar Functions SDK</a><ul class="toc-headings"><li><a href="#java">Java</a></li><li><a href="#python">Python</a></li></ul></li><li><a href="#部署">部署</a><ul class="toc-headings"><li><a href="#local-run-mode">Local run mode</a></li><li><a href="#cluster-run-mode">Cluster run mode</a></li><li><a href="#parallelism">Parallelism</a></li><li><a href="#function-instance-resources">Function instance resources</a></li><li><a href="#logging">Logging</a></li><li><a href="#user-configuration">User configuration</a></li><li><a href="#triggering-pulsar-functions">Triggering Pulsar Functions</a></li></ul></li><li><a href="#processing-guarantees">Processing guarantees</a></li><li><a href="#metrics">Metrics</a></li><li><a href="#state-storage">State storage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<p>Pulsar Functions使用 <a href="https://bookkeeper.apache.org">Apache Bookerper</a> 存储状态。 Pulsar installation, including the local standalone installation, includes deployment of BookKeeper bookies.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/concepts-schema-registry"><span class="arrow-prev">← </span><span>Schema管理服务</span></a><a class="docs-next button" href="/docs/zh-CN/next/functions-quickstart"><span>Get started</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#goals">Goals</a></li><li><a href="#inspirations">Inspirations</a></li><li><a href="#programming-model">Programming model</a><ul class="toc-headings"><li><a href="#word-count-example">Word count example</a></li><li><a href="#content-based-routing-example">Content-based routing example</a></li></ul></li><li><a href="#command-line-interface">Command-line interface</a></li><li><a href="#fully-qualified-function-name-fqfn">Fully Qualified Function Name (FQFN)</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#supported-languages">Supported languages</a></li><li><a href="#pulsar-functions-api">Pulsar Functions API</a><ul class="toc-headings"><li><a href="#function-context">Function context</a></li><li><a href="#language-native-functions">Language-native functions</a></li></ul></li><li><a href="#pulsar-functions-sdk">Pulsar Functions SDK</a><ul class="toc-headings"><li><a href="#java">Java</a></li><li><a href="#python">Python</a></li><li><a href="#go">Go</a></li></ul></li><li><a href="#部署">部署</a><ul class="toc-headings"><li><a href="#local-run-mode">Local run mode</a></li><li><a href="#cluster-mode">Cluster mode</a></li><li><a href="#run-instances-in-parallel">Run instances in parallel</a></li><li><a href="#function-instance-resources">Function instance resources</a></li><li><a href="#logging">Logging</a></li><li><a href="#user-configuration">User configuration</a></li><li><a href="#trigger-pulsar-functions">Trigger Pulsar Functions</a></li></ul></li><li><a href="#processing-guarantees">Processing guarantees</a></li><li><a href="#metrics">Metrics</a></li><li><a href="#state-storage">State storage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
