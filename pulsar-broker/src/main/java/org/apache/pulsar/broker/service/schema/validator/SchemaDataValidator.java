@@ -42,6 +42,8 @@ public interface SchemaDataValidator {
                 StructSchemaDataValidator.of().validate(schemaData);
                 break;
             case STRING:
+                StringSchemaDataValidator.of().validate(schemaData);
+                break;
             case BOOLEAN:
             case INT8:
             case INT16:
