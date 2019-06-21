@@ -422,10 +422,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         latch.await();
         log.info("{} ledgers closed", numLedgers);
 
-        if (zookeeper != null) {
-            zookeeper.close();
-        }
-
         if (isBookkeeperManaged) {
             try {
                 BookKeeper bkFactory = bookkeeperFactory.get();
@@ -435,6 +431,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             } catch (BKException e) {
                 throw new ManagedLedgerException(e);
             }
+        }
+        
+        if (zookeeper != null) {
+            zookeeper.close();
         }
 
         scheduledExecutor.shutdown();
