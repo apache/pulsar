@@ -96,6 +96,11 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         if (configuration.get("fs.hdfs.impl") == null) {
             this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
         }
+
+        if (configuration.get("fs.file.impl") == null) {
+            this.configuration.set("fs.file.impl", "org.apache.hadoop.fs.LocalFileSystem");
+        }
+
         this.configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
         this.driverName = conf.getManagedLedgerOffloadDriver();
         this.storageBasePath = configuration.get("hadoop.tmp.dir");
@@ -123,8 +128,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
     @Override
     public Map<String, String> getOffloadDriverMetadata() {
+        String path = storageBasePath == null ? "null" : storageBasePath;
         return ImmutableMap.of(
-                STORAGE_BASE_PATH, storageBasePath
+                STORAGE_BASE_PATH, path
         );
     }
 
@@ -276,7 +282,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     }
 
     private static String getStoragePath(String storageBasePath, String managedLedgerName) {
-        return storageBasePath + "/" + managedLedgerName + "/";
+        return storageBasePath == null ? managedLedgerName + "/" : storageBasePath + "/" + managedLedgerName + "/";
     }
 
     private static String getDataFilePath(String storagePath, long ledgerId, UUID uuid) {

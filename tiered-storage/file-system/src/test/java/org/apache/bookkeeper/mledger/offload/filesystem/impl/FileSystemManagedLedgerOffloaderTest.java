@@ -55,7 +55,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private String storagePath = createStoragePath(topic);
     private LedgerHandle lh;
     private ReadHandle toWrite;
-    private final int numberOfEntries = 600;
+    private final int numberOfEntries = 601;
     private  Map<String, String> map = new HashMap<>();
 
     public FileSystemManagedLedgerOffloaderTest() throws Exception {
@@ -144,7 +144,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     }
 
     private String createStoragePath(String managedLedgerName) {
-        return basePath + "/" + managedLedgerName + "/";
+        return basePath == null ? managedLedgerName + "/" : basePath + "/" +  managedLedgerName + "/";
     }
 
     private String createIndexFilePath(String storagePath, long ledgerId, UUID uuid) {

@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import lombok.extern.slf4j.Slf4j;
+import org.testng.annotations.Test;
+
 import java.util.HashMap;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.tests.integration.containers.S3Container;
-import org.testng.annotations.Test;
-
 @Slf4j
-public class TestS3Offload extends TestBaseOffload {
+public class TestFileSystemOffload extends TestBaseOffload {
+
     @Test(dataProvider =  "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeViaCLI(serviceUrl, adminUrl);
@@ -49,12 +49,9 @@ public class TestS3Offload extends TestBaseOffload {
         Map<String, String> result = new HashMap<>();
         result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
-        result.put("managedLedgerOffloadDriver", "s3");
-        result.put("s3ManagedLedgerOffloadBucket", "pulsar-integtest");
-        result.put("s3ManagedLedgerOffloadServiceEndpoint", "http://" + S3Container.NAME + ":9090");
+        result.put("managedLedgerOffloadDriver", "filesystem");
+        result.put("fileSystemURI", "file:///");
 
         return result;
     }
-
-
 }
