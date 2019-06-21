@@ -89,8 +89,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 configuration.addResource(new Path(paths[i]));
             }
         }
-
-        if (conf.getFileSystemURI() != null) {
+        if (!"".equals(conf.getFileSystemURI()) && conf.getFileSystemURI() != null) {
             configuration.set("fs.defaultFS", conf.getFileSystemURI());
         }
         if (configuration.get("fs.hdfs.impl") == null) {

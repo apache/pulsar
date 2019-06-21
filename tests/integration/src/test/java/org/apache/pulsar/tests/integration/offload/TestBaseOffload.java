@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 import org.testng.Assert;
-import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
