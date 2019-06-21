@@ -21,12 +21,14 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -115,16 +117,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .build(), bkClientConfiguration, config);
     }
 
-    private ManagedLedgerFactoryImpl(ZooKeeper zkc, ClientConfiguration bkClientConfiguration,
-            ManagedLedgerFactoryConfig config)
-            throws Exception {
-        this((policyConfig) -> {
-            try {
-                return new BookKeeper(bkClientConfiguration, zkc);
-            } catch (Exception e) {
-                throw new IllegalStateException(e);
-            }
-        }, true /* isBookkeeperManaged */, zkc, config);
+    @VisibleForTesting
+    protected ManagedLedgerFactoryImpl(ZooKeeper zkc, ClientConfiguration bkClientConfiguration,
+            ManagedLedgerFactoryConfig config) throws Exception {
+        this(new DefaultBkFactory(bkClientConfiguration, zkc), true /* isBookkeeperManaged */, zkc, config);
     }
 
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper) throws Exception {
@@ -171,6 +167,21 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         cacheEvictionExecutor.execute(this::cacheEvictionTask);
     }
 
+    static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
+
+        private final BookKeeper bkClient;
+
+        public DefaultBkFactory(ClientConfiguration bkClientConfiguration, ZooKeeper zkc)
+                throws BKException, IOException, InterruptedException {
+            bkClient = new BookKeeper(bkClientConfiguration, zkc);
+        }
+
+        @Override
+        public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
+            return bkClient;
+        }
+    }
+    
     private synchronized void refreshStats() {
         long now = System.nanoTime();
         long period = now - lastStatTimestamp;
@@ -422,19 +433,19 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         latch.await();
         log.info("{} ledgers closed", numLedgers);
 
+        if (zookeeper != null) {
+            zookeeper.close();
+        }
+
         if (isBookkeeperManaged) {
             try {
-                BookKeeper bkFactory = bookkeeperFactory.get();
-                if (bkFactory != null) {
-                    bkFactory.close();
+                BookKeeper bookkeeper = bookkeeperFactory.get();
+                if (bookkeeper != null) {
+                    bookkeeper.close();
                 }
             } catch (BKException e) {
                 throw new ManagedLedgerException(e);
             }
-        }
-        
-        if (zookeeper != null) {
-            zookeeper.close();
         }
 
         scheduledExecutor.shutdown();
