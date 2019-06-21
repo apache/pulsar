@@ -39,7 +39,7 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         this.checkers = checkers;
     }
 
-    private KeyValue<SchemaData, SchemaData> decodeKeyValueSchemaData(SchemaData schemaData) {
+    public static KeyValue<SchemaData, SchemaData> decodeKeyValueSchemaData(SchemaData schemaData) {
         KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
             KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaData.toSchemaInfo());
         return new KeyValue<>(
