@@ -16,14 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.broker.service.schema.exceptions;
 
-public class IncompatibleSchemaException extends Exception {
-    public IncompatibleSchemaException() {
-        super("Incompatible schema used");
+import org.apache.pulsar.broker.service.BrokerServiceException;
+
+/**
+ * Schema related exceptions.
+ */
+public class SchemaException extends BrokerServiceException {
+
+    private static final long serialVersionUID = -6587520779026691815L;
+
+    public SchemaException(String message) {
+        super(message);
     }
 
-    public IncompatibleSchemaException(String message) {
-        super(message);
+    public SchemaException(String message, Throwable cause) {
+        super(message, cause);
     }
 }
