@@ -7682,8 +7682,14 @@
           "404" : {
             "description" : "Tenant or Namespace or Topic doesn't exist"
           },
+          "409" : {
+            "description" : "Incompatible schema"
+          },
           "412" : {
             "description" : "Failed to find the ownership for the topic"
+          },
+          "422" : {
+            "description" : "Invalid schema data"
           }
         }
       },
@@ -8522,6 +8528,9 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
         "overLoaded" : {
           "type" : "boolean"
         },
@@ -8531,16 +8540,16 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -8554,9 +8563,6 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
         }
       }
     },
@@ -9494,11 +9500,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
