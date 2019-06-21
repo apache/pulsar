@@ -70,7 +70,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "tenant/namespace/topic does not exist"),
+            @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate cluster configuration")
@@ -94,7 +94,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "tenant/namespace/topic does not exist"),
+            @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
     })
@@ -119,7 +119,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "tenant/namespace/topic does not exist"),
+            @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
     })
@@ -144,7 +144,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "tenant/namespace does not exist"),
+            @ApiResponse(code = 404, message = "The tenant/namespace does not exist"),
             @ApiResponse(code = 409, message = "Partitioned topic already exists"),
             @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
             @ApiResponse(code = 500, message = "Internal server error"),
@@ -188,7 +188,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "This operation requires super-user access"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "tenant/namespace/topic does not exist"),
+            @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
@@ -216,7 +216,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "tenant/namespace does not exist"),
+            @ApiResponse(code = 404, message = "The tenant/namespace does not exist"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
