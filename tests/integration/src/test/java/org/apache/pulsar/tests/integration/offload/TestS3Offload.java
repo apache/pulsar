@@ -23,10 +23,32 @@ import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.S3Container;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class TestS3Offload extends TestBaseOffload {
+
+    private S3Container s3Container;
+
+    @BeforeClass
+    public void setupS3() {
+        s3Container = new S3Container(
+                pulsarCluster.getClusterName(),
+                S3Container.NAME)
+                .withNetwork(pulsarCluster.getNetwork())
+                .withNetworkAliases(S3Container.NAME);
+        s3Container.start();
+    }
+
+    @AfterClass
+    public void teardownS3() {
+        if (null != s3Container) {
+            s3Container.stop();
+        }
+    }
+
     @Test(dataProvider =  "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeViaCLI(serviceUrl, adminUrl);
