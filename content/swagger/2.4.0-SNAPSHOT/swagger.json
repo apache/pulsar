@@ -4688,7 +4688,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "403" : {
@@ -8528,15 +8528,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -8560,9 +8551,18 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
