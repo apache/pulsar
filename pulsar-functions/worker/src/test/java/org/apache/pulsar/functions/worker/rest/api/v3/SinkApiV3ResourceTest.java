@@ -243,7 +243,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Package is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink package is not provided")
     public void testRegisterSinkMissingPackage() {
         try {
             testRegisterSinkMissingArguments(
@@ -283,7 +283,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "zip file is empty")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Sink archive")
     public void testRegisterSinkMissingPackageDetails() {
         try {
             testRegisterSinkMissingArguments(
@@ -303,7 +303,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class from archive")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract Sink class from archive")
     public void testRegisterSinkInvalidJarNoSink() throws IOException {
         try {
             FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
@@ -921,6 +921,7 @@ public class SinkApiV3ResourceTest {
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -934,7 +935,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSinkWithUrl() throws IOException, ClassNotFoundException {
+    public void testUpdateSinkWithUrl() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 
         String filePackageUrl = "file://" + JAR_FILE_PATH;
@@ -955,13 +956,13 @@ public class SinkApiV3ResourceTest {
         mockStatic(FunctionCommon.class);
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
+        PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
 
         doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
         FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -992,6 +993,7 @@ public class SinkApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -1017,6 +1019,7 @@ public class SinkApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 

@@ -222,6 +222,9 @@ public class SourceConfigUtils {
         if (sourceConfig.getResources() != null) {
             ResourceConfigUtils.validate(sourceConfig.getResources());
         }
+        if (archivePath == null && sourcePackageFile == null) {
+            throw new IllegalArgumentException("Source package is not provided");
+        }
 
         Class<?> typeArg;
         ClassLoader classLoader;
@@ -240,7 +243,7 @@ public class SourceConfigUtils {
         // if source class name is not provided, we can only try to load archive as a NAR
         if (isEmpty(sourceClassName)) {
             if (narClassLoader == null) {
-                throw new IllegalArgumentException("Classname for Source must be provided when submitting a JAR");
+                throw new IllegalArgumentException("Invalid Source archive");
             }
             try {
                 sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);

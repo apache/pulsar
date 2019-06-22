@@ -322,6 +322,9 @@ public class SinkConfigUtils {
             throw new IllegalArgumentException("Sink timeout must be a positive number");
         }
 
+        if (archivePath == null && sinkPackageFile == null) {
+            throw new IllegalArgumentException("Sink package is not provided");
+        }
 
         Class<?> typeArg;
         ClassLoader classLoader;
@@ -340,7 +343,7 @@ public class SinkConfigUtils {
         // if sink class name is not provided, we can only try to load archive as a NAR
         if (isEmpty(sinkClassName)) {
             if (narClassLoader == null) {
-                throw new IllegalArgumentException("Classname for Sink must be provided when submitting a JAR");
+                throw new IllegalArgumentException("Invalid Sink archive");
             }
             try {
                 sinkClassName = ConnectorUtils.getIOSinkClass(narClassLoader);
