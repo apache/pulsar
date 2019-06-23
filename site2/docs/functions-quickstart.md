@@ -48,7 +48,7 @@ A JAR file containing this function and several other functions (written in Java
 ```bash
 $ bin/pulsar-admin functions localrun \
   --jar examples/api-examples.jar \
-  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://public/default/exclamation-input \
   --output persistent://public/default/exclamation-output \
   --name exclamation
