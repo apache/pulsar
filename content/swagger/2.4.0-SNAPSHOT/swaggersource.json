@@ -167,7 +167,7 @@
           "description" : "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
           "required" : false,
           "schema" : {
-            "type" : "string"
+            "$ref" : "#/definitions/SourceConfig"
           },
           "x-examples" : {
             "application/json" : "{\n  \"tenant\": public\n  \"namespace\": default\n  \"name\": pulsar-io-mysql\n  \"className\": TestSourceMysql\n  \"topicName\": pulsar-io-mysql\n  \"parallelism\": 1\n  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n  \"schemaType\": avro\n}"
@@ -219,13 +219,29 @@
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
+          "description" : "URL of sources' archive",
           "required" : false,
           "schema" : {
             "type" : "string"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/SourceConfig"
           },
           "x-examples" : {
             "application/json" : "{\n  \"tenant\": public\n  \"namespace\": default\n  \"name\": pulsar-io-mysql\n  \"className\": TestSourceMysql\n  \"topicName\": pulsar-io-mysql\n  \"parallelism\": 1\n  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n  \"schemaType\": avro\n}"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Update options for source",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/UpdateOptions"
           }
         } ],
         "responses" : {
@@ -855,6 +871,16 @@
           }
         }
       }
+    },
+    "UpdateOptions" : {
+      "type" : "object",
+      "properties" : {
+        "update-auth-data" : {
+          "type" : "boolean",
+          "description" : "Whether or not to update the auth data"
+        }
+      },
+      "description" : "Options while updating the sink"
     }
   }
 }
