@@ -434,28 +434,28 @@ public class SinkApiV3ResourceTest {
             sinkConfig.setParallelism(parallelism);
         }
 
-        resource.registerFunction(
+        resource.registerSink(
                 tenant,
                 namespace,
                 sink,
                 inputStream,
                 details,
                 pkgUrl,
-                new Gson().toJson(sinkConfig),
+                sinkConfig,
                 null, null);
 
     }
 
     private void registerDefaultSink() throws IOException {
         SinkConfig sinkConfig = createDefaultSinkConfig();
-        resource.registerFunction(
+        resource.registerSink(
             tenant,
             namespace,
                 sink,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
-            new Gson().toJson(sinkConfig),
+            sinkConfig,
                 null, null);
     }
 
@@ -548,14 +548,14 @@ public class SinkApiV3ResourceTest {
         sinkConfig.setClassName(className);
         sinkConfig.setParallelism(parallelism);
         sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
-        resource.registerFunction(
+        resource.registerSink(
                 actualTenant,
                 actualNamespace,
                 actualName,
                 new FileInputStream(JAR_FILE_PATH),
                 mockedFormData,
                 null,
-                new Gson().toJson(sinkConfig),
+                sinkConfig,
                 null, null);
     }
 
@@ -829,14 +829,14 @@ public class SinkApiV3ResourceTest {
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
         }
 
-        resource.updateFunction(
+        resource.updateSink(
             tenant,
             namespace,
             sink,
             inputStream,
             details,
             null,
-            new Gson().toJson(sinkConfig),
+            sinkConfig,
                 null, null, null);
 
     }
@@ -870,14 +870,14 @@ public class SinkApiV3ResourceTest {
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
 
-        resource.updateFunction(
+        resource.updateSink(
             tenant,
             namespace,
                 sink,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
-            new Gson().toJson(sinkConfig),
+            sinkConfig,
                 null, null, null);
     }
 
@@ -972,14 +972,14 @@ public class SinkApiV3ResourceTest {
             CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        resource.updateFunction(
+        resource.updateSink(
             tenant,
             namespace,
                 sink,
             null,
             null,
             filePackageUrl,
-            new Gson().toJson(sinkConfig),
+            sinkConfig,
                 null, null, null);
     }
 
@@ -1364,7 +1364,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace does not exist")
-    public void testRegisterFunctionNonExistingNamespace() throws Exception {
+    public void testregisterSinkNonExistingNamespace() throws Exception {
         try {
             this.namespaceList.clear();
             registerDefaultSink();
@@ -1375,7 +1375,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant does not exist")
-    public void testRegisterFunctionNonExistingTenant() throws Exception {
+    public void testregisterSinkNonExistingTenant() throws Exception {
         try {
             when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);
             registerDefaultSink();

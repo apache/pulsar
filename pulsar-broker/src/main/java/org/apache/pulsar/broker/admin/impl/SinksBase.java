@@ -77,7 +77,7 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                              final @PathParam("sinkName") String sinkName,
                              final @FormDataParam("data") InputStream uploadedInputStream,
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                             final @FormDataParam("url") String functionPkgUrl,
+                             final @FormDataParam("url") String sinkPkgUrl,
                              @ApiParam(
                                  value =
                                      "A JSON value presenting a sink config playload. All available configuration options are:  \n" +
@@ -136,10 +136,9 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                                      )
                                  )
                              )
-                             final @FormDataParam("sinkConfig") String sinkConfigJson) {
-
-        sink.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData());
+                             final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
+        sink.registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -162,7 +161,8 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                            final @PathParam("sinkName") String sinkName,
                            final @FormDataParam("data") InputStream uploadedInputStream,
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                           final @FormDataParam("url") String functionPkgUrl,
+                           @ApiParam(value = "URL of sink's archive")
+                           final @FormDataParam("url") String sinkPkgUrl,
                            @ApiParam(
                                value =
                                    "A JSON value presenting a sink config playload. All available configuration options are:  \n" +
@@ -221,12 +221,11 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                                    )
                                )
                            )
-                           final @FormDataParam("sinkConfig") String sinkConfigJson,
-                           @ApiParam()
+                           final @FormDataParam("sinkConfig") SinkConfig sinkConfig,
+                           @ApiParam(value = "Update options for sink")
                            final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
-
-         sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData(), updateOptions);
+         sink.updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData(), updateOptions);
 
     }
 
