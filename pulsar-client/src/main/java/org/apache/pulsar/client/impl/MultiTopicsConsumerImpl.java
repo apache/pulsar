@@ -774,7 +774,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
             ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
-                    client.externalExecutorProvider().getExecutor(), 0, subFuture, SubscriptionMode.Durable, null,
+                    client.externalExecutorProvider().getExecutor(), -1, subFuture, SubscriptionMode.Durable, null,
                     schema, interceptors, client.getConfiguration().getDefaultBackoffIntervalNanos(),
                     client.getConfiguration().getMaxBackoffIntervalNanos());
             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
