@@ -89,7 +89,7 @@ PULSAR_PUBLIC void pulsar_consumer_configuration_set_consumer_type(
 PULSAR_PUBLIC pulsar_consumer_type
 pulsar_consumer_configuration_get_consumer_type(pulsar_consumer_configuration_t *consumer_configuration);
 
-void pulsar_consumer_configuration_set_schema_info(pulsar_consumer_configuration_t *consumer_configuration,
+PULSAR_PUBLIC void pulsar_consumer_configuration_set_schema_info(pulsar_consumer_configuration_t *consumer_configuration,
                                                    pulsar_schema_type schemaType, const char *name,
                                                    const char *schema, pulsar_string_map_t *properties);
 
