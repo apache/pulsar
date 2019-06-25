@@ -49,11 +49,8 @@ to launch a linux virtual machine and run the integration tests there.
    If that happens, follow the below instructions:
 
    ```
-   # ssh to the dev vm
-   $ vagrant ssh
-
-   [vagrant@bogon pulsar]$ sudo yum update -y
-   [vagrant@bogon pulsar]$ exit  
+    $ vagrant plugin install vagrant-vbguest
+    $ vagrant destroy && vagrant up
 
    # reload the vm
    $ vagrant reload
