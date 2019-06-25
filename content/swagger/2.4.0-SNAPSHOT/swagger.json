@@ -3476,11 +3476,23 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to manage resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Namespace doesn't exist"
+            "description" : "The tenant/namespace does not exist"
+          },
+          "412" : {
+            "description" : "Namespace name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -3543,16 +3555,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Specify the tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Specify the namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "bundle",
           "in" : "path",
+          "description" : "Bundle range of a topic",
           "required" : true,
           "type" : "string"
         } ],
@@ -3566,11 +3581,23 @@
               }
             }
           },
+          "401" : {
+            "description" : "Don't have permission to manage resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
             "description" : "Namespace doesn't exist"
+          },
+          "412" : {
+            "description" : "Namespace name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -4016,11 +4043,20 @@
               "$ref" : "#/definitions/PersistentTopicInternalStats"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to manage resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Topic does not exist"
+            "description" : "The tenant/namespace/topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -4307,8 +4343,23 @@
               "$ref" : "#/definitions/PartitionedTopicMetadata"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to manage resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "The tenant/namespace/topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate cluster configuration"
           }
         }
       },
@@ -4407,14 +4458,23 @@
           }
         } ],
         "responses" : {
+          "401" : {
+            "description" : "Don't have permission to manage resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "The tenant/namespace does not exist"
           },
           "409" : {
             "description" : "Partitioned topic already exists"
           },
           "412" : {
             "description" : "Failed Reason : Name is invalid or Namespace does not have any clusters configured"
+          },
+          "500" : {
+            "description" : "Internal server error"
           },
           "503" : {
             "description" : "Failed to validate global cluster configuration"
@@ -4691,11 +4751,20 @@
               "$ref" : "#/definitions/TopicStats"
             }
           },
+          "401" : {
+            "description" : "Don't have permission to manage resources on this tenant"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Topic does not exist"
+            "description" : "The tenant/namespace/topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
           }
         }
       }
@@ -5408,11 +5477,23 @@
           "default" : false
         } ],
         "responses" : {
+          "401" : {
+            "description" : "This operation requires super-user access"
+          },
           "403" : {
             "description" : "Don't have admin permission"
           },
           "404" : {
-            "description" : "Topic does not exist"
+            "description" : "The tenant/namespace/topic does not exist"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
           }
         }
       }
@@ -8528,19 +8609,20 @@
           "type" : "number",
           "format" : "double"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -8551,15 +8633,14 @@
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "overLoaded" : {
-          "type" : "boolean"
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "loadReportType" : {
           "type" : "string"
@@ -9500,11 +9581,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
