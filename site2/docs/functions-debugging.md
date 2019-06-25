@@ -127,13 +127,13 @@ To use localrun like above programmatically please addd the following dependency
 
 ```
 
-For complete code samples, see [here](https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging)
+For complete code samples, see [here](https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging).
 
 In the future, debugging with localrun mode for Pulsar Functions written in other languages will be supported.
 
 ## Use log topic
 
-The Pulsar Functions allows you to output the log information defined in functions to a specified log topic. Consumers can be configured to consume messages from a specified log topic to check the log information.
+Pulsar Functions allows you to output the log information defined in functions to a specified log topic. Consumers can be configured to consume messages from a specified log topic to check the log information.
 
 ![Pulsar Functions core programming model](assets/pulsar-functions-overview.png)
 
@@ -161,7 +161,7 @@ public class LoggingFunction implements Function<String, Void> {
 }
 ```
 
-As shown in the example below, you can get the logger via `context.getLogger()` and assign the logger to the `LOG` variable of `slf4j`, so you can define your desired log information in a function using the `LOG` variable. You also need to specify the topic to which the log information is produced.
+As shown in the example above, you can get the logger via `context.getLogger()` and assign the logger to the `LOG` variable of `slf4j`, so you can define your desired log information in a function using the `LOG` variable. You also need to specify the topic to which the log information is produced.
 
 **Example** 
 
@@ -173,7 +173,7 @@ $ bin/pulsar-admin functions create \
 
 ## Use Functions CLI
 
-The [Pulsar Functions CLI](reference-pulsar-admin.md#functions) helps you in debugging Pulsar functions with the following subcommands:
+The [Pulsar Functions CLI](reference-pulsar-admin.md#functions) helps you in debugging Pulsar Functions with the following subcommands:
 
 * get
 * status
@@ -187,7 +187,7 @@ The [Pulsar Functions CLI](reference-pulsar-admin.md#functions) helps you in deb
 
 ### get
 
-Get information about a Pulsar function.
+Get information about a Pulsar Function.
 
 **Usage**
 
@@ -199,10 +199,10 @@ $ pulsar-admin functions get options
 
 |Flag|Description
 |---|---
-|`--fqfn`|The Fully Qualified Function Name (FQFN) of a function
-|`--name`|The name of a function
-|`--namespace`|The namespace of a function
-|`--tenant`|The tenant of a function
+|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function
+|`--name`|The name of a Pulsar Function
+|`--namespace`|The namespace of a Pulsar Function
+|`--tenant`|The tenant of a Pulsar Function
 
 > **Tip**
 > 
@@ -210,12 +210,12 @@ $ pulsar-admin functions get options
 
 **Example** 
 
-You can specify `--fqfn` to get information about a Pulsar function.
+You can specify `--fqfn` to get information about a Pulsar Function.
 
 ```text
 $ ./bin/pulsar-admin functions get public/default/ExclamationFunctio6
 ```
-Optionally, you can specify `--name`, `--namespace` and `--tenant` to get information about a Pulsar function.
+Optionally, you can specify `--name`, `--namespace` and `--tenant` to get information about a Pulsar Function.
 
 ```text
 $ ./bin/pulsar-admin functions get \
@@ -249,7 +249,7 @@ As shown below, the `get` command shows input, output, runtime, and other inform
 
 ### status
 
-Check the current status of a Pulsar function.
+Check the current status of a Pulsar Function.
 
 **Usage**
 
@@ -261,11 +261,11 @@ $ pulsar-admin functions status options
 
 |Flag|Description
 |---|---
-|`--fqfn`|The Fully Qualified Function Name (FQFN) of a function
-|`--instance-id`|The instance ID of a function <br>If the `--instance-id` is not specified, it will get the IDs of all instances<br>
-|`--name`|The name of a function 
-|`--namespace`|The namespace of a function
-|`--tenant`|The tenant of a function
+|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function
+|`--instance-id`|The instance ID of a Pulsar Function <br>If the `--instance-id` is not specified, it will get the IDs of all instances<br>
+|`--name`|The name of a Pulsar Function 
+|`--namespace`|The namespace of a Pulsar Function
+|`--tenant`|The tenant of a Pulsar Function
 
 **Example** 
 
@@ -304,7 +304,7 @@ As shown below, the `status` command shows the number of instances, the number o
 
 ### stats
 
-Get the current stats of a Pulsar function.
+Get the current stats of a Pulsar Function.
 
 **Usage**
 
@@ -316,11 +316,11 @@ $ pulsar-admin functions stats options
 
 |Flag|Description
 |---|---
-|`--fqfn`|The Fully Qualified Function Name (FQFN) of a function
-|`--instance-id`|The instance ID of a function <br>If the `--instance-id` is not specified, it will get the IDs of all instances<br>
-|`--name`|The name of a function 
-|`--namespace`|The namespace of a function
-|`--tenant`|The tenant of a function
+|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function
+|`--instance-id`|The instance ID of a Pulsar Function <br>If the `--instance-id` is not specified, it will get the IDs of all instances<br>
+|`--name`|The name of a Pulsar Function 
+|`--namespace`|The namespace of a Pulsar Function
+|`--tenant`|The tenant of a Pulsar Function
 
 **Example**
 
@@ -372,7 +372,7 @@ The output is as below:
 
 ### list
 
-List all Pulsar functions running under a specific tenant and namespace.
+List all Pulsar Functions running under a specific tenant and namespace.
 
 **Usage**
 
@@ -384,8 +384,8 @@ $ pulsar-admin functions list options
 
 |Flag|Description
 |---|---
-|`--namespace`|The namespace of a function
-|`--tenant`|The tenant of a function
+|`--namespace`|The namespace of a Pulsar Function
+|`--tenant`|The tenant of a Pulsar Function
 
 **Example** 
 
@@ -404,7 +404,7 @@ ExclamationFunctio3
 
 ### trigger
 
-Trigger a specified Pulsar function with a supplied value. This command simulates the execution process of a function and verifies a function.
+Trigger a specified Pulsar Function with a supplied value. This command simulates the execution process of a Plusar Function and verifies it.
 
 **Usage**
 
@@ -416,13 +416,13 @@ $ pulsar-admin functions trigger options
 
 |Flag|Description
 |---|---
-|`--fqfn`|The Fully Qualified Function Name (FQFN) of a function
-|`--name`|The name of a function
-|`--namespace`|The namespace of a function
-|`--tenant`|The tenant of a function
-|`--topic`|The topic name that a function consumes from
-|`--trigger-file`|The path to a file that contains the data to trigger a function
-|`--trigger-value`|The value to trigger a function
+|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function
+|`--name`|The name of a Pulsar Function
+|`--namespace`|The namespace of a Pulsar Function
+|`--tenant`|The tenant of a Pulsar Function
+|`--topic`|The topic name that a Pulsar Function consumes from
+|`--trigger-file`|The path to a file that contains the data to trigger a Pulsar Function
+|`--trigger-value`|The value to trigger a Pulsar Function
 
 **Example** 
 
@@ -442,7 +442,7 @@ This is my function!
 ```
 
 > #### **Note**
-> You must specify the [entire topic name](getting-started-pulsar.md#topic-names) when using the `--topic` option. Otherwise, the following error will be raised.
+> You must specify the [entire topic name](getting-started-pulsar.md#topic-names) when using the `--topic` option. Otherwise, the following error is raised.
 >
 >```text
 >Function in trigger function has unidentified topic
