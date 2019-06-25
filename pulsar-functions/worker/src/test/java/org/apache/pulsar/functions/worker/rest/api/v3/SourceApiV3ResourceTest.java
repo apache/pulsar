@@ -404,28 +404,28 @@ public class SourceApiV3ResourceTest {
             sourceConfig.setParallelism(parallelism);
         }
 
-        resource.registerFunction(
+        resource.registerSource(
                 tenant,
                 namespace,
                 function,
                 inputStream,
                 details,
                 pkgUrl,
-                new Gson().toJson(sourceConfig),
+                sourceConfig,
                 null, null);
 
     }
 
     private void registerDefaultSource() throws IOException {
         SourceConfig sourceConfig = createDefaultSourceConfig();
-        resource.registerFunction(
+        resource.registerSource(
             tenant,
             namespace,
                 source,
             new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
-            new Gson().toJson(sourceConfig),
+            sourceConfig,
                 null, null);
     }
 
@@ -518,14 +518,14 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setParallelism(parallelism);
         sourceConfig.setTopicName(outputTopic);
         sourceConfig.setSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(
+        resource.registerSource(
                 actualTenant,
                 actualNamespace,
                 actualName,
                 new FileInputStream(JAR_FILE_PATH),
                 mockedFormData,
                 null,
-                new Gson().toJson(sourceConfig),
+                sourceConfig,
                 null, null);
     }
 
@@ -850,14 +850,14 @@ public class SourceApiV3ResourceTest {
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
         }
 
-        resource.updateFunction(
+        resource.updateSource(
             tenant,
             namespace,
             function,
             inputStream,
             details,
             null,
-            new Gson().toJson(sourceConfig),
+            sourceConfig,
                 null, null, null);
 
     }
@@ -887,14 +887,14 @@ public class SourceApiV3ResourceTest {
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
 
-        resource.updateFunction(
+        resource.updateSource(
             tenant,
             namespace,
                 source,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
-            new Gson().toJson(sourceConfig),
+            sourceConfig,
                 null, null, null);
     }
 
@@ -988,14 +988,14 @@ public class SourceApiV3ResourceTest {
             CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        resource.updateFunction(
+        resource.updateSource(
             tenant,
             namespace,
                 source,
             null,
             null,
             filePackageUrl,
-            new Gson().toJson(sourceConfig),
+            sourceConfig,
                 null, null, null);
 
     }

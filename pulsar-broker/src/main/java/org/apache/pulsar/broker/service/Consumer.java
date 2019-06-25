@@ -312,7 +312,7 @@ public class Consumer {
         }).exceptionally(exception -> {
             log.warn("Unsubscribe failed for {}", subscription, exception);
             ctx.writeAndFlush(
-                    Commands.newError(requestId, BrokerServiceException.getClientErrorCode(exception.getCause()),
+                    Commands.newError(requestId, BrokerServiceException.getClientErrorCode(exception),
                             exception.getCause().getMessage()));
             return null;
         });

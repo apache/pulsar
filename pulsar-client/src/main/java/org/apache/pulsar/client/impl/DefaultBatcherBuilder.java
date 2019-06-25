@@ -16,14 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.client.impl;
 
-public class IncompatibleSchemaException extends Exception {
-    public IncompatibleSchemaException() {
-        super("Incompatible schema used");
-    }
+import org.apache.pulsar.client.api.BatchMessageContainer;
+import org.apache.pulsar.client.api.BatcherBuilder;
 
-    public IncompatibleSchemaException(String message) {
-        super(message);
+public class DefaultBatcherBuilder implements BatcherBuilder {
+
+    @Override
+    public BatchMessageContainer build() {
+        return new BatchMessageContainerImpl();
     }
 }
