@@ -20,14 +20,9 @@
     ],
     "Pulsar Functions": [
       "functions-overview",
-      "functions-quickstart",
-      "functions-api",
-      "functions-deploying",
-      "functions-guarantees",
-      "functions-state",
-      "functions-metrics",
       "functions-worker",
       "functions-runtime",
+      "functions-deploying",
       "functions-debugging"
     ],
     "Pulsar IO": [
