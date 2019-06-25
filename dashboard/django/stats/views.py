@@ -48,6 +48,7 @@ def home(request):
             numNamespaces = Subquery(
                 Namespace.objects.filter(
                     deleted=False,
+                    timestamp=ts,
                     property=OuterRef('pk')
                 ).values('property')
                     .annotate(cnt=Count('pk'))
