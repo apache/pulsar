@@ -38,6 +38,8 @@
         <include>**/pom.xml</include>
         <include>**/src/**</include>
         <include>**/pulsar-client-cpp/**</include>
+        <include>**/pulsar-client-go/**</include>
+        <include>**/pulsar-function-go/**</include>
         <include>**/conf/**</include>
         <include>**/bin/**</include>
         <include>**/*.txt</include>
