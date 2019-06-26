@@ -19,6 +19,19 @@
       "concepts-schema-registry"
     ],
     "Pulsar Functions": [
+      "functions-overview-old",
+      "functions-quickstart",
+      "functions-api",
+      "functions-deploying",
+      "functions-guarantees",
+      "functions-state",
+      "functions-metrics",
+      "functions-worker",
+      "functions-runtime",
+      "functions-deploying",
+      "functions-debugging"
+    ],
+    "Pulsar Functions（New）": [
       "functions-overview",
       "functions-worker",
       "functions-runtime",
