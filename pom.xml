@@ -1296,6 +1296,12 @@ flexible messaging model and an intuitive client API.</description>
             <!-- LZ4 code is under BSD 2-clause  -->
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
 
+            <!-- These files is go module configs -->
+            <exclude>pulsar-client-go/go.mod</exclude>
+            <exclude>pulsar-client-go/go.sum</exclude>
+            <exclude>pulsar-function-go/go.mod</exclude>
+            <exclude>pulsar-function-go/go.sum</exclude>
+
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
 
