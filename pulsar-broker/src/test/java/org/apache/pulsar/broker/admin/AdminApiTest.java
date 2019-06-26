@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -469,6 +470,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertTrue(e instanceof PreconditionFailedException);
         }
 
+        
+        admin.brokers().updateDynamicConfiguration("loadManagerClassName", SimpleLoadManagerImpl.class.getName());
+        retryStrategically((test) -> pulsar.getConfiguration().getLoadManagerClassName()
+                .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
+        assertEquals(pulsar.getConfiguration().getLoadManagerClassName(), SimpleLoadManagerImpl.class.getName());
+        admin.brokers().deleteDynamicConfiguration("loadManagerClassName");
+        assertFalse(admin.brokers().getAllDynamicConfigurations().containsKey("loadManagerClassName"));
     }
 
     /**

@@ -73,6 +73,15 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
+    public void deleteDynamicConfiguration(String configName) throws PulsarAdminException {
+        try {
+            request(adminBrokers.path("/configuration/").path(configName)).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
+    @Override
     public Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException {
         try {
             return request(adminBrokers.path("/configuration/").path("values")).get(new GenericType<Map<String, String>>() {
