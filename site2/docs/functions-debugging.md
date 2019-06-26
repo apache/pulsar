@@ -175,17 +175,17 @@ $ bin/pulsar-admin functions create \
 
 The [Pulsar Functions CLI](reference-pulsar-admin.md#functions) helps you in debugging Pulsar Functions with the following subcommands:
 
-* get
-* status
-* stats
-* list
-* trigger
+* `get`
+* `status`
+* `stats`
+* `list`
+* `trigger`
 
 > **Tip**
 > 
 > For complete commands of **Pulsar Functions CLI**, see [here](reference-pulsar-admin.md#functions)。
 
-### get
+### `get`
 
 Get information about a Pulsar Function.
 
@@ -247,7 +247,7 @@ As shown below, the `get` command shows input, output, runtime, and other inform
 }
 ```
 
-### status
+### `status`
 
 Check the current status of a Pulsar Function.
 
@@ -302,7 +302,7 @@ As shown below, the `status` command shows the number of instances, the number o
 }
 ```
 
-### stats
+### `stats`
 
 Get the current stats of a Pulsar Function.
 
@@ -370,7 +370,7 @@ The output is as below:
 }
 ```
 
-### list
+### `list`
 
 List all Pulsar Functions running under a specific tenant and namespace.
 
@@ -402,7 +402,7 @@ ExclamationFunctio2
 ExclamationFunctio3
 ```
 
-### trigger
+### `trigger`
 
 Trigger a specified Pulsar Function with a supplied value. This command simulates the execution process of a Plusar Function and verifies it.
 
