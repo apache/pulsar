@@ -78,6 +78,7 @@
         <exclude>**/python/dist/**</exclude>
         <exclude>**/pulsar-client-cpp/pkg/rpm/RPMS/**</exclude>
         <exclude>**/pulsar-client-cpp/pkg/rpm/SOURCES/**</exclude>
+        <exclude>**/pulsar-client-cpp/pkg/deb/BUILD/**</exclude>
         <exclude>**/python/wheelhouse/**</exclude>
         <exclude>**/python/MANIFEST</exclude>
         <exclude>**/*.egg-info/**</exclude>
