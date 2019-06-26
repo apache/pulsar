@@ -130,7 +130,7 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>producer_name</code></td><td style="text-align:left">The name of the producer that published the message</td></tr>
-<tr><td style="text-align:left"><code>sequence_id</code></td><td style="text-align:left">The sequence ID of the message, assigned by producer}</td></tr>
+<tr><td style="text-align:left"><code>sequence_id</code></td><td style="text-align:left">The sequence ID of the message, assigned by producer</td></tr>
 <tr><td style="text-align:left"><code>publish_time</code></td><td style="text-align:left">The publish timestamp in Unix time (i.e. as the number of milliseconds since January 1st, 1970 in UTC)</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">A sequence of key/value pairs (using the <a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>KeyValue</code></a> message). These are application-defined keys and values with no special meaning to Pulsar.</td></tr>
 <tr><td style="text-align:left"><code>replicated_from</code> <em>(optional)</em></td><td style="text-align:left">Indicates that the message has been replicated and specifies the name of the <a href="/docs/zh-CN/next/reference-terminology#cluster">cluster</a> where the message was originally published</td></tr>
