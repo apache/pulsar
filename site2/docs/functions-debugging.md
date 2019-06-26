@@ -133,7 +133,7 @@ In the future, debugging with localrun mode for Pulsar Functions written in othe
 
 ## Use log topic
 
-Pulsar Functions allows you to output the log information defined in functions to a specified log topic. Consumers can be configured to consume messages from a specified log topic to check the log information.
+Pulsar Functions allow you to output the log information defined in functions to a specified log topic. Consumers can be configured to consume messages from a specified log topic to check the log information.
 
 ![Pulsar Functions core programming model](assets/pulsar-functions-overview.png)
 
