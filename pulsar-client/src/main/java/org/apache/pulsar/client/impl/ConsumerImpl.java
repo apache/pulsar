@@ -312,10 +312,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         Message<T> message;
         try {
             message = incomingMessages.take();
-            trackMessage(message);
-            Message<T> interceptMsg = beforeConsume(message);
-            messageProcessed(interceptMsg);
-            return interceptMsg;
+            messageProcessed(message);
+            return beforeConsume(message);
         } catch (InterruptedException e) {
             stats.incrementNumReceiveFailed();
             throw PulsarClientException.unwrap(e);
@@ -341,10 +339,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (message != null) {
-            trackMessage(message);
-            Message<T> interceptMsg = beforeConsume(message);
-            messageProcessed(interceptMsg);
-            result.complete(interceptMsg);
+            messageProcessed(message);
+            result.complete(beforeConsume(message));
         }
 
         return result;
@@ -355,12 +351,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         Message<T> message;
         try {
             message = incomingMessages.poll(timeout, unit);
-            trackMessage(message);
-            Message<T> interceptMsg = beforeConsume(message);
-            if (interceptMsg != null) {
-                messageProcessed(interceptMsg);
+            if (message == null) {
+                return null;
             }
-            return interceptMsg;
+            messageProcessed(message);
+            return beforeConsume(message);
         } catch (InterruptedException e) {
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
@@ -821,7 +816,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(), Collections.singletonList(message));
                 }
                 if (!pendingReceives.isEmpty()) {
-                    trackMessage(message);
                     notifyPendingReceivedCallback(message, null);
                 } else if (canEnqueueMessage(message)) {
                     incomingMessages.add(message);
@@ -1044,19 +1038,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         increaseAvailablePermits(currentCnx);
         stats.updateNumMsgsReceived(msg);
 
-        if (conf.getAckTimeoutMillis() != 0) {
-            // reset timer for messages that are received by the client
-            MessageIdImpl id = (MessageIdImpl) msg.getMessageId();
-            if (id instanceof BatchMessageIdImpl) {
-                id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
-            }
-            if (partitionIndex != -1) {
-                // we should no longer track this message, TopicsConsumer will take care from now onwards
-                unAckedMessageTracker.remove(id);
-            } else {
-                unAckedMessageTracker.add(id);
-            }
-        }
+        trackMessage(msg);
     }
 
     protected void trackMessage(Message<?> msg) {
@@ -1068,7 +1050,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // do not add each item in batch message into tracker
                     id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
                 }
-                unAckedMessageTracker.add(id);
+                if (partitionIndex != -1) {
+                    // we should no longer track this message, TopicsConsumer will take care from now onwards
+                    unAckedMessageTracker.remove(id);
+                } else {
+                    unAckedMessageTracker.add(id);
+                }
             }
         }
     }

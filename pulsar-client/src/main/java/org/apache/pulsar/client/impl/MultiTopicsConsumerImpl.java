@@ -260,7 +260,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(
                 consumer.getTopic(), consumer.getTopicNameWithoutPartition(), message);
-            unAckedMessageTracker.add(topicMessage.getMessageId());
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Received message from topics-consumer {}",
@@ -270,6 +269,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
             if (!pendingReceives.isEmpty()) {
                 CompletableFuture<Message<T>> receivedFuture = pendingReceives.poll();
+                unAckedMessageTracker.add(topicMessage.getMessageId());
                 listenerExecutor.execute(() -> receivedFuture.complete(topicMessage));
             } else {
                 // Enqueue the message so that it can be retrieved when application calls receive()
