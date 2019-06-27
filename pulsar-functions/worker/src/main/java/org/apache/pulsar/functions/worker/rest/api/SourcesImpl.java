@@ -255,6 +255,9 @@ public class SourcesImpl extends ComponentImpl {
         if (sourceName == null) {
             throw new RestException(Response.Status.BAD_REQUEST, ComponentTypeUtils.toString(componentType) + " Name is not provided");
         }
+        if (sourceConfig == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Source config is not provided");
+        }
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {

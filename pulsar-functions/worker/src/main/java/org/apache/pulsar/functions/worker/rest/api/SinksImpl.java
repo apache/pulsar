@@ -255,6 +255,9 @@ public class SinksImpl extends ComponentImpl {
         if (sinkName == null) {
             throw new RestException(Response.Status.BAD_REQUEST, ComponentTypeUtils.toString(componentType) + " Name is not provided");
         }
+        if (sinkConfig == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Sink config is not provided");
+        }
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
