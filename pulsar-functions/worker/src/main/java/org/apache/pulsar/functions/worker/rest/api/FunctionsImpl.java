@@ -92,7 +92,7 @@ public class FunctionsImpl extends ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not admin and authorized to register {}", tenant, namespace,
+                log.error("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -116,7 +116,7 @@ public class FunctionsImpl extends ComponentImpl {
                 }
             }
         } catch (PulsarAdminException.NotAuthorizedException e) {
-            log.error("{}/{}/{} Client [{}] is not admin and authorized to operate {} on tenant", tenant, namespace,
+            log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
                     functionName, clientRole, ComponentTypeUtils.toString(componentType));
             throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
@@ -253,7 +253,7 @@ public class FunctionsImpl extends ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not admin and authorized to update {}", tenant, namespace,
+                log.error("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
 
