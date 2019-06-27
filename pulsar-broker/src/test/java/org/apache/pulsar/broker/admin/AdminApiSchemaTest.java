@@ -45,7 +45,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         super.internalSetup();
 
         // Setup namespaces
@@ -57,7 +57,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     @AfterMethod
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
