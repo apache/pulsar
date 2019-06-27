@@ -199,8 +199,9 @@ public class PersistentSubscription implements Subscription {
             case Failover:
                 int partitionIndex = TopicName.getPartitionIndex(topicName);
                 if (partitionIndex < 0) {
-                    // For non partition topics, assume index 0 to pick a predictable consumer
-                    partitionIndex = 0;
+                    // For non partition topics, use a negative index so dispatcher won't sort consumers before picking
+                    // an active consumer for the topic.
+                    partitionIndex = -1;
                 }
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {

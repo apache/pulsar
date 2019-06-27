@@ -80,34 +80,45 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     /**
-     * @return the previous active consumer if the consumer is changed, otherwise null.
+     * Pick active consumer for a topic for {@link SubType#Failover} subscription.
+     * If it's a non-partitioned topic then it'll pick consumer based on order they subscribe to the topic.
+     * If is's a partitioned topic, first sort consumers based on their priority level and consumer name then
+     * distributed partitions evenly across consumers with highest priority level.
+     *
+     * @return the true consumer if the consumer is changed, otherwise false.
      */
     protected boolean pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
+        // By default always pick the first connected consumer for non partitioned topic.
+        int index = 0;
 
-        AtomicBoolean hasPriorityConsumer = new AtomicBoolean(false);
-        consumers.sort((c1, c2) -> {
-            int priority = c1.getPriorityLevel() - c2.getPriorityLevel();
-            if (priority != 0) {
-                hasPriorityConsumer.set(true);
-                return priority;
-            }
-            return c1.consumerName().compareTo(c2.consumerName());
-        });
+        // If it's a partitioned topic, sort consumers based on priority level then consumer name.
+        if (partitionIndex >= 0) {
+            AtomicBoolean hasPriorityConsumer = new AtomicBoolean(false);
+            consumers.sort((c1, c2) -> {
+                int priority = c1.getPriorityLevel() - c2.getPriorityLevel();
+                if (priority != 0) {
+                    hasPriorityConsumer.set(true);
+                    return priority;
+                }
+                return c1.consumerName().compareTo(c2.consumerName());
+            });
 
-        int consumersSize = consumers.size();
-        // find number of consumers which are having the highest priorities. so partitioned-topic assignment happens
-        // evenly across highest priority consumers
-        if (hasPriorityConsumer.get()) {
-            int highestPriorityLevel = consumers.get(0).getPriorityLevel();
-            for (int i = 0; i < consumers.size(); i++) {
-                if (highestPriorityLevel != consumers.get(i).getPriorityLevel()) {
-                    consumersSize = i;
-                    break;
+            int consumersSize = consumers.size();
+            // find number of consumers which are having the highest priorities. so partitioned-topic assignment happens
+            // evenly across highest priority consumers
+            if (hasPriorityConsumer.get()) {
+                int highestPriorityLevel = consumers.get(0).getPriorityLevel();
+                for (int i = 0; i < consumers.size(); i++) {
+                    if (highestPriorityLevel != consumers.get(i).getPriorityLevel()) {
+                        consumersSize = i;
+                        break;
+                    }
                 }
             }
+            index = partitionIndex % consumersSize;
         }
-        int index = partitionIndex % consumersSize;
+
         Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
 
         Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);

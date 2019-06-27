@@ -304,7 +304,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
-        int partitionIndex = 0;
+        int partitionIndex = 4;
         PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
                 SubType.Failover, partitionIndex, topic, sub);
 
