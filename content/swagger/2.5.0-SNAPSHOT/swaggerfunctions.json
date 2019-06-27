@@ -1358,12 +1358,8 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "topicName" : {
+          "type" : "string"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1375,6 +1371,10 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
@@ -1382,12 +1382,8 @@
             "format" : "byte"
           }
         },
-        "topicName" : {
+        "producerName" : {
           "type" : "string"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "replicatedFrom" : {
           "type" : "string"
@@ -1400,8 +1396,12 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "producerName" : {
-          "type" : "string"
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "data" : {
           "type" : "array",
