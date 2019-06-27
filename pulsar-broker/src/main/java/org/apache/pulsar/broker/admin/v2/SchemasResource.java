@@ -263,6 +263,7 @@ public class SchemasResource extends AdminResource {
                 .timestamp(clock.millis())
                 .type(SchemaType.valueOf(payload.getType()))
                 .user(defaultIfEmpty(clientAppId(), ""))
+                .props(payload.getProperties())
                 .build(),
             SchemaCompatibilityStrategy.FULL
         ).thenAccept(version ->
