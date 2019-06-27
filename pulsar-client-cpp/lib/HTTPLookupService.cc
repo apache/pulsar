@@ -314,10 +314,13 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
         return LookupDataResultPtr();
     }
 
-    const std::string brokerUrlTls = root.get<std::string>("brokerUrlTls", defaultNotFoundString);
+    std::string brokerUrlTls = root.get<std::string>("brokerUrlTls", defaultNotFoundString);
     if (brokerUrlTls == defaultNotFoundString) {
-        LOG_ERROR("malformed json! - brokerUrlTls not present" << json);
-        return LookupDataResultPtr();
+        brokerUrlTls = root.get<std::string>("brokerUrlSsl", defaultNotFoundString);
+        if (brokerUrlTls == defaultNotFoundString) {
+            LOG_ERROR("malformed json! - brokerUrlTls not present" << json);
+            return LookupDataResultPtr();
+        }
     }
 
     LookupDataResultPtr lookupDataResultPtr = std::make_shared<LookupDataResult>();
