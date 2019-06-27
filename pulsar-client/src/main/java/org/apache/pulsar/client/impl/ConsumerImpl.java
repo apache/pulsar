@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -366,6 +367,52 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    @Override
+    protected Messages<T> internalBatchReceive() throws PulsarClientException {
+        try {
+            return internalBatchReceiveAsync().get();
+        } catch (InterruptedException | ExecutionException e) {
+            State state = getState();
+            if (state != State.Closing && state != State.Closed) {
+                stats.incrementNumReceiveFailed();
+                throw PulsarClientException.unwrap(e);
+            } else {
+                return null;
+            }
+        }
+    }
+
+    @Override
+    protected CompletableFuture<Messages<T>> internalBatchReceiveAsync() {
+        CompletableFuture<Messages<T>> result = new CompletableFuture<>();
+        try {
+            lock.writeLock().lock();
+            if (hasEnoughMessagesForBatchReceive()) {
+                MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumberOfMessages(),
+                        batchReceivePolicy.getMaxSizeOfMessages());
+                Message<T> msgPeeked = incomingMessages.peek();
+                while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+                    Message<T> msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
+                    if (msg != null) {
+                        messageProcessed(msg);
+                        Message<T> interceptMsg = beforeConsume(msg);
+                        messages.add(interceptMsg);
+                    }
+                    msgPeeked = incomingMessages.peek();
+                }
+                result.complete(messages);
+            } else {
+                pendingBatchReceives.add(OpBatchReceive.of(result));
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            result.completeExceptionally(e);
+        } finally {
+            lock.writeLock().unlock();
+        }
+        return result;
+    }
+
     boolean markAckForBatchMessage(BatchMessageIdImpl batchMessageId, AckType ackType,
                                    Map<String,Long> properties) {
         boolean isAllMsgsAcked;
@@ -608,6 +655,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private BatchMessageIdImpl clearReceiverQueue() {
         List<Message<?>> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
+        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
         if (!currentMessageQueue.isEmpty()) {
             MessageIdImpl nextMessageInQueue = (MessageIdImpl) currentMessageQueue.get(0).getMessageId();
             BatchMessageIdImpl previousMessage;
@@ -832,8 +880,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 if (!pendingReceives.isEmpty()) {
                     notifyPendingReceivedCallback(message, null);
-                } else if (canEnqueueMessage(message)) {
-                    incomingMessages.add(message);
+                } else if (enqueueMessageAndCheckBatchReceive(message)) {
+                    if (!pendingBatchReceives.isEmpty()) {
+                        notifyPendingBatchReceivedCallBack();
+                    }
                 }
             } finally {
                 lock.readLock().unlock();
@@ -928,6 +978,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         interceptAndComplete(message, receivedFuture);
     }
 
+    void notifyPendingBatchReceivedCallBack() {
+        final OpBatchReceive<T> opBatchReceive = pendingBatchReceives.poll();
+        if (opBatchReceive == null || opBatchReceive.future == null) {
+            return;
+        }
+        notifyPendingBatchReceivedCallBack(opBatchReceive);
+    }
+
+
+    void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
+        MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumberOfMessages(),
+                batchReceivePolicy.getMaxSizeOfMessages());
+        Message<T> msgPeeked = incomingMessages.peek();
+        while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+            Message<T> msg = null;
+            try {
+                msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            if (msg != null) {
+                messageProcessed(msg);
+                Message<T> interceptMsg = beforeConsume(msg);
+                messages.add(interceptMsg);
+            }
+            msgPeeked = incomingMessages.peek();
+        }
+        opBatchReceive.future.complete(messages);
+    }
+
     private void interceptAndComplete(final Message<T> message, final CompletableFuture<Message<T>> receivedFuture) {
         // call proper interceptor
         final Message<T> interceptMessage = beforeConsume(message);
@@ -991,10 +1071,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 lock.readLock().lock();
                 try {
-                    if (pendingReceives.isEmpty()) {
-                        incomingMessages.add(message);
-                    } else {
+                    if (!pendingReceives.isEmpty()) {
                         notifyPendingReceivedCallback(message, null);
+                    } else if (enqueueMessageAndCheckBatchReceive(message)) {
+                        if (!pendingBatchReceives.isEmpty()) {
+                            notifyPendingBatchReceivedCallBack();
+                        }
                     }
                 } finally {
                     lock.readLock().unlock();
@@ -1054,6 +1136,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.updateNumMsgsReceived(msg);
 
         trackMessage(msg);
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
     }
 
     protected void trackMessage(Message<?> msg) {
@@ -1251,6 +1334,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             synchronized (this) {
                 currentSize = incomingMessages.size();
                 incomingMessages.clear();
+                INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
                 unAckedMessageTracker.clear();
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
@@ -1323,6 +1407,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
         }
+    }
+
+    @Override
+    protected void completeOpBatchReceive(OpBatchReceive<T> op) {
+        notifyPendingBatchReceivedCallBack(op);
     }
 
     private boolean processPossibleToDLQ(MessageIdImpl messageId) {
@@ -1406,6 +1495,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             acknowledgmentsGroupingTracker.flushAndClean();
             lastDequeuedMessage = MessageId.earliest;
             incomingMessages.clear();
+            INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
@@ -1440,6 +1530,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             acknowledgmentsGroupingTracker.flushAndClean();
             lastDequeuedMessage = messageId;
             incomingMessages.clear();
+            INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
@@ -1618,6 +1709,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // try not to remove elements that are added while we remove
             Message<T> message = incomingMessages.poll();
             while (message != null) {
+                INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.getData().length);
                 messagesFromQueue++;
                 MessageIdImpl id = getMessageIdImpl(message);
                 if (!messageIds.contains(id)) {
