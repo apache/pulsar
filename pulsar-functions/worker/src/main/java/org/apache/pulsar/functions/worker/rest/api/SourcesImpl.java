@@ -253,7 +253,7 @@ public class SourcesImpl extends ComponentImpl {
             throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
         }
         if (sourceName == null) {
-            throw new RestException(Response.Status.BAD_REQUEST, ComponentTypeUtils.toString(componentType) + " Name is not provided");
+            throw new RestException(Response.Status.BAD_REQUEST, "Source name is not provided");
         }
         if (sourceConfig == null) {
             throw new RestException(Response.Status.BAD_REQUEST, "Source config is not provided");

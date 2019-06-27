@@ -253,7 +253,7 @@ public class SinksImpl extends ComponentImpl {
             throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
         }
         if (sinkName == null) {
-            throw new RestException(Response.Status.BAD_REQUEST, ComponentTypeUtils.toString(componentType) + " Name is not provided");
+            throw new RestException(Response.Status.BAD_REQUEST, "Sink name is not provided");
         }
         if (sinkConfig == null) {
             throw new RestException(Response.Status.BAD_REQUEST, "Sink config is not provided");
