@@ -489,6 +489,19 @@ public class FunctionApiV3ResourceTest {
 
     }
 
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function config is not provided")
+    public void testMissingSinkConfig() {
+        resource.registerFunction(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null);
+    }
+
     private void registerDefaultFunction() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
         resource.registerFunction(
