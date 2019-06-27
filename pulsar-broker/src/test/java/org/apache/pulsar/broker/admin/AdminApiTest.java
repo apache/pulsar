@@ -468,6 +468,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
+        
+        // (4) try to update dynamic-field with special char "/" and "%"
+        String user1 = "test/test%&$*/^";
+        String user2 = "user2/password";
+        final String configValue = user1 + "," + user2;
+        admin.brokers().updateDynamicConfiguration("superUserRoles", configValue);
+        String storedValue = admin.brokers().getAllDynamicConfigurations().get("superUserRoles");
+        assertEquals(configValue, storedValue);
+        retryStrategically((test) -> pulsar.getConfiguration().getSuperUserRoles().size() == 2, 5, 200);
+        assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user1));
+        assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user2));
 
     }
 

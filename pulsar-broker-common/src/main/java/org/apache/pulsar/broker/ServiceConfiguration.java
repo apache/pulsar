@@ -617,6 +617,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
+        dynamic = true,
         doc = "Role names that are treated as `super-user`, meaning they will be able to"
             + " do all admin operations and publish/consume from all topics"
     )
