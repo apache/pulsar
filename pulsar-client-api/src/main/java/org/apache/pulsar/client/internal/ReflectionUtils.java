@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.internal;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import lombok.experimental.UtilityClass;
@@ -33,6 +34,15 @@ class ReflectionUtils {
         try {
             return s.get();
         } catch (Throwable t) {
+            if (t instanceof InvocationTargetException) {
+                // exception is thrown during invocation
+                Throwable cause = t.getCause();
+                if (cause instanceof RuntimeException) {
+                    throw (RuntimeException) cause;
+                } else {
+                    throw new RuntimeException(cause);
+                }
+            }
             throw new RuntimeException(t);
         }
     }

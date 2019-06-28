@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
@@ -66,9 +67,22 @@ public class NonPersistentTopics extends PersistentTopics {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Get partitioned topic metadata.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate cluster configuration")
+    })
+    public PartitionedTopicMetadata getPartitionedMetadata(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return getPartitionedTopicMetadata(topicName, authoritative);
@@ -77,10 +91,21 @@ public class NonPersistentTopics extends PersistentTopics {
     @GET
     @Path("{tenant}/{namespace}/{topic}/stats")
     @ApiOperation(value = "Get the stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public NonPersistentTopicStats getStats(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+    })
+    public NonPersistentTopicStats getStats(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminOperationOnTopic(topicName, authoritative);
@@ -91,10 +116,21 @@ public class NonPersistentTopics extends PersistentTopics {
     @GET
     @Path("{tenant}/{namespace}/{topic}/internalStats")
     @ApiOperation(value = "Get the internal stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PersistentTopicInternalStats getInternalStats(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+    })
+    public PersistentTopicInternalStats getInternalStats(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminOperationOnTopic(topicName, authoritative);
@@ -105,12 +141,24 @@ public class NonPersistentTopics extends PersistentTopics {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "The tenant/namespace does not exist"),
             @ApiResponse(code = 409, message = "Partitioned topic already exists"),
             @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
-            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
-    public void createPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, int numPartitions) {
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
+    })
+    public void createPartitionedTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
+            int numPartitions) {
         validateGlobalNamespaceOwnership(tenant,namespace);
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminAccessForTenant(topicName.getTenant());
@@ -137,10 +185,22 @@ public class NonPersistentTopics extends PersistentTopics {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/unload")
     @ApiOperation(value = "Unload a topic")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public void unloadTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
+    })
+    public void unloadTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         log.info("[{}] Unloading topic {}", clientAppId(), topicName);
@@ -153,9 +213,19 @@ public class NonPersistentTopics extends PersistentTopics {
     @GET
     @Path("/{tenant}/{namespace}")
     @ApiOperation(value = "Get the list of non-persistent topics under a namespace.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getList(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "The tenant/namespace does not exist"),
+            @ApiResponse(code = 412, message = "Namespace name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
+    })
+    public List<String> getList(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         if (log.isDebugEnabled()) {
             log.debug("[{}] list of topics on namespace {}", clientAppId(), namespaceName);
@@ -204,9 +274,20 @@ public class NonPersistentTopics extends PersistentTopics {
     @GET
     @Path("/{tenant}/{namespace}/{bundle}")
     @ApiOperation(value = "Get the list of non-persistent topics under a namespace bundle.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getListFromBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Namespace name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
+    })
+    public List<String> getListFromBundle(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Bundle range of a topic", required = true)
             @PathParam("bundle") String bundleRange) {
         validateNamespaceName(tenant, namespace);
         if (log.isDebugEnabled()) {

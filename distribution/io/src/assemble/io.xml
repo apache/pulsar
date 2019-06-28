@@ -65,5 +65,6 @@
     <file><source>${basedir}/../../pulsar-io/netty/target/pulsar-io-netty-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/mongo/target/pulsar-io-mongo-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/debezium/mysql/target/pulsar-io-debezium-mysql-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/debezium/postgres/target/pulsar-io-debezium-postgres-${project.version}.nar</source></file>
   </files>
 </assembly>
