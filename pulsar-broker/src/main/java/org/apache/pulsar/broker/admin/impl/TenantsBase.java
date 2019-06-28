@@ -32,6 +32,7 @@ import javax.ws.rs.core.Response.Status;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.intercept.InterceptException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
@@ -102,6 +103,16 @@ public class TenantsBase extends AdminResource {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         validateClusters(config);
+        try {
+            pulsar().getBrokerService()
+                    .getInterceptService()
+                    .tenants()
+                    .createTenant(tenant, config, clientAppId());
+        } catch (InterceptException e) {
+            throw new RestException(
+                    e.getErrorCode().orElse(Status.INTERNAL_SERVER_ERROR.getStatusCode()),
+                    e.getMessage());
+        }
 
         try {
             NamedEntity.checkName(tenant);

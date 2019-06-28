@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.intercept.InterceptException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -455,6 +456,17 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         try {
+            pulsar().getBrokerService()
+                    .getInterceptService()
+                    .topics()
+                    .createTopic(topicName, clientAppId());
+        } catch (InterceptException e) {
+            throw new RestException(
+                    e.getErrorCode().orElse(Status.INTERNAL_SERVER_ERROR.getStatusCode()),
+                    e.getMessage());
+        }
+
+        try {
             Topic createdTopic = getOrCreateTopic(topicName);
             log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), createdTopic);
         } catch (Exception e) {
@@ -542,6 +554,18 @@ public class PersistentTopicsBase extends AdminResource {
         if (numPartitions <= 0) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
+
+        try {
+            pulsar().getBrokerService()
+                    .getInterceptService()
+                    .topics()
+                    .updatePartitionedTopic(topicName, new PartitionedTopicMetadata(numPartitions), clientAppId());
+        } catch (InterceptException e) {
+            throw new RestException(
+                    e.getErrorCode().orElse(Status.INTERNAL_SERVER_ERROR.getStatusCode()),
+                    e.getMessage());
+        }
+
         try {
             tryCreatePartitionsAsync(numPartitions).get();
             updatePartitionedTopic(topicName, numPartitions).get();

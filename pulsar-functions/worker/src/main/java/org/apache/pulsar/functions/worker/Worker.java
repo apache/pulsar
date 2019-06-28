@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.intercept.InterceptService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
@@ -64,21 +65,22 @@ public class Worker {
     }
 
     protected void start() throws Exception {
-        URI dlogUri = initialize(this.workerConfig);
+        PulsarAdmin admin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
+                workerConfig.isTlsHostnameVerificationEnable());
 
-        workerService.start(dlogUri, getAuthenticationService(), getAuthorizationService());
+        URI dlogUri = initialize(this.workerConfig, admin);
+
+        workerService.start(dlogUri, getAuthenticationService(), getAuthorizationService(), getInterceptService(admin));
         this.server = new WorkerServer(workerService);
         this.server.start();
         log.info("Start worker server on port {}...", this.workerConfig.getWorkerPort());
     }
 
-    private static URI initialize(WorkerConfig workerConfig)
+    private static URI initialize(WorkerConfig workerConfig, PulsarAdmin admin)
             throws InterruptedException, PulsarAdminException, IOException {
-        // initializing pulsar functions namespace
-        PulsarAdmin admin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
-                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
-                workerConfig.isTlsHostnameVerificationEnable());
+
         InternalConfigurationData internalConf;
         // make sure pulsar broker is up
         log.info("Checking if pulsar service at {} is up...", workerConfig.getPulsarWebServiceUrl());
@@ -177,6 +179,11 @@ public class Worker {
 
     private AuthenticationService getAuthenticationService() throws PulsarServerException {
         return new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
+    }
+
+    private InterceptService getInterceptService(PulsarAdmin admin) throws PulsarServerException {
+        return new InterceptService(PulsarConfigurationLoader.convertFrom(workerConfig), admin);
+
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {

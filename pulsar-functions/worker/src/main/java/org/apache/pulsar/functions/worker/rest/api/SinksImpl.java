@@ -18,11 +18,35 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+
 import com.google.protobuf.ByteString;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.intercept.InterceptException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
@@ -43,22 +67,6 @@ import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.function.Supplier;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
-import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
 public class SinksImpl extends ComponentImpl {
@@ -223,6 +231,19 @@ public class SinksImpl extends ComponentImpl {
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+            try {
+                worker().getInterceptService()
+                        .sinks()
+                        .createSink(SinkConfigUtils.convertFromDetails(
+                                functionMetaDataBuilder.build().getFunctionDetails()),
+                                clientRole);
+            } catch (InterceptException e) {
+                throw new RestException(
+                        e.getErrorCode().orElse(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode()),
+                        e.getMessage());
+            }
+
             updateRequest(functionMetaDataBuilder.build());
         } finally {
 
@@ -416,6 +437,16 @@ public class SinksImpl extends ComponentImpl {
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+            try {
+                worker().getInterceptService()
+                        .sinks()
+                        .updateSink(sinkConfig, existingSinkConfig, clientRole);
+            } catch (InterceptException e) {
+                throw new RestException(
+                        e.getErrorCode().orElse(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode()),
+                        e.getMessage());
+            }
 
             updateRequest(functionMetaDataBuilder.build());
         } finally {

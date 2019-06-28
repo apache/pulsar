@@ -33,6 +33,7 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.intercept.InterceptService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -65,6 +66,7 @@ public class WorkerService {
     private final ScheduledExecutorService statsUpdater;
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
+    private InterceptService interceptService;
     private ConnectorsManager connectorsManager;
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
@@ -84,7 +86,8 @@ public class WorkerService {
 
     public void start(URI dlogUri,
                       AuthenticationService authenticationService,
-                      AuthorizationService authorizationService) throws InterruptedException {
+                      AuthorizationService authorizationService,
+                      InterceptService interceptService) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
 
         try {
@@ -196,6 +199,8 @@ public class WorkerService {
             this.authenticationService = authenticationService;
 
             this.authorizationService = authorizationService;
+
+            this.interceptService = interceptService;
 
             // Starting cluster services
             log.info("Start cluster services...");

@@ -46,6 +46,7 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.intercept.InterceptException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -753,6 +754,18 @@ public abstract class AdminResource extends PulsarWebResource {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
                 asyncResponse.resume(new RestException(Status.CONFLICT, "This topic already exists"));
             } else {
+
+                try {
+                    pulsar().getBrokerService()
+                            .getInterceptService()
+                            .topics()
+                            .createPartitionedTopic(topicName, new PartitionedTopicMetadata(numPartitions),
+                                    clientAppId());
+                } catch (InterceptException e) {
+                    asyncResponse.resume(new RestException(
+                            e.getErrorCode().orElse(Status.INTERNAL_SERVER_ERROR.getStatusCode()),
+                            e.getMessage()));
+                }
 
                 try {
                     String path = ZkAdminPaths.partitionedTopicPath(topicName);

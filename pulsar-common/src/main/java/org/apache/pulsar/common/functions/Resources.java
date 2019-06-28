@@ -34,10 +34,10 @@ public class Resources {
 
     private static final Resources DEFAULT = new Resources();
 
-    // Default cpu is 1 core
-    private Double cpu = 1d;
-    // Default memory is 1GB
-    private Long ram = 1073741824L;
+    // Default cpu is 0.5 core
+    private Double cpu = 0.5d;
+    // Default memory is 256MB
+    private Long ram = 256 * (long) Math.pow(2, 20);
     // Default disk is 10GB
     private Long disk = 10737418240L;
 

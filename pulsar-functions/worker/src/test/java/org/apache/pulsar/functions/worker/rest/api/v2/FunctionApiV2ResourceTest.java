@@ -56,6 +56,8 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.InterceptService;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -166,6 +168,7 @@ public class FunctionApiV2ResourceTest {
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
         when(mockedWorkerService.getBrokerAdmin()).thenReturn(mockedPulsarAdmin);
+        when(mockedWorkerService.getInterceptService()).thenReturn(new InterceptService(new ServiceConfiguration(), null));
         when(mockedPulsarAdmin.tenants()).thenReturn(mockedTenants);
         when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);

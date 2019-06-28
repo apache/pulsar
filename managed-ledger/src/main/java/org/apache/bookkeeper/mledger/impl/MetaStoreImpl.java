@@ -54,7 +54,7 @@ public class MetaStoreImpl implements MetaStore {
 
     @Override
     public void getManagedLedgerInfo(String ledgerName, boolean createIfMissing,
-            MetaStoreCallback<ManagedLedgerInfo> callback) {
+            MetaStoreCallback<ManagedLedgerInfo> callback, Runnable createTopicIntercept) {
         // Try to get the content or create an empty node
         String path = PREFIX + ledgerName;
         store.get(path)
@@ -72,6 +72,15 @@ public class MetaStoreImpl implements MetaStore {
                         // Z-node doesn't exist
                         if (createIfMissing) {
                             log.info("Creating '{}'", path);
+                            // intercept
+                            if (createTopicIntercept != null) {
+                                try {
+                                    createTopicIntercept.run();
+                                } catch (Exception e) {
+                                    callback.operationFailed(new MetaStoreException(e));
+                                    return;
+                                }
+                            }
 
                             store.put(path, new byte[0], Optional.of(-1L))
                                     .thenAccept(stat -> {

@@ -1149,7 +1149,7 @@ public abstract class ComponentImpl {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-        
+
         if (!key.equals(state.getKey())) {
             log.error("{}/{}/{} Bad putFunction Request, path key doesn't match key in json", tenant, namespace, functionName);
             throw new RestException(Status.BAD_REQUEST, "Path key doesn't match key in json");

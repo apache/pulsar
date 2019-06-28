@@ -193,6 +193,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "The class name of Intercept provider")
+    private String interceptProvider;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Enable the WebSocket API service in broker"
