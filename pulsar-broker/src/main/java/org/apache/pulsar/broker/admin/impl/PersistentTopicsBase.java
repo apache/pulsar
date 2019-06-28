@@ -642,7 +642,8 @@ public class PersistentTopicsBase extends AdminResource {
         }, null);
     }
 
-    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative,
+            boolean perPartition) {
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
         if (partitionMetadata.partitions == 0) {
             throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
@@ -670,14 +671,16 @@ public class PersistentTopicsBase extends AdminResource {
                 if (statFuture.isDone() && !statFuture.isCompletedExceptionally()) {
                     try {
                         stats.add(statFuture.get());
-                        stats.partitions.put(topicName.getPartition(i).toString(), statFuture.get());
+                        if (perPartition) {
+                            stats.partitions.put(topicName.getPartition(i).toString(), statFuture.get());
+                        }
                     } catch (Exception e) {
                         asyncResponse.resume(new RestException(e));
                         return null;
                     }
                 }
             }
-            if (stats.partitions.isEmpty()) {
+            if (perPartition && stats.partitions.isEmpty()) {
                 String path = ZkAdminPaths.partitionedTopicPath(topicName);
                 try {
                     boolean zkPathExists = zkPathExists(path);
