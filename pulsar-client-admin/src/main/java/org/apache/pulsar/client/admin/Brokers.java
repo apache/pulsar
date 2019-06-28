@@ -82,6 +82,16 @@ public interface Brokers {
 	 * @throws PulsarAdminException
 	 */
     void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException;
+    
+    /**
+     * It deletes dynamic configuration value in to Zk. It will not impact current value in broker but next time when
+     * broker restarts, it applies value from configuration file only.
+     * 
+     * @param key
+     * @param value
+     * @throws PulsarAdminException
+     */
+    void deleteDynamicConfiguration(String configName) throws PulsarAdminException;
 
     /**
      * Get list of updatable configuration name
