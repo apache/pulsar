@@ -178,19 +178,19 @@ public class ServiceURITest {
             "http",
             new String[0],
             null,
-            new String[] { "host1:8080", "host2:8080", "host3:8080" },
+            new String[] { "host1:80", "host2:80", "host3:80" },
             "/path/to/namespace");
     }
 
     @Test
     public void testMultipleHostsWithoutHttpsPorts() {
-        String serviceUri = "https://host1,host2,host3/path/to/namespace";
+        String serviceUri = "https://host1, host2,host3/path/to/namespace";
         assertServiceUri(
             serviceUri,
             "https",
             new String[0],
             null,
-            new String[] { "host1:8443", "host2:8443", "host3:8443" },
+            new String[] { "host1:443", "host2:443", "host3:443" },
             "/path/to/namespace");
     }
 
