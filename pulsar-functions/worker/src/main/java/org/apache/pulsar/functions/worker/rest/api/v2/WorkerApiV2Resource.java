@@ -90,7 +90,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerInfo> getCluster() {
-        return worker.getCluster();
+        return worker.getCluster(clientAppId());
     }
 
     @GET
@@ -105,7 +105,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
     public WorkerInfo getClusterLeader() {
-        return worker.getClusterLeader();
+        return worker.getClusterLeader(clientAppId());
     }
 
     @GET
@@ -120,7 +120,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/assignments")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Collection<String>> getAssignments() {
-        return worker.getAssignments();
+        return worker.getAssignments(clientAppId());
     }
 
     @ApiResponses(value = {
@@ -130,6 +130,6 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/connectors")
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return worker.getListOfConnectors();
+        return worker.getListOfConnectors(clientAppId());
     }
 }
