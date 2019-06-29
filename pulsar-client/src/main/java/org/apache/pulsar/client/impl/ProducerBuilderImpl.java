@@ -144,7 +144,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions > 0, "maxPendingMessagesAcrossPartitions needs to be > 0");
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
         return this;
     }
@@ -206,14 +205,15 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, @NonNull TimeUnit timeUnit) {
-        checkArgument(batchDelay >= 0, "batchDelay needs to be >= 0");
+        long delayInMs = timeUnit.toMillis(batchDelay);
+        checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
         conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
         return this;
     }
 
     @Override
     public ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
-        checkArgument(batchMessagesMaxMessagesPerBatch >= 0, "batchMessagesMaxMessagesPerBatch needs to be >= 0");
+        checkArgument(batchMessagesMaxMessagesPerBatch > 0, "batchMessagesMaxMessagesPerBatch needs to be > 0");
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
@@ -227,7 +227,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> initialSequenceId(long initialSequenceId) {
-        checkArgument(initialSequenceId >= 0, "initialSequenceId needs to be >= 0");
         conf.setInitialSequenceId(initialSequenceId);
         return this;
     }
