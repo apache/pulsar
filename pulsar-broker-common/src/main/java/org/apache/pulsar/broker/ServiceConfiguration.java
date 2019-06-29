@@ -645,12 +645,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
+        dynamic = true,
         doc = "Authentication settings of the broker itself. \n\nUsed when the broker connects"
             + " to other brokers, either in same or other clusters. Default uses plugin which disables authentication"
     )
     private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
+        dynamic = true,
         doc = "Authentication parameters of the authentication plugin the broker is using to connect to other brokers"
     )
     private String brokerClientAuthenticationParameters = "";
@@ -1102,6 +1104,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean replicationTlsEnabled = false;
     @FieldContext(
         category = CATEGORY_REPLICATION,
+        dynamic = true,
         doc = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
             + " or different clusters (replication)"
     )
