@@ -92,7 +92,7 @@ This is a lightweight option of having multiple clusters for different users, si
 There is regex subscription coming up in Pulsar 2.0. See [PIP-13](https://github.com/apache/pulsar/wiki/PIP-13:-Subscribe-to-topics-represented-by-regular-expressions).
 
 ### Does Pulsar have, or plan to have, a concept of log compaction where only the latest message with the same key will be kept ?
-Yes, see [PIP-6](https://github.com/apache/pulsar/wiki/PIP-6:-Guaranteed-Message-Deduplication) for more details.
+Yes, see [PIP-14](https://github.com/apache/pulsar/wiki/PIP-14:-Topic-compaction) for more details.
 
 ### When I use an exclusive subscription to a partitioned topic, is the subscription attached to the "whole topic" or to a "topic partition"? 
 On a partitioned topic, you can use all the 3 supported subscription types (exclusive, failover, shared), same as with non partitioned topics. 
