@@ -356,7 +356,6 @@ public abstract class ComponentImpl {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-        
         // delete state table
         if (null != worker().getStateStoreAdminClient()) {
             final String tableNs = getStateNamespace(tenant, namespace);
