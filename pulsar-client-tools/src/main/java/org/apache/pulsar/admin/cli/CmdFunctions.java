@@ -940,6 +940,13 @@ public class CmdFunctions extends CmdBase {
         }
 
         @Override
+        void processArguments() throws Exception {
+            if (path == null) {
+                super.processArguments();
+            }
+        }
+
+        @Override
         void runCmd() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
