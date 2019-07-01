@@ -336,9 +336,9 @@ consumer.acknowledge(messages)
 
 > Note:
 >
-> Batch receive policy can limit the number and size of messages in a single batch, and can specify a timeout for waiting for enough messages.
+> Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a timeout for waiting for enough messages.
 >
-> The batch receive will be completed as long as any one of the conditions(has enough number of messages, has enough of size of messages, wait timeout) is met.
+> The batch receive will be completed as long as any one of the conditions(has enough number of messages, has enough of bytes of messages, wait timeout) is met.
 >
 > ```java
 > Consumer consumer = client.newConsumer()
@@ -346,8 +346,7 @@ consumer.acknowledge(messages)
 >         .subscriptionName("my-subscription")
 >   			.batchReceivePolicy(BatchReceivePolicy.builder()
 >                         .maxNumberOfMessages(100)
->                         .timeout(200)
->                         .timeoutUnit(TimeUnit.MILLISECONDS)
+>                         .timeout(200, TimeUnit.MILLISECONDS)
 >                         .build())
 >         .subscribe();
 > ```
