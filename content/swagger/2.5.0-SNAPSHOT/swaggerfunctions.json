@@ -1351,26 +1351,6 @@
         "replicated" : {
           "type" : "boolean"
         },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
@@ -1382,16 +1362,11 @@
         "topicName" : {
           "type" : "string"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "producerName" : {
+          "type" : "string"
         },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
+        "replicatedFrom" : {
+          "type" : "string"
         },
         "schemaVersion" : {
           "type" : "array",
@@ -1400,8 +1375,33 @@
             "format" : "byte"
           }
         },
-        "producerName" : {
-          "type" : "string"
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "data" : {
           "type" : "array",
