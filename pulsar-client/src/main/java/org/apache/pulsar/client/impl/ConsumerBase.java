@@ -123,7 +123,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         }
         PulsarClientException exception = verifyConsumerState();
         if (exception != null) {
-            FutureUtil.failedFuture(exception);
+            return FutureUtil.failedFuture(exception);
         }
         return internalReceiveAsync();
     }
@@ -181,7 +181,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         }
         PulsarClientException exception = verifyConsumerState();
         if (exception != null) {
-            FutureUtil.failedFuture(exception);
+            return FutureUtil.failedFuture(exception);
         }
         return internalBatchReceiveAsync();
     }
