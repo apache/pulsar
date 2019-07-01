@@ -58,54 +58,48 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 { BatchReceivePolicy.DEFAULT_POLICY, true },
                 // Only receive timeout limitation.
                 { BatchReceivePolicy.builder()
-                        .timeout(50)
-                        .timeoutUnit(TimeUnit.MILLISECONDS)
+                        .timeout(50, TimeUnit.MILLISECONDS)
                         .build(), true
                 },
                 // Only number of messages in a single batch receive limitation.
                 { BatchReceivePolicy.builder()
-                        .maxNumberOfMessages(10)
+                        .maxNumMessages(10)
                         .build(), true
                 },
                 // Number of messages and timeout limitation
                 { BatchReceivePolicy.builder()
-                        .maxNumberOfMessages(13)
-                        .timeout(50)
-                        .timeoutUnit(TimeUnit.MILLISECONDS)
+                        .maxNumMessages(13)
+                        .timeout(50, TimeUnit.MILLISECONDS)
                         .build(), true
                 },
                 // Size of messages and timeout limitation
                 { BatchReceivePolicy.builder()
-                        .maxSizeOfMessages(64)
-                        .timeout(50)
-                        .timeoutUnit(TimeUnit.MILLISECONDS)
+                        .maxNumBytes(64)
+                        .timeout(50, TimeUnit.MILLISECONDS)
                         .build(), true
                 },
                 // Default batch receive policy.
                 { BatchReceivePolicy.DEFAULT_POLICY, false },
                 // Only receive timeout limitation.
                 { BatchReceivePolicy.builder()
-                        .timeout(50)
-                        .timeoutUnit(TimeUnit.MILLISECONDS)
+                        .timeout(50, TimeUnit.MILLISECONDS)
                         .build(), false
                 },
                 // Only number of messages in a single batch receive limitation.
                 { BatchReceivePolicy.builder()
-                        .maxNumberOfMessages(10)
+                        .maxNumMessages(10)
                         .build(), false
                 },
                 // Number of messages and timeout limitation
                 { BatchReceivePolicy.builder()
-                        .maxNumberOfMessages(13)
-                        .timeout(50)
-                        .timeoutUnit(TimeUnit.MILLISECONDS)
+                        .maxNumMessages(13)
+                        .timeout(50, TimeUnit.MILLISECONDS)
                         .build(), false
                 },
                 // Size of messages and timeout limitation
                 { BatchReceivePolicy.builder()
-                        .maxSizeOfMessages(64)
-                        .timeout(50)
-                        .timeoutUnit(TimeUnit.MILLISECONDS)
+                        .maxNumBytes(64)
+                        .timeout(50, TimeUnit.MILLISECONDS)
                         .build(), false
                 }
         };

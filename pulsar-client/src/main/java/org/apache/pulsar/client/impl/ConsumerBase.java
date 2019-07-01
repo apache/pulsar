@@ -475,11 +475,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     }
 
     protected boolean hasEnoughMessagesForBatchReceive() {
-        if (batchReceivePolicy.getMaxNumberOfMessages() <= 0 && batchReceivePolicy.getMaxNumberOfMessages() <= 0) {
+        if (batchReceivePolicy.getMaxNumMessages() <= 0 && batchReceivePolicy.getMaxNumMessages() <= 0) {
             return false;
         }
-        return (batchReceivePolicy.getMaxNumberOfMessages() > 0 && incomingMessages.size() >= batchReceivePolicy.getMaxNumberOfMessages())
-                || (batchReceivePolicy.getMaxSizeOfMessages() > 0 && INCOMING_MESSAGES_SIZE_UPDATER.get(this) >= batchReceivePolicy.getMaxSizeOfMessages());
+        return (batchReceivePolicy.getMaxNumMessages() > 0 && incomingMessages.size() >= batchReceivePolicy.getMaxNumMessages())
+                || (batchReceivePolicy.getMaxNumBytes() > 0 && INCOMING_MESSAGES_SIZE_UPDATER.get(this) >= batchReceivePolicy.getMaxNumBytes());
     }
 
     private PulsarClientException verifyConsumerState() {

@@ -388,8 +388,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         try {
             lock.writeLock().lock();
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumberOfMessages(),
-                        batchReceivePolicy.getMaxSizeOfMessages());
+                MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
+                        batchReceivePolicy.getMaxNumBytes());
                 Message<T> msgPeeked = incomingMessages.peek();
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
                     Message<T> msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
@@ -988,8 +988,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
 
     void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
-        MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumberOfMessages(),
-                batchReceivePolicy.getMaxSizeOfMessages());
+        MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
+                batchReceivePolicy.getMaxNumBytes());
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
             Message<T> msg = null;

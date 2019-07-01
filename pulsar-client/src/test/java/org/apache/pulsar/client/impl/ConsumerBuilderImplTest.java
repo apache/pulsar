@@ -249,10 +249,9 @@ public class ConsumerBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenBatchReceivePolicyIsNotValid() {
         consumerBuilderImpl.batchReceivePolicy(BatchReceivePolicy.builder()
-                .maxNumberOfMessages(0)
-                .maxSizeOfMessages(0)
-                .timeout(0)
-                .timeoutUnit(TimeUnit.MILLISECONDS)
+                .maxNumMessages(0)
+                .maxNumBytes(0)
+                .timeout(0, TimeUnit.MILLISECONDS)
                 .build());
     }
 

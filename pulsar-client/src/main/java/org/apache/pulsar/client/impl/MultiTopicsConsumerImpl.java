@@ -321,8 +321,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
-        MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumberOfMessages(),
-                batchReceivePolicy.getMaxSizeOfMessages());
+        MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
+                batchReceivePolicy.getMaxNumBytes());
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
             Message<T> msg = null;
@@ -416,8 +416,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             lock.writeLock().lock();
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumberOfMessages(),
-                        batchReceivePolicy.getMaxSizeOfMessages());
+                MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
+                        batchReceivePolicy.getMaxNumBytes());
                 Message<T> msgPeeked = incomingMessages.peek();
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
                     Message<T> msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
