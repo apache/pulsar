@@ -1550,6 +1550,56 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
     client.close();
 }
 
+TEST(BasicEndToEndTest, testPartitionTopicUnAckedMessageTimeout) {
+    Client client(lookupUrl);
+    long unAckedMessagesTimeoutMs = 10000;
+
+    std::string topicName = "persistent://public/default/testPartitionTopicUnAckedMessageTimeout";
+
+    // call admin api to make it partitioned
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/testPartitionTopicUnAckedMessageTimeout/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    std::string subName = "my-sub-name";
+    std::string content = "msg-content";
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consConfig;
+    consConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    result = client.subscribe(topicName, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message msg = MessageBuilder().setContent(content).build();
+    result = producer.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    Message receivedMsg1;
+    MessageId msgId1;
+    consumer.receive(receivedMsg1);
+    msgId1 = receivedMsg1.getMessageId();
+    ASSERT_EQ(content, receivedMsg1.getDataAsString());
+
+    Message receivedMsg2;
+    MessageId msgId2;
+    consumer.receive(receivedMsg2, 3 * unAckedMessagesTimeoutMs);
+    msgId2 = receivedMsg2.getMessageId();
+    ASSERT_EQ(content, receivedMsg2.getDataAsString());
+
+    ASSERT_EQ(msgId1, msgId2);
+    consumer.unsubscribe();
+    consumer.close();
+    producer.close();
+    client.close();
+}
+
 TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     Client client(lookupUrl);
     std::string topicName = "testUnAckedMessageTimeoutListener";
