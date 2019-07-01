@@ -148,7 +148,7 @@ public class NamespaceService {
         host = pulsar.getAdvertisedAddress();
         this.config = pulsar.getConfiguration();
         this.loadManager = pulsar.getLoadManager();
-        ServiceUnitZkUtils.initZK(pulsar.getLocalZkCache().getZooKeeper(), pulsar.getBrokerServiceUrl());
+        ServiceUnitZkUtils.initZK(pulsar.getLocalZkCache().getZooKeeper(), pulsar.getSafeBrokerServiceUrl());
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory);
         this.namespaceClients = new ConcurrentOpenHashMap<>();
@@ -259,7 +259,7 @@ public class NamespaceService {
      */
     private boolean registerNamespace(String namespace, boolean ensureOwned) throws PulsarServerException {
 
-        String myUrl = pulsar.getBrokerServiceUrl();
+        String myUrl = pulsar.getSafeBrokerServiceUrl();
 
         try {
             NamespaceName nsname = NamespaceName.get(namespace);
@@ -394,7 +394,7 @@ public class NamespaceService {
                 } else {
                     if (authoritative) {
                         // leader broker already assigned the current broker as owner
-                        candidateBroker = pulsar.getWebServiceAddress();
+                        candidateBroker = pulsar.getSafeWebServiceAddress();
                     } else {
                         // forward to leader broker to make assignment
                         candidateBroker = pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl();
@@ -410,7 +410,7 @@ public class NamespaceService {
         try {
             checkNotNull(candidateBroker);
 
-            if (pulsar.getWebServiceAddress().equals(candidateBroker)) {
+            if (pulsar.getSafeWebServiceAddress().equals(candidateBroker)) {
                 // invalidate namespace policies and try to load latest policies to avoid data-discrepancy if broker
                 // doesn't receive watch on policies changes
                 final String policyPath = AdminResource.path(POLICIES, bundle.getNamespaceObject().toString());
@@ -522,7 +522,7 @@ public class NamespaceService {
 
         String lookupAddress = leastLoadedBroker.get().getResourceId();
         if (LOG.isDebugEnabled()) {
-            LOG.debug("{} : redirecting to the least loaded broker, lookup address={}", pulsar.getWebServiceAddress(),
+            LOG.debug("{} : redirecting to the least loaded broker, lookup address={}", pulsar.getSafeWebServiceAddress(),
                     lookupAddress);
         }
         return Optional.of(lookupAddress);

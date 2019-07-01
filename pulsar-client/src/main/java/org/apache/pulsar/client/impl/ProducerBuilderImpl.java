@@ -25,10 +25,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -84,16 +84,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     public Producer<T> create() throws PulsarClientException {
         try {
             return createAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -222,6 +214,13 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
+
+    @Override
+    public ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder) {
+        conf.setBatcherBuilder(batcherBuilder);
+        return this;
+    }
+
 
     @Override
     public ProducerBuilder<T> initialSequenceId(long initialSequenceId) {

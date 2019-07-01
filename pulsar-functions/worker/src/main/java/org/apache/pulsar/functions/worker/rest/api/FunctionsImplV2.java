@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -103,14 +101,9 @@ public class FunctionsImplV2 {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
         FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
-        String functionConfigJson = null;
-        try {
-            functionConfigJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig);
-        } catch (JsonProcessingException e) {
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+
         delegate.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientRole, null);
+                functionPkgUrl, functionConfig, clientRole, null);
         return Response.ok().build();
     }
 
@@ -125,15 +118,9 @@ public class FunctionsImplV2 {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
         FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
-        String functionConfigJson = null;
-        try {
-            functionConfigJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig);
-        } catch (JsonProcessingException e) {
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
 
         delegate.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientRole, null, null);
+                functionPkgUrl, functionConfig, clientRole, null, null);
         return Response.ok().build();
     }
 

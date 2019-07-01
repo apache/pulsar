@@ -225,8 +225,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             brokerHostUsage = new GenericBrokerHostUsageImpl(pulsar);
         }
         this.policies = new SimpleResourceAllocationPolicies(pulsar);
-        lastLoadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        lastLoadReport = new LoadReport(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
@@ -283,8 +283,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                     // ignore the exception, node might be present already
                 }
             }
-            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort().get();
-            brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+            String lookupServiceAddress = getBrokerAddress();
+;            brokerZnodePath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
             try {
                 loadReport = generateLoadReport();
@@ -753,7 +753,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             this.resourceUnitRankings = newResourceUnitRankings;
         } else {
             log.info("Leader broker[{}] No ResourceUnits to rank this run, Using Old Ranking",
-                    pulsar.getWebServiceAddress());
+                    pulsar.getSafeWebServiceAddress());
         }
     }
 
@@ -919,8 +919,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             }
             brokerCandidateCache.clear();
             try {
-                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache,
-                        brokerTopicLoadingPredicate);
+                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                        availableBrokersCache, brokerTopicLoadingPredicate);
             } catch (Exception e) {
                 log.warn("Error when trying to apply policies: {}", e);
                 for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
@@ -1110,12 +1110,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private LoadReport generateLoadReportForcefully() throws Exception {
         synchronized (bundleGainsCache) {
             try {
-                LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                        pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+                LoadReport loadReport = new LoadReport(pulsar.getSafeWebServiceAddress(),
+                        pulsar.getWebServiceAddressTls(), pulsar.getSafeBrokerServiceUrl(),
+                        pulsar.getBrokerServiceUrlTls());
                 loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
                 loadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-                loadReport.setName(String.format("%s:%s", pulsar.getAdvertisedAddress(),
-                        pulsar.getConfiguration().getWebServicePort().get()));
+                loadReport.setName(getBrokerAddress());
                 loadReport.setBrokerVersionString(pulsar.getBrokerVersion());
 
                 SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
@@ -1183,6 +1183,13 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
+    private String getBrokerAddress() {
+        return String.format("%s:%s", pulsar.getAdvertisedAddress(),
+                pulsar.getConfiguration().getWebServicePort().isPresent()
+                        ? pulsar.getConfiguration().getWebServicePort().get()
+                        : pulsar.getConfiguration().getWebServicePortTls());
+    }
+
     @Override
     public void setLoadReportForceUpdateFlag() {
         this.forceLoadReportUpdate = true;
@@ -1236,9 +1243,11 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
                     // calculate percentage of change
                     double cpuChange = (newUsage.cpu.limit > 0)
-                            ? ((newUsage.cpu.usage - oldUsage.cpu.usage) * 100 / newUsage.cpu.limit) : 0;
+                            ? ((newUsage.cpu.usage - oldUsage.cpu.usage) * 100 / newUsage.cpu.limit)
+                            : 0;
                     double memChange = (newUsage.memory.limit > 0)
-                            ? ((newUsage.memory.usage - oldUsage.memory.usage) * 100 / newUsage.memory.limit) : 0;
+                            ? ((newUsage.memory.usage - oldUsage.memory.usage) * 100 / newUsage.memory.limit)
+                            : 0;
                     double directMemChange = (newUsage.directMemory.limit > 0)
                             ? ((newUsage.directMemory.usage - oldUsage.directMemory.usage) * 100
                                     / newUsage.directMemory.limit)
@@ -1258,10 +1267,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
                     if (resourceChange > pulsar.getConfiguration().getLoadBalancerReportUpdateThresholdPercentage()) {
                         needUpdate = true;
-                        log.info("LoadReport update triggered by change on resource usage, detal ({}).",
-                                String.format(
-                                        "cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%, bandwidthIn: %.1f%%, bandwidthOut: %.1f%%)",
-                                        cpuChange, memChange, directMemChange, bandwidthInChange, bandwidthOutChange));
+                        log.info("LoadReport update triggered by change on resource usage, detal ({}).", String.format(
+                                "cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%, bandwidthIn: %.1f%%, bandwidthOut: %.1f%%)",
+                                cpuChange, memChange, directMemChange, bandwidthInChange, bandwidthOutChange));
                     }
                 }
             }
@@ -1435,8 +1443,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 if (stats.topics <= 1) {
                     log.info("Unable to split hot namespace bundle {} since there is only one topic.", bundleName);
                 } else {
-                    NamespaceName namespaceName = NamespaceName.get(
-                            LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
+                    NamespaceName namespaceName = NamespaceName
+                            .get(LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
                     int numBundles = pulsar.getNamespaceService().getBundleCount(namespaceName);
                     if (numBundles >= maxBundleCount) {
                         log.info("Unable to split hot namespace bundle {} since the namespace has too many bundles.",

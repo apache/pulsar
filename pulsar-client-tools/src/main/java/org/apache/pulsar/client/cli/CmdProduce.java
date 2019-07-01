@@ -24,8 +24,6 @@ import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
 import java.net.URI;
@@ -37,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
@@ -164,13 +161,13 @@ public class CmdProduce {
         String topic = this.mainOptions.get(0);
 
         if (this.serviceURL.startsWith("ws")) {
-            return publishToWebSocket(totalMessages, topic);
+            return publishToWebSocket(topic);
         } else {
-            return publish(totalMessages, topic);
+            return publish(topic);
         }
     }
 
-    private int publish(int totalMessages, String topic) {
+    private int publish(String topic) {
         int numMessagesSent = 0;
         int returnCode = 0;
 
@@ -203,7 +200,7 @@ public class CmdProduce {
     }
 
     @SuppressWarnings("deprecation")
-    private int publishToWebSocket(int totalMessages, String topic) {
+    private int publishToWebSocket(String topic) {
         int numMessagesSent = 0;
         int returnCode = 0;
 

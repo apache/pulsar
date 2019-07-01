@@ -39,7 +39,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1339,8 +1338,15 @@ public class PersistentTopicsBase extends AdminResource {
      * Get the Topic object reference from the Pulsar broker
      */
     private Topic getTopicReference(TopicName topicName) {
-        return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
-                .orElseThrow(() -> topicNotFoundReason(topicName));
+        try {
+            return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                    .get(pulsar().getConfiguration().getZooKeeperSessionTimeoutMillis(), TimeUnit.MILLISECONDS)
+                    .orElseThrow(() -> topicNotFoundReason(topicName));
+        } catch (RestException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
     }
 
     private RestException topicNotFoundReason(TopicName topicName) {

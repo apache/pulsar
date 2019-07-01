@@ -79,15 +79,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("sourceName") String sourceName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
-            final @FormDataParam("url") String functionPkgUrl,
+            final @FormDataParam("url") String sourcePkgUrl,
             @ApiParam(
                     value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
-                            "tenant  \n" +
-                            "  The tenant of source.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of source.  \n" +
-                            "name  \n" +
-                            "  The name of source.  \n" +
                             "classname  \n" +
                             "  The source's class name if archive is file-url-path (file://).  \n" +
                             "topicName  \n" +
@@ -132,10 +126,9 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
                             )
                     )
             )
-            final @FormDataParam("sourceConfig") String sourceConfigJson) {
-
-        source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
+            final @FormDataParam("sourceConfig") SourceConfig sourceConfig) {
+        source.registerSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+            sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -160,15 +153,10 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             final @PathParam("sourceName") String sourceName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
-            final @FormDataParam("url") String functionPkgUrl,
+            @ApiParam(value = "URL of sources' archive")
+            final @FormDataParam("url") String sourcePkgUrl,
             @ApiParam(
                     value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
-                            "tenant  \n" +
-                            "  The tenant of source.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of source.  \n" +
-                            "name  \n" +
-                            "  The name of source.  \n" +
                             "classname  \n" +
                             "  The source's class name if archive is file-url-path (file://).  \n" +
                             "topicName  \n" +
@@ -213,11 +201,11 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
                             )
                     )
             )
-            final @FormDataParam("sourceConfig") String sourceConfigJson,
+            final @FormDataParam("sourceConfig") SourceConfig sourceConfig,
+            @ApiParam(value = "Update options for source")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
-
-        source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-            functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData(), updateOptions);
+        source.updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+            sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
 

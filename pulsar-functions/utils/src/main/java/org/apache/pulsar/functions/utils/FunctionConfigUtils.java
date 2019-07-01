@@ -756,6 +756,9 @@ public class FunctionConfigUtils {
         if (newConfig.getCleanupSubscription() != null) {
             mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
         }
+        if (!StringUtils.isEmpty(newConfig.getRuntimeFlags())) {
+            mergedConfig.setRuntimeFlags(newConfig.getRuntimeFlags());
+        }
         return mergedConfig;
     }
 }

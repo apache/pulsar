@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.*;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.Example;
+import io.swagger.annotations.ExampleProperty;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -91,16 +96,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \n" +
                             "className  \n" +
                             "  The class name of functions.  \n" +
-                            "tenant  \n" +
-                            "  The tenant of functions.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of functions.  \n" +
-                            "name  \n" +
-                            "  The name of functions.  \n" +
                             "customSchemaInputs  \n" +
-                            "  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \n" +
+                            "  The map of input topics to Schema class names (specified as a JSON object).  \n" +
                             "customSerdeInputs  \n" +
-                            "  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \n" +
+                            "  The map of input topics to SerDe class names (specified as a JSON object).  \n" +
                             "deadLetterTopic  \n" +
                             "  Messages that are not processed successfully are sent to `deadLetterTopic`.  \n" +
                             "runtimeFlags  \n" +
@@ -108,7 +107,8 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "fqfn  \n" +
                             "  The Fully Qualified Function Name (FQFN) for the function.  \n" +
                             "inputSpecs  \n" +
-                            "  A generalized way of specifying inputs.  \n" +
+                            "   The map of input topics to its consumer configuration, each configuration has schema of " +
+                            "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n" +
                             "inputs  \n" +
                             "  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \n" +
                             "jar  \n" +
@@ -144,10 +144,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "  The message timeout in milliseconds.  \n" +
                             "topicsPattern  \n" +
                             "  The topic pattern to consume from a list of topics under a namespace that match the pattern." +
-                            "  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a " +
-                            "  pattern in --custom-serde-inputs (supported for java fun only)  \n" +
+                            "  [input] and [topic-pattern] are mutually exclusive. Add SerDe class name for a " +
+                            "  pattern in customSerdeInputs (supported for java fun only)  \n" +
                             "userConfig  \n" +
-                            "  User-defined config key/values  \n" +
+                            "  A map of user-defined configurations (specified as a JSON object).  \n" +
                             "secrets  \n" +
                             "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
@@ -168,10 +168,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             )
                     )
             )
-            final @FormDataParam("functionConfig") String functionConfigJson) {
+            final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
 
         functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-            functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
+            functionPkgUrl, functionConfig, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -203,16 +203,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \n" +
                             "className  \n" +
                             "  The class name of functions.  \n" +
-                            "tenant  \n" +
-                            "  The tenant of functions.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of functions.  \n" +
-                            "name  \n" +
-                            "  The name of functions.  \n" +
                             "customSchemaInputs  \n" +
-                            "  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \n" +
+                            "  The map of input topics to Schema class names (specified as a JSON object).  \n" +
                             "customSerdeInputs  \n" +
-                            "  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \n" +
+                            "  The map of input topics to SerDe class names (specified as a JSON object).  \n" +
                             "deadLetterTopic  \n" +
                             "  Messages that are not processed successfully are sent to `deadLetterTopic`.  \n" +
                             "runtimeFlags  \n" +
@@ -220,7 +214,8 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "fqfn  \n" +
                             "  The Fully Qualified Function Name (FQFN) for the function.  \n" +
                             "inputSpecs  \n" +
-                            "  A generalized way of specifying inputs.  \n" +
+                            "   The map of input topics to its consumer configuration, each configuration has schema of " +
+                            "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n" +
                             "inputs  \n" +
                             "  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \n" +
                             "jar  \n" +
@@ -256,10 +251,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "  The message timeout in milliseconds.  \n" +
                             "topicsPattern  \n" +
                             "  The topic pattern to consume from a list of topics under a namespace that match the pattern." +
-                            "  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a " +
-                            "  pattern in --custom-serde-inputs (supported for java fun only)  \n" +
+                            "  [input] and [topicsPattern] are mutually exclusive. Add SerDe class name for a " +
+                            "  pattern in customSerdeInputs (supported for java fun only)  \n" +
                             "userConfig  \n" +
-                            "  User-defined config key/values  \n" +
+                            "  A map of user-defined configurations (specified as a JSON object).  \n" +
                             "secrets  \n" +
                             "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
@@ -280,12 +275,12 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             )
                     )
             )
-            final @FormDataParam("functionConfig") String functionConfigJson,
+            final @FormDataParam("functionConfig") FunctionConfig functionConfig,
             @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateOptions);
+                functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
 

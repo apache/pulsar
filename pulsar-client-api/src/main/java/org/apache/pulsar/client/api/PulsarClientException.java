@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Base type of exception thrown by Pulsar client
@@ -62,12 +63,20 @@ public class PulsarClientException extends IOException {
     }
 
     public static class TimeoutException extends PulsarClientException {
+        public TimeoutException(Throwable t) {
+            super(t);
+        }
+
         public TimeoutException(String msg) {
             super(msg);
         }
     }
 
     public static class IncompatibleSchemaException extends PulsarClientException {
+        public IncompatibleSchemaException(Throwable t) {
+            super(t);
+        }
+
         public IncompatibleSchemaException(String msg) {
             super(msg);
         }
@@ -86,6 +95,10 @@ public class PulsarClientException extends IOException {
     }
 
     public static class ConnectException extends PulsarClientException {
+        public ConnectException(Throwable t) {
+            super(t);
+        }
+
         public ConnectException(String msg) {
             super(msg);
         }
@@ -210,6 +223,78 @@ public class PulsarClientException extends IOException {
     public static class CryptoException extends PulsarClientException {
         public CryptoException(String msg) {
             super(msg);
+        }
+    }
+
+    public static PulsarClientException unwrap(Throwable t) {
+        if (t instanceof PulsarClientException) {
+            return (PulsarClientException) t;
+        } else if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
+        } else if (!(t instanceof ExecutionException)) {
+            // Generic exception
+            return new PulsarClientException(t);
+        } else if (t instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+            return new PulsarClientException(t);
+        }
+
+        // Unwrap the exception to keep the same exception type but a stack trace that includes the application calling
+        // site
+        Throwable cause = t.getCause();
+        String msg = cause.getMessage();
+        if (cause instanceof TimeoutException) {
+            return new TimeoutException(msg);
+        } else if (cause instanceof InvalidConfigurationException) {
+            return new InvalidConfigurationException(msg);
+        } else if (cause instanceof AuthenticationException) {
+            return new AuthenticationException(msg);
+        } else if (cause instanceof IncompatibleSchemaException) {
+            return new IncompatibleSchemaException(msg);
+        } else if (cause instanceof TooManyRequestsException) {
+            return new TooManyRequestsException(msg);
+        } else if (cause instanceof LookupException) {
+            return new LookupException(msg);
+        } else if (cause instanceof ConnectException) {
+            return new ConnectException(msg);
+        } else if (cause instanceof AlreadyClosedException) {
+            return new AlreadyClosedException(msg);
+        } else if (cause instanceof TopicTerminatedException) {
+            return new TopicTerminatedException(msg);
+        } else if (cause instanceof AuthorizationException) {
+            return new AuthorizationException(msg);
+        } else if (cause instanceof GettingAuthenticationDataException) {
+            return new GettingAuthenticationDataException(msg);
+        } else if (cause instanceof UnsupportedAuthenticationException) {
+            return new UnsupportedAuthenticationException(msg);
+        } else if (cause instanceof BrokerPersistenceException) {
+            return new BrokerPersistenceException(msg);
+        } else if (cause instanceof BrokerMetadataException) {
+            return new BrokerMetadataException(msg);
+        } else if (cause instanceof ProducerBusyException) {
+            return new ProducerBusyException(msg);
+        } else if (cause instanceof ConsumerBusyException) {
+            return new ConsumerBusyException(msg);
+        } else if (cause instanceof NotConnectedException) {
+            return new NotConnectedException();
+        } else if (cause instanceof InvalidMessageException) {
+            return new InvalidMessageException(msg);
+        } else if (cause instanceof InvalidTopicNameException) {
+            return new InvalidTopicNameException(msg);
+        } else if (cause instanceof NotSupportedException) {
+            return new NotSupportedException(msg);
+        } else if (cause instanceof ProducerQueueIsFullError) {
+            return new ProducerQueueIsFullError(msg);
+        } else if (cause instanceof ProducerBlockedQuotaExceededError) {
+            return new ProducerBlockedQuotaExceededError(msg);
+        } else if (cause instanceof ProducerBlockedQuotaExceededException) {
+            return new ProducerBlockedQuotaExceededException(msg);
+        } else if (cause instanceof ChecksumException) {
+            return new ChecksumException(msg);
+        } else if (cause instanceof CryptoException) {
+            return new CryptoException(msg);
+        } else {
+            return new PulsarClientException(t);
         }
     }
 }

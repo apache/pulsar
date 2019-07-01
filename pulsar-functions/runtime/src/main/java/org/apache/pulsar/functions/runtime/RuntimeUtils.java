@@ -273,7 +273,9 @@ public class RuntimeUtils {
                     instanceConfig.getFunctionDetails().getName(),
                     shardId));
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                args.add(instanceConfig.getFunctionDetails().getRuntimeFlags());
+                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                    args.add(runtimeFlagArg);
+                }
             }
             if (instanceConfig.getFunctionDetails().getResources() != null) {
                 Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
@@ -287,7 +289,9 @@ public class RuntimeUtils {
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python");
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                args.add(instanceConfig.getFunctionDetails().getRuntimeFlags());
+                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
+                    args.add(runtimeFlagArg);
+                }
             }
             args.add(instanceFile);
             args.add("--py");
@@ -394,6 +398,13 @@ public class RuntimeUtils {
         }
         rd.close();
         return result.toString();
+    }
+
+    /**
+     * Regex for splitting a string using space when not surrounded by single or double quotes
+     */
+    public static String[] splitRuntimeArgs(String input) {
+        return input.split("\\s(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
     }
 
 }
