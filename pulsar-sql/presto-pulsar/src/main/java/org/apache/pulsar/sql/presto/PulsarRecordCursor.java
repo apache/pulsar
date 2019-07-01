@@ -164,7 +164,7 @@ public class PulsarRecordCursor implements RecordCursor {
                 schemaHandler = new JSONSchemaHandler(columnHandles);
                 break;
             case AVRO:
-                schemaHandler = new AvroSchemaHandler(schema, columnHandles);
+                schemaHandler = new AvroSchemaHandler(schema, columnHandles, pulsarConnectorConfig, topicName);
                 break;
             default:
                 throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaType);
@@ -418,7 +418,7 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        currentRecord = this.schemaHandler.deserialize(this.currentMessage);
         metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 
         // stats for time spend deserializing

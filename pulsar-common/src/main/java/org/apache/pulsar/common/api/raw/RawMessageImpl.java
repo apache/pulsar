@@ -38,6 +38,7 @@ public class RawMessageImpl implements RawMessage {
     private ReferenceCountedObject<MessageMetadata> msgMetadata;
     private PulsarApi.SingleMessageMetadata.Builder singleMessageMetadata;
     private ByteBuf payload;
+    private MessageMetadata.Builder messageMetadataBuilder;
 
     private static final Recycler<RawMessageImpl> RECYCLER = new Recycler<RawMessageImpl>() {
         @Override
@@ -71,6 +72,7 @@ public class RawMessageImpl implements RawMessage {
             ByteBuf payload,
             long ledgerId, long entryId, long batchIndex) {
         RawMessageImpl msg = RECYCLER.get();
+        msg.messageMetadataBuilder = MessageMetadata.newBuilder(msgMetadata.get());
         msg.msgMetadata = msgMetadata;
         msg.msgMetadata.retain();
         msg.singleMessageMetadata = singleMessageMetadata;
@@ -140,4 +142,10 @@ public class RawMessageImpl implements RawMessage {
             return Optional.empty();
         }
     }
+
+    @Override
+    public byte[] getSchemaVersion() {
+        return messageMetadataBuilder.getSchemaVersion().toByteArray();
+    }
+
 }

@@ -30,6 +30,7 @@ import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import org.apache.pulsar.common.api.raw.RawMessage;
 
 public class JSONSchemaHandler implements SchemaHandler {
 
@@ -51,9 +52,10 @@ public class JSONSchemaHandler implements SchemaHandler {
     }
 
     @Override
-    public Object deserialize(ByteBuf payload) {
+    public Object deserialize(RawMessage message) {
         // Since JSON deserializer only works on a byte[] we need to convert a direct mem buffer into
         // a byte[].
+        ByteBuf payload = message.getData();
         int size = payload.readableBytes();
         byte[] buffer = tmpBuffer.get();
         if (buffer.length < size) {

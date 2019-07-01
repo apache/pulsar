@@ -101,4 +101,11 @@ public interface RawMessage {
      * @return the key of the message
      */
     Optional<String> getKey();
+
+    /**
+     * Get the schema verison of the message
+     *
+     * @return the schema version of the message
+     */
+    byte[] getSchemaVersion();
 }
