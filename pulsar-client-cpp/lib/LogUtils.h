@@ -51,13 +51,13 @@ namespace pulsar {
         if (PULSAR_UNLIKELY(logger()->isEnabled(pulsar::Logger::DEBUG))) { \
             std::stringstream ss;                                          \
             ss << message;                                                 \
-            logger()->log(pulsar::Logger::DEBUG, __LINE__, ss.str());      \
+            logger()->log(pulsar::Logger::LEVEL_DEBUG, __LINE__, ss.str());      \
         }                                                                  \
     }
 
 #define LOG_INFO(message)                                            \
     {                                                                \
-        if (logger()->isEnabled(pulsar::Logger::INFO)) {             \
+        if (logger()->isEnabled(pulsar::Logger::LEVEL_INFO)) {             \
             std::stringstream ss;                                    \
             ss << message;                                           \
             logger()->log(pulsar::Logger::INFO, __LINE__, ss.str()); \
@@ -66,10 +66,10 @@ namespace pulsar {
 
 #define LOG_WARN(message)                                            \
     {                                                                \
-        if (logger()->isEnabled(pulsar::Logger::WARN)) {             \
+        if (logger()->isEnabled(pulsar::Logger::LEVEL_WARN)) {             \
             std::stringstream ss;                                    \
             ss << message;                                           \
-            logger()->log(pulsar::Logger::WARN, __LINE__, ss.str()); \
+            logger()->log(pulsar::Logger::LEVEL_WARN, __LINE__, ss.str()); \
         }                                                            \
     }
 
@@ -78,7 +78,7 @@ namespace pulsar {
         if (logger()->isEnabled(pulsar::Logger::ERROR)) {             \
             std::stringstream ss;                                     \
             ss << message;                                            \
-            logger()->log(pulsar::Logger::ERROR, __LINE__, ss.str()); \
+            logger()->log(pulsar::Logger::LEVEL_ERROR, __LINE__, ss.str()); \
         }                                                             \
     }
 
