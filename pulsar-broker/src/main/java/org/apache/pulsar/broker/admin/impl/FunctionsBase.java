@@ -632,14 +632,24 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
     @POST
     @ApiOperation(
-            value = "Uploads Pulsar Function file data",
+            value = "Uploads Pulsar Function file data (Admin only)",
             hidden = true
     )
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions.uploadFunction(uploadedInputStream, path);
+        functions.uploadFunction(uploadedInputStream, path, clientAppId());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Downloads Pulsar Function file data (Admin only)",
+            hidden = true
+    )
+    @Path("/download")
+    public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
+        return functions.downloadFunction(path, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -647,9 +657,16 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             value = "Downloads Pulsar Function file data",
             hidden = true
     )
-    @Path("/download")
-    public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
-        return functions.downloadFunction(path);
+    @Path("/{tenant}/{namespace}/{functionName}/download")
+    public StreamingOutput downloadFunction(
+            @ApiParam(value = "The tenant of functions")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The namespace of functions")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of functions")
+            final @PathParam("functionName") String functionName) {
+
+        return functions.downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET
