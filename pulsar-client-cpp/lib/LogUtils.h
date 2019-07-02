@@ -46,13 +46,13 @@ namespace pulsar {
         return ptr;                                                                              \
     }
 
-#define LOG_DEBUG(message)                                                      \
-    {                                                                           \
-        if (PULSAR_UNLIKELY(logger()->isEnabled(pulsar::Logger:LEVEL_DEBUG))) { \
-            std::stringstream ss;                                               \
-            ss << message;                                                      \
-            logger()->log(pulsar::Logger::LEVEL_DEBUG, __LINE__, ss.str());     \
-        }                                                                       \
+#define LOG_DEBUG(message)                                                       \
+    {                                                                            \
+        if (PULSAR_UNLIKELY(logger()->isEnabled(pulsar::Logger::LEVEL_DEBUG))) { \
+            std::stringstream ss;                                                \
+            ss << message;                                                       \
+            logger()->log(pulsar::Logger::LEVEL_DEBUG, __LINE__, ss.str());      \
+        }                                                                        \
     }
 
 #define LOG_INFO(message)                                                  \
