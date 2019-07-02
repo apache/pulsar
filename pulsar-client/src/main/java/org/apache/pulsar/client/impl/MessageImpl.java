@@ -148,6 +148,10 @@ public class MessageImpl<T> implements Message<T> {
             msgMetadataBuilder.setEventTime(singleMessageMetadata.getEventTime());
         }
 
+        if (singleMessageMetadata.hasSequenceId()) {
+            msgMetadataBuilder.setSequenceId(singleMessageMetadata.getSequenceId());
+        }
+
         this.schema = schema;
     }
 
