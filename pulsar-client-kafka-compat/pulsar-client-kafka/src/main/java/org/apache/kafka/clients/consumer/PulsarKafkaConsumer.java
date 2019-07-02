@@ -18,6 +18,7 @@
  */
 package org.apache.kafka.clients.consumer;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
@@ -308,6 +309,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     @Override
+    public void subscribe(Pattern pattern) {
+        throw new UnsupportedOperationException("Cannot subscribe with topic name pattern");
+    }
+
+    @Override
     public void unsubscribe() {
         consumers.values().forEach(c -> {
             try {
@@ -386,6 +392,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         }
     }
 
+    @Override
+    public ConsumerRecords<K, V> poll(Duration duration) {
+        return poll(duration.toMillis());
+    }
+
     @SuppressWarnings("unchecked")
     private K getKey(String topic, Message<byte[]> msg) {
         if (!msg.hasKey()) {
@@ -411,12 +422,22 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     @Override
+    public void commitSync(Duration duration) {
+        commitSync();
+    }
+
+    @Override
     public void commitSync(Map<TopicPartition, OffsetAndMetadata> offsets) {
         try {
             doCommitOffsets(offsets).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void commitSync(Map<TopicPartition, OffsetAndMetadata> map, Duration duration) {
+        commitSync(map);
     }
 
     @Override
@@ -517,6 +538,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     @Override
+    public void seek(TopicPartition topicPartition, OffsetAndMetadata offsetAndMetadata) {
+        seek(topicPartition, offsetAndMetadata.offset());
+    }
+
+    @Override
     public void seekToBeginning(Collection<TopicPartition> partitions) {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
@@ -571,6 +597,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         return unpolledPartitions.contains(partition) ? 0 : offset;
     }
 
+    @Override
+    public long position(TopicPartition topicPartition, Duration duration) {
+        return position(topicPartition);
+    }
+
     private SubscriptionInitialPosition resetOffsets(final TopicPartition partition) {
     	log.info("Resetting partition {} and seeking to {} position", partition, strategy);
         if (strategy == SubscriptionInitialPosition.Earliest) {
@@ -587,6 +618,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     @Override
+    public OffsetAndMetadata committed(TopicPartition topicPartition, Duration duration) {
+        return committed(topicPartition);
+    }
+
+    @Override
     public Map<MetricName, ? extends Metric> metrics() {
         throw new UnsupportedOperationException();
     }
@@ -597,7 +633,17 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     @Override
+    public List<PartitionInfo> partitionsFor(String s, Duration duration) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Map<String, List<PartitionInfo>> listTopics() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Map<String, List<PartitionInfo>> listTopics(Duration duration) {
         throw new UnsupportedOperationException();
     }
 
@@ -622,12 +668,27 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     @Override
+    public Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(Map<TopicPartition, Long> map, Duration duration) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Map<TopicPartition, Long> beginningOffsets(Collection<TopicPartition> partitions) {
         throw new UnsupportedOperationException();
     }
 
     @Override
+    public Map<TopicPartition, Long> beginningOffsets(Collection<TopicPartition> collection, Duration duration) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Map<TopicPartition, Long> endOffsets(Collection<TopicPartition> partitions) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Map<TopicPartition, Long> endOffsets(Collection<TopicPartition> collection, Duration duration) {
         throw new UnsupportedOperationException();
     }
 
@@ -649,6 +710,11 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void close(Duration duration) {
+        close(duration.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override
