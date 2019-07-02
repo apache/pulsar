@@ -468,9 +468,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         }
     }
 
+    protected boolean canEnqueueMessage(Message<T> message) {
+        // Default behavior, can be overridden in subclasses
+        return true;
+    }
+
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
-        incomingMessages.add(message);
-        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, message.getData().length);
+        if (canEnqueueMessage(message)) {
+            incomingMessages.add(message);
+            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, message.getData().length);
+        }
         return hasEnoughMessagesForBatchReceive();
     }
 

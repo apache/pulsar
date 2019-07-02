@@ -934,11 +934,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
-    protected boolean canEnqueueMessage(Message<T> message) {
-        // Default behavior, can be overridden in subclasses
-        return true;
-    }
-
     /**
      * Notify waiting asyncReceive request with the received message
      *
