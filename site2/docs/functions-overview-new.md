@@ -46,20 +46,6 @@ You can use Pulsar Functions to set up the following processing chain:
 * A [Java](#functions-for-java) function listens for the `sanitized-sentences` topic, counts the number of times each word appears within a specified time window, and publishes the results to a `results` topic
 * Finally, a Python function listens for the `results` topic and writes the results to a MySQL table.
 
-### Function example
-
-The following is an "input sanitizer" function example written in Python and stored in a `sanitizer.py` file.
-
-```python
-def clean_string(s):
-    return s.strip().lower()
-
-def process(input):
-    return clean_string(input)
-```
-
-In the above example, no client, producer, or consumer object is involved. You only need to care the processing topic. 
-In addition, no topics, subscription types, tenants, or namespaces are specified in the function logic. Instead, topics are specified in [deployment](#example-deployment). This means that you can use and re-use Pulsar Functions across topics, tenants, and namespaces without needing to hard-code those attributes.
 
 ### Deployment example
 
@@ -120,39 +106,6 @@ $ bin/pulsar-admin functions create \
   --name word-count \
   --inputs persistent://public/default/sentences \
   --output persistent://public/default/count
-```
-
-### Content-based routing example
-Pulsar Functions are used in many cases. The following is a sophisticated example that involves content-based routing.
-
-For example, a function takes items (strings) as input and publishes them to either a `fruits` or `vegetables` topic, depending on the item. Or, if an item is neither fruit nor vegetable, a warning is logged to a [log topic](#logging). The following is a visual representation.
-
-![Pulsar Functions routing example](assets/pulsar-functions-routing-example.png)
-
-If you implement this routing functionality in Python, it looks something like this:
-
-```python
-from pulsar import Function
-
-class RoutingFunction(Function):
-    def __init__(self):
-        self.fruits_topic = "persistent://public/default/fruits"
-        self.vegetables_topic = "persistent://public/default/vegetables"
-
-    def is_fruit(item):
-        return item in ["apple", "orange", "pear", "other fruits..."]
-
-    def is_vegetable(item):
-        return item in ["carrot", "lettuce", "radish", "other vegetables..."]
-
-    def process(self, item, context):
-        if self.is_fruit(item):
-            context.publish(self.fruits_topic, item)
-        elif self.is_vegetable(item):
-            context.publish(self.vegetables_topic, item)
-        else:
-            warning = "The item {0} is neither a fruit nor a vegetable".format(item)
-            context.get_logger().warn(warning)
 ```
 
 ### Functions, messages and message types
