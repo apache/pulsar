@@ -331,19 +331,28 @@ public class SinkConfigUtils {
         String sinkClassName = sinkConfig.getClassName();
         ClassLoader jarClassLoader = null;
         ClassLoader narClassLoader = null;
+
+        Exception jarClassLoaderException = null;
+        Exception narClassLoaderException = null;
+
         try {
             jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sinkPackageFile);
         } catch (Exception e) {
+            jarClassLoaderException = e;
         }
         try {
             narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sinkPackageFile);
         } catch (Exception e) {
+            narClassLoaderException = e;
         }
 
         // if sink class name is not provided, we can only try to load archive as a NAR
         if (isEmpty(sinkClassName)) {
             if (narClassLoader == null) {
-                throw new IllegalArgumentException("Invalid Sink archive");
+                throw new IllegalArgumentException("Sink package does not have the correct format. " +
+                        "Pulsar cannot determine if the package is a NAR package or JAR package." +
+                        "Sink classname is not provided and attempts to load it as a NAR package produced the following error.",
+                        narClassLoaderException);
             }
             try {
                 sinkClassName = ConnectorUtils.getIOSinkClass(narClassLoader);
@@ -388,7 +397,18 @@ public class SinkConfigUtils {
                             String.format("Sink class %s must be in class path", sinkClassName), e1);
                 }
             } else {
-                throw new IllegalArgumentException("Invalid Sink Package");
+                StringBuilder errorMsg = new StringBuilder("Sink package does not have the correct format." +
+                        " Pulsar cannot determine if the package is a NAR package or JAR package.");
+
+                if (jarClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                }
+
+                if (narClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                }
+
+                throw new IllegalArgumentException(errorMsg.toString());
             }
         }
 

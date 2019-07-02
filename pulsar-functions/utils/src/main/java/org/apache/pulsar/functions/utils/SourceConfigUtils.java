@@ -231,19 +231,28 @@ public class SourceConfigUtils {
         String sourceClassName = sourceConfig.getClassName();
         ClassLoader jarClassLoader = null;
         ClassLoader narClassLoader = null;
+
+        Exception jarClassLoaderException = null;
+        Exception narClassLoaderException = null;
+
         try {
             jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
         } catch (Exception e) {
+            jarClassLoaderException = e;
         }
         try {
             narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
         } catch (Exception e) {
+            narClassLoaderException = e;
         }
 
         // if source class name is not provided, we can only try to load archive as a NAR
         if (isEmpty(sourceClassName)) {
             if (narClassLoader == null) {
-                throw new IllegalArgumentException("Invalid Source archive");
+                throw new IllegalArgumentException("Source package does not have the correct format. " +
+                        "Pulsar cannot determine if the package is a NAR package or JAR package." +
+                        "Source classname is not provided and attempts to load it as a NAR package produced the following error.",
+                        narClassLoaderException);
             }
             try {
                 sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
@@ -288,7 +297,18 @@ public class SourceConfigUtils {
                             String.format("Source class %s must be in class path", sourceClassName), e1);
                 }
             } else {
-                throw new IllegalArgumentException("Invalid Source Package");
+                StringBuilder errorMsg = new StringBuilder("Source package does not have the correct format." +
+                        " Pulsar cannot determine if the package is a NAR package or JAR package.");
+
+                if (jarClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                }
+
+                if (narClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                }
+
+                throw new IllegalArgumentException(errorMsg.toString());
             }
         }
 
