@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
@@ -297,13 +298,30 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions.uploadFunction(uploadedInputStream, path);
+        functions.uploadFunction(uploadedInputStream, path, clientAppId());
     }
 
     @GET
     @Path("/download")
     public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
-        return functions.downloadFunction(path);
+        return functions.downloadFunction(path, clientAppId(), clientAuthData());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Downloads Pulsar Function file data",
+            hidden = true
+    )
+    @Path("/{tenant}/{namespace}/{functionName}/download")
+    public StreamingOutput downloadFunction(
+            @ApiParam(value = "The tenant of functions")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The namespace of functions")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of functions")
+            final @PathParam("functionName") String functionName) {
+
+        return functions.downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET

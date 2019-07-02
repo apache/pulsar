@@ -80,7 +80,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -357,7 +356,6 @@ public abstract class ComponentImpl {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-
         // delete state table
         if (null != worker().getStateStoreAdminClient()) {
             final String tableNs = getStateNamespace(tenant, namespace);
@@ -1175,7 +1173,16 @@ public abstract class ComponentImpl {
         }
     }
 
-    public void uploadFunction(final InputStream uploadedInputStream, final String path) {
+    public void uploadFunction(final InputStream uploadedInputStream, final String path, String clientRole) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
+            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+        }
+
         // validate parameters
         try {
             if (uploadedInputStream == null || path == null) {
@@ -1196,26 +1203,99 @@ public abstract class ComponentImpl {
         }
     }
 
-    public StreamingOutput downloadFunction(final String path) {
+    public StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
+                                            String clientRole, AuthenticationDataHttps clientAuthenticationDataHttps) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
 
-        final StreamingOutput streamingOutput = new StreamingOutput() {
-            @Override
-            public void write(final OutputStream output) throws IOException {
-                if (path.startsWith(org.apache.pulsar.common.functions.Utils.HTTP)) {
-                    URL url = new URL(path);
-                    IOUtils.copy(url.openStream(), output);
-                } else if (path.startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
-                    URL url = new URL(path);
-                    File file;
-                    try {
-                        file = new File(url.toURI());
-                        IOUtils.copy(new FileInputStream(file), output);
-                    } catch (URISyntaxException e) {
-                        throw new IllegalArgumentException("invalid file url path: " + path);
-                    }
-                } else {
-                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not admin and authorized to download package for {} ", tenant, namespace,
+                        componentName, clientRole, ComponentTypeUtils.toString(componentType));
+                throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
+            log.error("{} does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName);
+            throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
+        }
+
+        String pkgPath = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName)
+                .getPackageLocation().getPackagePath();
+
+        final StreamingOutput streamingOutput = output -> {
+            if (pkgPath.startsWith(Utils.HTTP)) {
+                URL url = new URL(pkgPath);
+                IOUtils.copy(url.openStream(), output);
+            } else if (pkgPath.startsWith(Utils.FILE)) {
+                URL url = new URL(pkgPath);
+                File file;
+                try {
+                    file = new File(url.toURI());
+                    IOUtils.copy(new FileInputStream(file), output);
+                } catch (URISyntaxException e) {
+                    throw new IllegalArgumentException("invalid file url path: " + pkgPath);
                 }
+            } else {
+                WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, pkgPath);
+            }
+        };
+
+        return streamingOutput;
+    }
+
+    public StreamingOutput downloadFunction(final String path, String clientRole, AuthenticationDataHttps clientAuthenticationDataHttps) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            // to maintain backwards compatiblity but still have authorization
+            String[] tokens = path.split("/");
+            if (tokens.length == 4) {
+                String tenant = tokens[0];
+                String namespace = tokens[1];
+                String componentName = tokens[2];
+
+                try {
+                    if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                        log.error("{}/{}/{} Client [{}] is not admin and authorized to download package for {} ", tenant, namespace,
+                                componentName, clientRole, ComponentTypeUtils.toString(componentType));
+                        throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                    }
+                } catch (PulsarAdminException e) {
+                    log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
+                    throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+                }
+            } else {
+                if (!isSuperUser(clientRole)) {
+                    throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+                }
+            }
+        }
+
+        final StreamingOutput streamingOutput = output -> {
+            if (path.startsWith(Utils.HTTP)) {
+                URL url = new URL(path);
+                IOUtils.copy(url.openStream(), output);
+            } else if (path.startsWith(Utils.FILE)) {
+                URL url = new URL(path);
+                File file;
+                try {
+                    file = new File(url.toURI());
+                    IOUtils.copy(new FileInputStream(file), output);
+                } catch (URISyntaxException e) {
+                    throw new IllegalArgumentException("invalid file url path: " + path);
+                }
+            } else {
+                WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
             }
         };
 
