@@ -122,7 +122,7 @@ public class PulsarClientTool {
                                      // it will default to the values passed in by the constructor
             } catch (UnsupportedAuthenticationException exp) {
                 System.out.println("Failed to load an authentication plugin");
-                commandParser.usage();
+                exp.printStackTrace();
                 return -1;
             }
 

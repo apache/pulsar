@@ -22,13 +22,12 @@ import com.google.common.collect.Maps;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -442,13 +441,9 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Map<String, String> fromProperties = Maps.newHashMap();
         fromProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         fromProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        fromProperties.put("key.schema.properties", null);
-        fromProperties.put("value.schema.properties", null);
         Map<String, String> toProperties = Maps.newHashMap();
         toProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         toProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        toProperties.put("key.schema.properties", null);
-        toProperties.put("value.schema.properties", null);
         SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
@@ -461,11 +456,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> fromProperties = Maps.newHashMap();
-        fromProperties.put("key.schema.type", null);
-        fromProperties.put("value.schema.type", null);
         Map<String, String> toProperties = Maps.newHashMap();
-        toProperties.put("key.schema.type", null);
-        toProperties.put("value.schema.type", null);
         SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)

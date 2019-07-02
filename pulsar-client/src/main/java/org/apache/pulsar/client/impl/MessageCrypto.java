@@ -23,7 +23,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -62,6 +61,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -425,7 +425,7 @@ public class MessageCrypto {
             ByteBuffer sourceNioBuf = payload.nioBuffer(payload.readerIndex(), payload.readableBytes());
 
             int maxLength = cipher.getOutputSize(payload.readableBytes());
-            targetBuf = PooledByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
+            targetBuf = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
             ByteBuffer targetNioBuf = targetBuf.nioBuffer(0, maxLength);
 
             int bytesStored = cipher.doFinal(sourceNioBuf, targetNioBuf);
@@ -513,7 +513,7 @@ public class MessageCrypto {
             ByteBuffer sourceNioBuf = payload.nioBuffer(payload.readerIndex(), payload.readableBytes());
 
             int maxLength = cipher.getOutputSize(payload.readableBytes());
-            targetBuf = PooledByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
+            targetBuf = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
             ByteBuffer targetNioBuf = targetBuf.nioBuffer(0, maxLength);
 
             int decryptedSize = cipher.doFinal(sourceNioBuf, targetNioBuf);

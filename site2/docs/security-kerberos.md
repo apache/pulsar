@@ -127,7 +127,17 @@ Make sure that the keytabs configured in the `pulsar_jaas.conf` file and kdc ser
 
 ### Kerberos configuration for clients
 
-In client, we need to configure the authentication type to use `AuthenticationSasl`, and also provide the authentication parameters to it. 
+In client application, include `pulsar-client-auth-sasl` in your project dependency.
+
+```
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-auth-sasl</artifactId>
+      <version>${pulsar.version}</version>
+    </dependency>
+```
+
+configure the authentication type to use `AuthenticationSasl`, and also provide the authentication parameters to it. 
 
 There are 2 parameters needed: 
 - `saslJaasClientSectionName` is corresponding to the section in JAAS configuration file for client; 
@@ -141,9 +151,9 @@ The following is an example of creating a Java client:
  System.setProperty("java.security.auth.login.config", "/etc/pulsar/pulsar_jaas.conf");
  System.setProperty("java.security.krb5.conf", "/etc/pulsar/krb5.conf");
 
- Map<String, String> clientSaslConfig = Maps.newHashMap();
- clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
- clientSaslConfig.put("serverType", "broker");
+ Map<String, String> authParams = Maps.newHashMap();
+ authParams.put("saslJaasClientSectionName", "PulsarClient");
+ authParams.put("serverType", "broker");
 
  Authentication saslAuth = AuthenticationFactory
          .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl.class.getName(), authParams);
@@ -154,7 +164,25 @@ The following is an example of creating a Java client:
          .build();
  ```
 
+> The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when running the application like below:
+
+```
+java -cp -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf $APP-jar-with-dependencies.jar $CLASSNAME
+```
+
 Make sure that the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file are reachable by the operating system user who is starting pulsar client.
+
+If you are using command line, you can continue with these step:
+1. Config your `client.conf`: 
+```shell
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
+authParams={"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}
+```
+2. Set JVM parameter for JAAS configuration file and krb5 configuration file with additional option.
+```shell
+   -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf 
+```
+You can add this at the end of `PULSAR_EXTRA_OPTS` in the file [`pulsar_tools_env.sh`](https://github.com/apache/pulsar/blob/master/conf/pulsar_tools_env.sh)
 
 ## Kerberos configuration for working with Pulsar Proxy
 
@@ -223,9 +251,9 @@ Pulsar client configuration is similar with client and broker configuration, exc
  System.setProperty("java.security.auth.login.config", "/etc/pulsar/pulsar_jaas.conf");
  System.setProperty("java.security.krb5.conf", "/etc/pulsar/krb5.conf");
 
- Map<String, String> clientSaslConfig = Maps.newHashMap();
- clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
- clientSaslConfig.put("serverType", "proxy");        // ** here is the different **
+ Map<String, String> authParams = Maps.newHashMap();
+ authParams.put("saslJaasClientSectionName", "PulsarClient");
+ authParams.put("serverType", "proxy");        // ** here is the different **
 
  Authentication saslAuth = AuthenticationFactory
          .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl.class.getName(), authParams);
@@ -235,6 +263,12 @@ Pulsar client configuration is similar with client and broker configuration, exc
          .authentication(saslAuth)
          .build();
  ```
+
+> The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when running the application like below:
+
+```
+java -cp -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf $APP-jar-with-dependencies.jar $CLASSNAME
+```
 
 ### Kerberos configuration for Pulsar Proxy service
 
@@ -270,6 +304,13 @@ saslJaasBrokerSectionName=PulsarBroker
 ## Regarding authorization and role token
 
 For Kerberos authentication, the authenticated principal is used as the role token for Pulsar authorization.  For more information of authorization in Pulsar, see [security authorization](security-authorization.md).
+
+If you enabled authorizationEnabled you need set `superUserRoles` in `broker.conf` that corresponding to the name registered in kdc
+
+For example:
+```bash
+superUserRoles=client/{clientIp}@EXAMPLE.COM
+```
 
 ## Regarding authorization between BookKeeper and ZooKeeper
 

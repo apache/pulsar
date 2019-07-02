@@ -24,9 +24,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -38,8 +37,6 @@ import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.TRUE;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
 
 /**
  * Handles the life-cycle of an addEntry() operation.
@@ -52,14 +49,14 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     @SuppressWarnings("unused")
     private volatile AddEntryCallback callback;
-    private Object ctx;
+    Object ctx;
+    volatile long addOpCount;
+    private static final AtomicLongFieldUpdater<OpAddEntry> ADD_OP_COUNT_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(OpAddEntry.class, "addOpCount");
     private boolean closeWhenDone;
     private long startTime;
     volatile long lastInitTime;
-    private static final AtomicIntegerFieldUpdater<OpAddEntry> COMPLETED_UPDATER =
-        AtomicIntegerFieldUpdater.newUpdater(OpAddEntry.class, "completed");
     @SuppressWarnings("unused")
-    volatile int completed = FALSE;
     ByteBuf data;
     private int dataLength;
 
@@ -74,10 +71,10 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         op.dataLength = data.readableBytes();
         op.callback = callback;
         op.ctx = ctx;
+        op.addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
         op.closeWhenDone = false;
         op.entryId = -1;
         op.startTime = System.nanoTime();
-        op.completed = FALSE;
         ml.mbean.addAddEntrySample(op.dataLength);
         if (log.isDebugEnabled()) {
             log.debug("Created new OpAddEntry {}", op);
@@ -97,14 +94,12 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ByteBuf duplicateBuffer = data.retainedDuplicate();
 
         // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
+        addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);;
         lastInitTime = System.nanoTime();
-        ledger.asyncAddEntry(duplicateBuffer, this, ctx);
+        ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
     }
 
     public void failed(ManagedLedgerException e) {
-        if (!checkAndCompleteTimeoutTask()) {
-            return;
-        }
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         data.release();
         if (cb != null) {
@@ -120,7 +115,11 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         }
         checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
                 lh.getId());
-        checkArgument(this.ctx == ctx);
+        
+        if (!checkAndCompleteOp(ctx)) {
+            // means callback might have been completed by different thread (timeout task thread).. so do nothing
+            return;
+        }
 
         this.entryId = entryId;
         if (log.isDebugEnabled()) {
@@ -131,9 +130,6 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (rc != BKException.Code.OK) {
             handleAddFailure(lh);
         } else {
-            if(!checkAndCompleteTimeoutTask()) {
-                return;
-            }
             // Trigger addComplete callback in a thread hashed on the managed ledger name
             ml.getExecutor().executeOrdered(ml.getName(), this);
         }
@@ -205,19 +201,23 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     }
 
     /**
-     * It cancels timeout task and checks if add-entry operation is not completed yet.
+     * Checks if add-operation is completed
      * 
      * @return true if task is not already completed else returns false.
      */
-    private boolean checkAndCompleteTimeoutTask() {
-        if (!COMPLETED_UPDATER.compareAndSet(this, FALSE, TRUE)) {
-            if (log.isDebugEnabled()) {
-                log.debug("Add-entry already completed for {}-{}", this.ledger != null ? this.ledger.getId() : -1,
-                        this.entryId);
-            }
-            return false;
+    private boolean checkAndCompleteOp(Object ctx) {
+        long addOpCount = (ctx != null && ctx instanceof Long) ? (long) ctx : -1;
+        if (addOpCount != -1 && ADD_OP_COUNT_UPDATER.compareAndSet(this, this.addOpCount, -1)) {
+            return true;
         }
-        return true;
+        log.info("Add-entry already completed for {}-{}", ledger != null ? ledger.getId() : -1, entryId);
+        return false;
+    }
+
+    void handleAddTimeoutFailure(final LedgerHandle ledger, Object ctx) {
+        if (checkAndCompleteOp(ctx)) {
+            this.handleAddFailure(ledger);
+        }
     }
 
     /**
@@ -257,8 +257,8 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         dataLength = -1;
         callback = null;
         ctx = null;
+        addOpCount = -1;
         closeWhenDone = false;
-        completed = FALSE;
         entryId = -1;
         startTime = -1;
         lastInitTime = -1;

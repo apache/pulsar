@@ -31,12 +31,13 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.util.Codec;
 
 public class BrokersImpl extends BaseResource implements Brokers {
     private final WebTarget adminBrokers;
 
-    public BrokersImpl(WebTarget web, Authentication auth) {
-        super(auth);
+    public BrokersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         adminBrokers = web.path("/admin/v2/brokers");
     }
 
@@ -65,13 +66,23 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException {
         try {
-            request(adminBrokers.path("/configuration/").path(configName).path(configValue)).post(Entity.json(""),
+            String value = Codec.encode(configValue);
+            request(adminBrokers.path("/configuration/").path(configName).path(value)).post(Entity.json(""),
                     ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
+    @Override
+    public void deleteDynamicConfiguration(String configName) throws PulsarAdminException {
+        try {
+            request(adminBrokers.path("/configuration/").path(configName)).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
     @Override
     public Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException {
         try {

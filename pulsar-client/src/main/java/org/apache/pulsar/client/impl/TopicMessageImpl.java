@@ -158,6 +158,16 @@ public class TopicMessageImpl<T> implements Message<T> {
         return msg.getSchemaVersion();
     }
 
+    @Override
+    public boolean isReplicated() {
+        return msg.isReplicated();
+    }
+
+    @Override
+    public String getReplicatedFrom() {
+        return msg.getReplicatedFrom();
+    }
+
     public Message<T> getMessage() {
         return msg;
     }

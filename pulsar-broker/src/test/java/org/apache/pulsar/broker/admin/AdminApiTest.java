@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -468,7 +469,25 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
+        
+        // (4) try to update dynamic-field with special char "/" and "%"
+        String user1 = "test/test%&$*/^";
+        String user2 = "user2/password";
+        final String configValue = user1 + "," + user2;
+        admin.brokers().updateDynamicConfiguration("superUserRoles", configValue);
+        String storedValue = admin.brokers().getAllDynamicConfigurations().get("superUserRoles");
+        assertEquals(configValue, storedValue);
+        retryStrategically((test) -> pulsar.getConfiguration().getSuperUserRoles().size() == 2, 5, 200);
+        assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user1));
+        assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user2));
 
+        
+        admin.brokers().updateDynamicConfiguration("loadManagerClassName", SimpleLoadManagerImpl.class.getName());
+        retryStrategically((test) -> pulsar.getConfiguration().getLoadManagerClassName()
+                .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
+        assertEquals(pulsar.getConfiguration().getLoadManagerClassName(), SimpleLoadManagerImpl.class.getName());
+        admin.brokers().deleteDynamicConfiguration("loadManagerClassName");
+        assertFalse(admin.brokers().getAllDynamicConfigurations().containsKey("loadManagerClassName"));
     }
 
     /**

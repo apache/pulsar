@@ -520,6 +520,9 @@ public class SinkConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getArchive())) {
             mergedConfig.setArchive(newConfig.getArchive());
         }
+        if (!StringUtils.isEmpty(newConfig.getRuntimeFlags())) {
+            mergedConfig.setRuntimeFlags(newConfig.getRuntimeFlags());
+        }
         return mergedConfig;
     }
 }

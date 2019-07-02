@@ -52,6 +52,7 @@ const (
 	LZ4
 	ZLib
 	ZSTD
+	SNAPPY
 )
 
 type TopicMetadata interface {
@@ -120,9 +121,13 @@ type ProducerOptions struct {
 	//  - LZ4
 	//  - ZLIB
 	//  - ZSTD
+	//  - SNAPPY
 	//
 	// Note: ZSTD is supported since Pulsar 2.3. Consumers will need to be at least at that
 	// release in order to be able to receive messages compressed with ZSTD.
+	//
+	// Note: SNAPPY is supported since Pulsar 2.4. Consumers will need to be at least at that
+	// release in order to be able to receive messages compressed with SNAPPY.
 	CompressionType
 
 	// Set a custom message routing policy by passing an implementation of MessageRouter

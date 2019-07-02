@@ -26,7 +26,6 @@ import org.apache.pulsar.io.flume.FlumeConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -41,18 +40,18 @@ public abstract class AbstractSink<T> implements Sink<T> {
 
     public abstract T extractValue(Record<T> record);
 
-    protected static BlockingQueue<Map<String, Object>> records;
+    protected static BlockingQueue<Object> records;
 
     protected FlumeConnector flumeConnector;
 
-    public static BlockingQueue<Map<String, Object>> getQueue() {
+    public static BlockingQueue<Object> getQueue() {
         return records;
     }
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
 
-        records = new LinkedBlockingQueue<Map<String, Object>>();
+        records = new LinkedBlockingQueue<>();
 
         FlumeConfig flumeConfig = FlumeConfig.load(config);
 
@@ -64,9 +63,7 @@ public abstract class AbstractSink<T> implements Sink<T> {
     public void write(Record<T> record) {
         try {
             T message = extractValue(record);
-            Map<String, Object> m = new HashMap();
-            m.put("body", message);
-            records.put(m);
+            records.put(message);
             record.ack();
         } catch (InterruptedException e) {
             record.fail();

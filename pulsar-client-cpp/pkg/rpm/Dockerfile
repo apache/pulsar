@@ -23,7 +23,7 @@ FROM centos:7
 
 RUN yum update -y && \
     yum install -y gcc-c++ make cmake git rpm-build \
-                python-devel createrepo
+                python-devel createrepo libstdc++-static.x86_64
 
 # Download and compile boost
 RUN curl -O -L https://dl.bintray.com/boostorg/release/1.64.0/source/boost_1_64_0.tar.gz && \

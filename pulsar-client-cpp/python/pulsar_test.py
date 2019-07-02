@@ -370,26 +370,33 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_reader_on_specific_message(self):
+        num_of_msgs = 10
         client = Client(self.serviceUrl)
         producer = client.create_producer(
             'my-python-topic-reader-on-specific-message')
 
-        for i in range(10):
+        for i in range(num_of_msgs):
             producer.send(b'hello-%d' % i)
 
         reader1 = client.create_reader(
                 'my-python-topic-reader-on-specific-message',
                 MessageId.earliest)
 
-        for i in range(5):
+        for i in range(num_of_msgs/2):
             msg = reader1.read_next()
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
             last_msg_id = msg.message_id()
+            last_msg_idx = i
 
         reader2 = client.create_reader(
                 'my-python-topic-reader-on-specific-message',
                 last_msg_id)
 
-        for i in range(5, 10):
+        # The reset would be effectively done on the next position relative to reset.
+        # When available, we should test this behaviour with `startMessageIdInclusive` opt.
+        from_msg_idx = last_msg_idx
+        for i in range(from_msg_idx, num_of_msgs):
             msg = reader2.read_next()
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)

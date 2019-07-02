@@ -45,7 +45,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
@@ -101,6 +100,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean autoUpdatePartitions = true;
 
     private boolean replicateSubscriptionState = false;
+
+    private boolean resetIncludeHead = false;
 
     @JsonIgnore
     public String getSingleTopic() {
