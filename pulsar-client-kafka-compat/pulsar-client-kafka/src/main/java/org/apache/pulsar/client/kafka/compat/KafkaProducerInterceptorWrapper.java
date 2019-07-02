@@ -141,10 +141,10 @@ public class KafkaProducerInterceptorWrapper<K, V> implements ProducerIntercepto
             partitionID = getPartitionID(messageMetadataBuilder);
             TopicPartition topicPartition = new TopicPartition(topic, Integer.parseInt(partitionID));
             kafkaProducerInterceptor.onAcknowledgement(new RecordMetadata(topicPartition,
-                                                                -1,
-                                                                -1,
+                                                                -1L,
+                                                                -1L,
                                                                 messageMetadataBuilder.getEventTime(),
-                                                                -1,
+                                                                -1L,
                                                                 message.getKeyBytes().length,
                                                                 message.getValue().length), new Exception(exception));
         } catch (NumberFormatException e) {
