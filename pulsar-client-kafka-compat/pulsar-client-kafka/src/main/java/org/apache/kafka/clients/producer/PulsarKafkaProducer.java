@@ -73,29 +73,35 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private List<ProducerInterceptor<K, V>> interceptors;
 
+    private final Properties properties;
+
     public PulsarKafkaProducer(Map<String, Object> configs) {
-        this(configs, null, null);
+        this(new ProducerConfig(configs), null, null);
     }
 
-    public PulsarKafkaProducer(Map<String, Object> configs, Schema<K> keySchema,
-            Schema<V> valueSchema) {
-        this(configs, new Properties(), keySchema, valueSchema);
+    public PulsarKafkaProducer(Map<String, Object> configs, Serializer<K> keySerializer,
+                               Serializer<V> valueSerializer) {
+        this(new ProducerConfig(configs), new PulsarKafkaSchema<>(keySerializer), new PulsarKafkaSchema<>(valueSerializer));
+    }
+
+    public PulsarKafkaProducer(Map<String, Object> configs, Schema<K> keySchema, Schema<V> valueSchema) {
+        this(new ProducerConfig(configs), keySchema, valueSchema);
     }
 
     public PulsarKafkaProducer(Properties properties) {
-        this(properties, null, null);
+        this(new ProducerConfig(properties), null, null);
+    }
+
+    public PulsarKafkaProducer(Properties properties, Serializer<K> keySerializer, Serializer<V> valueSerializer) {
+        this(new ProducerConfig(properties), new PulsarKafkaSchema<>(keySerializer), new PulsarKafkaSchema<>(valueSerializer));
     }
 
     public PulsarKafkaProducer(Properties properties, Schema<K> keySchema, Schema<V> valueSchema) {
-        this(new HashMap<>(), properties, keySchema, valueSchema);
+        this(new ProducerConfig(properties), keySchema, valueSchema);
     }
 
     @SuppressWarnings({ "unchecked", "deprecation" })
-    private PulsarKafkaProducer(Map<String, Object> conf, Properties properties, Schema<K> keySchema,
-            Schema<V> valueSchema) {
-        properties.forEach((k, v) -> conf.put((String) k, v));
-
-        ProducerConfig producerConfig = new ProducerConfig(conf);
+    private PulsarKafkaProducer(ProducerConfig producerConfig, Schema<K> keySchema, Schema<V> valueSchema) {
 
         if (keySchema == null) {
             Serializer<K> kafkaKeySerializer = producerConfig.getConfiguredInstance(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, Serializer.class);
@@ -117,6 +123,9 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
         partitioner = producerConfig.getConfiguredInstance(ProducerConfig.PARTITIONER_CLASS_CONFIG, Partitioner.class);
         partitioner.configure(producerConfig.originals());
+
+        this.properties = new Properties();
+        producerConfig.originals().forEach((k, v) -> properties.put(k, v));
 
         long keepAliveIntervalMs = Long.parseLong(properties.getProperty(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, "30000"));
 

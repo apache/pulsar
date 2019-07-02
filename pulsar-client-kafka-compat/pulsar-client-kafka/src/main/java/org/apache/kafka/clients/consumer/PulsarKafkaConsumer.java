@@ -110,11 +110,16 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private final BlockingQueue<QueueItem> receivedMessages = new ArrayBlockingQueue<>(1000);
 
     public PulsarKafkaConsumer(Map<String, Object> configs) {
-        this(configs, null, null);
+        this(new ConsumerConfig(configs), null, null);
     }
 
-    public PulsarKafkaConsumer(Map<String, Object> configs, Schema<K> keySchema,
-            Schema<V> valueSchema) {
+    public PulsarKafkaConsumer(Map<String, Object> configs, Deserializer<K> keyDeserializer,
+                               Deserializer<V> valueDeserializer) {
+        this(new ConsumerConfig(configs),
+                new PulsarKafkaSchema<K>(keyDeserializer), new PulsarKafkaSchema<V>(valueDeserializer));
+    }
+
+    public PulsarKafkaConsumer(Map<String, Object> configs, Schema<K> keySchema, Schema<V> valueSchema) {
         this(new ConsumerConfig(configs), keySchema, valueSchema);
     }
 
@@ -122,14 +127,18 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         this(new ConsumerConfig(properties), null, null);
     }
 
-    public PulsarKafkaConsumer(Properties properties, Schema<K> keySchema,
-            Schema<V> valueSchema) {
+    public PulsarKafkaConsumer(Properties properties, Deserializer<K> keyDeserializer,
+                               Deserializer<V> valueDeserializer) {
+        this(new ConsumerConfig(properties),
+                new PulsarKafkaSchema<>(keyDeserializer), new PulsarKafkaSchema<>(valueDeserializer));
+    }
+
+    public PulsarKafkaConsumer(Properties properties, Schema<K> keySchema, Schema<V> valueSchema) {
         this(new ConsumerConfig(properties), keySchema, valueSchema);
     }
 
     @SuppressWarnings("unchecked")
-    private PulsarKafkaConsumer(ConsumerConfig consumerConfig, Schema<K> keySchema,
-            Schema<V> valueSchema) {
+    private PulsarKafkaConsumer(ConsumerConfig consumerConfig, Schema<K> keySchema, Schema<V> valueSchema) {
 
         if (keySchema == null) {
             Deserializer<K> kafkaKeyDeserializer = consumerConfig.getConfiguredInstance(

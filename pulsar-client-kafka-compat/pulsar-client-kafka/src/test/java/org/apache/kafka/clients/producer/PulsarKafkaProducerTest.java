@@ -125,7 +125,7 @@ public class PulsarKafkaProducerTest {
         properties.put(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, "1000000");
         properties.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000000");
 
-        new PulsarKafkaProducer<>(properties, null, null);
+        new PulsarKafkaProducer<>(properties);
 
         verify(mockClientBuilder, times(1)).keepAliveInterval(1000, TimeUnit.SECONDS);
         verify(mockProducerBuilder, times(1)).sendTimeout(1000000, TimeUnit.MILLISECONDS);
@@ -171,7 +171,7 @@ public class PulsarKafkaProducerTest {
         properties.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, interceptors);
 
         // Act
-        PulsarKafkaProducer<String, String> pulsarKafkaProducer = new PulsarKafkaProducer<>(properties, null, null);
+        PulsarKafkaProducer<String, String> pulsarKafkaProducer = new PulsarKafkaProducer<>(properties);
 
         pulsarKafkaProducer.send(new ProducerRecord<>("topic", 1,"key", "value"));
 
@@ -247,7 +247,7 @@ public class PulsarKafkaProducerTest {
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, Arrays.asList("pulsar://localhost:6650"));
         properties.put(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, Long.toString((Integer.MAX_VALUE + 1L) * 1000));
 
-        new PulsarKafkaProducer<>(properties, null, null);
+        new PulsarKafkaProducer<>(properties);
     }
 
     public static class PulsarKafkaProducerInterceptor implements org.apache.kafka.clients.producer.ProducerInterceptor<String, String> {
