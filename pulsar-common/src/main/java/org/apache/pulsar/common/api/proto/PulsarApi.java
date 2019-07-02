@@ -214,7 +214,6 @@ public final class PulsarApi {
     v12(12, 12),
     v13(13, 13),
     v14(14, 14),
-    v15(15, 15),
     ;
     
     public static final int v0_VALUE = 0;
@@ -232,7 +231,6 @@ public final class PulsarApi {
     public static final int v12_VALUE = 12;
     public static final int v13_VALUE = 13;
     public static final int v14_VALUE = 14;
-    public static final int v15_VALUE = 15;
     
     
     public final int getNumber() { return value; }
@@ -254,7 +252,6 @@ public final class PulsarApi {
         case 12: return v12;
         case 13: return v13;
         case 14: return v14;
-        case 15: return v15;
         default: return null;
       }
     }

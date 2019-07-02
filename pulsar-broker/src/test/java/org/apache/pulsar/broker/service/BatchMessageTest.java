@@ -737,7 +737,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "containerBuilder", timeOut = 3000)
+    @Test(dataProvider = "containerBuilder")
     private void testRetrieveSequenceIdGenerated(BatcherBuilder builder) throws Exception {
 
         int numMsgs = 10;
@@ -769,7 +769,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "containerBuilder", timeOut = 3000)
+    @Test(dataProvider = "containerBuilder")
     private void testRetrieveSequenceIdSpecify(BatcherBuilder builder) throws Exception {
 
         int numMsgs = 10;
