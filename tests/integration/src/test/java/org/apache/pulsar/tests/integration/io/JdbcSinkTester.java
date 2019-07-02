@@ -129,7 +129,7 @@ public class JdbcSinkTester extends SinkTester<MySQLContainer> {
             PreparedStatement statement = connection.prepareStatement(querySql);
             rs = statement.executeQuery();
 
-            if (kvs.get("EVENT").equals("DELETE")) {
+            if (kvs.get("ACTION").equals("DELETE")) {
                 assertFalse(rs.first());
                 return;
             }

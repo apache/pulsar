@@ -404,10 +404,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             obj.setField3(i);
             String value = new String(schema.encode(obj));
             Map<String, String> properties = Maps.newHashMap();
-            properties.put("EVENT", "INSERT");
+            properties.put("ACTION", "INSERT");
 
             kvs.put(key, value);
-            kvs.put("EVENT", "INSERT");
+            kvs.put("ACTION", "INSERT");
             producer.newMessage()
                     .properties(properties)
                     .key(key)
@@ -440,10 +440,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             obj.setField3(i);
             String value = new String(schema.encode(obj));
             Map<String, String> properties = Maps.newHashMap();
-            properties.put("EVENT", "UPDATE");
+            properties.put("ACTION", "UPDATE");
 
             kvs.put(key, value);
-            kvs.put("EVENT", "UPDATE");
+            kvs.put("ACTION", "UPDATE");
             producer.newMessage()
                     .properties(properties)
                     .key(key)
@@ -476,10 +476,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             obj.setField3(i);
             String value = new String(schema.encode(obj));
             Map<String, String> properties = Maps.newHashMap();
-            properties.put("EVENT", "DELETE");
+            properties.put("ACTION", "DELETE");
 
             kvs.put(key, value);
-            kvs.put("EVENT", "DELETE");
+            kvs.put("ACTION", "DELETE");
             producer.newMessage()
                     .properties(properties)
                     .key(key)
