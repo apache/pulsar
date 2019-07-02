@@ -187,16 +187,11 @@
 <tbody>
 <tr><td style="text-align:left"><code>ackTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">设置未完成 ACK 的超时时间（默认值：0）</td></tr>
 <tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left"><a href="https://pulsar.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html">订阅类型</a>：<code>Exclusive</code>, <code>Failover</code>, <code>Shared</code></td></tr>
-<tr><td style="text-align:left">`receiverQueueSize</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
-<tr><td style="text-align:left">`consumerName</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">消费者名称</td></tr>
-<tr><td style="text-align:left">`priorityLevel</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">指定消费者<a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-"> 优先级 </a></td></tr>
-<tr><td style="text-align:left">`maxRedeliverCount</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">为消费者指定 <a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">maxRedeliverCount</a> （默认值：0） 激活 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a> 功能。</td></tr>
-<tr><td style="text-align:left">`deadLetterTopic</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">为消费者指定<a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">deadLetterTopic</a> （默认值：{topic}-{subscription}-DLQ） 激活 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a> 功能。</td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
+<tr><td style="text-align:left"><code>consumerName</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">消费者名称</td></tr>
+<tr><td style="text-align:left"><code>priorityLevel</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">指定消费者<a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-"> 优先级 </a></td></tr>
+<tr><td style="text-align:left"><code>maxRedeliverCount</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">为消费者指定 <a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">maxRedeliverCount</a> （默认值：0） 激活 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a> 功能。</td></tr>
+<tr><td style="text-align:left"><code>deadLetterTopic</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">为消费者指定<a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">deadLetterTopic</a> （默认值：{topic}-{subscription}-DLQ） 激活 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a> 功能。</td></tr>
 <tr><td style="text-align:left"><code>pullMode</code></td><td style="text-align:left">boolean</td><td style="text-align:left">no</td><td style="text-align:left">启用 pull 模式 （默认: false），详见下文 &quot;Flow Control&quot; 。</td></tr>
 </tbody>
 </table>
@@ -218,8 +213,7 @@
 <tbody>
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID</td></tr>
 <tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
-<tr><td style="text-align:left">`publishTime</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">发布时间戳</td></tr>
+<tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">发布时间戳</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的属性</td></tr>
 <tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">生产者设置的原始路由密钥</td></tr>
 </tbody>
@@ -272,8 +266,7 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>readerName</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">Reader name</td></tr>
-<tr><td style="text-align:left">`receiverQueueSize</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">int or enum</td><td style="text-align:left">no</td><td style="text-align:left">Message ID to start from, <code>earliest</code> or <code>latest</code> (default: <code>latest</code>)</td></tr>
 </tbody>
 </table>
@@ -293,8 +286,7 @@
 <tbody>
 <tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID</td></tr>
 <tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
-<tr><td style="text-align:left">`publishTime</td></tr>
-<tr><td style="text-align:left">`</td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">发布时间戳</td></tr>
+<tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">发布时间戳</td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的属性</td></tr>
 <tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">生产者设置的原始路由密钥</td></tr>
 </tbody>
