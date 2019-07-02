@@ -133,7 +133,7 @@ public class JdbcSinkTest {
         genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
 
         Map<String, String> insertProperties = Maps.newHashMap();
-        insertProperties.put("EVENT", "INSERT");
+        insertProperties.put("ACTION", "INSERT");
         when(insertMessage.getValue()).thenReturn(genericAvroSchema.decode(insertBytes));
         when(insertMessage.getProperties()).thenReturn(insertProperties);
         log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
@@ -183,7 +183,7 @@ public class JdbcSinkTest {
         updateGenericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
 
         Map<String, String> updateProperties = Maps.newHashMap();
-        updateProperties.put("EVENT", "UPDATE");
+        updateProperties.put("ACTION", "UPDATE");
         when(updateMessage.getValue()).thenReturn(updateGenericAvroSchema.decode(updateBytes));
         when(updateMessage.getProperties()).thenReturn(updateProperties);
         log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
@@ -225,7 +225,7 @@ public class JdbcSinkTest {
         GenericSchema<GenericRecord> deleteGenericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
 
         Map<String, String> deleteProperties = Maps.newHashMap();
-        deleteProperties.put("EVENT", "DELETE");
+        deleteProperties.put("ACTION", "DELETE");
         when(deleteMessage.getValue()).thenReturn(deleteGenericAvroSchema.decode(deleteBytes));
         when(deleteMessage.getProperties()).thenReturn(deleteProperties);
         log.info("foo:{}, Message.getValue: {}, record.getValue: {}",

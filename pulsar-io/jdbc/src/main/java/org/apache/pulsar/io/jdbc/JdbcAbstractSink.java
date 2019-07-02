@@ -56,7 +56,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     private PreparedStatement deleteStatment;
 
 
-    protected static final String ACTION = "EVENT";
+    protected static final String ACTION = "ACTION";
     protected static final String INSERT = "INSERT";
     protected static final String UPDATE = "UPDATE";
     protected static final String DELETE = "DELETE";
