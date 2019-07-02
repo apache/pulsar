@@ -1,8 +1,9 @@
 ---
 id: functions-worker
 title: Deploy and manage functions worker
-sidebar_label: Functions Worker
+sidebar_label: Admin: Pulsar Functions Worker
 ---
+This guide is used for administrator. 
 
 Pulsar `functions-worker` is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either of the two options based on your requirements. 
 - [run with brokers](#run-Functions-worker-with-brokers)

@@ -352,7 +352,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     sequenceId = msgMetadataBuilder.getSequenceId();
                 }
                 if (!msgMetadataBuilder.hasPublishTime()) {
-                    msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
+                    msgMetadataBuilder.setPublishTime(client.getClientClock().millis());
 
                     checkArgument(!msgMetadataBuilder.hasProducerName());
 

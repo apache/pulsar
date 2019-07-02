@@ -306,16 +306,14 @@ Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default.*");
 consumerBuilder
         .topics(topics)
         .subscribeAsync()
-        .thenAccept(consumer -> {
-            do {
-                try {
-                    Message msg = consumer.receive();
-                    // Do something with the received message
-                } catch (PulsarClientException e) {
-                    e.printStackTrace();
-                }
-            } while (true);
-        });
+        .thenAccept(this::receiveMessageFromConsumer);
+
+private void receiveMessageFromConsumer(Consumer consumer) {
+    consumer.receiveAsync().thenAccept(message -> {
+                // Do something with the received message
+                receiveMessageFromConsumer(consumer);
+            });
+}
 ```
 
 ### Subscription modes
