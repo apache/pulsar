@@ -351,8 +351,8 @@ public class SinkConfigUtils {
             if (narClassLoader == null) {
                 throw new IllegalArgumentException("Sink package does not have the correct format. " +
                         "Pulsar cannot determine if the package is a NAR package or JAR package." +
-                        "Sink classname is not provided and attempts to load it as a NAR package produced the following error.",
-                        narClassLoaderException);
+                        "Sink classname is not provided and attempts to load it as a NAR package produced error: "
+                        + narClassLoaderException.getMessage());
             }
             try {
                 sinkClassName = ConnectorUtils.getIOSinkClass(narClassLoader);

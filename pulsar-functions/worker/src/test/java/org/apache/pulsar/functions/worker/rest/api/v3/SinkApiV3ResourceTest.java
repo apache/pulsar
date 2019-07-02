@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
@@ -283,7 +282,10 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Invalid Sink archive")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink package does not have the" +
+            " correct format. Pulsar cannot determine if the package is a NAR package" +
+            " or JAR package.Sink classname is not provided and attempts to load it as a NAR package produced error: " +
+            "zip file is empty")
     public void testRegisterSinkMissingPackageDetails() {
         try {
             testRegisterSinkMissingArguments(
