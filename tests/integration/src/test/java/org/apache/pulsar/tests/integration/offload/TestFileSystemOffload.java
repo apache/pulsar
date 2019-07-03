@@ -18,36 +18,14 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import lombok.extern.slf4j.Slf4j;
+import org.testng.annotations.Test;
+
 import java.util.HashMap;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.tests.integration.containers.S3Container;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 @Slf4j
-public class TestS3Offload extends TestBaseOffload {
-
-    private S3Container s3Container;
-
-    @BeforeClass
-    public void setupS3() {
-        s3Container = new S3Container(
-                pulsarCluster.getClusterName(),
-                S3Container.NAME)
-                .withNetwork(pulsarCluster.getNetwork())
-                .withNetworkAliases(S3Container.NAME);
-        s3Container.start();
-    }
-
-    @AfterClass
-    public void teardownS3() {
-        if (null != s3Container) {
-            s3Container.stop();
-        }
-    }
+public class TestFileSystemOffload extends TestBaseOffload {
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
@@ -71,12 +49,9 @@ public class TestS3Offload extends TestBaseOffload {
         Map<String, String> result = new HashMap<>();
         result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
-        result.put("managedLedgerOffloadDriver", "s3");
-        result.put("s3ManagedLedgerOffloadBucket", "pulsar-integtest");
-        result.put("s3ManagedLedgerOffloadServiceEndpoint", "http://" + S3Container.NAME + ":9090");
+        result.put("managedLedgerOffloadDriver", "filesystem");
+        result.put("fileSystemURI", "file:///");
 
         return result;
     }
-
-
 }
