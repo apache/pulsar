@@ -593,12 +593,31 @@ The following schema formats are currently available for Java:
         .topic("some-string-topic")
         .create();
   ```
+
 * JSON schemas can be created for POJOs using the `JSONSchema` class. Here's an example:
 
   ```java
   Schema<MyPojo> pojoSchema = JSONSchema.of(MyPojo.class);
   Producer<MyPojo> pojoProducer = client.newProducer(pojoSchema)
         .topic("some-pojo-topic")
+        .create();
+  ```
+
+* Protobuf schemas can be generate using the `ProtobufSchema` class. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
+
+  ```java
+  Schema<MyProtobuf> protobufSchema = ProtobufSchema.of(MyProtobuf.class);
+  Producer<MyProtobuf> protobufProducer = client.newProducer(protobufSchema)
+        .topic("some-protobuf-topic")
+        .create();
+  ```
+
+* Avro schemas can be defined with the help of the `AvroSchema` class. The next code snippet demonstrates the creation and usage of the Avro schema:
+  
+  ```java
+  Schema<MyAvro> avroSchema = AvroSchema.of(MyAvro.class);
+  Producer<MyAvro> avroProducer = client.newProducer(avroSchema)
+        .topic("some-avro-topic")
         .create();
   ```
 
