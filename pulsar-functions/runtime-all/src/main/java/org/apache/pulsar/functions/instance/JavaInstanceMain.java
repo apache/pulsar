@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.instance;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
@@ -26,46 +26,61 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Files;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * This is the initial class that gets called when starting a Java Function instance.
+ * Multiple class loaders are used to separate function framework dependencies from user code dependencies
+ * This class will create three classloaders:
+ *      1. The root classloader that will share interfaces between the function framework
+ *      classloader and user code classloader. This classloader will contain the following dependencies
+ *          - pulsar-functions-api
+ *          - pulsar-client-api
+ *          - log4j-slf4j-impl
+ *          - slf4j-api
+ *          - log4j-core
+ *          - log4j-api
+ *
+ *      2. The Function framework classloader, a child of the root classloader, that loads all pulsar broker/worker dependencies
+ *      3. The user code classloader, a child of the root classloader, that loads all user code dependencies
+ *
+ * This class should not use any other dependencies!
+ *
+ */
 public class JavaInstanceMain {
+
+    private static final String FUNCTIONS_FRAMEWORK_CLASSPATH = "pulsar.functions.framework.classpath";
 
     public JavaInstanceMain() { }
 
     public static void main(String[] args) throws Exception {
 
+        // Set root classloader to current classpath
+        ClassLoader root = Thread.currentThread().getContextClassLoader();
 
+        // Get classpath for framework
+        String framework_classpath = System.getProperty(FUNCTIONS_FRAMEWORK_CLASSPATH);
+        assert framework_classpath != null;
 
-        File functionApiJar = new File("/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-functions-api/2.4.0-SNAPSHOT/pulsar-functions-api-2.4.0-SNAPSHOT.jar");
-        File pulsarClientApiJar = new File("/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-client-api/2.4.0-SNAPSHOT/pulsar-client-api-2.4.0-SNAPSHOT.jar");
-//        File functionInstanceJar = new File("/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-functions-instance/2.4.0-SNAPSHOT/pulsar-functions-instance-2.4.0-SNAPSHOT.jar");
-        File log4jCoreJar = new File("/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-core/2.11.2/log4j-core-2.11.2.jar");
-        File log4jApiJar = new File("/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-api/2.11.2/log4j-api-2.11.2.jar");
-        File log4jSlf4jImplJar = new File("/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-slf4j-impl/2.11.2/log4j-slf4j-impl-2.11.2.jar");
-        File sl4fjApiJar = new File("/Users/jerrypeng/.m2/repository/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar");
-        ClassLoader root = loadJar(ClassLoader.getSystemClassLoader().getParent(),
-                new File[]{functionApiJar, pulsarClientApiJar, sl4fjApiJar, log4jSlf4jImplJar, log4jApiJar, log4jCoreJar});
-
-        File classpath = new File("/Users/jerrypeng/workspace/incubator-pulsar/distribution/server/target/classpath.txt");
         List<File> files = new LinkedList<>();
-        for (String str: Files.readAllLines(classpath.toPath())) {
-            for (String jar: str.split(":")) {
-                files.add(new File(jar));
-            }
+        for (String entry: framework_classpath.split(":")) {
+            files.add(new File(entry));
         }
+
         ClassLoader functionFrameworkClsLoader = loadJar(root, files.toArray(new File[files.size()]));
 
+        System.out.println("Using function root classloader: " + root);
+        System.out.println("Using function framework classloader: " + functionFrameworkClsLoader);
 
-        Object main = createInstance(JavaInstanceStarter.class.getName(), functionFrameworkClsLoader);
+        // use the function framework classloader to create org.apache.pulsar.functions.runtime.JavaInstanceStarter
+        Object main = createInstance("org.apache.pulsar.functions.runtime.JavaInstanceStarter", functionFrameworkClsLoader);
 
-//        log.info("env: {}", System.getenv().toString());
-
+        // Invoke start method of JavaInstanceStarter to start the framework code
         Method method = main.getClass().getDeclaredMethod("start", String[].class, ClassLoader.class, ClassLoader.class);
 
+        System.out.println("Starting function instance...");
         method.invoke(main, args, functionFrameworkClsLoader, root);
-
     }
 
     public static Object createInstance(String userClassName,

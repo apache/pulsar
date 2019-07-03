@@ -38,11 +38,11 @@
     <module>utils</module>
     <module>instance</module>
     <module>runtime</module>
-    <!--<module>runtime-all</module>-->
+    <module>runtime-all</module>
     <module>worker</module>
     <module>secrets</module>
-    <!--<module>localrun</module>-->
-    <!--<module>localrun-shaded</module>-->
+    <module>localrun</module>
+    <module>localrun-shaded</module>
   </modules>
 
 </project>

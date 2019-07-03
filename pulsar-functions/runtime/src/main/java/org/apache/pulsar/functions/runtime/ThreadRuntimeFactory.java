@@ -33,8 +33,13 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
+
+import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
 
 /**
  * Thread based function container factory implementation.
@@ -52,17 +57,42 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
-                                CollectorRegistry collectorRegistry, ClassLoader userClassloader) throws Exception {
+                                CollectorRegistry collectorRegistry, ClassLoader rootClassLoader) throws Exception {
         this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
-                storageServiceUrl, secretsProvider, collectorRegistry, userClassloader);
+                storageServiceUrl, secretsProvider, collectorRegistry, rootClassLoader);
     }
 
     @VisibleForTesting
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
                                 SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
-                                ClassLoader userClassloader) {
+                                ClassLoader rootClassLoader) {
+        if (rootClassLoader == null) {
+            String envJavaInstanceJarLocation = System.getProperty(FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY);
+            if (null != envJavaInstanceJarLocation) {
+                log.info("Java instance jar location is not defined,"
+                        + " using the location defined in system environment : {}", envJavaInstanceJarLocation);
+
+                File envJavaInstanceJarLocationFile = new File(envJavaInstanceJarLocation);
+                if (!envJavaInstanceJarLocationFile.exists() || !envJavaInstanceJarLocationFile.isFile()) {
+                    throw new RuntimeException("Java instance jar location "
+                            + envJavaInstanceJarLocation + " does not exist or is not a file");
+                }
+                try {
+                    URL[] urls = {envJavaInstanceJarLocationFile.toURI().toURL()};
+                    rootClassLoader = new URLClassLoader(urls, ClassLoader.getSystemClassLoader().getParent());
+//                    rootClassLoader = Thread.currentThread().getContextClassLoader();
+
+                    log.info("ThreadRuntimeFactory rootClassLoader: {}", rootClassLoader);
+
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to load Java instance jar from " + envJavaInstanceJarLocation, e);
+                }
+            } else {
+                throw new RuntimeException("No JavaInstanceJar specified");
+            }
+        }
         this.secretsProvider = secretsProvider;
-        this.fnCache = new FunctionCacheManagerImpl(userClassloader);
+        this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;

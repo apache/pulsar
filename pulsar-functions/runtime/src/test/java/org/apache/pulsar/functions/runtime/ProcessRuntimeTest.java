@@ -268,10 +268,10 @@ public class ProcessRuntimeTest {
         String expectedArgs = "java -cp " + classpath
                 + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + extraDepsEnv
-                + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
+                + " -Dlog4j.configurationFile=java_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
-                + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
+                + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()

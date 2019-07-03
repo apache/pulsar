@@ -51,6 +51,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
+    private static final String FUNCTIONS_FRAMEWORK_CLASSPATH = "pulsar.functions.framework.classpath";
 
     public static List<String> composeCmd(InstanceConfig instanceConfig,
                                           String instanceFile,
@@ -254,30 +255,21 @@ public class RuntimeUtils {
             args.add("java");
             args.add("-cp");
 
-            String classpath = "/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-functions-api/2.4.0-SNAPSHOT/pulsar-functions-api-2.4.0-SNAPSHOT.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-client-api/2.4.0-SNAPSHOT/pulsar-client-api-2.4.0-SNAPSHOT.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-core/2.11.2/log4j-core-2.11.2.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-api/2.11.2/log4j-api-2.11.2.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-slf4j-impl/2.11.2/log4j-slf4j-impl-2.11.2.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-functions-instance/2.4.0-SNAPSHOT/pulsar-functions-instance-2.4.0-SNAPSHOT.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/apache/pulsar/pulsar-functions-runtime/2.4.0-SNAPSHOT/pulsar-functions-runtime-2.4.0-SNAPSHOT.jar";
+            String classpath = instanceFile;
 
-            String additional = "/Users/jerrypeng/.m2/repository/log4j/log4j/1.2.17/log4j-1.2.17.jar:" +
-                    "/Users/jerrypeng/.m2/repository/org/apache/logging/log4j/log4j-web/2.10.0/log4j-web-2.10.0.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/slf4j/jul-to-slf4j/1.7.25/jul-to-slf4j-1.7.25.jar" +
-                    ":/Users/jerrypeng/.m2/repository/org/slf4j/jcl-over-slf4j/1.7.25/jcl-over-slf4j-1.7.25.jar";
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 classpath = classpath + ":" + extraDependenciesDir + "/*";
             }
             args.add(classpath);
 
-            // Keep the same env property pointing to the Java instance file so that it can be picked up
-            // by the child process and manually added to classpath
-            args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, extraDependenciesDir));
             }
+
+            // add complete classpath for broker/worker so that the function instance can load
+            // the framework dependencies separately from user code dependencies
+            args.add(String.format("-D%s=%s", FUNCTIONS_FRAMEWORK_CLASSPATH, System.getProperty("java.class.path")));
+
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
@@ -295,7 +287,8 @@ public class RuntimeUtils {
                     args.add("-Xmx" + String.valueOf(resources.getRam()));
                 }
             }
-            args.add(JavaInstanceMain.class.getName());
+            args.add("org.apache.pulsar.functions.instance.JavaInstanceMain");
+
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {

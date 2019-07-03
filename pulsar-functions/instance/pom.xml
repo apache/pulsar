@@ -142,7 +142,38 @@
   </dependencies>
 
   <build>
+    <finalName>java-instance</finalName>
     <plugins>
+      <!--<plugin>-->
+        <!--<groupId>org.apache.maven.plugins</groupId>-->
+        <!--<artifactId>maven-dependency-plugin</artifactId>-->
+        <!--<executions>-->
+          <!--<execution>-->
+            <!--<id>copy</id>-->
+            <!--<phase>package</phase>-->
+            <!--<goals>-->
+              <!--<goal>copy</goal>-->
+            <!--</goals>-->
+          <!--</execution>-->
+        <!--</executions>-->
+        <!--<configuration>-->
+          <!--<artifactItems>-->
+            <!--<artifactItem>-->
+              <!--<groupId>org.apache.pulsar</groupId>-->
+              <!--<artifactId>pulsar-functions-api</artifactId>-->
+              <!--<version>${project.version}</version>-->
+              <!--<type>jar</type>-->
+              <!--<overWrite>true</overWrite>-->
+              <!--<outputDirectory>${project.build.directory}/java-instance-deps</outputDirectory>-->
+              <!--<destFileName>${artifactId}.jar</destFileName>-->
+            <!--</artifactItem>-->
+          <!--</artifactItems>-->
+          <!--<outputDirectory>${project.build.directory}/wars</outputDirectory>-->
+          <!--<overWriteReleases>false</overWriteReleases>-->
+          <!--<overWriteSnapshots>true</overWriteSnapshots>-->
+        <!--</configuration>-->
+      <!--</plugin>-->
+
       <!-- this task is used for copy all python files together to provide a instance directory
            for running python instance -->
       <plugin>

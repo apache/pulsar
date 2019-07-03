@@ -58,6 +58,7 @@ public class PulsarSink<T> implements Sink<T> {
     private final PulsarClient client;
     private final PulsarSinkConfig pulsarSinkConfig;
     private final Map<String, String> properties;
+    private final ClassLoader functionClassLoader;
     private ComponentStatsManager stats;
 
     @VisibleForTesting
@@ -237,12 +238,14 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties, ComponentStatsManager stats) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties,
+                      ComponentStatsManager stats, ClassLoader functionClassLoader) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
         this.properties = properties;
         this.stats = stats;
+        this.functionClassLoader = functionClassLoader;
     }
 
     @Override
@@ -250,6 +253,7 @@ public class PulsarSink<T> implements Sink<T> {
         log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
 
         Schema<T> schema = initializeSchema();
+        log.info("sink Schema: {}", schema);
         if (schema == null) {
             log.info("Since output type is null, not creating any real sink");
             return;
@@ -314,8 +318,9 @@ public class PulsarSink<T> implements Sink<T> {
             return (Schema<T>) Schema.BYTES;
         }
 
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(),
-                Thread.currentThread().getContextClassLoader());
+        log.info("initializeSchema - {} - {} - {}", Thread.currentThread().getContextClassLoader(), this.getClass().getClassLoader(), functionClassLoader);
+        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
+        log.info("typeArg: {}", typeArg);
 
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check

@@ -61,9 +61,8 @@ public class FunctionCacheEntry implements AutoCloseable {
     FunctionCacheEntry(Collection<String> requiredJarFiles,
                        Collection<URL> requiredClasspaths,
                        URL[] libraryURLs,
-                       String initialInstanceId, ClassLoader userClassLoader) {
-//        this.classLoader = FunctionClassLoaders.create(libraryURLs, FunctionClassLoaders.class.getClassLoader());
-        this.classLoader = FunctionClassLoaders.create(libraryURLs, userClassLoader);
+                       String initialInstanceId, ClassLoader rootClassLoader) {
+        this.classLoader = FunctionClassLoaders.create(libraryURLs, rootClassLoader);
 
         this.classpaths = requiredClasspaths.stream()
             .map(URL::toString)
@@ -72,17 +71,38 @@ public class FunctionCacheEntry implements AutoCloseable {
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
     }
 
-    private static final Set<String> JAVA_INSTANCE_ADDITIONAL_JARS = isNoneBlank(
-            System.getProperty(JAVA_INSTANCE_JAR_PROPERTY))
-                    ? Collections.singleton(System.getProperty(JAVA_INSTANCE_JAR_PROPERTY))
-                    : Collections.emptySet();
+    //TODO remove
+//    private static final Set<String> JAVA_INSTANCE_ADDITIONAL_JARS = isNoneBlank(
+//            System.getProperty(JAVA_INSTANCE_JAR_PROPERTY))
+//                    ? Collections.singleton(System.getProperty(JAVA_INSTANCE_JAR_PROPERTY))
+//                    : Collections.emptySet();
 
-    FunctionCacheEntry(String narArchive, String initialInstanceId) throws IOException {
-        if (JAVA_INSTANCE_ADDITIONAL_JARS.isEmpty()) {
-            log.warn("java-instance jar path not set in system-property= {} ", JAVA_INSTANCE_JAR_PROPERTY);
-            throw new IllegalStateException(JAVA_INSTANCE_JAR_PROPERTY + " system property not set");
+    FunctionCacheEntry(String narArchive, String initialInstanceId, ClassLoader rootClassLoader) throws IOException {
+//        if (JAVA_INSTANCE_ADDITIONAL_JARS.isEmpty()) {
+//            log.warn("java-instance jar path not set in system-property= {} ", JAVA_INSTANCE_JAR_PROPERTY);
+//            throw new IllegalStateException(JAVA_INSTANCE_JAR_PROPERTY + " system property not set");
+//        }
+
+        try {
+            ClassLoader foo = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), Thread.currentThread().getContextClassLoader());
+            log.info("loaded: {}", foo.loadClass("io.codearte.jfairy.data.MapBasedDataMaster$Data"));
+        } catch (Exception e) {
+            log.info("failed load - 1", e);
         }
-        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), JAVA_INSTANCE_ADDITIONAL_JARS);
+
+        try {
+            ClassLoader foo = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
+            log.info("loaded: {}", foo.loadClass("io.codearte.jfairy.data.MapBasedDataMaster$Data"));
+        } catch (Exception e) {
+            log.info("failed load - 2", e);
+        }
+
+
+        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
+//        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet());
+
+
+        log.info("{} - rootClassLoader: {} - {} - {}", narArchive, rootClassLoader, this.classLoader, this.classLoader.getParent());
         this.classpaths = Collections.emptySet();
         this.jarFiles = Collections.singleton(narArchive);
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));

@@ -33,8 +33,6 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.HTTPServer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.core.config.ConfigurationSource;
-import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -45,8 +43,6 @@ import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.Reflections;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -128,14 +124,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
     public JavaInstanceStarter() { }
 
-    public void start(String[] args, ClassLoader frameworkClassLoader, ClassLoader userClassLoader) throws Exception {
+    public void start(String[] args, ClassLoader frameworkClassLoader, ClassLoader rootClassLoader) throws Exception {
         Thread.currentThread().setContextClassLoader(frameworkClassLoader);
-
-
-//        ConfigurationSource source = new ConfigurationSource(new FileInputStream("/Users/jerrypeng/workspace/incubator-pulsar/pulsar-functions/runtime/src/main/resources/java_instance_log4j2.yml"));
-//        Configurator.initialize(frameworkClassLoader, source);
-
-
 
         JCommander jcommander = new JCommander(this);
         // parse args by JCommander
@@ -193,7 +183,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProvider, collectorRegistry, userClassLoader);
+                secretsProvider, collectorRegistry, rootClassLoader);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
