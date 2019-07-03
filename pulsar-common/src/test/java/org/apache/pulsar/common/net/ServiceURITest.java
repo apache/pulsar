@@ -184,7 +184,7 @@ public class ServiceURITest {
 
     @Test
     public void testMultipleHostsWithoutHttpsPorts() {
-        String serviceUri = "https://host1, host2,host3/path/to/namespace";
+        String serviceUri = "https://host1,host2,host3/path/to/namespace";
         assertServiceUri(
             serviceUri,
             "https",
