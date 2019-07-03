@@ -33,6 +33,12 @@ MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 option(BUILD_PYTHON_WRAPPER "Build Pulsar Python wrapper" ON)
 MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
 
+option(BUILD_PERF "Build with Rate Limiter" ON)
+MESSAGE(STATUS "BUILD_PERF:  " ${BUILD_PERF})
+
+option(BUILD_EXAMPLES "Build examples" ON)
+MESSAGE(STATUS "BUILD_EXAMPLES:  " ${BUILD_EXAMPLES})
+
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
 
@@ -272,8 +278,14 @@ set(CLIENT_LIBS
 )
 
 add_subdirectory(lib)
-add_subdirectory(perf)
-add_subdirectory(examples)
+
+if (BUILD_PERF)
+    add_subdirectory(perf)
+endif ()
+
+if (BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif ()
 
 if (BUILD_TESTS)
     add_subdirectory(tests)
