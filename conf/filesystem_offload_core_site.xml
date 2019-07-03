@@ -18,16 +18,31 @@
     under the License.
 
 -->
-<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
-<!-- TODO: we have to put suite files in one file to avoid executing TESTNG test suites multiple times.
-           see {@link https://github.com/cbeust/testng/issues/508} -->
-<suite name="Pulsar Test Suite" parallel="instances" thread-count="1">
-    <suite-files>
-        <suite-file path="./pulsar-cli.xml" />
-        <suite-file path="./pulsar-process.xml" />
-        <suite-file path="./pulsar-sql.xml" />
-        <suite-file path="./pulsar-thread.xml" />
-        <suite-file path="./tiered-jcloud-storage.xml" />
-        <suite-file path="./tiered-filesystem-storage.xml"/>
-    </suite-files>
-</suite>
+<configuration>
+    <!--file system uri, necessary-->
+    <property>
+        <name>fs.defaultFS</name>
+        <value></value>
+    </property>
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>pulsar</value>
+    </property>
+    <property>
+        <name>io.file.buffer.size</name>
+        <value>4096</value>
+    </property>
+    <property>
+        <name>io.seqfile.compress.blocksize</name>
+        <value>1000000</value>
+    </property>
+    <property>
+        <name>io.seqfile.compression.type</name>
+        <value>BLOCK</value>
+    </property>
+    <property>
+        <name>io.map.index.interval</name>
+        <value>128</value>
+    </property>
+
+</configuration>

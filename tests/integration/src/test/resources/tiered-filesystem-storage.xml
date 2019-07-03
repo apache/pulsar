@@ -19,10 +19,10 @@
 
 -->
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
-<suite name="Pulsar (Tiered Storage) Integration Tests" verbose="2" annotations="JDK">
-    <test name="tiered-storage-test-suite" preserve-order="true">
+<suite name="Pulsar (Filesystem Tiered Storage) Integration Tests" verbose="2" annotations="JDK">
+    <test name="tiered-storage-filesystem-test-suite" preserve-order="true">
         <classes>
-            <class name="org.apache.pulsar.tests.integration.offload.TestS3Offload" />
+            <class name="org.apache.pulsar.tests.integration.offload.TestFileSystemOffload" />
         </classes>
     </test>
 </suite>
