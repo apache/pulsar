@@ -513,6 +513,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             boolean perPartition) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitioned-stats");
+        path = path.queryParam("perPartition", perPartition);
         final CompletableFuture<PartitionedTopicStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<PartitionedTopicStats>() {
