@@ -190,8 +190,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getFunctionDetails().getClassName(),
                 functionClassLoader);
 
-        if (!InstanceUtils.isAssignable(object.getClass(), Function.class)
-                && !InstanceUtils.isAssignable(object.getClass(), java.util.function.Function.class)) {
+        if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
 
@@ -232,7 +231,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     this.instanceCache.getScheduledExecutorService(),
                     this.componentType);
 
-//            ContextImpl contextImpl = setupContext();
             javaInstance = setupJavaInstance();
             if (null != stateTable) {
                 StateContextImpl stateContext = new StateContextImpl(stateTable);
@@ -692,7 +690,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         Class<?>[] typeArgs;
-        if (InstanceUtils.isAssignable(object.getClass(), Source.class)) {
+        if (object instanceof Source) {
             typeArgs = TypeResolver.resolveRawArguments(Source.class, object.getClass());
             assert typeArgs.length > 0;
         } else {
