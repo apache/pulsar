@@ -32,8 +32,8 @@
 <tr><td>groupId</td><td><code>true</code></td><td><code>null</code></td><td>用于标识消费者所属消费者组的唯一字符串。</td></tr>
 <tr><td>fetchMinBytes</td><td><code>false</code></td><td><code>1</code></td><td>每次获取响应所需的最小字节数。</td></tr>
 <tr><td>autoCommitEnabled</td><td><code>false</code></td><td><code>true</code></td><td>如果设置为true，消费者则在后台定期提交offset。 This committed offset will be used when the process fails as the position from which the new consumer will begin.</td></tr>
-<tr><td>autoCommitIntervalMs</td><td><code>false</code></td><td><code>5000</code></td><td>消费者偏移量自动提交的频率（以毫秒为单位）如果<code>autoCommitEnabled</code> 设置为 true</td></tr>
-<tr><td>heartbeatIntervalMs</td><td><code>false</code></td><td><code>3000</code></td><td>使用 Kafka 的组管理设备时，心跳与消费者之间的间隔。</td></tr>
+<tr><td>autoCommitIntervalMs</td><td><code>false</code></td><td><code>5000</code></td><td>如果 <code>autoCommitEnabled</code> 设置为 true，消费者偏移量自动提交的频率，以毫秒为单位。</td></tr>
+<tr><td>heartbeatIntervalMs</td><td><code>false</code></td><td><code>3000</code></td><td>使用 Kafka 组管理设施时，心跳与消费者之间的时间间隔。</td></tr>
 <tr><td>sessionTimeoutMs</td><td><code>false</code></td><td><code>30000</code></td><td>The timeout used to detect consumer failures when using Kafka's group management facility.</td></tr>
 <tr><td>topic</td><td><code>true</code></td><td><code>null</code></td><td>用于接收 Kafka 记录的主题名称。</td></tr>
 <tr><td>consumerConfigProperties</td><td><code>false</code></td><td><code>null</code></td><td>The consumer config properties to be passed to Consumer. Note that other properties specified in the connector config file take precedence over this config.</td></tr>

@@ -1355,20 +1355,6 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
@@ -1392,6 +1378,20 @@
         },
         "replicatedFrom" : {
           "type" : "string"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "producerName" : {
           "type" : "string"

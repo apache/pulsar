@@ -4303,6 +4303,13 @@
           "required" : true,
           "type" : "string"
         }, {
+          "name" : "perPartition",
+          "in" : "query",
+          "description" : "Get per partition stats",
+          "required" : false,
+          "type" : "boolean",
+          "default" : true
+        }, {
           "name" : "authoritative",
           "in" : "query",
           "description" : "Is authentication required to perform this operation",
@@ -6297,6 +6304,13 @@
           "description" : "Specify topic name",
           "required" : true,
           "type" : "string"
+        }, {
+          "name" : "perPartition",
+          "in" : "query",
+          "description" : "Get per partition stats",
+          "required" : false,
+          "type" : "boolean",
+          "default" : true
         }, {
           "name" : "authoritative",
           "in" : "query",
@@ -8638,11 +8652,9 @@
           "type" : "number",
           "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -8652,8 +8664,8 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -8667,12 +8679,14 @@
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
+        "overLoaded" : {
+          "type" : "boolean"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -8831,10 +8845,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -9502,10 +9516,10 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
