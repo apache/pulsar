@@ -83,22 +83,24 @@ public class FunctionCacheEntry implements AutoCloseable {
 //            throw new IllegalStateException(JAVA_INSTANCE_JAR_PROPERTY + " system property not set");
 //        }
 
-        try {
-            ClassLoader foo = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), Thread.currentThread().getContextClassLoader());
-            log.info("loaded: {}", foo.loadClass("io.codearte.jfairy.data.MapBasedDataMaster$Data"));
-        } catch (Exception e) {
-            log.info("failed load - 1", e);
-        }
-
-        try {
-            ClassLoader foo = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
-            log.info("loaded: {}", foo.loadClass("io.codearte.jfairy.data.MapBasedDataMaster$Data"));
-        } catch (Exception e) {
-            log.info("failed load - 2", e);
-        }
-
+//        try {
+//            ClassLoader foo = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), Thread.currentThread().getContextClassLoader());
+//            log.info("loaded: {}", foo.loadClass("io.codearte.jfairy.data.MapBasedDataMaster$Data"));
+//        } catch (Exception e) {
+//            log.info("failed load - 1", e);
+//        }
+//
+//        try {
+//            ClassLoader foo = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
+//            log.info("loaded: {}", foo.loadClass("io.codearte.jfairy.data.MapBasedDataMaster$Data"));
+//        } catch (Exception e) {
+//            log.info("failed load - 2", e);
+//        }
 
         this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
+
+//        this.classLoader = new ChildFirstClassLoader(new URL[0], NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader));
+
 //        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet());
 
 

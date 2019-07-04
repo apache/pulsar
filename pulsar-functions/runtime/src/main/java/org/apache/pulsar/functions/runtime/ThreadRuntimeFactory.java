@@ -38,8 +38,11 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 
 import java.io.File;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Thread based function container factory implementation.
@@ -67,36 +70,23 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
                                 ClassLoader rootClassLoader) {
         if (rootClassLoader == null) {
-            String envJavaInstanceJarLocation = System.getProperty(FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY);
-            if (null != envJavaInstanceJarLocation) {
-                log.info("Java instance jar location is not defined,"
-                        + " using the location defined in system environment : {}", envJavaInstanceJarLocation);
-
-                File envJavaInstanceJarLocationFile = new File(envJavaInstanceJarLocation);
-                if (!envJavaInstanceJarLocationFile.exists() || !envJavaInstanceJarLocationFile.isFile()) {
-                    throw new RuntimeException("Java instance jar location "
-                            + envJavaInstanceJarLocation + " does not exist or is not a file");
-                }
-                try {
-                    URL[] urls = {envJavaInstanceJarLocationFile.toURI().toURL()};
-                    rootClassLoader = new URLClassLoader(urls, ClassLoader.getSystemClassLoader().getParent());
-//                    rootClassLoader = Thread.currentThread().getContextClassLoader();
-
-                    log.info("ThreadRuntimeFactory rootClassLoader: {}", rootClassLoader);
-
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to load Java instance jar from " + envJavaInstanceJarLocation, e);
-                }
-            } else {
-                throw new RuntimeException("No JavaInstanceJar specified");
-            }
+            rootClassLoader = Thread.currentThread().getContextClassLoader();
         }
+
         this.secretsProvider = secretsProvider;
         this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
+    }
+
+    public static ClassLoader loadJar(ClassLoader parent, File[] jars) throws MalformedURLException {
+        URL[] urls = new URL[jars.length];
+        for (int i = 0; i < jars.length; i++) {
+            urls[i] = jars[i].toURI().toURL();
+        }
+        return new URLClassLoader(urls, parent);
     }
 
     private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)

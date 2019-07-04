@@ -193,6 +193,8 @@ public class FunctionCommon {
 
         Class<?> typeArg = TypeResolver.resolveRawArgument(Source.class, userClass);
 
+        log.info("getSourceType: {}", typeArg);
+
         return typeArg;
     }
 
