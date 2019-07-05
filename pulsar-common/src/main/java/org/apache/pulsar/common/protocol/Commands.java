@@ -1170,6 +1170,10 @@ public class Commands {
             singleMessageMetadataBuilder.setEventTime(msgBuilder.getEventTime());
         }
 
+        if (msgBuilder.hasSequenceId()) {
+            singleMessageMetadataBuilder.setSequenceId(msgBuilder.getSequenceId());
+        }
+
         try {
             return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
         } finally {

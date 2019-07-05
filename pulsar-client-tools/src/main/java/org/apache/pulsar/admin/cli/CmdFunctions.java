@@ -917,7 +917,7 @@ public class CmdFunctions extends CmdBase {
     }
 
     @Parameters(commandDescription = "Download File Data from Pulsar", hidden = true)
-    class DownloadFunction extends BaseCommand {
+    class DownloadFunction extends FunctionCommand {
         // for backward compatibility purposes
         @Parameter(
                 names = "--destinationFile",
@@ -932,11 +932,18 @@ public class CmdFunctions extends CmdBase {
         @Parameter(
                 names = "--path",
                 description = "Path where the contents are to be stored",
-                listConverter = StringConverter.class, required = true)
+                listConverter = StringConverter.class, required = false, hidden = true)
         protected String path;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_destinationFile)) destinationFile = DEPRECATED_destinationFile;
+        }
+
+        @Override
+        void processArguments() throws Exception {
+            if (path == null) {
+                super.processArguments();
+            }
         }
 
         @Override
@@ -946,7 +953,11 @@ public class CmdFunctions extends CmdBase {
             if (StringUtils.isBlank(destinationFile)) {
                 throw new ParameterException("--destination-file needs to be specified");
             }
-            admin.functions().downloadFunction(destinationFile, path);
+            if (path != null) {
+                admin.functions().downloadFunction(destinationFile, path);
+            } else {
+                admin.functions().downloadFunction(destinationFile, tenant, namespace, functionName);
+            }
             print("Downloaded successfully");
         }
     }

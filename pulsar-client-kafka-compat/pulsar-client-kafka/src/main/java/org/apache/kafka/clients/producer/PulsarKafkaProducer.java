@@ -19,6 +19,7 @@
 package org.apache.kafka.clients.producer;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,11 +35,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.api.CompressionType;
@@ -152,17 +155,39 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         int sendTimeoutMillis = Integer.parseInt(properties.getProperty(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "30000"));
         pulsarProducerBuilder.sendTimeout(sendTimeoutMillis, TimeUnit.MILLISECONDS);
 
-        boolean blockOnBufferFull = Boolean
-                .parseBoolean(properties.getProperty(ProducerConfig.BLOCK_ON_BUFFER_FULL_CONFIG, "false"));
-
         // Kafka blocking semantic when blockOnBufferFull=false is different from Pulsar client
         // Pulsar throws error immediately when the queue is full and blockIfQueueFull=false
         // Kafka, on the other hand, still blocks for "max.block.ms" time and then gives error.
-        boolean shouldBlockPulsarProducer = sendTimeoutMillis > 0 || blockOnBufferFull;
+        boolean shouldBlockPulsarProducer = sendTimeoutMillis > 0;
         pulsarProducerBuilder.blockIfQueueFull(shouldBlockPulsarProducer);
 
         interceptors = (List) producerConfig.getConfiguredInstances(
                 ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, ProducerInterceptor.class);
+    }
+
+    @Override
+    public void initTransactions() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void beginTransaction() throws ProducerFencedException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void sendOffsetsToTransaction(Map<TopicPartition, OffsetAndMetadata> map, String s) throws ProducerFencedException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void commitTransaction() throws ProducerFencedException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void abortTransaction() throws ProducerFencedException {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -238,6 +263,11 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void close(Duration duration) {
+        close(duration.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private org.apache.pulsar.client.api.Producer<byte[]> createNewProducer(String topic) {
@@ -317,25 +347,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
         TopicPartition tp = new TopicPartition(topic, partition);
         TypedMessageBuilderImpl<byte[]> mb = (TypedMessageBuilderImpl<byte[]>) msgBuilder;
-        return new RecordMetadata(tp, offset, 0, mb.getPublishTime(), 0, mb.hasKey() ? mb.getKey().length() : 0, size);
-    }
-
-    private ProducerInterceptor createKafkaProducerInterceptor(String clazz) {
-        try {
-            return (ProducerInterceptor) Class.forName(clazz).newInstance();
-        } catch (ClassNotFoundException e) {
-            String errorMessage = "Can't find Interceptor class: " + e.getMessage();
-            logger.error(errorMessage);
-            throw new RuntimeException(errorMessage);
-        } catch (InstantiationException e) {
-            String errorMessage = "Can't initiate provided Interceptor class: " + e.getMessage();
-            logger.error(errorMessage);
-            throw new RuntimeException(errorMessage);
-        } catch (IllegalAccessException e) {
-            String errorMessage = "Can't access provided Interceptor class: " + e.getMessage();
-            logger.error(errorMessage);
-            throw new RuntimeException(errorMessage);
-        }
+        return new RecordMetadata(tp, offset, 0L, mb.getPublishTime(), 0L, mb.hasKey() ? mb.getKey().length() : 0, size);
     }
 
     private static final Logger logger = LoggerFactory.getLogger(PulsarKafkaProducer.class);
