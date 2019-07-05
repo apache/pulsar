@@ -19,6 +19,8 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
+
+import java.io.Serializable;
 import java.util.List;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
@@ -28,7 +30,7 @@ import org.apache.pulsar.transaction.impl.common.TxnStatus;
  * An interface represents the metadata of a transaction in {@link TransactionMetadataStore}.
  */
 @Beta
-public interface TxnMeta {
+public interface TxnMeta extends Serializable {
 
     /**
      * Return the transaction id.
