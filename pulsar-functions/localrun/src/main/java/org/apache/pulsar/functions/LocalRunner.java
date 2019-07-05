@@ -248,7 +248,6 @@ public class LocalRunner {
                             .loadClass(LocalRunner.class.getName())
                             .getProtectionDomain().getCodeSource().getLocation().getFile();
                 }
-                log.info("userCodeFile: {}", userCodeFile);
 
                 String builtInSource = isBuiltInSource(userCodeFile);
                 if (builtInSource != null) {

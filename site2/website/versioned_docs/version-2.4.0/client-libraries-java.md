@@ -1,7 +1,8 @@
 ---
-id: client-libraries-java
+id: version-2.4.0-client-libraries-java
 title: The Pulsar Java client
 sidebar_label: Java
+original_id: client-libraries-java
 ---
 
 The Pulsar Java client can be used both to create Java producers, consumers, and [readers](#reader-interface) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **{{pulsar:version}}**.
@@ -593,28 +594,12 @@ The following schema formats are currently available for Java:
         .topic("some-string-topic")
         .create();
   ```
-
-* JSON schemas can be created for POJOs using `Schema.JSON`. Here's an example:
+* JSON schemas can be created for POJOs using the `JSONSchema` class. Here's an example:
 
   ```java
-  Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
+  Schema<MyPojo> pojoSchema = JSONSchema.of(MyPojo.class);
+  Producer<MyPojo> pojoProducer = client.newProducer(pojoSchema)
         .topic("some-pojo-topic")
-        .create();
-  ```
-
-* Protobuf schemas can be generate using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
-
-  ```java
-  Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
-        .topic("some-protobuf-topic")
-        .create();
-  ```
-
-* Avro schemas can be defined with the help of `Schema.AVRO`. The next code snippet demonstrates the creation and usage of the Avro schema:
-  
-  ```java
-  Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
-        .topic("some-avro-topic")
         .create();
   ```
 
