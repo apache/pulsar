@@ -1,5 +1,5 @@
-<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Le client Java pour Pulsar · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;p&gt;Le client Java Pulsar peut être utilisé à la fois pour créer des producteurs, des consommateurs et des &lt;a href=&quot;#reader-interface&quot;&gt;lecteurs&lt;/a&gt; de messages et pour effectuer des &lt;a href=&quot;/docs/fr/next/admin-api-overview&quot;&gt;tâches administratives&lt;/a&gt;. La version courante du client Java est &lt;strong&gt;2.3.2&lt;/strong&gt;.&lt;/p&gt;
-"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Le client Java pour Pulsar · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;p&gt;Le client Java Pulsar peut être utilisé à la fois pour créer des producteurs, des consommateurs et des &lt;a href=&quot;#reader-interface&quot;&gt;lecteurs&lt;/a&gt; de messages et pour effectuer des &lt;a href=&quot;/docs/fr/next/admin-api-overview&quot;&gt;tâches administratives&lt;/a&gt;. La version courante du client Java est &lt;strong&gt;2.3.2&lt;/strong&gt;.&lt;/p&gt;
+<!DOCTYPE html><html lang="fr"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Le client Java pour Pulsar · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;p&gt;Le client Java Pulsar peut être utilisé à la fois pour créer des producteurs, des consommateurs et des &lt;a href=&quot;#reader-interface&quot;&gt;lecteurs&lt;/a&gt; de messages et pour effectuer des &lt;a href=&quot;/docs/fr/next/admin-api-overview&quot;&gt;tâches administratives&lt;/a&gt;. La version courante du client Java est &lt;strong&gt;2.4.0&lt;/strong&gt;.&lt;/p&gt;
+"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="fr"/><meta property="og:title" content="Le client Java pour Pulsar · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;p&gt;Le client Java Pulsar peut être utilisé à la fois pour créer des producteurs, des consommateurs et des &lt;a href=&quot;#reader-interface&quot;&gt;lecteurs&lt;/a&gt; de messages et pour effectuer des &lt;a href=&quot;/docs/fr/next/admin-api-overview&quot;&gt;tâches administratives&lt;/a&gt;. La version courante du client Java est &lt;strong&gt;2.4.0&lt;/strong&gt;.&lt;/p&gt;
 "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -76,24 +76,24 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Le client Java pour Pulsar</h1></header><article><div><span><p>Le client Java Pulsar peut être utilisé à la fois pour créer des producteurs, des consommateurs et des <a href="#reader-interface">lecteurs</a> de messages et pour effectuer des <a href="/docs/fr/next/admin-api-overview">tâches administratives</a>. La version courante du client Java est <strong>2.3.2</strong>.</p>
+        </script></nav></div><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/fr" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Le client Java pour Pulsar</h1></header><article><div><span><p>Le client Java Pulsar peut être utilisé à la fois pour créer des producteurs, des consommateurs et des <a href="#reader-interface">lecteurs</a> de messages et pour effectuer des <a href="/docs/fr/next/admin-api-overview">tâches administratives</a>. La version courante du client Java est <strong>2.4.0</strong>.</p>
 <p>La javadoc pour le client Pulsar est divisée en deux domaines, par package :</p>
 <table>
 <thead>
 <tr><th style="text-align:left">Package</th><th style="text-align:left">Description</th><th style="text-align:left">Artifact Maven</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><a href="/api/client"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left">L'API du producteur et du consommateur</td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.3.2%7Cjar">org.apache.pulsar:pulsar-client:2.3.2</a></td></tr>
-<tr><td style="text-align:left"><a href="/api/admin"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">L'API d'administration Java <a href="/docs/fr/next/admin-api-overview"></a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.3.2%7Cjar">org.apache.pulsar:pulsar-client-admin:2.3.2</a></td></tr>
+<tr><td style="text-align:left"><a href="/api/client"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left">L'API du producteur et du consommateur</td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.4.0%7Cjar">org.apache.pulsar:pulsar-client:2.4.0</a></td></tr>
+<tr><td style="text-align:left"><a href="/api/admin"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">L'API d'administration Java <a href="/docs/fr/next/admin-api-overview"></a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.4.0%7Cjar">org.apache.pulsar:pulsar-client-admin:2.4.0</a></td></tr>
 </tbody>
 </table>
 <p>Ce document ne se concentre que sur l'API de production et de consommation de messages de topics Pulsar. Pour un guide d'utilisation du client d'administration Java, voir <a href="/docs/fr/next/admin-api-overview">L'interface d'administration Pulsar</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="installation"></a><a href="#installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installation</h2>
-<p>La dernière version de la bibliothèque des clients Pulsar en Java est disponible via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.3.2%7Cjar">Maven Central</a>. Pour utiliser la dernière version, ajoutez la librairie <code>pulsar-client</code> à votre configuration de build.</p>
+<p>La dernière version de la bibliothèque des clients Pulsar en Java est disponible via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.4.0%7Cjar">Maven Central</a>. Pour utiliser la dernière version, ajoutez la librairie <code>pulsar-client</code> à votre configuration de build.</p>
 <h3><a class="anchor" aria-hidden="true" id="maven"></a><a href="#maven" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Maven</h3>
 <p>Si vous utilisez Maven, ajoutez ceci à votre <code>pom.xml</code>:</p>
 <pre><code class="hljs css language-xml"><span class="hljs-comment">&lt;!-- dans la section &lt;properties&gt; --&gt;</span>
-<span class="hljs-tag">&lt;<span class="hljs-name">pulsar.version</span>&gt;</span>2.3.2<span class="hljs-tag">&lt;/<span class="hljs-name">pulsar.version</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">pulsar.version</span>&gt;</span>2.4.0<span class="hljs-tag">&lt;/<span class="hljs-name">pulsar.version</span>&gt;</span>
 
 <span class="hljs-comment">&lt;!--dans la section &lt;dependencies&gt; --&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
@@ -104,7 +104,7 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="gradle"></a><a href="#gradle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Gradle</h3>
 <p>Si vous utilisez Gradle, ajoutez ceci à votre <code>build.gradle</code>:</p>
-<pre><code class="hljs css language-groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.3.2'</span>
+<pre><code class="hljs css language-groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.4.0'</span>
 
 dependencies {
     compile <span class="hljs-string">group:</span> <span class="hljs-string">'org.apache.pulsar'</span>, <span class="hljs-string">name:</span> <span class="hljs-string">'pulsar-client'</span>, <span class="hljs-string">version:</span> pulsarVersion
@@ -522,10 +522,19 @@ Reader reader = pulsarClient.newReader()
     .topic(<span class="hljs-string">"some-string-topic"</span>)
     .create();
 </code></pre></li>
-<li><p>Les schémas JSON peuvent être créés pour les POJOs en utilisant la classe <code>JSONSchema</code> . Voici un exemple :</p>
-<pre><code class="hljs css language-java">Schema&lt;MyPojo&gt; pojoSchema = JSONSchema.of(MyPojo.class);
-Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(pojoSchema)
+<li><p>JSON schemas can be created for POJOs using <code>Schema.JSON</code>. Here's an example:</p>
+<pre><code class="hljs css language-java">Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
     .topic(<span class="hljs-string">"some-pojo-topic"</span>)
+    .create();
+</code></pre></li>
+<li><p>Protobuf schemas can be generate using <code>Schema.PROTOBUF</code>. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:</p>
+<pre><code class="hljs css language-java">Producer&lt;MyProtobuf&gt; protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
+    .topic(<span class="hljs-string">"some-protobuf-topic"</span>)
+    .create();
+</code></pre></li>
+<li><p>Avro schemas can be defined with the help of <code>Schema.AVRO</code>. The next code snippet demonstrates the creation and usage of the Avro schema:</p>
+<pre><code class="hljs css language-java">Producer&lt;MyAvro&gt; avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
+    .topic(<span class="hljs-string">"some-avro-topic"</span>)
     .create();
 </code></pre></li>
 </ul>

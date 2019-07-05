@@ -109,7 +109,7 @@ save the <code>SourceContext</code> for futher usage.</p>
      */</span>
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">open</span><span class="hljs-params">(<span class="hljs-keyword">final</span> Map&lt;String, Object&gt; config, SourceContext sourceContext)</span> <span class="hljs-keyword">throws</span> Exception</span>;
 </code></pre>
-<p>The main task for a Source implementor is to implement <a href="https://github.com/apache/incubator-pulsar/tree/master//master/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L41"><code>read</code></a>
+<p>The main task for a Source implementor is to implement <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java#L41"><code>read</code></a>
 
 method.</p>
 <pre><code class="hljs css language-java">    <span class="hljs-comment">/**
@@ -121,7 +121,7 @@ method.</p>
     <span class="hljs-function">Record&lt;T&gt; <span class="hljs-title">read</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception</span>;
 </code></pre>
 <p>The implementation should be blocking on this method if nothing to return. It should never return
-<code>null</code>. The returned <a href="https://github.com/apache/incubator-pulsar/tree/master//master/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>Record</code></a>
+<code>null</code>. The returned <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28"><code>Record</code></a>
  should encapsulates the information that is needed by
 Pulsar IO runtime.</p>
 <p>These information includes:</p>
@@ -140,13 +140,13 @@ by Pulsar IO runtime to do message deduplication and achieve exactly-once proces
 <p>Additionally, the implemention of the record should provide two methods: <code>ack</code> and <code>fail</code>. These
 two methods will be used by Pulsar IO connector to acknowledge the records that it has done
 processing and fail the records that it has failed to process.</p>
-<p><a href="https://github.com/apache/incubator-pulsar/tree/master//master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java"><code>KafkaSource</code></a>
+<p><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java"><code>KafkaSource</code></a>
  is a good example to follow.</p>
 <h4><a class="anchor" aria-hidden="true" id="develop-a-sink-connector"></a><a href="#develop-a-sink-connector" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Develop a sink connector</h4>
 <p>Developing a sink connector is as easy as developing a source connector. You just need to
-implement <a href="https://github.com/apache/incubator-pulsar/tree/master//master/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>Sink</code></a>
+implement <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java"><code>Sink</code></a>
  interface.</p>
-<p>Similarly, you first need to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//master/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36"><code>open</code></a>
+<p>Similarly, you first need to implement the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L36"><code>open</code></a>
  method to initialize all the necessary resources
 before implementing the <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java#L44"><code>write</code></a>
  method.</p>
