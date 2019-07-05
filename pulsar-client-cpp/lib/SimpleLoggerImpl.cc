@@ -28,16 +28,16 @@ namespace pulsar {
 
 inline std::ostream &operator<<(std::ostream &s, Logger::Level level) {
     switch (level) {
-        case Logger::DEBUG:
+        case Logger::LEVEL_DEBUG:
             s << "DEBUG";
             break;
-        case Logger::INFO:
+        case Logger::LEVEL_INFO:
             s << "INFO ";
             break;
-        case Logger::WARN:
+        case Logger::LEVEL_WARN:
             s << "WARN ";
             break;
-        case Logger::ERROR:
+        case Logger::LEVEL_ERROR:
             s << "ERROR";
             break;
     }
@@ -51,7 +51,7 @@ class SimpleLogger : public Logger {
    public:
     SimpleLogger(const std::string &logger) : _logger(logger) {}
 
-    bool isEnabled(Level level) { return level >= Logger::INFO; }
+    bool isEnabled(Level level) { return level >= Logger::LEVEL_INFO; }
 
     void log(Level level, int line, const std::string &message) {
         std::stringstream ss;
