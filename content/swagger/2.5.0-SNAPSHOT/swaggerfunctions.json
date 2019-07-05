@@ -1348,7 +1348,21 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "replicatedFrom" : {
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicated" : {
+          "type" : "boolean"
+        },
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
           "type" : "string"
         },
         "messageId" : {
@@ -1372,29 +1386,15 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicated" : {
-          "type" : "boolean"
-        },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
-        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "replicatedFrom" : {
+          "type" : "string"
         },
         "keyBytes" : {
           "type" : "array",
