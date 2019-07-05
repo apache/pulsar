@@ -737,5 +737,69 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
+    @Test(dataProvider = "containerBuilder")
+    private void testRetrieveSequenceIdGenerated(BatcherBuilder builder) throws Exception {
+
+        int numMsgs = 10;
+        final String topicName = "persistent://prop/ns-abc/testRetrieveSequenceIdGenerated-" + UUID.randomUUID();
+        final String subscriptionName = "sub-1";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
+                .batcherBuilder(builder)
+                .create();
+
+        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        for (int i = 0; i < numMsgs; i++) {
+            byte[] message = ("my-message-" + i).getBytes();
+            sendFutureList.add(producer.sendAsync(message));
+        }
+        FutureUtil.waitForAll(sendFutureList).get();
+
+        for (int i = 0; i < numMsgs; i++) {
+            Message<byte[]> received = consumer.receive();
+            Assert.assertEquals(received.getSequenceId(), i);
+            consumer.acknowledge(received);
+        }
+
+        producer.close();
+        consumer.close();
+    }
+
+    @Test(dataProvider = "containerBuilder")
+    private void testRetrieveSequenceIdSpecify(BatcherBuilder builder) throws Exception {
+
+        int numMsgs = 10;
+        final String topicName = "persistent://prop/ns-abc/testRetrieveSequenceIdSpecify-" + UUID.randomUUID();
+        final String subscriptionName = "sub-1";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
+                .batcherBuilder(builder)
+                .create();
+
+        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        for (int i = 0; i < numMsgs; i++) {
+            byte[] message = ("my-message-" + i).getBytes();
+            sendFutureList.add(producer.newMessage().sequenceId(i + 100).value(message).sendAsync());
+        }
+        FutureUtil.waitForAll(sendFutureList).get();
+
+        for (int i = 0; i < numMsgs; i++) {
+            Message<byte[]> received = consumer.receive();
+            Assert.assertEquals(received.getSequenceId(), i + 100);
+            consumer.acknowledge(received);
+        }
+
+        producer.close();
+        consumer.close();
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(BatchMessageTest.class);
 }

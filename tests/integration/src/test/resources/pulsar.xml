@@ -27,6 +27,7 @@
         <suite-file path="./pulsar-process.xml" />
         <suite-file path="./pulsar-sql.xml" />
         <suite-file path="./pulsar-thread.xml" />
-        <suite-file path="./tiered-storage.xml" />
+        <suite-file path="./tiered-jcloud-storage.xml" />
+        <suite-file path="./tiered-filesystem-storage.xml"/>
     </suite-files>
 </suite>

@@ -751,13 +751,16 @@ public class KubernetesRuntime implements Runtime {
         return Arrays.asList(
                 "sh",
                 "-c",
-                String.join(" ", getDownloadCommand(userCodePkgUrl, originalCodeFileName))
+                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName(),
+                        originalCodeFileName))
                         + " && " + setShardIdEnvironmentVariableCommand()
                         + " && " + String.join(" ", processArgs)
         );
     }
 
-    private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
+    private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath) {
 
         // add auth plugin and parameters if necessary
         if (authenticationEnabled && authConfig != null) {
@@ -774,8 +777,12 @@ public class KubernetesRuntime implements Runtime {
                         pulsarAdminUrl,
                         "functions",
                         "download",
-                        "--path",
-                        bkPath,
+                        "--tenant",
+                        tenant,
+                        "--namespace",
+                        namespace,
+                        "--name",
+                        name,
                         "--destination-file",
                         userCodeFilePath);
             }
@@ -787,8 +794,12 @@ public class KubernetesRuntime implements Runtime {
                 pulsarAdminUrl,
                 "functions",
                 "download",
-                "--path",
-                bkPath,
+                "--tenant",
+                tenant,
+                "--namespace",
+                namespace,
+                "--name",
+                name,
                 "--destination-file",
                 userCodeFilePath);
     }
