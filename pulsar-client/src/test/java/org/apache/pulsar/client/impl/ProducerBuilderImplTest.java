@@ -314,10 +314,22 @@ public class ProducerBuilderImplTest {
         producerBuilderImpl.batchingMaxMessages(-1);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testProducerBuilderImplWhenSendTimeoutPropertyIsNegative() {
+        producerBuilderImpl.sendTimeout(-1, TimeUnit.SECONDS);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalid() {
+        producerBuilderImpl.maxPendingMessagesAcrossPartitions(999);
+    }
+
     @Test
     public void testProducerBuilderImplWhenNumericPropertiesAreValid() {
         producerBuilderImpl.batchingMaxPublishDelay(1, TimeUnit.SECONDS);
         producerBuilderImpl.batchingMaxMessages(1);
+        producerBuilderImpl.sendTimeout(1, TimeUnit.SECONDS);
+        producerBuilderImpl.maxPendingMessagesAcrossPartitions(1000);
     }
 
     private class CustomMessageRouter implements MessageRouter {

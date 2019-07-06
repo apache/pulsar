@@ -123,7 +123,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> producerName(String producerName) {
-        checkArgument(StringUtils.isNotBlank(producerName), "producerName cannot be blank");
         conf.setProducerName(producerName);
         return this;
     }
@@ -137,7 +136,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> maxPendingMessages(int maxPendingMessages) {
-        checkArgument(maxPendingMessages > 0, "maxPendingMessages needs to be > 0");
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
@@ -213,7 +211,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
-        checkArgument(batchMessagesMaxMessagesPerBatch > 0, "batchMessagesMaxMessagesPerBatch needs to be > 0");
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
