@@ -327,7 +327,7 @@ public class ProducerBuilderImplTest {
     @Test
     public void testProducerBuilderImplWhenNumericPropertiesAreValid() {
         producerBuilderImpl.batchingMaxPublishDelay(1, TimeUnit.SECONDS);
-        producerBuilderImpl.batchingMaxMessages(1);
+        producerBuilderImpl.batchingMaxMessages(2);
         producerBuilderImpl.sendTimeout(1, TimeUnit.SECONDS);
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(1000);
     }

@@ -123,7 +123,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public void setBatchingMaxMessages(int batchingMaxMessages) {
-        checkArgument(batchingMaxMessages > 0, "batchingMaxMessages needs to be > 0");
+        checkArgument(batchingMaxMessages > 1, "batchingMaxMessages needs to be > 1");
         this.batchingMaxMessages = batchingMaxMessages;
     }
 
