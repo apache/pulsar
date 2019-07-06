@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -41,6 +42,8 @@ import com.google.common.collect.Sets;
 
 import lombok.Data;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -49,7 +52,6 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private String topicName = null;
-
     private String producerName = null;
     private long sendTimeoutMs = 30000;
     private boolean blockIfQueueFull = false;
@@ -104,4 +106,25 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
             throw new RuntimeException("Failed to clone ProducerConfigurationData", e);
         }
     }
+
+    public void setProducerName(String producerName) {
+        checkArgument(StringUtils.isNotBlank(producerName), "producerName cannot be blank");
+        this.producerName = producerName;
+    }
+
+    public void setMaxPendingMessages(int maxPendingMessages) {
+        checkArgument(maxPendingMessages > 0, "maxPendingMessages needs to be > 0");
+        this.maxPendingMessages = maxPendingMessages;
+    }
+
+    public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
+        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages);
+        this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
+    }
+
+    public void setBatchingMaxMessages(int batchingMaxMessages) {
+        checkArgument(batchingMaxMessages > 0, "batchingMaxMessages needs to be > 0");
+        this.batchingMaxMessages = batchingMaxMessages;
+    }
+
 }

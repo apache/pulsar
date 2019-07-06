@@ -101,7 +101,7 @@ public class ProducerConfiguration implements Serializable {
      *            the time unit of the {@code sendTimeout}
      */
     public ProducerConfiguration setSendTimeout(int sendTimeout, TimeUnit unit) {
-        checkArgument(sendTimeout >= 0);
+        checkArgument(sendTimeout >= 0, "sendTimeout needs to be >= 0");
         conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
         return this;
     }
@@ -123,7 +123,6 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setMaxPendingMessages(int maxPendingMessages) {
-        checkArgument(maxPendingMessages > 0);
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
@@ -154,7 +153,6 @@ public class ProducerConfiguration implements Serializable {
      * @param maxPendingMessagesAcrossPartitions
      */
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions >= conf.getMaxPendingMessages());
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
     }
 
@@ -425,7 +423,6 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setBatchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
-        checkArgument(batchMessagesMaxMessagesPerBatch > 0);
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
