@@ -130,8 +130,8 @@ const bool& ProducerConfiguration::getBatchingEnabled() const { return impl_->ba
 
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxMessages(
     const unsigned int& batchingMaxMessages) {
-    if (batchingMaxMessages <= 1) {
-        throw "batchingMaxMessages needs to be greater than 1";
+    if (batchingMaxMessages <= 0) {
+        throw "batchingMaxMessages needs to be greater than 0";
     }
     impl_->batchingMaxMessages = batchingMaxMessages;
     return *this;
