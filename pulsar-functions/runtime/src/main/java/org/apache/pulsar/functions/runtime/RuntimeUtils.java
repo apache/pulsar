@@ -268,7 +268,12 @@ public class RuntimeUtils {
 
             // add complete classpath for broker/worker so that the function instance can load
             // the framework dependencies separately from user code dependencies
-            args.add(String.format("-D%s=%s", FUNCTIONS_FRAMEWORK_CLASSPATH, System.getProperty("java.class.path")));
+            String functionFrameworkClasspath = System.getProperty(FUNCTIONS_FRAMEWORK_CLASSPATH);
+            if (functionFrameworkClasspath == null) {
+                log.warn("Property {} is not set.  Falling back to using classpath of current JVM");
+                functionFrameworkClasspath = System.getProperty("java.class.path");
+            }
+            args.add(String.format("-D%s=%s", FUNCTIONS_FRAMEWORK_CLASSPATH, functionFrameworkClasspath));
 
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));

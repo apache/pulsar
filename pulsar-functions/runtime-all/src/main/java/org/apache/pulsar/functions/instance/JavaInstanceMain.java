@@ -26,6 +26,7 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -65,7 +66,20 @@ public class JavaInstanceMain {
 
         List<File> files = new LinkedList<>();
         for (String entry: framework_classpath.split(":")) {
-            files.add(new File(entry));
+            if (isBlank(entry)) {
+                continue;
+            }
+            // replace any asterisks i.e. wildcards as they don't work with url classloader
+            File f = new File(entry.replace("*", ""));
+            if (f.exists()) {
+                if (f.isDirectory()) {
+                    files.addAll(Arrays.asList(f.listFiles()));
+                } else {
+                    files.add(new File(entry));
+                }
+            } else {
+                System.out.println(String.format("[WARN] %s on framework classpath does not exist", f.getAbsolutePath()));
+            }
         }
 
         ClassLoader functionFrameworkClsLoader = loadJar(root, files.toArray(new File[files.size()]));
@@ -89,7 +103,7 @@ public class JavaInstanceMain {
         try {
             theCls = Class.forName(userClassName, true, classLoader);
         } catch (ClassNotFoundException cnfe) {
-            throw new RuntimeException("User class must be in class path", cnfe);
+            throw new RuntimeException("Class " + userClassName + " must be in class path", cnfe);
         }
         Object result;
         try {
@@ -100,11 +114,11 @@ public class JavaInstanceMain {
         } catch (InstantiationException ie) {
             throw new RuntimeException("User class must be concrete", ie);
         } catch (NoSuchMethodException e) {
-            throw new RuntimeException("User class doesn't have such method", e);
+            throw new RuntimeException("Class " + userClassName + " doesn't have such method", e);
         } catch (IllegalAccessException e) {
-            throw new RuntimeException("User class must have a no-arg constructor", e);
+            throw new RuntimeException("Class " + userClassName + " must have a no-arg constructor", e);
         } catch (InvocationTargetException e) {
-            throw new RuntimeException("User class constructor throws exception", e);
+            throw new RuntimeException("Class " + userClassName + " constructor throws exception", e);
         }
         return result;
     }
@@ -115,5 +129,20 @@ public class JavaInstanceMain {
             urls[i] = jars[i].toURI().toURL();
         }
         return new URLClassLoader(urls, parent);
+    }
+
+    public static boolean isBlank(String str) {
+        int strLen;
+        if (str != null && (strLen = str.length()) != 0) {
+            for(int i = 0; i < strLen; ++i) {
+                if (!Character.isWhitespace(str.charAt(i))) {
+                    return false;
+                }
+            }
+
+            return true;
+        } else {
+            return true;
+        }
     }
 }
