@@ -49,6 +49,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -284,7 +285,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
                 assertEquals(pulsarColumnHandle.getPositionIndices(), fooPositionIndices.get(field));
                 assertEquals(pulsarColumnHandle.getFieldNames(), fooFieldNames.get(field));
                 assertEquals(pulsarColumnHandle.getType(), fooTypes.get(field));
-                assertEquals(pulsarColumnHandle.isHidden(), false);
+                assertFalse(pulsarColumnHandle.isHidden());
             }
             columnHandleMap.remove(field);
         }

@@ -38,7 +38,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.type.DateTimeEncoding.packDateTimeWithZone;
@@ -166,13 +165,9 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
     }
 
     private List<PulsarSplit> getSplitsForPartition(TopicName target, Collection<PulsarSplit> splits) {
-        return splits.stream().filter(new Predicate<PulsarSplit>() {
-            @Override
-            public boolean test(PulsarSplit pulsarSplit) {
-                 TopicName topicName = TopicName.get(pulsarSplit.getSchemaName() + "/" + pulsarSplit.getTableName());
-
-                 return target.equals(topicName);
-            }
+        return splits.stream().filter(pulsarSplit -> {
+             TopicName topicName = TopicName.get(pulsarSplit.getSchemaName() + "/" + pulsarSplit.getTableName());
+             return target.equals(topicName);
         }).collect(Collectors.toList());
     }
 
@@ -273,7 +268,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         for (int i = 0; i < partitions; i++) {
             List<PulsarSplit> splits = getSplitsForPartition(topicName.getPartition(i), resultCaptor.getResult());
             int totalSize = 0;
-            int initalStart = 1;
+            int initialStart = 1;
             for (PulsarSplit pulsarSplit : splits) {
                 assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
                 assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
@@ -281,14 +276,14 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 assertEquals(pulsarSplit.getSchema(),
                         new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()));
                 assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
-                assertEquals(pulsarSplit.getStartPositionEntryId(), initalStart);
+                assertEquals(pulsarSplit.getStartPositionEntryId(), initialStart);
                 assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
-                assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, initalStart));
+                assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, initialStart));
                 assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
-                assertEquals(pulsarSplit.getEndPositionEntryId(), initalStart + pulsarSplit.getSplitSize());
-                assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, initalStart + pulsarSplit.getSplitSize()));
+                assertEquals(pulsarSplit.getEndPositionEntryId(), initialStart + pulsarSplit.getSplitSize());
+                assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, initialStart + pulsarSplit.getSplitSize()));
 
-                initalStart += pulsarSplit.getSplitSize();
+                initialStart += pulsarSplit.getSplitSize();
                 totalSize += pulsarSplit.getSplitSize();
             }
 
