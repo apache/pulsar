@@ -71,40 +71,8 @@ public class FunctionCacheEntry implements AutoCloseable {
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
     }
 
-    //TODO remove
-//    private static final Set<String> JAVA_INSTANCE_ADDITIONAL_JARS = isNoneBlank(
-//            System.getProperty(JAVA_INSTANCE_JAR_PROPERTY))
-//                    ? Collections.singleton(System.getProperty(JAVA_INSTANCE_JAR_PROPERTY))
-//                    : Collections.emptySet();
-
     FunctionCacheEntry(String narArchive, String initialInstanceId, ClassLoader rootClassLoader) throws IOException {
-//        if (JAVA_INSTANCE_ADDITIONAL_JARS.isEmpty()) {
-//            log.warn("java-instance jar path not set in system-property= {} ", JAVA_INSTANCE_JAR_PROPERTY);
-//            throw new IllegalStateException(JAVA_INSTANCE_JAR_PROPERTY + " system property not set");
-//        }
-
-//        try {
-//            ClassLoader foo = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), Thread.currentThread().getContextClassLoader());
-//            log.info("loaded: {}", foo.loadClass("io.codearte.jfairy.data.MapBasedDataMaster$Data"));
-//        } catch (Exception e) {
-//            log.info("failed load - 1", e);
-//        }
-//
-//        try {
-//            ClassLoader foo = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
-//            log.info("loaded: {}", foo.loadClass("io.codearte.jfairy.data.MapBasedDataMaster$Data"));
-//        } catch (Exception e) {
-//            log.info("failed load - 2", e);
-//        }
-
         this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
-
-//        this.classLoader = new ChildFirstClassLoader(new URL[0], NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader));
-
-//        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet());
-
-
-        log.info("{} - rootClassLoader: {} - {} - {}", narArchive, rootClassLoader, this.classLoader, this.classLoader.getParent());
         this.classpaths = Collections.emptySet();
         this.jarFiles = Collections.singleton(narArchive);
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));

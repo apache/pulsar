@@ -19,21 +19,21 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+
 import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
-
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 
 /**
  * A function container implemented using java thread.
@@ -76,8 +76,6 @@ class ThreadRuntime implements Runtime {
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
-
-//        this.functionFrameworkClsLoader = functionFrameworkClsLoader;
         this.javaInstanceRunnable = new JavaInstanceRunnable(
                 instanceConfig,
                 fnCache,

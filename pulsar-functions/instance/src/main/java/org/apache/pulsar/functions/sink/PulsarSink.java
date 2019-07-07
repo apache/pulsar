@@ -253,7 +253,6 @@ public class PulsarSink<T> implements Sink<T> {
         log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
 
         Schema<T> schema = initializeSchema();
-        log.info("sink Schema: {}", schema);
         if (schema == null) {
             log.info("Since output type is null, not creating any real sink");
             return;
@@ -317,11 +316,8 @@ public class PulsarSink<T> implements Sink<T> {
         if (StringUtils.isEmpty(this.pulsarSinkConfig.getTypeClassName())) {
             return (Schema<T>) Schema.BYTES;
         }
-
-        log.info("initializeSchema - {} - {} - {}", Thread.currentThread().getContextClassLoader(), this.getClass().getClassLoader(), functionClassLoader);
+        
         Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
-        log.info("typeArg: {}", typeArg);
-
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check
             return null;
