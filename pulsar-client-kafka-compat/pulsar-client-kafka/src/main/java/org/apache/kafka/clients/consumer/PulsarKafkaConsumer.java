@@ -41,7 +41,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
@@ -49,20 +48,22 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.PulsarConsumerKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarKafkaSchema;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -74,8 +75,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     private final PulsarClient client;
 
-    private final Deserializer<K> keyDeserializer;
-    private final Deserializer<V> valueDeserializer;
+    private final Schema<K> keySchema;
+    private final Schema<V> valueSchema;
 
     private final String groupId;
     private final boolean isAutoCommit;
@@ -110,66 +111,75 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private final BlockingQueue<QueueItem> receivedMessages = new ArrayBlockingQueue<>(1000);
 
     public PulsarKafkaConsumer(Map<String, Object> configs) {
-        this(configs, null, null);
+        this(new ConsumerConfig(configs), null, null);
     }
 
     public PulsarKafkaConsumer(Map<String, Object> configs, Deserializer<K> keyDeserializer,
-            Deserializer<V> valueDeserializer) {
-        this(new ConsumerConfig(ConsumerConfig.addDeserializerToConfig(configs, keyDeserializer, valueDeserializer)),
-                keyDeserializer, valueDeserializer);
+                               Deserializer<V> valueDeserializer) {
+        this(new ConsumerConfig(configs),
+                new PulsarKafkaSchema<K>(keyDeserializer), new PulsarKafkaSchema<V>(valueDeserializer));
+    }
+
+    public PulsarKafkaConsumer(Map<String, Object> configs, Schema<K> keySchema, Schema<V> valueSchema) {
+        this(new ConsumerConfig(configs), keySchema, valueSchema);
     }
 
     public PulsarKafkaConsumer(Properties properties) {
-        this(properties, null, null);
+        this(new ConsumerConfig(properties), null, null);
     }
 
     public PulsarKafkaConsumer(Properties properties, Deserializer<K> keyDeserializer,
-            Deserializer<V> valueDeserializer) {
-        this(new ConsumerConfig(ConsumerConfig.addDeserializerToConfig(properties, keyDeserializer, valueDeserializer)),
-                keyDeserializer, valueDeserializer);
+                               Deserializer<V> valueDeserializer) {
+        this(new ConsumerConfig(properties),
+                new PulsarKafkaSchema<>(keyDeserializer), new PulsarKafkaSchema<>(valueDeserializer));
+    }
+
+    public PulsarKafkaConsumer(Properties properties, Schema<K> keySchema, Schema<V> valueSchema) {
+        this(new ConsumerConfig(properties), keySchema, valueSchema);
     }
 
     @SuppressWarnings("unchecked")
-    private PulsarKafkaConsumer(ConsumerConfig config, Deserializer<K> keyDeserializer,
-            Deserializer<V> valueDeserializer) {
+    private PulsarKafkaConsumer(ConsumerConfig consumerConfig, Schema<K> keySchema, Schema<V> valueSchema) {
 
-        if (keyDeserializer == null) {
-            this.keyDeserializer = config.getConfiguredInstance(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                    Deserializer.class);
-            this.keyDeserializer.configure(config.originals(), true);
+        if (keySchema == null) {
+            Deserializer<K> kafkaKeyDeserializer = consumerConfig.getConfiguredInstance(
+                    ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Deserializer.class);
+            kafkaKeyDeserializer.configure(consumerConfig.originals(), true);
+            this.keySchema = new PulsarKafkaSchema<>(kafkaKeyDeserializer);
         } else {
-            this.keyDeserializer = keyDeserializer;
-            config.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+            this.keySchema = keySchema;
+            consumerConfig.ignore(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
         }
 
-        if (valueDeserializer == null) {
-            this.valueDeserializer = config.getConfiguredInstance(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                    Deserializer.class);
-            this.valueDeserializer.configure(config.originals(), true);
+        if (valueSchema == null) {
+            Deserializer<V> kafkaValueDeserializer = consumerConfig.getConfiguredInstance(
+                    ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Deserializer.class);
+            kafkaValueDeserializer.configure(consumerConfig.originals(), true);
+            this.valueSchema = new PulsarKafkaSchema<>(kafkaValueDeserializer);
         } else {
-            this.valueDeserializer = valueDeserializer;
-            config.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+            this.valueSchema = valueSchema;
+            consumerConfig.ignore(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
         }
 
-        groupId = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
-        isAutoCommit = config.getBoolean(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
-        strategy = getStrategy(config.getString(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
+        groupId = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+        isAutoCommit = consumerConfig.getBoolean(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
+        strategy = getStrategy(consumerConfig.getString(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
         log.info("Offset reset strategy has been assigned value {}", strategy);
 
-        String serviceUrl = config.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
+        String serviceUrl = consumerConfig.getList(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
 
         // If MAX_POLL_RECORDS_CONFIG is provided then use the config, else use default value.
-        if(config.values().containsKey(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)){
-            maxRecordsInSinglePoll = config.getInt(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
+        if(consumerConfig.values().containsKey(ConsumerConfig.MAX_POLL_RECORDS_CONFIG)){
+            maxRecordsInSinglePoll = consumerConfig.getInt(ConsumerConfig.MAX_POLL_RECORDS_CONFIG);
         } else {
             maxRecordsInSinglePoll = 1000;
         }
 
-        interceptors = (List) config.getConfiguredInstances(
+        interceptors = (List) consumerConfig.getConfiguredInstances(
                 ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG, ConsumerInterceptor.class);
 
         this.properties = new Properties();
-        config.originals().forEach((k, v) -> properties.put(k, v));
+        consumerConfig.originals().forEach((k, v) -> properties.put(k, v));
         ClientBuilder clientBuilder = PulsarClientKafkaConfig.getClientBuilder(properties);
         // Since this client instance is going to be used just for the consumers, we can enable Nagle to group
         // all the acknowledgments sent to broker within a short time frame
@@ -352,7 +362,10 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 }
 
                 K key = getKey(topic, msg);
-                V value = valueDeserializer.deserialize(topic, msg.getData());
+                if (valueSchema instanceof PulsarKafkaSchema) {
+                    ((PulsarKafkaSchema<V>) valueSchema).setTopic(topic);
+                }
+                V value = valueSchema.decode(msg.getData());
 
                 TimestampType timestampType = TimestampType.LOG_APPEND_TIME;
                 long timestamp = msg.getPublishTime();
@@ -403,13 +416,18 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             return null;
         }
 
-        if (keyDeserializer instanceof StringDeserializer) {
-            return (K) msg.getKey();
-        } else {
-            // Assume base64 encoding
-            byte[] data = Base64.getDecoder().decode(msg.getKey());
-            return keyDeserializer.deserialize(topic, data);
+        if (keySchema instanceof PulsarKafkaSchema) {
+            PulsarKafkaSchema<K> pulsarKafkaSchema = (PulsarKafkaSchema) keySchema;
+            Deserializer<K> kafkaDeserializer = pulsarKafkaSchema.getKafkaDeserializer();
+            if (kafkaDeserializer instanceof StringDeserializer) {
+                return (K) msg.getKey();
+            }
+            pulsarKafkaSchema.setTopic(topic);
         }
+        // Assume base64 encoding
+        byte[] data = Base64.getDecoder().decode(msg.getKey());
+        return keySchema.decode(data);
+
     }
 
     @Override

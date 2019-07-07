@@ -43,20 +43,21 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.Serializer;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarKafkaSchema;
+import org.apache.pulsar.client.kafka.compat.PulsarProducerKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.KafkaMessageRouter;
 import org.apache.pulsar.client.kafka.compat.KafkaProducerInterceptorWrapper;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
-import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
-import org.apache.pulsar.client.kafka.compat.PulsarProducerKafkaConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,58 +68,67 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private final ConcurrentMap<String, org.apache.pulsar.client.api.Producer<byte[]>> producers = new ConcurrentHashMap<>();
 
-    private final Serializer<K> keySerializer;
-    private final Serializer<V> valueSerializer;
+    private final Schema<K> keySchema;
+    private final Schema<V> valueSchema;
 
     private final Partitioner partitioner;
     private volatile Cluster cluster = Cluster.empty();
 
     private List<ProducerInterceptor<K, V>> interceptors;
 
+    private final Properties properties;
+
     public PulsarKafkaProducer(Map<String, Object> configs) {
-        this(configs, null, null);
+        this(new ProducerConfig(configs), null, null);
     }
 
     public PulsarKafkaProducer(Map<String, Object> configs, Serializer<K> keySerializer,
-            Serializer<V> valueSerializer) {
-        this(configs, new Properties(), keySerializer, valueSerializer);
+                               Serializer<V> valueSerializer) {
+        this(new ProducerConfig(configs), new PulsarKafkaSchema<>(keySerializer), new PulsarKafkaSchema<>(valueSerializer));
+    }
+
+    public PulsarKafkaProducer(Map<String, Object> configs, Schema<K> keySchema, Schema<V> valueSchema) {
+        this(new ProducerConfig(configs), keySchema, valueSchema);
     }
 
     public PulsarKafkaProducer(Properties properties) {
-        this(properties, null, null);
+        this(new ProducerConfig(properties), null, null);
     }
 
     public PulsarKafkaProducer(Properties properties, Serializer<K> keySerializer, Serializer<V> valueSerializer) {
-        this(new HashMap<>(), properties, keySerializer, valueSerializer);
+        this(new ProducerConfig(properties), new PulsarKafkaSchema<>(keySerializer), new PulsarKafkaSchema<>(valueSerializer));
+    }
+
+    public PulsarKafkaProducer(Properties properties, Schema<K> keySchema, Schema<V> valueSchema) {
+        this(new ProducerConfig(properties), keySchema, valueSchema);
     }
 
     @SuppressWarnings({ "unchecked", "deprecation" })
-    private PulsarKafkaProducer(Map<String, Object> conf, Properties properties, Serializer<K> keySerializer,
-            Serializer<V> valueSerializer) {
-        properties.forEach((k, v) -> conf.put((String) k, v));
+    private PulsarKafkaProducer(ProducerConfig producerConfig, Schema<K> keySchema, Schema<V> valueSchema) {
 
-        ProducerConfig producerConfig = new ProducerConfig(conf);
-
-        if (keySerializer == null) {
-            this.keySerializer = producerConfig.getConfiguredInstance(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                    Serializer.class);
-            this.keySerializer.configure(producerConfig.originals(), true);
+        if (keySchema == null) {
+            Serializer<K> kafkaKeySerializer = producerConfig.getConfiguredInstance(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, Serializer.class);
+            kafkaKeySerializer.configure(producerConfig.originals(), true);
+            this.keySchema = new PulsarKafkaSchema<>(kafkaKeySerializer);
         } else {
-            this.keySerializer = keySerializer;
+            this.keySchema = keySchema;
             producerConfig.ignore(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG);
         }
 
-        if (valueSerializer == null) {
-            this.valueSerializer = producerConfig.getConfiguredInstance(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                    Serializer.class);
-            this.valueSerializer.configure(producerConfig.originals(), false);
+        if (valueSchema == null) {
+            Serializer<V> kafkaValueSerializer = producerConfig.getConfiguredInstance(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, Serializer.class);
+            kafkaValueSerializer.configure(producerConfig.originals(), false);
+            this.valueSchema = new PulsarKafkaSchema<>(kafkaValueSerializer);
         } else {
-            this.valueSerializer = valueSerializer;
+            this.valueSchema = valueSchema;
             producerConfig.ignore(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG);
         }
 
         partitioner = producerConfig.getConfiguredInstance(ProducerConfig.PARTITIONER_CLASS_CONFIG, Partitioner.class);
         partitioner.configure(producerConfig.originals());
+
+        this.properties = new Properties();
+        producerConfig.originals().forEach((k, v) -> properties.put(k, v));
 
         long keepAliveIntervalMs = Long.parseLong(properties.getProperty(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, "30000"));
 
@@ -275,7 +285,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
             // Add the partitions info for the new topic
             cluster = cluster.withPartitions(readPartitionsInfo(topic));
             List<org.apache.pulsar.client.api.ProducerInterceptor> wrappedInterceptors = interceptors.stream()
-                    .map(interceptor -> new KafkaProducerInterceptorWrapper(interceptor, keySerializer, valueSerializer, topic))
+                    .map(interceptor -> new KafkaProducerInterceptorWrapper(interceptor, keySchema, valueSchema, topic))
                     .collect(Collectors.toList());
             return pulsarProducerBuilder.clone()
                     .topic(topic)
@@ -312,7 +322,10 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
             builder.eventTime(record.timestamp());
         }
 
-        byte[] value = valueSerializer.serialize(record.topic(), record.value());
+        if (valueSchema instanceof PulsarKafkaSchema) {
+            ((PulsarKafkaSchema<V>) valueSchema).setTopic(record.topic());
+        }
+        byte[] value = valueSchema.encode(record.value());
         builder.value(value);
 
         if (record.partition() != null) {
@@ -329,12 +342,14 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
     private String getKey(String topic, K key) {
         // If key is a String, we can use it as it is, otherwise, serialize to byte[] and encode in base64
-        if (keySerializer instanceof StringSerializer) {
+        if (key instanceof String) {
             return (String) key;
-        } else {
-            byte[] keyBytes = keySerializer.serialize(topic, key);
-            return Base64.getEncoder().encodeToString(keyBytes);
         }
+        if (keySchema instanceof PulsarKafkaSchema) {
+            ((PulsarKafkaSchema) keySchema).setTopic(topic);
+        }
+        byte[] keyBytes = keySchema.encode(key);
+        return Base64.getEncoder().encodeToString(keyBytes);
     }
 
     private RecordMetadata getRecordMetadata(String topic, TypedMessageBuilder<byte[]> msgBuilder, MessageId messageId,
