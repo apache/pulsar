@@ -277,10 +277,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }

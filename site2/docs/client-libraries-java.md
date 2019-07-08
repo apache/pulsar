@@ -306,16 +306,14 @@ Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default.*");
 consumerBuilder
         .topics(topics)
         .subscribeAsync()
-        .thenAccept(consumer -> {
-            do {
-                try {
-                    Message msg = consumer.receive();
-                    // Do something with the received message
-                } catch (PulsarClientException e) {
-                    e.printStackTrace();
-                }
-            } while (true);
-        });
+        .thenAccept(this::receiveMessageFromConsumer);
+
+private void receiveMessageFromConsumer(Consumer consumer) {
+    consumer.receiveAsync().thenAccept(message -> {
+                // Do something with the received message
+                receiveMessageFromConsumer(consumer);
+            });
+}
 ```
 
 ### Subscription modes
@@ -595,12 +593,28 @@ The following schema formats are currently available for Java:
         .topic("some-string-topic")
         .create();
   ```
-* JSON schemas can be created for POJOs using the `JSONSchema` class. Here's an example:
+
+* JSON schemas can be created for POJOs using `Schema.JSON`. Here's an example:
 
   ```java
-  Schema<MyPojo> pojoSchema = JSONSchema.of(MyPojo.class);
-  Producer<MyPojo> pojoProducer = client.newProducer(pojoSchema)
+  Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
         .topic("some-pojo-topic")
+        .create();
+  ```
+
+* Protobuf schemas can be generate using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
+
+  ```java
+  Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
+        .topic("some-protobuf-topic")
+        .create();
+  ```
+
+* Avro schemas can be defined with the help of `Schema.AVRO`. The next code snippet demonstrates the creation and usage of the Avro schema:
+  
+  ```java
+  Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
+        .topic("some-avro-topic")
         .create();
   ```
 

@@ -470,11 +470,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Get per partition stats")
+            @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }

@@ -94,5 +94,11 @@ module.exports = [
         longName: 'Twitter Firehose',
         type: 'Source',
         link: 'https://developer.twitter.com/en/docs'
+    },
+    {
+        name: 'influxdb',
+        longName: 'InfluxDB',
+        type: 'Source',
+        link: 'https://www.influxdata.com/products/influxdb-overview/'
     }
 ]
