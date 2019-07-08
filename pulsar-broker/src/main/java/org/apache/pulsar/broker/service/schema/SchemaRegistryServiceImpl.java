@@ -68,7 +68,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
-        return getSchema(schemaId, SchemaVersion.Latest);
+        return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
+                if (schema != null && schema.schema.isDeleted()) {
+                    return null;
+                } else {
+                    return schema;
+                }
+            });
     }
 
     @Override
@@ -184,21 +190,35 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                                     SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId)
             .thenApply(
-                (existingSchema) ->
-                    !(existingSchema == null || existingSchema.schema.isDeleted())
-                        && isCompatible(existingSchema, schema, strategy));
+                    (existingSchema) ->
+                        !(existingSchema == null || existingSchema.schema.isDeleted())
+                            && isCompatible(existingSchema, schema, strategy));
     }
 
     private CompletableFuture<Boolean> checkCompatibilityWithAll(String schemaId, SchemaData schema,
                                                                  SchemaCompatibilityStrategy strategy) {
         return getAllSchemas(schemaId)
-                .thenCompose(FutureUtils::collect)
-                .thenApply(schemaAndMetadataList -> schemaAndMetadataList
-                        .stream()
-                        .map(schemaAndMetadata -> schemaAndMetadata.schema)
-                        .collect(Collectors.toList()))
-                .thenApply(schemas -> compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                        .isCompatible(schemas, schema, strategy));
+            .thenCompose(FutureUtils::collect)
+            .thenApply(list -> {
+                    // Trim the prefix of schemas before the latest delete.
+                    int lastIndex = list.size() - 1;
+                    for (int i = lastIndex; i >= 0; i--) {
+                        if (list.get(i).schema.isDeleted()) {
+                            if (i == lastIndex) { // if the latest schema is a delete, there's no schemas to compare
+                                return Collections.<SchemaAndMetadata>emptyList();
+                            } else {
+                                return list.subList(i + 1, list.size());
+                            }
+                        }
+                    }
+                    return list;
+                })
+            .thenApply(schemaAndMetadataList -> schemaAndMetadataList
+                       .stream()
+                       .map(schemaAndMetadata -> schemaAndMetadata.schema)
+                       .collect(Collectors.toList()))
+            .thenApply(schemas -> compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                       .isCompatible(schemas, schema, strategy));
     }
 
     interface Functions {
