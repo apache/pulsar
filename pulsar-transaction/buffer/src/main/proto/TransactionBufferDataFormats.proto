@@ -1,0 +1,69 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+syntax = "proto2";
+
+option java_package = "org.apache.pulsar.transaction.proto";
+option optimize_for = LITE_RUNTIME;
+
+message StoredTxnID{
+    required int64 mostSigBits = 1;
+    required int64 leastSigBits = 2;
+}
+
+enum StoredTxnStatus {
+    OPEN = 0;
+    COMMITTING = 1;
+    COMMITTED = 2;
+    ABORTING = 3;
+    ABORTED = 4;
+}
+
+message StoredPosition {
+    required int64 ledger_id = 1;
+    required int64 entry_id = 2;
+}
+
+message StoredEntryInfo {
+    required int64 sequence_id = 1;
+    required StoredPosition position = 2;
+}
+
+message StoredTxnMeta {
+    required StoredTxnID txn_id = 1;
+    repeated StoredEntryInfo entry_info = 2;
+    required StoredTxnStatus status = 3;
+    required int64 committed_ledger = 4;
+    required int64 committed_entry = 5;
+}
+
+enum StoredStatus {
+    START   = 0; // the index log start marker
+    MIDDLE  = 1; // index log
+    END     = 2; // the index log end marker
+}
+
+message StoredTxn {
+    required StoredStatus stored_status = 1;
+    // snapshot position is the point in transaction log when do snapshot.
+    optional StoredPosition buffer_position= 2;
+    // start position is the start snapshot point.
+    optional StoredPosition position= 3;
+    optional StoredTxnMeta txn_meta = 4;
+}
+

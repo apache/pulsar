@@ -23,6 +23,8 @@ import com.google.common.base.Predicate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
@@ -74,6 +76,20 @@ public interface ManagedCursor {
      * Return any properties that were associated with the last stored position.
      */
     Map<String, Long> getProperties();
+
+    /**
+     * Async add entry to cursor ledger.
+     * @param entry
+     *            add entry
+     * @param callback
+     *
+     * @param ctx
+     */
+    void asyncAddEntries(byte[] entry, AddEntryCallback callback, Object ctx);
+
+    CompletableFuture<Long> getLastEntryId();
+
+    void asyncReadEntry(long entryId, ReadEntryCallback callback, Object ctx);
 
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.

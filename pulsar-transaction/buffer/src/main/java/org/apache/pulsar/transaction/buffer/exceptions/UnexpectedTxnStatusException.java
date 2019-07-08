@@ -31,7 +31,7 @@ public class UnexpectedTxnStatusException extends TransactionBufferException {
     public UnexpectedTxnStatusException(TxnID txnId,
                                         TxnStatus expectedStatus,
                                         TxnStatus actualStatus) {
-        super("Transaction `" + txnId + "` is not in an expected status `" + expectedStatus
+        super("TransactionMetaImpl `" + txnId + "` is not in an expected status `" + expectedStatus
             + "`, but is in status `" + actualStatus + "`");
     }
 }

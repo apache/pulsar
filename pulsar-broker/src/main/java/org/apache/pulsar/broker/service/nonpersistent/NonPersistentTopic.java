@@ -432,7 +432,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
      * @return Completable future indicating completion of close operation
      */
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> closeTopic() {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();

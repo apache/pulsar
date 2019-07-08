@@ -172,7 +172,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         TxnBuffer buffer = buffers.get(txnID);
         if (null == buffer) {
             throw new TransactionNotFoundException(
-                "Transaction `" + txnID + "` doesn't exist in the transaction buffer");
+                "TransactionMetaImpl `" + txnID + "` doesn't exist in the transaction buffer");
         }
         return buffer;
     }

@@ -319,7 +319,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
-            close();
+            closeTopic();
         }
     }
 
@@ -586,7 +586,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscriptionFuture.completeExceptionally(new PersistenceException(exception));
                 if (exception instanceof ManagedLedgerFencedException) {
                     // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
-                    close();
+                    closeTopic();
                 }
             }
         }, null);
@@ -818,7 +818,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @return Completable future indicating completion of close operation
      */
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> closeTopic() {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();

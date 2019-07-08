@@ -731,7 +731,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     cursors.add(cursor);
                     uninitializedCursors.remove(cursorName).complete(cursor);
                 }
-                callback.openCursorComplete(cursor, ctx);
+                  callback.openCursorComplete(cursor, ctx);
             }
 
             @Override
