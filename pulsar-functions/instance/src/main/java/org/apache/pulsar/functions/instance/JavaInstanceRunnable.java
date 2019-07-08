@@ -439,8 +439,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             log.info("Encountered exception in sink write: ", e);
             stats.incrSinkExceptions(e);
             throw new RuntimeException(e);
+        } finally {
+            Thread.currentThread().setContextClassLoader(frameworkClassLoader);
         }
-        Thread.currentThread().setContextClassLoader(frameworkClassLoader);
     }
 
     private Record readInput() {
@@ -452,8 +453,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stats.incrSourceExceptions(e);
             log.info("Encountered exception in source read: ", e);
             throw new RuntimeException(e);
+        } finally {
+            Thread.currentThread().setContextClassLoader(frameworkClassLoader);
         }
-        Thread.currentThread().setContextClassLoader(frameworkClassLoader);
 
         // check record is valid
         if (record == null) {
@@ -482,8 +484,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 source.close();
             } catch (Throwable e) {
                 log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+            } finally {
+                Thread.currentThread().setContextClassLoader(frameworkClassLoader);
             }
-            Thread.currentThread().setContextClassLoader(frameworkClassLoader);
             source = null;
         }
 
@@ -493,8 +496,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 sink.close();
             } catch (Throwable e) {
                 log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+            } finally {
+                Thread.currentThread().setContextClassLoader(frameworkClassLoader);
             }
-            Thread.currentThread().setContextClassLoader(frameworkClassLoader);
             sink = null;
         }
 
@@ -699,13 +703,20 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.source = (Source<?>) object;
 
         Thread.currentThread().setContextClassLoader(this.functionClassLoader);
-        if (sourceSpec.getConfigs().isEmpty()) {
-            this.source.open(new HashMap<>(), contextImpl);
-        } else {
-            this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
-                    new TypeToken<Map<String, Object>>(){}.getType()), contextImpl);
+        try {
+            if (sourceSpec.getConfigs().isEmpty()) {
+                this.source.open(new HashMap<>(), contextImpl);
+            } else {
+                this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
+                        new TypeToken<Map<String, Object>>() {
+                        }.getType()), contextImpl);
+            }
+        } catch (Exception e) {
+            log.error("Source open produced uncaught exception: ", e);
+            throw e;
+        } finally {
+            Thread.currentThread().setContextClassLoader(this.frameworkClassLoader);
         }
-        Thread.currentThread().setContextClassLoader(this.frameworkClassLoader);
     }
 
     public void setupOutput(ContextImpl contextImpl) throws Exception {
@@ -745,12 +756,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         Thread.currentThread().setContextClassLoader(this.functionClassLoader);
-        if (sinkSpec.getConfigs().isEmpty()) {
-            this.sink.open(new HashMap<>(), contextImpl);
-        } else {
-            this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
-                    new TypeToken<Map<String, Object>>() {}.getType()), contextImpl);
+        try {
+            if (sinkSpec.getConfigs().isEmpty()) {
+                this.sink.open(new HashMap<>(), contextImpl);
+            } else {
+                this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
+                        new TypeToken<Map<String, Object>>() {
+                        }.getType()), contextImpl);
+            }
+        } catch (Exception e) {
+            log.error("Sink open produced uncaught exception: ", e);
+        } finally {
+            Thread.currentThread().setContextClassLoader(this.frameworkClassLoader);
         }
-        Thread.currentThread().setContextClassLoader(this.frameworkClassLoader);
     }
 }
