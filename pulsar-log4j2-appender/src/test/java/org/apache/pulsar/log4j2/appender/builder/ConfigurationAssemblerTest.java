@@ -49,7 +49,7 @@ import org.testng.annotations.Test;
 public class ConfigurationAssemblerTest {
 
     @Test
-    public void testBuildConfiguration() throws Exception {
+    public void testBuildConfiguration() {
         try {
             System.setProperty(Constants.LOG4J_CONTEXT_SELECTOR,
                     "org.apache.logging.log4j.core.async.AsyncLoggerContextSelector");
@@ -66,7 +66,7 @@ public class ConfigurationAssemblerTest {
     }
 
     @Test
-    public void testCustomConfigurationFactory() throws Exception {
+    public void testCustomConfigurationFactory() {
         try {
             System.setProperty(ConfigurationFactory.CONFIGURATION_FACTORY_PROPERTY,
                     "org.apache.pulsar.log4j2.appender.builder.CustomConfigurationFactory");
@@ -88,12 +88,12 @@ public class ConfigurationAssemblerTest {
         assertEquals("Incorrect State: " + config.getState(), config.getState(), LifeCycle.State.STARTED);
         final Map<String, Appender> appenders = config.getAppenders();
         assertNotNull(appenders);
-        assertTrue("Incorrect number of Appenders: " + appenders.size(), appenders.size() == 2);
+        assertEquals("Incorrect number of Appenders: " + appenders.size(), appenders.size(), 2);
         final PulsarAppender pulsarAppender = (PulsarAppender) appenders.get("Pulsar");
         final GelfLayout gelfLayout = (GelfLayout) pulsarAppender.getLayout();
         final Map<String, LoggerConfig> loggers = config.getLoggers();
         assertNotNull(loggers);
-        assertTrue("Incorrect number of LoggerConfigs: " + loggers.size(), loggers.size() == 2);
+        assertEquals("Incorrect number of LoggerConfigs: " + loggers.size(), loggers.size(), 2);
         final LoggerConfig rootLoggerConfig = loggers.get("");
         assertEquals(Level.ERROR, rootLoggerConfig.getLevel());
         assertFalse(rootLoggerConfig.isIncludeLocation());
