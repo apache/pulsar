@@ -68,7 +68,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
-        return getSchema(schemaId, SchemaVersion.Latest);
+        return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
+                if (schema != null && schema.schema.isDeleted()) {
+                    return null;
+                } else {
+                    return schema;
+                }
+            });
     }
 
     @Override
@@ -184,13 +190,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                                     SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId)
             .thenApply(
-                    (existingSchema) -> {
-                        if (existingSchema == null || existingSchema.schema.isDeleted()) {
-                            return true;
-                        } else {
-                            return isCompatible(existingSchema, schema, strategy);
-                        }
-                    });
+                    (existingSchema) ->
+                        !(existingSchema == null || existingSchema.schema.isDeleted())
+                            && isCompatible(existingSchema, schema, strategy));
     }
 
     private CompletableFuture<Boolean> checkCompatibilityWithAll(String schemaId, SchemaData schema,
