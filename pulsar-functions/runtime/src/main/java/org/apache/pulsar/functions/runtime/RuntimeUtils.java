@@ -51,7 +51,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
-    private static final String FUNCTIONS_FRAMEWORK_CLASSPATH = "pulsar.functions.framework.classpath";
+    static final String FUNCTIONS_FRAMEWORK_CLASSPATH = "pulsar.functions.framework.classpath";
 
     public static List<String> composeCmd(InstanceConfig instanceConfig,
                                           String instanceFile,
@@ -270,7 +270,7 @@ public class RuntimeUtils {
             // the framework dependencies separately from user code dependencies
             String functionFrameworkClasspath = System.getProperty(FUNCTIONS_FRAMEWORK_CLASSPATH);
             if (functionFrameworkClasspath == null) {
-                log.warn("Property {} is not set.  Falling back to using classpath of current JVM");
+                log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_FRAMEWORK_CLASSPATH);
                 functionFrameworkClasspath = System.getProperty("java.class.path");
             }
             args.add(String.format("-D%s=%s", FUNCTIONS_FRAMEWORK_CLASSPATH, functionFrameworkClasspath));

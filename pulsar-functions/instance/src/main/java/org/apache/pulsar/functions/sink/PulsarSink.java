@@ -316,7 +316,7 @@ public class PulsarSink<T> implements Sink<T> {
         if (StringUtils.isEmpty(this.pulsarSinkConfig.getTypeClassName())) {
             return (Schema<T>) Schema.BYTES;
         }
-        
+
         Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check

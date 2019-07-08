@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_FRAMEWORK_CLASSPATH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -46,6 +47,7 @@ import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -121,6 +123,11 @@ public class ProcessRuntimeTest {
         this.pulsarServiceUrl = "pulsar://localhost:6670";
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "Users/user/logs";
+    }
+
+    @BeforeClass
+    public void setup() {
+        System.setProperty(FUNCTIONS_FRAMEWORK_CLASSPATH, "/pulsar/lib/*");
     }
 
     @AfterMethod
@@ -266,8 +273,8 @@ public class ProcessRuntimeTest {
         }
 
         String expectedArgs = "java -cp " + classpath
-                + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + extraDepsEnv
+                + " -Dpulsar.functions.framework.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=java_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
