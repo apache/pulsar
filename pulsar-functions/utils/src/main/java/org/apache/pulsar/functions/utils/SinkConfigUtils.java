@@ -42,7 +42,11 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -283,7 +287,7 @@ public class SinkConfigUtils {
     }
 
     public static ExtractedSinkDetails validate(SinkConfig sinkConfig, Path archivePath,
-                                          File uploadedInputStreamAsFile) {
+                                          File sinkPackageFile) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
         }
@@ -318,79 +322,112 @@ public class SinkConfigUtils {
             throw new IllegalArgumentException("Sink timeout must be a positive number");
         }
 
-        String sinkClassName;
-        final Class<?> typeArg;
-        final ClassLoader classLoader;
-        if (!isEmpty(sinkConfig.getClassName())) {
-            sinkClassName = sinkConfig.getClassName();
-            // We really don't know if we should use nar class loader or regular classloader
-            ClassLoader jarClassLoader = null;
-            ClassLoader narClassLoader = null;
-            try {
-                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, uploadedInputStreamAsFile);
-            } catch (Exception e) {
+        if (archivePath == null && sinkPackageFile == null) {
+            throw new IllegalArgumentException("Sink package is not provided");
+        }
+
+        Class<?> typeArg;
+        ClassLoader classLoader;
+        String sinkClassName = sinkConfig.getClassName();
+        ClassLoader jarClassLoader = null;
+        ClassLoader narClassLoader = null;
+
+        Exception jarClassLoaderException = null;
+        Exception narClassLoaderException = null;
+
+        try {
+            jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sinkPackageFile);
+        } catch (Exception e) {
+            jarClassLoaderException = e;
+        }
+        try {
+            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sinkPackageFile);
+        } catch (Exception e) {
+            narClassLoaderException = e;
+        }
+
+        // if sink class name is not provided, we can only try to load archive as a NAR
+        if (isEmpty(sinkClassName)) {
+            if (narClassLoader == null) {
+                throw new IllegalArgumentException("Sink package does not have the correct format. " +
+                        "Pulsar cannot determine if the package is a NAR package or JAR package." +
+                        "Sink classname is not provided and attempts to load it as a NAR package produced error: "
+                        + narClassLoaderException.getMessage());
             }
             try {
-                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
-            } catch (Exception e) {
-            }
-            if (jarClassLoader == null && narClassLoader == null) {
-                throw new IllegalArgumentException("Invalid Sink Package");
-            }
-            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
-            // Thus we use these tmp vars
-            Class<?> tmptypeArg;
-            ClassLoader tmpclassLoader;
-            try {
-                tmptypeArg = getSinkType(sinkClassName, narClassLoader);
-                tmpclassLoader = narClassLoader;
-            } catch (Exception e) {
-                try {
-                    tmptypeArg = getSinkType(sinkClassName, jarClassLoader);
-                } catch (ClassNotFoundException e1) {
-                    throw new IllegalArgumentException(
-                            String.format("Sink class %s must be in class path", sinkClassName), e1);
-                }
-                tmpclassLoader = jarClassLoader;
-            }
-            typeArg = tmptypeArg;
-            classLoader = tmpclassLoader;
-        } else if (!org.apache.commons.lang3.StringUtils.isEmpty(sinkConfig.getArchive()) && sinkConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
-            throw new IllegalArgumentException("Class-name must be present for archive with file-url");
-        } else {
-            classLoader = FunctionCommon.extractNarClassLoader(archivePath, uploadedInputStreamAsFile);
-            if (classLoader == null) {
-                throw new IllegalArgumentException("Sink Package is not provided");
+                sinkClassName = ConnectorUtils.getIOSinkClass(narClassLoader);
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Failed to extract Sink class from archive", e);
             }
             try {
-                sinkClassName = ConnectorUtils.getIOSinkClass(classLoader);
-            } catch (IOException e1) {
-                throw new IllegalArgumentException("Failed to extract sink class from archive", e1);
-            }
-            try {
-                typeArg = getSinkType(sinkClassName, classLoader);
+                typeArg = getSinkType(sinkClassName, narClassLoader);
+                classLoader = narClassLoader;
             } catch (ClassNotFoundException e) {
                 throw new IllegalArgumentException(
                         String.format("Sink class %s must be in class path", sinkClassName), e);
             }
+
+        } else {
+            // if sink class name is provided, we need to try to load it as a JAR and as a NAR.
+            if (jarClassLoader != null) {
+                try {
+                    typeArg = getSinkType(sinkClassName, jarClassLoader);
+                    classLoader = jarClassLoader;
+                } catch (ClassNotFoundException e) {
+                    // class not found in JAR try loading as a NAR and searching for the class
+                    if (narClassLoader != null) {
+                        try {
+                            typeArg = getSinkType(sinkClassName, narClassLoader);
+                            classLoader = narClassLoader;
+                        } catch (ClassNotFoundException e1) {
+                            throw new IllegalArgumentException(
+                                    String.format("Sink class %s must be in class path", sinkClassName), e1);
+                        }
+                    } else {
+                        throw new IllegalArgumentException(
+                                String.format("Sink class %s must be in class path", sinkClassName), e);
+                    }
+                }
+            } else if (narClassLoader != null) {
+                try {
+                    typeArg = getSinkType(sinkClassName, narClassLoader);
+                    classLoader = narClassLoader;
+                } catch (ClassNotFoundException e1) {
+                    throw new IllegalArgumentException(
+                            String.format("Sink class %s must be in class path", sinkClassName), e1);
+                }
+            } else {
+                StringBuilder errorMsg = new StringBuilder("Sink package does not have the correct format." +
+                        " Pulsar cannot determine if the package is a NAR package or JAR package.");
+
+                if (jarClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                }
+
+                if (narClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                }
+
+                throw new IllegalArgumentException(errorMsg.toString());
+            }
         }
 
         if (sinkConfig.getTopicToSerdeClassName() != null) {
-            sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassName) -> {
-                ValidatorUtils.validateSerde(serdeClassName, typeArg, classLoader, true);
-            });
+           for (String serdeClassName : sinkConfig.getTopicToSerdeClassName().values()) {
+               ValidatorUtils.validateSerde(serdeClassName, typeArg, classLoader, true);
+           }
         }
 
         if (sinkConfig.getTopicToSchemaType() != null) {
-            sinkConfig.getTopicToSchemaType().forEach((topicName, schemaType) -> {
+            for (String schemaType : sinkConfig.getTopicToSchemaType().values()) {
                 ValidatorUtils.validateSchema(schemaType, typeArg, classLoader, true);
-            });
+            }
         }
 
         // topicsPattern does not need checks
 
         if (sinkConfig.getInputSpecs() != null) {
-            sinkConfig.getInputSpecs().forEach((topicName, consumerSpec) -> {
+            for (ConsumerConfig consumerSpec : sinkConfig.getInputSpecs().values()) {
                 // Only one is set
                 if (!isEmpty(consumerSpec.getSerdeClassName()) && !isEmpty(consumerSpec.getSchemaType())) {
                     throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
@@ -401,7 +438,7 @@ public class SinkConfigUtils {
                 if (!isEmpty(consumerSpec.getSchemaType())) {
                     ValidatorUtils.validateSchema(consumerSpec.getSchemaType(), typeArg, classLoader, true);
                 }
-            });
+            }
         }
         return new ExtractedSinkDetails(sinkClassName, typeArg.getName());
     }

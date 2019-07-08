@@ -231,7 +231,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public Map<String, Long> getProperties() {
-        return lastMarkDeleteEntry.properties;
+        return lastMarkDeleteEntry != null ? lastMarkDeleteEntry.properties : Collections.emptyMap();
     }
 
     /**

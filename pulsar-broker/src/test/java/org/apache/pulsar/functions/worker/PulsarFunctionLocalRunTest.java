@@ -599,12 +599,11 @@ public class PulsarFunctionLocalRunTest {
         testPulsarSourceLocalRun(null);
     }
 
-    // TODO bug to fix involving submitting a NAR via URI file:///tmp/pulsar-io-twitter-0.0.1.nar
-//    @Test(timeOut = 20000)
-//    public void testPulsarSourceLocalRunWithFile() throws Exception {
-//        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
-//        testPulsarSourceStats(jarFilePathUrl);
-//    }
+    @Test(timeOut = 20000)
+    public void testPulsarSourceLocalRunWithFile() throws Exception {
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
+        testPulsarSourceLocalRun(jarFilePathUrl);
+    }
 
     @Test(timeOut = 40000)
     public void testPulsarSourceLocalRunWithUrl() throws Exception {
@@ -705,11 +704,11 @@ public class PulsarFunctionLocalRunTest {
         testPulsarSinkStats(null);
     }
 
-//    @Test(timeOut = 20000)
-//    public void testPulsarSinkStatsWithFile() throws Exception {
-//        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
-//        testPulsarSinkStats(jarFilePathUrl);
-//    }
+    @Test(timeOut = 20000)
+    public void testPulsarSinkStatsWithFile() throws Exception {
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
+        testPulsarSinkStats(jarFilePathUrl);
+    }
 
     @Test(timeOut = 40000)
     public void testPulsarSinkStatsWithUrl() throws Exception {

@@ -344,7 +344,6 @@ public class SinksImpl extends ComponentImpl {
 
                     componentPackageFile = FunctionCommon.createPkgTempFile();
                     componentPackageFile.deleteOnExit();
-                    log.info("componentPackageFile: {}", componentPackageFile);
                     WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
 
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
