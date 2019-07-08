@@ -101,8 +101,7 @@ public class ProducerConfiguration implements Serializable {
      *            the time unit of the {@code sendTimeout}
      */
     public ProducerConfiguration setSendTimeout(int sendTimeout, TimeUnit unit) {
-        checkArgument(sendTimeout >= 0, "sendTimeout needs to be >= 0");
-        conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
+        conf.setSendTimeoutMs(sendTimeout, unit);
         return this;
     }
 
@@ -397,9 +396,7 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setBatchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit) {
-        long delayInMs = timeUnit.toMillis(batchDelay);
-        checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
-        conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
+        conf.setBatchingMaxPublishDelayMicros(batchDelay, timeUnit);
         return this;
     }
 

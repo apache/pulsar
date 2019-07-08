@@ -127,4 +127,15 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         this.batchingMaxMessages = batchingMaxMessages;
     }
 
+    public void setSendTimeoutMs(int sendTimeout, TimeUnit timeUnit) {
+        checkArgument(sendTimeout >= 0, "sendTimeout needs to be >= 0");
+        this.sendTimeoutMs = timeUnit.toMillis(sendTimeout);
+    }
+
+    public void setBatchingMaxPublishDelayMicros(long batchDelay, TimeUnit timeUnit) {
+        long delayInMs = timeUnit.toMillis(batchDelay);
+        checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
+        this.batchingMaxPublishDelayMicros = timeUnit.toMicros(batchDelay);
+    }
+
 }
