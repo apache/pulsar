@@ -432,7 +432,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {
-        Thread.currentThread().setContextClassLoader(functionClassLoader);
+        if (!(this.sink instanceof PulsarSink)) {
+            Thread.currentThread().setContextClassLoader(functionClassLoader);
+        }
         try {
             this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
@@ -446,7 +448,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Record readInput() {
         Record record;
-        Thread.currentThread().setContextClassLoader(functionClassLoader);
+        if (!(this.source instanceof PulsarSource)) {
+            Thread.currentThread().setContextClassLoader(functionClassLoader);
+        }
         try {
             record = this.source.read();
         } catch (Exception e) {
@@ -479,7 +483,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (source != null) {
-            Thread.currentThread().setContextClassLoader(functionClassLoader);
+            if (!(this.source instanceof PulsarSource)) {
+                Thread.currentThread().setContextClassLoader(functionClassLoader);
+            }
             try {
                 source.close();
             } catch (Throwable e) {
@@ -491,7 +497,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (sink != null) {
-            Thread.currentThread().setContextClassLoader(functionClassLoader);
+            if (!(this.sink instanceof PulsarSink)) {
+                Thread.currentThread().setContextClassLoader(functionClassLoader);
+            }
             try {
                 sink.close();
             } catch (Throwable e) {
@@ -702,7 +710,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source<?>) object;
 
-        Thread.currentThread().setContextClassLoader(this.functionClassLoader);
+        if (!(this.source instanceof PulsarSource)) {
+            Thread.currentThread().setContextClassLoader(this.functionClassLoader);
+        }
         try {
             if (sourceSpec.getConfigs().isEmpty()) {
                 this.source.open(new HashMap<>(), contextImpl);
@@ -755,7 +765,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw new RuntimeException("Sink does not implement correct interface");
         }
 
-        Thread.currentThread().setContextClassLoader(this.functionClassLoader);
+        if (!(this.sink instanceof PulsarSink)) {
+            Thread.currentThread().setContextClassLoader(this.functionClassLoader);
+        }
         try {
             if (sinkSpec.getConfigs().isEmpty()) {
                 this.sink.open(new HashMap<>(), contextImpl);
@@ -766,6 +778,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         } catch (Exception e) {
             log.error("Sink open produced uncaught exception: ", e);
+            throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(this.frameworkClassLoader);
         }
