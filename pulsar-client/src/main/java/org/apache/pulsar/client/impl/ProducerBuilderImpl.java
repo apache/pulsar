@@ -129,8 +129,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> sendTimeout(int sendTimeout, @NonNull TimeUnit unit) {
-        checkArgument(sendTimeout >= 0, "sendTimeout needs to be >= 0");
-        conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
+        conf.setSendTimeoutMs(sendTimeout, unit);
         return this;
     }
 
@@ -203,9 +202,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, @NonNull TimeUnit timeUnit) {
-        long delayInMs = timeUnit.toMillis(batchDelay);
-        checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
-        conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
+        conf.setBatchingMaxPublishDelayMicros(batchDelay, timeUnit);
         return this;
     }
 
