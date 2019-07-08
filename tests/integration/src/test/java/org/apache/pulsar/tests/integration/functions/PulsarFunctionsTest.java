@@ -61,6 +61,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -174,16 +175,34 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // produce messages
         Map<String, String> kvs;
         if (tester instanceof JdbcSinkTester) {
-            kvs = produceSchemaMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+            kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+            // wait for sink to process messages
+            waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages);
+            // validate the sink result
+            tester.validateSinkResult(kvs);
+
+            kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+
+            // wait for sink to process messages
+            waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20);
+            // validate the sink result
+            tester.validateSinkResult(kvs);
+
+            kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+
+            // wait for sink to process messages
+            waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20 + 20);
+            // validate the sink result
+            tester.validateSinkResult(kvs);
+
         } else {
             kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
+            // wait for sink to process messages
+            waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages);
+            // validate the sink result
+            tester.validateSinkResult(kvs);
         }
 
-        // wait for sink to process messages
-        waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages);
-
-        // validate the sink result
-        tester.validateSinkResult(kvs);
 
         // update the sink
         updateSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
@@ -364,7 +383,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     // This for JdbcSinkTester
-    protected Map<String, String> produceSchemaMessagesToInputTopic(String inputTopicName,
+    protected Map<String, String> produceSchemaInsertMessagesToInputTopic(String inputTopicName,
                                                                     int numMessages,
                                                                     Schema<Foo> schema) throws Exception {
         @Cleanup
@@ -380,16 +399,92 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             String key = "key-" + i;
 
             JdbcSinkTester.Foo obj = new JdbcSinkTester.Foo();
-            obj.setField1("field1_" + i);
-            obj.setField2("field2_" + i);
+            obj.setField1("field1_insert_" + i);
+            obj.setField2("field2_insert_" + i);
             obj.setField3(i);
             String value = new String(schema.encode(obj));
+            Map<String, String> properties = Maps.newHashMap();
+            properties.put("ACTION", "INSERT");
 
             kvs.put(key, value);
+            kvs.put("ACTION", "INSERT");
             producer.newMessage()
-                .key(key)
-                .value(obj)
-                .send();
+                    .properties(properties)
+                    .key(key)
+                    .value(obj)
+                    .send();
+        }
+        return kvs;
+    }
+
+    // This for JdbcSinkTester
+    protected Map<String, String> produceSchemaUpdateMessagesToInputTopic(String inputTopicName,
+                                                                    int numMessages,
+                                                                    Schema<Foo> schema) throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+        @Cleanup
+        Producer<Foo> producer = client.newProducer(schema)
+                .topic(inputTopicName)
+                .create();
+        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
+        log.info("update start");
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + i;
+
+            JdbcSinkTester.Foo obj = new JdbcSinkTester.Foo();
+            obj.setField1("field1_insert_" + i);
+            obj.setField2("field2_update_" + i);
+            obj.setField3(i);
+            String value = new String(schema.encode(obj));
+            Map<String, String> properties = Maps.newHashMap();
+            properties.put("ACTION", "UPDATE");
+
+            kvs.put(key, value);
+            kvs.put("ACTION", "UPDATE");
+            producer.newMessage()
+                    .properties(properties)
+                    .key(key)
+                    .value(obj)
+                    .send();
+        }
+        log.info("update end");
+        return kvs;
+    }
+
+    // This for JdbcSinkTester
+    protected Map<String, String> produceSchemaDeleteMessagesToInputTopic(String inputTopicName,
+                                                                          int numMessages,
+                                                                          Schema<Foo> schema) throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+        @Cleanup
+        Producer<Foo> producer = client.newProducer(schema)
+                .topic(inputTopicName)
+                .create();
+        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + i;
+
+            JdbcSinkTester.Foo obj = new JdbcSinkTester.Foo();
+            obj.setField1("field1_insert_" + i);
+            obj.setField2("field2_update_" + i);
+            obj.setField3(i);
+            String value = new String(schema.encode(obj));
+            Map<String, String> properties = Maps.newHashMap();
+            properties.put("ACTION", "DELETE");
+
+            kvs.put(key, value);
+            kvs.put("ACTION", "DELETE");
+            producer.newMessage()
+                    .properties(properties)
+                    .key(key)
+                    .value(obj)
+                    .send();
         }
         return kvs;
     }
