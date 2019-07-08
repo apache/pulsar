@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.schema;
 
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 
 import java.time.Clock;
@@ -106,9 +107,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         deleteSchema(schemaId1, version(1));
 
-        SchemaData latest2 = getLatestSchema(schemaId1, version(1));
-
-        assertTrue(latest2.isDeleted());
+        assertNull(schemaRegistryService.getSchema(schemaId1).get());
     }
 
     @Test
