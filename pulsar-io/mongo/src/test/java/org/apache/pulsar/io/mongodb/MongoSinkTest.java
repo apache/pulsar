@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
-import com.mongodb.async.client.MongoClients;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
 import com.mongodb.bulk.BulkWriteError;
@@ -43,17 +42,12 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.bson.BsonDocument;
 import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-@PrepareForTest(MongoClients.class)
-@PowerMockIgnore({"org.apache.logging.log4j.*"})
 public class MongoSinkTest {
 
     @Mock
@@ -83,7 +77,7 @@ public class MongoSinkTest {
 
     @BeforeMethod
     public void setUp() {
-        sink = new MongoSink();
+
         map = TestHelper.createMap(true);
 
         mockRecord = mock(Record.class);
@@ -92,9 +86,8 @@ public class MongoSinkTest {
         mockMongoDb = mock(MongoDatabase.class);
         mockMongoColl = mock(MongoCollection.class);
 
-        PowerMockito.mockStatic(MongoClients.class);
+        sink = new MongoSink(() -> mockMongoClient);
 
-        when(MongoClients.create(anyString())).thenReturn(mockMongoClient);
         when(mockMongoClient.getDatabase(anyString())).thenReturn(mockMongoDb);
         when(mockMongoDb.getCollection(anyString())).thenReturn(mockMongoColl);
     }
