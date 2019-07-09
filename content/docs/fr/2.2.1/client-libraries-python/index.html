@@ -137,7 +137,7 @@ msg_id = msg.message_id()
 reader = client.create_reader(<span class="hljs-string">'my-topic'</span>, msg_id)
 
 <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
-    msg = reader.receive()
+    msg = reader.read_next()
     print(<span class="hljs-string">"Received message '{}' id='{}'"</span>.format(msg.data(), msg.message_id()))
     <span class="hljs-comment"># No acknowledgment</span>
 </code></pre>

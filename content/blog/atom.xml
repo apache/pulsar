@@ -2,12 +2,30 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2019-02-20T06:00:00Z</updated>
+    <updated>2019-07-05T06:00:00Z</updated>
     <generator>Feed for Node.js</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.4.0]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2019/07/05/Apache-Pulsar-2-4-0.html">
+        </link>
+        <updated>2019-07-05T06:00:00Z</updated>
+        <summary type="html"><![CDATA[<p>We are glad to publish Apache Pulsar 2.4.0. This is the result of a huge
+effort from the community, with over 460 commits and a long list of new features,
+general improvements and bug fixes.</p>
+<p>Check out the <b><a href="/release-notes/#2.4.0">release notes</a></b> for a detailed list of
+the changes, with links to the relevant pull requests, discussions and documentation.</p>
+<p>Regarding new features introduced, I just want to highlight here a tiny subset of them:</p>
+]]></summary>
+        <author>
+            <name>Penghui Li</name>
+            <uri>https://twitter.com/lipenghui6</uri>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.3.0]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2019/02/20/Apache-Pulsar-2-3-0.html</id>
