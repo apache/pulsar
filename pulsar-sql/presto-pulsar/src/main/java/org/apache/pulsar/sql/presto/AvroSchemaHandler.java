@@ -56,8 +56,7 @@ public class AvroSchemaHandler implements SchemaHandler {
                 .setSchemaInfoProvider(new PulsarSqlSchemaInfoProvider(topicName, pulsarConnectorConfig.getPulsarAdmin()));
         this.columnHandles = columnHandles;
     }
-
-
+    
     AvroSchemaHandler(PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider, SchemaInfo schemaInfo, List<PulsarColumnHandle> columnHandles) {
         this.schemaInfo = schemaInfo;
         this.genericAvroSchema = new GenericAvroSchema(schemaInfo);

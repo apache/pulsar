@@ -68,9 +68,9 @@ public class RawMessageImpl implements RawMessage {
     }
 
     public static RawMessage get(ReferenceCountedObject<MessageMetadata> msgMetadata,
-                                 PulsarApi.SingleMessageMetadata.Builder singleMessageMetadata,
-                                 ByteBuf payload,
-                                 long ledgerId, long entryId, long batchIndex) {
+            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadata,
+            ByteBuf payload,
+            long ledgerId, long entryId, long batchIndex) {
         RawMessageImpl msg = RECYCLER.get();
         msg.messageMetadataBuilder = MessageMetadata.newBuilder(msgMetadata.get());
         msg.msgMetadata = msgMetadata;
