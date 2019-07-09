@@ -35,7 +35,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response;
 
-
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
 

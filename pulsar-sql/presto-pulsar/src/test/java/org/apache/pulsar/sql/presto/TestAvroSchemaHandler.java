@@ -50,14 +50,12 @@ public class TestAvroSchemaHandler {
 
     @Data
     public static class Foo1 {
-
         String field1;
-        Bar bar;
 
+        Bar bar;
     }
     @Data
     public static class Foo2 {
-
         String field1;
 
         String field2;

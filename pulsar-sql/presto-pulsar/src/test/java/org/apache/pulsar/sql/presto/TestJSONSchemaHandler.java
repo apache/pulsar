@@ -44,10 +44,9 @@ public class TestJSONSchemaHandler {
 
     @Data
     public static class Foo1 {
-
         String field1;
-        Bar bar;
 
+        Bar bar;
     }
 
     @Data static class Bar {
