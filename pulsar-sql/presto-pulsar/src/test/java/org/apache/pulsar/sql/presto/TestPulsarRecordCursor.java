@@ -27,6 +27,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 @Test(singleThreaded = true)
 public class TestPulsarRecordCursor extends TestPulsarConnector {
 
@@ -40,6 +44,18 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             log.info("!------ topic %s ------!", entry.getKey());
             setup();
             PulsarRecordCursor pulsarRecordCursor = entry.getValue();
+            SchemaHandler schemaHandler = pulsarRecordCursor.getSchemaHandler();
+            PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
+            if (schemaHandler instanceof AvroSchemaHandler) {
+                AvroSchemaHandler avroSchemaHandler = (AvroSchemaHandler) schemaHandler;
+                avroSchemaHandler.getSchema().setSchemaInfoProvider(pulsarSqlSchemaInfoProvider);
+                when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any())).thenReturn(avroSchemaHandler.getSchemaInfo());
+            } else if (schemaHandler instanceof JSONSchemaHandler) {
+                JSONSchemaHandler jsonSchemaHandler = (JSONSchemaHandler) schemaHandler;
+                jsonSchemaHandler.getSchema().setSchemaInfoProvider(pulsarSqlSchemaInfoProvider);
+                when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any())).thenReturn(jsonSchemaHandler.getSchemaInfo());
+            }
+
             TopicName topicName = entry.getKey();
 
             int count = 0;

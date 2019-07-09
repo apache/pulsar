@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.schema.Field;
 /**
  * Generic json record.
  */
-class GenericJsonRecord extends VersionedGenericRecord {
+public class GenericJsonRecord extends VersionedGenericRecord {
 
     private final JsonNode jn;
 

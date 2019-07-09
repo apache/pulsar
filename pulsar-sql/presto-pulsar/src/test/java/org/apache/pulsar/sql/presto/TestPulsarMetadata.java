@@ -34,6 +34,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response;
+
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -191,6 +193,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         SchemaInfo badSchemaInfo = new SchemaInfo();
         badSchemaInfo.setSchema(new byte[0]);
+        badSchemaInfo.setType(SchemaType.AVRO);
         when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenReturn(badSchemaInfo);
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
@@ -216,6 +219,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         SchemaInfo badSchemaInfo = new SchemaInfo();
         badSchemaInfo.setSchema("foo".getBytes());
+        badSchemaInfo.setType(SchemaType.AVRO);
         when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenReturn(badSchemaInfo);
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(

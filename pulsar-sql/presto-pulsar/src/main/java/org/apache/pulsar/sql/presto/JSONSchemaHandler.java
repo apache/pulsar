@@ -18,18 +18,21 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.dslplatform.json.DslJson;
 import com.facebook.presto.spi.type.Type;
-
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
+import org.apache.pulsar.common.api.raw.RawMessage;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 public class JSONSchemaHandler implements SchemaHandler {
 
@@ -37,7 +40,9 @@ public class JSONSchemaHandler implements SchemaHandler {
 
     private List<PulsarColumnHandle> columnHandles;
 
-    private final DslJson<Object> dslJson = new DslJson<>();
+    private final GenericJsonSchema genericJsonSchema;
+
+    private final SchemaInfo schemaInfo;
 
     private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
         @Override
@@ -46,14 +51,18 @@ public class JSONSchemaHandler implements SchemaHandler {
         }
     };
 
-    public JSONSchemaHandler(List<PulsarColumnHandle> columnHandles) {
+    public JSONSchemaHandler(TopicName topicName, PulsarConnectorConfig pulsarConnectorConfig, SchemaInfo schemaInfo, List<PulsarColumnHandle> columnHandles) throws PulsarClientException {
+        this.schemaInfo = schemaInfo;
+        this.genericJsonSchema = new GenericJsonSchema(schemaInfo);
+        this.genericJsonSchema.setSchemaInfoProvider(new PulsarSqlSchemaInfoProvider(topicName, pulsarConnectorConfig.getPulsarAdmin()));
         this.columnHandles = columnHandles;
     }
 
     @Override
-    public Object deserialize(ByteBuf payload) {
+    public Object deserialize(RawMessage rawMessage) {
         // Since JSON deserializer only works on a byte[] we need to convert a direct mem buffer into
         // a byte[].
+        ByteBuf payload = rawMessage.getData();
         int size = payload.readableBytes();
         byte[] buffer = tmpBuffer.get();
         if (buffer.length < size) {
@@ -64,31 +73,23 @@ public class JSONSchemaHandler implements SchemaHandler {
         }
 
         payload.readBytes(buffer, 0, size);
-
-        try {
-            return dslJson.deserialize(Map.class, buffer, size);
-        } catch (IOException e) {
-            log.error("Failed to deserialize Json object", e);
-            return null;
-        }
+        return genericJsonSchema.decode(buffer);
     }
 
     @Override
     public Object extractField(int index, Object currentRecord) {
         try {
-            Map jsonObject = (Map) currentRecord;
+            GenericJsonRecord genericJsonRecord = (GenericJsonRecord) currentRecord;
             PulsarColumnHandle pulsarColumnHandle = columnHandles.get(index);
-
-            String[] fieldNames = pulsarColumnHandle.getFieldNames();
-            Object field = jsonObject.get(fieldNames[0]);
-            if (field == null) {
-                return null;
-            }
-            for (int i = 1; i < fieldNames.length ; i++) {
-                field = ((Map) field).get(fieldNames[i]);
-                if (field == null) {
-                    return null;
+            String[] names = pulsarColumnHandle.getName().split("\\.");
+            Object field;
+            if (names.length == 1) {
+                field = genericJsonRecord.getField(pulsarColumnHandle.getName());
+            } else {
+                for (int i = 0 ; i < names.length - 1; i++) {
+                    genericJsonRecord = (GenericJsonRecord) genericJsonRecord.getField(names[i]);
                 }
+                field = genericJsonRecord.getField(names[names.length - 1]);
             }
 
             Type type = pulsarColumnHandle.getType();
@@ -104,5 +105,15 @@ public class JSONSchemaHandler implements SchemaHandler {
             log.debug(ex,"%s", ex);
         }
         return null;
+    }
+
+    @VisibleForTesting
+    GenericJsonSchema getSchema() {
+        return this.genericJsonSchema;
+    }
+
+    @VisibleForTesting
+    SchemaInfo getSchemaInfo() {
+        return schemaInfo;
     }
 }

@@ -26,9 +26,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -36,7 +38,6 @@ public class PulsarSplit implements ConnectorSplit {
 
     private final long splitId;
     private final String connectorId;
-    private final String schemaName;
     private final String tableName;
     private final long splitSize;
     private final String schema;
@@ -46,6 +47,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final long startPositionLedgerId;
     private final long endPositionLedgerId;
     private final TupleDomain<ColumnHandle> tupleDomain;
+    private final SchemaInfo schemaInfo;
 
     private final PositionImpl startPosition;
     private final PositionImpl endPosition;
@@ -63,9 +65,16 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionEntryId") long endPositionEntryId,
             @JsonProperty("startPositionLedgerId") long startPositionLedgerId,
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
-            @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain) {
+            @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
+            @JsonProperty("properties") Map<String, String> schemaInfoProperties) {
         this.splitId = splitId;
-        this.schemaName = requireNonNull(schemaName, "schema name is null");
+        requireNonNull(schemaName, "schema name is null");
+        this.schemaInfo = SchemaInfo.builder()
+                .type(schemaType)
+                .name(schemaName)
+                .schema(schema.getBytes())
+                .properties(schemaInfoProperties)
+                .build();
         this.connectorId = requireNonNull(connectorId, "connector id is null");
         this.tableName = requireNonNull(tableName, "table name is null");
         this.splitSize = splitSize;
@@ -92,7 +101,7 @@ public class PulsarSplit implements ConnectorSplit {
 
     @JsonProperty
     public String getSchemaName() {
-        return schemaName;
+        return schemaInfo.getName();
     }
 
     @JsonProperty
@@ -135,6 +144,10 @@ public class PulsarSplit implements ConnectorSplit {
         return endPositionLedgerId;
     }
 
+    public SchemaInfo getSchemaInfo() {
+        return schemaInfo;
+    }
+
     @JsonProperty
     public TupleDomain<ColumnHandle> getTupleDomain() {
         return tupleDomain;
@@ -168,11 +181,11 @@ public class PulsarSplit implements ConnectorSplit {
         return "PulsarSplit{" +
                 "splitId=" + splitId +
                 ", connectorId='" + connectorId + '\'' +
-                ", schemaName='" + schemaName + '\'' +
+                ", schemaName='" + schemaInfo.getName() + '\'' +
                 ", tableName='" + tableName + '\'' +
                 ", splitSize=" + splitSize +
                 ", schema='" + schema + '\'' +
-                ", schemaType=" + schemaType +
+                ", schemaType=" + schemaInfo.getType() +
                 ", startPositionEntryId=" + startPositionEntryId +
                 ", endPositionEntryId=" + endPositionEntryId +
                 ", startPositionLedgerId=" + startPositionLedgerId +

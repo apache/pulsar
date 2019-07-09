@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.avro.Schema;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -61,7 +60,6 @@ import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -140,9 +138,8 @@ public class PulsarRecordCursor implements RecordCursor {
         this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
 
-        Schema schema = PulsarConnectorUtils.parseSchema(pulsarSplit.getSchema());
-
-        this.schemaHandler = getSchemaHandler(schema, pulsarSplit.getSchemaType(), columnHandles);
+        this.schemaHandler = PulsarSchemaHandlers
+                .newPulsarSchemaHandler(this.topicName, this.pulsarConnectorConfig, pulsarSplit.getSchemaInfo(), columnHandles);
 
         log.info("Initializing split with parameters: %s", pulsarSplit);
 
@@ -154,22 +151,6 @@ public class PulsarRecordCursor implements RecordCursor {
             close();
             throw new RuntimeException(e);
         }
-    }
-
-    private SchemaHandler getSchemaHandler(Schema schema, SchemaType schemaType,
-                                           List<PulsarColumnHandle> columnHandles) {
-        SchemaHandler schemaHandler;
-        switch (schemaType) {
-            case JSON:
-                schemaHandler = new JSONSchemaHandler(columnHandles);
-                break;
-            case AVRO:
-                schemaHandler = new AvroSchemaHandler(schema, columnHandles);
-                break;
-            default:
-                throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaType);
-        }
-        return schemaHandler;
     }
 
     private ReadOnlyCursor getCursor(TopicName topicName, Position startPosition, ManagedLedgerFactory
@@ -418,7 +399,7 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+        currentRecord = this.schemaHandler.deserialize(this.currentMessage);
         metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 
         // stats for time spend deserializing
@@ -474,7 +455,11 @@ public class PulsarRecordCursor implements RecordCursor {
         } else if (type.equals(TIME)) {
             return ((Number) record).longValue();
         } else if (type.equals(TIMESTAMP)) {
-            return ((Number) record).longValue();
+            if (record instanceof String) {
+                return Long.parseLong((String) record);
+            } else {
+                return ((Number) record).longValue();
+            }
         } else if (type.equals(TIMESTAMP_WITH_TIME_ZONE)) {
             return packDateTimeWithZone(((Number) record).longValue(), 0);
         } else if (type.equals(TINYINT)) {
@@ -556,5 +541,10 @@ public class PulsarRecordCursor implements RecordCursor {
     private void checkFieldType(int field, Class<?> expected) {
         Class<?> actual = getType(field).getJavaType();
         checkArgument(actual == expected, "Expected field %s to be type %s but is %s", field, expected, actual);
+    }
+
+    @VisibleForTesting
+    SchemaHandler getSchemaHandler() {
+        return this.schemaHandler;
     }
 }

@@ -255,7 +255,6 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 PositionImpl startPosition = (PositionImpl) readOnlyCursor.getReadPosition();
                 readOnlyCursor.skipEntries(Math.toIntExact(entriesForSplit));
                 PositionImpl endPosition = (PositionImpl) readOnlyCursor.getReadPosition();
-
                 splits.add(new PulsarSplit(i, this.connectorId,
                         tableHandle.getSchemaName(),
                         tableName,
@@ -266,7 +265,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         endPosition.getEntryId(),
                         startPosition.getLedgerId(),
                         endPosition.getLedgerId(),
-                        tupleDomain));
+                        tupleDomain,
+                        schemaInfo.getProperties()));
             }
             return splits;
         } finally {
