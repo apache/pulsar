@@ -87,12 +87,7 @@ public class ContextImplTest {
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null);
-        context.setCurrentMessageContext(new Record<String>() {
-            @Override
-            public String getValue() {
-                return null;
-            }
-        });
+        context.setCurrentMessageContext((Record<String>) () -> null);
     }
 
     @Test(expectedExceptions = IllegalStateException.class)

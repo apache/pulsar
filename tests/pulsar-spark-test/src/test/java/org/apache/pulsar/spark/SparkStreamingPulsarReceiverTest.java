@@ -44,19 +44,14 @@ public class SparkStreamingPulsarReceiverTest extends PulsarTestSuite {
 
     @Test(dataProvider = "ServiceUrls")
     public void testReceivedMessage(String serviceUrl) throws Exception {
-        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData();
+        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData<>();
 
         Set<String> set = new HashSet<>();
         set.add(TOPIC);
         consConf.setTopicNames(set);
         consConf.setSubscriptionName(SUBS);
 
-        MessageListener msgListener = spy(new MessageListener() {
-            @Override
-            public void received(Consumer consumer, Message msg) {
-                return;
-            }
-        });
+        MessageListener msgListener = spy((MessageListener) (consumer, msg) -> {});
         final ArgumentCaptor<Consumer> consCaptor = ArgumentCaptor.forClass(Consumer.class);
         final ArgumentCaptor<Message> msgCaptor = ArgumentCaptor.forClass(Message.class);
         doNothing().when(msgListener).received(consCaptor.capture(), msgCaptor.capture());
@@ -80,8 +75,8 @@ public class SparkStreamingPulsarReceiverTest extends PulsarTestSuite {
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testDefaultSettingsOfReceiver(String serviceUrl) throws Exception {
-        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData();
+    public void testDefaultSettingsOfReceiver(String serviceUrl) {
+        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData<>();
 
         Set<String> set = new HashSet<>();
         set.add(TOPIC);
