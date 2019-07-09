@@ -4,12 +4,12 @@ authorURL: https://twitter.com/lipenghui6
 title: Apache Pulsar 2.4.0
 ---
 
-We are glad to present the new 2.4.0 release of Pulsar. This is the result of a huge 
+We are glad to publish Apache Pulsar 2.4.0. This is the result of a huge 
 effort from the community, with over 460 commits and a long list of new features, 
 general improvements and bug fixes.
 
 Check out the <b>[release notes](/release-notes/#2.4.0)</b> for a detailed list of 
-the changes, with links to the relevant pull-requests, discussions and documentation.
+the changes, with links to the relevant pull requests, discussions and documentation.
 
 Regarding new features introduced, I just want to highlight here a tiny subset of them:
 
@@ -17,10 +17,10 @@ Regarding new features introduced, I just want to highlight here a tiny subset o
 
 ### Delayed message delivery
 
-It's now possible to send delayed message by pulsar producer, and delayed message will 
-available after delay time.
+It's now possible to send a delayed message by Pulsar producer, and a delayed message will be
+available after a delay time.
 
-The Java code for a client using delayed message delivery will look like:
+The Java code for a client using delayed messages delivery looks as follows:
 
 ```java
 producer.newMessage().value("delayed message").deliverAfter(10, TimeUnit.SECONDS).send()
@@ -28,14 +28,14 @@ producer.newMessage().value("delayed message").deliverAfter(10, TimeUnit.SECONDS
 
 > Note:
 >
-> 1. Messages are only delayed on shared subscriptions. Other subscriptions will deliver immediately.
-> 2. Can't work well with batching messages while messages has different delay time.
+> 1. Messages are only delayed on shared subscriptions, other subscriptions will deliver immediately.
+> 2. Delayed messages will be send individually even if enable message batching on producer.
 
-### Go functions
+### Go Functions
 
-Before 2.4.0, pulsar support use Java/Python to write pulsar functions. Now, it's 
-possible to use golang to write pulsar functions, the following is an example of 
-a Pulsar Function written in golang.
+Before 2.4.0 release, Java and Python are supported to write Pulsar Functions. Now, you can 
+use Go to write Pulsar Functions, the following is an example of 
+a Pulsar Function written in Go.
 
 ```go
 import (
@@ -57,9 +57,9 @@ func main() {
 
 ### Key_shared subscription
 
-A new subscribe type `Key_shared`. By `Key_shared` one partition could have several 
-consumers to parallel consume messages, while all messages with the same key will be 
-dispatched to only one consumer ordered. 
+A new subscription mode `Key_shared` is introduced in 2.4.0. In `Key_shared` subscription mode, 
+one partition could have several consumers to consume messages in parallelism and ensure messages 
+with the same key are distributed to a consumer in order. 
 Here is [architecture](http://pulsar.apache.org/docs/en/concepts-messaging/#key_shared) 
 for Key_Shared.
 
@@ -75,18 +75,18 @@ client.newConsumer()
 
 ### Schema versioning
 
-Before 2.4.0, avro schema is using one schema for both its writer schema and reader schema. 
-Multiple schema version is support now.
+Before 2.4.0 release, avro schema uses one schema for both its writer schema and reader schema. 
+Multiple schemas version is supported now.
 
-Use multiple schema, producer can send messages with different schema version and consumer 
+With multiple schemas, producer can send messages with different schema version and consumer 
 can read messages with different schema.
 
-In 2.4.0, added `FORWARD_TRANSITIVE`, `BACKWARD_TRANSITIVE` and `FULL_TRANSITIVE` compatibility 
-strategy to  check the compatibility with all existing schema version.
+In 2.4.0 release, `FORWARD_TRANSITIVE`, `BACKWARD_TRANSITIVE` and `FULL_TRANSITIVE` compatibility 
+strategies are added to check the compatibility with all existing schema version.
 
 ### Replicated subscription
 
-In 2.4.0, added a mechanism to keep subscription state in-sync, within a sub-second timeframe, 
+In 2.4.0 release, added a mechanism to keep subscription state in-sync, within a sub-second timeframe, 
 in the context of a topic that is being asynchronously replicated across multiple geographical 
 regions. Here is [architecture](https://github.com/apache/pulsar/wiki/PIP-33%3A-Replicated-subscriptions) 
 for replicated subscription.
@@ -103,16 +103,19 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 
 ### New IO connectors
 
-A new batch of connectors was added, including Flume, Redis sink, Solr sink, RabbitMQ sink, 
-InfluxDB sink. Here is list of builtin [connectors](http://pulsar.apache.org/docs/en/io-connectors/) 
-that pulsar already supported now.
+A new batch of connectors is added, including Flume, Redis sink, Solr sink, RabbitMQ sink. 
+Here is list of builtin [connectors](http://pulsar.apache.org/docs/en/io-connectors/) 
+that Pulsar already supports now.
 
 ### Security
 
-In 2.4.0, added support Kerberos in pulsar broker and client. 
+In 2.4.0 release, added support Kerberos in Apache Pulsar broker and client. 
 Following the [document](http://pulsar.apache.org/docs/en/security-kerberos/) to enable Kerberos authentication.
+
+Also added role based Pulsar Function authentication and authorization.
 
 ## Conclusion
 
-Please [download](/download) Pulsar 2.4.0 and report feedback, issues or any comment into our mailing lists,
-slack channel or Github page. ([Contact page](/contact))
+If you want download pulsar 2.4.0, click [here](/download). You can send any questions or suggestions 
+to our mailing lists, contribute to Pulsar on [GitHub](https://github.com/apache/pulsar) or join 
+the Apache Pulsar community on [Slack](https://apache-pulsar.herokuapp.com/).
