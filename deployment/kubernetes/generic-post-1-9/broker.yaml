@@ -21,69 +21,85 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-    name: proxy-config
+    name: broker-config
 data:
+    # Tune for available memory. Increase the heap up to 24G to have
+    # better GC behavior at high throughput
     PULSAR_MEM: "\" -Xms64m -Xmx128m -XX:MaxDirectMemorySize=128m\""
     zookeeperServers: zookeeper
     configurationStoreServers: zookeeper
     clusterName: local
+    # change the managed ledger settings if you have more bookies
+    managedLedgerDefaultEnsembleSize: "1"
+    managedLedgerDefaultWriteQuorum: "1"
+    managedLedgerDefaultAckQuorum: "1"
+    # enable pulsar functions
+    functionsWorkerEnabled: "true"
+    PF_pulsarFunctionsCluster: local
 ---
 ##
-## Proxy deployment definition
+## Define the Broker headless service
+## In practice, in this case, it is only useful to have a view of
+## all the broker pods that are present
 ##
-apiVersion: apps/v1beta1
+apiVersion: v1
+kind: Service
+metadata:
+    name: broker
+    labels:
+        app: pulsar
+        component: broker
+spec:
+    ports:
+      - port: 8080
+        name: http
+      - port: 6650
+        name: pulsar
+    clusterIP: None
+    selector:
+        app: pulsar
+        component: broker
+
+---
+##
+## Broker deployment definition
+##
+apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: proxy
+    name: broker
 spec:
-    replicas: 2
+    replicas: 3
     template:
         metadata:
             labels:
                 app: pulsar
-                component: proxy
+                component: broker
             annotations:
                 prometheus.io/scrape: "true"
                 prometheus.io/port: "8080"
         spec:
             containers:
-              - name: proxy
+              - name: broker
                 image: apachepulsar/pulsar-all:latest
                 command: ["sh", "-c"]
                 args:
                   - >
-                    bin/apply-config-from-env.py conf/proxy.conf &&
+                    bin/apply-config-from-env.py conf/broker.conf &&
                     bin/apply-config-from-env.py conf/pulsar_env.sh &&
-                    bin/pulsar proxy
+                    bin/gen-yml-from-env.py conf/functions_worker.yml &&
+                    bin/pulsar broker
                 ports:
                   - containerPort: 8080
+                    # hostPort: 8080
+                  - containerPort: 6650
+                    # hostPort: 6650
                 envFrom:
                   - configMapRef:
-                        name: proxy-config
----
+                        name: broker-config
+                env:
+                 - name: advertisedAddress
+                   valueFrom:
+                       fieldRef:
+                           fieldPath: status.podIP
 
-##
-## Expose all nodes on port so that you can reach cluster from outside k8
-##
-apiVersion: v1
-kind: Service
-metadata:
-    name: proxy
-    labels:
-        app: pulsar
-        component: proxy
-spec:
-    type: NodePort
-    ports:
-      - name: http
-        nodePort: 30001
-        port: 8080
-        protocol: TCP
-      - name: tcp
-        nodePort: 30002
-        port: 6650
-        protocol: TCP
-    selector:
-        app: pulsar
-        component: proxy
----

@@ -17,7 +17,6 @@
 # under the License.
 #
 
-
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,7 +25,6 @@ data:
     PULSAR_MEM: "\" -Xms100m -Xmx256m \""
     PULSAR_GC: "\" -XX:+UseG1GC -XX:MaxGCPauseMillis=10\""
 ---
-
 ## Define a disruption budget to ensure there are at least
 ## 2 ZK servers running all the time
 apiVersion: policy/v1beta1
@@ -39,9 +37,32 @@ spec:
             app: zk
     minAvailable: 2
 ---
+##
+## Define the ZooKeeper headless service
+##
+apiVersion: v1
+kind: Service
+metadata:
+    annotations:
+        service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+    name: zookeeper
+    labels:
+        app: pulsar
+        component: zookeeper
+spec:
+    ports:
+      - port: 2888
+        name: server
+      - port: 3888
+        name: leader-election
+    clusterIP: None
+    selector:
+        app: pulsar
+        component: zookeeper
 
+---
 ## Define a StatefulSet for ZK servers
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
     name: zk
@@ -121,28 +142,3 @@ spec:
             volumes:
               - name: datadir
                 emptyDir: {}
-
----
-
-##
-## Define the ZooKeeper headless service
-##
-apiVersion: v1
-kind: Service
-metadata:
-    annotations:
-        service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
-    name: zookeeper
-    labels:
-        app: pulsar
-        component: zookeeper
-spec:
-    ports:
-      - port: 2888
-        name: server
-      - port: 3888
-        name: leader-election
-    clusterIP: None
-    selector:
-        app: pulsar
-        component: zookeeper

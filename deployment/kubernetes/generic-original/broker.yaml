@@ -38,33 +38,9 @@ data:
     PF_pulsarFunctionsCluster: local
 ---
 ##
-## Define the Broker headless service
-## In practice, in this case, it is only useful to have a view of
-## all the broker pods that are present
-##
-apiVersion: v1
-kind: Service
-metadata:
-    name: broker
-    labels:
-        app: pulsar
-        component: broker
-spec:
-    ports:
-      - port: 8080
-        name: http
-      - port: 6650
-        name: pulsar
-    clusterIP: None
-    selector:
-        app: pulsar
-        component: broker
-
----
-##
 ## Broker deployment definition
 ##
-apiVersion: apps/v1
+apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
     name: broker
@@ -102,4 +78,29 @@ spec:
                    valueFrom:
                        fieldRef:
                            fieldPath: status.podIP
+---
 
+##
+## Define the Broker headless service
+## In practice, in this case, it is only useful to have a view of
+## all the broker pods that are present
+##
+apiVersion: v1
+kind: Service
+metadata:
+    name: broker
+    labels:
+        app: pulsar
+        component: broker
+spec:
+    ports:
+      - port: 8080
+        name: http
+      - port: 6650
+        name: pulsar
+    clusterIP: None
+    selector:
+        app: pulsar
+        component: broker
+
+---
