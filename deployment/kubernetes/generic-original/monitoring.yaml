@@ -59,9 +59,27 @@ data:
               - source_labels: [__meta_kubernetes_pod_name]
                 action: replace
                 target_label: kubernetes_pod_name
-
 ---
-
+## PROMOTHEUS - Service
+apiVersion: v1
+kind: Service
+metadata:
+    name: prometheus
+    labels:
+        app: pulsar
+        component: prometheus
+spec:
+    type: NodePort
+    ports:
+      - name: prometheus
+        nodePort: 30003
+        port: 9090
+        protocol: TCP
+    selector:
+        app: pulsar
+        component: prometheus
+---
+## PROMOTHEUS - Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -90,31 +108,27 @@ spec:
                     name: prometheus-config
               - name: data-volume
                 emptyDir: {}
-
 ---
-
+## GRAFANA - Service
 apiVersion: v1
 kind: Service
 metadata:
-    name: prometheus
+    name: grafana
     labels:
         app: pulsar
-        component: prometheus
+        component: grafana
 spec:
     type: NodePort
     ports:
-      - name: prometheus
-        nodePort: 30003
-        port: 9090
-        protocol: TCP
+      - name: grafana
+        nodePort: 30004
+        port: 3000
+        protocol: TCP 
     selector:
         app: pulsar
-        component: prometheus
-
-
+        component: grafana
 ---
-## GRAFANA
-
+## GRAFANA - Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -135,30 +149,27 @@ spec:
                 env:
                   - name: PROMETHEUS_URL
                     value: http://prometheus:9090/
-
 ---
-
+## PULSAR DASHBOARD - Deployment
 apiVersion: v1
 kind: Service
 metadata:
-    name: grafana
+    name: pulsar-dashboard
     labels:
         app: pulsar
-        component: grafana
+        component: dashboard
 spec:
     type: NodePort
     ports:
-      - name: grafana
-        nodePort: 30004
-        port: 3000
-        protocol: TCP 
+      - name: dashboard
+        nodePort: 30005
+        port: 80
+        protocol: TCP
     selector:
         app: pulsar
-        component: grafana
-
+        component: dashboard
 ---
-## Include detailed Pulsar dashboard
-
+## PULSAR DASHBOARD - Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -179,23 +190,3 @@ spec:
                 env:
                   - name: SERVICE_URL
                     value: http://broker:8080/
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
-    name: pulsar-dashboard
-    labels:
-        app: pulsar
-        component: dashboard
-spec:
-    type: NodePort
-    ports:
-      - name: dashboard
-        nodePort: 30005
-        port: 80
-        protocol: TCP
-    selector:
-        app: pulsar
-        component: dashboard
