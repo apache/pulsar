@@ -59,7 +59,6 @@ spec:
     selector:
         app: pulsar
         component: broker
-
 ---
 ##
 ## Broker deployment definition
@@ -102,4 +101,3 @@ spec:
                    valueFrom:
                        fieldRef:
                            fieldPath: status.podIP
-

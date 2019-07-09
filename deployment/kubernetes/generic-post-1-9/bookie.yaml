@@ -29,7 +29,6 @@ data:
     zkServers: zookeeper
     statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
 ---
-
 ##
 ## Define the Bookie headless service
 ## In practice, in this case, it is only useful to have a view of
@@ -50,7 +49,7 @@ spec:
     selector:
         app: pulsar
         component: bookkeeper
-
+---
 ## BookKeeper servers need to access the local disks and the pods
 ## cannot be moved across different nodes.
 ## For this reason, we run BK as a daemon set, one for each node in the
@@ -128,5 +127,3 @@ spec:
               - name: ledgers-disk
                 hostPath:
                     path: /mnt/disks/ssd1
-
----

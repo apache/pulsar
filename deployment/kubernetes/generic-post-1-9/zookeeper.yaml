@@ -59,7 +59,6 @@ spec:
     selector:
         app: pulsar
         component: zookeeper
-
 ---
 ## Define a StatefulSet for ZK servers
 apiVersion: apps/v1
