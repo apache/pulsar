@@ -304,7 +304,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
-        int partitionIndex = 0;
+        int partitionIndex = 4;
         PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
                 SubType.Failover, partitionIndex, topic, sub);
 
@@ -376,7 +376,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 7. Remove last consumer
         pdfc.removeConsumer(consumer2);
         consumers = pdfc.getConsumers();
-        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer0.consumerName());
+        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
         assertEquals(3, consumers.size());
         // not consumer group changes
         assertNull(consumerChanges.poll());
@@ -415,6 +415,67 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 11. With only one consumer, unsubscribe is allowed
         assertTrue(pdfc.canUnsubscribe(consumer1));
+    }
+
+    @Test
+    public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
+        log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
+
+        // Non partitioned topic.
+        int partitionIndex = -1;
+        PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
+                SubType.Failover, partitionIndex, topic, sub);
+
+        // 1. Verify no consumers connected
+        assertFalse(pdfc.isConsumerConnected());
+
+        // 2. Add a consumer
+        Consumer consumer1 = spy(new Consumer(sub, SubType.Failover, topic.getName(), 1 /* consumer id */, 1,
+                "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */, InitialPosition.Latest));
+        pdfc.addConsumer(consumer1);
+        List<Consumer> consumers = pdfc.getConsumers();
+        assertEquals(1, consumers.size());
+        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
+
+        // 3. Add a consumer with same priority level and consumer name is smaller in lexicographic order.
+        Consumer consumer2 = spy(new Consumer(sub, SubType.Failover, topic.getName(), 2 /* consumer id */, 1,
+                "Cons2"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */, InitialPosition.Latest));
+        pdfc.addConsumer(consumer2);
+
+        // 4. Verify active consumer doesn't change
+        consumers = pdfc.getConsumers();
+        assertEquals(2, consumers.size());
+        CommandActiveConsumerChange change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 2, false);
+        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
+        verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
+
+        // 5. Add another consumer which has higher priority level
+        Consumer consumer3 = spy(new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0, "Cons3"/* consumer name */,
+                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest));
+        pdfc.addConsumer(consumer3);
+        consumers = pdfc.getConsumers();
+        assertEquals(3, consumers.size());
+        change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 3, false);
+        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
+        verify(consumer3, times(1)).notifyActiveConsumerChange(same(consumer1));
+
+        // 7. Remove first consumer and active consumer should change to consumer2 since it's added before consumer3
+        // though consumer 3 has higher priority level
+        pdfc.removeConsumer(consumer1);
+        consumers = pdfc.getConsumers();
+        assertEquals(2, consumers.size());
+        change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 2, true);
+        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer2.consumerName());
+        verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer2));
+        verify(consumer3, times(1)).notifyActiveConsumerChange(same(consumer2));
     }
 
     @Test

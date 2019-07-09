@@ -48,6 +48,7 @@ def home(request):
             numNamespaces = Subquery(
                 Namespace.objects.filter(
                     deleted=False,
+                    timestamp=ts,
                     property=OuterRef('pk')
                 ).values('property')
                     .annotate(cnt=Count('pk'))
@@ -230,7 +231,7 @@ def brokers_cluster(request, cluster_name):
                 )
 
     brokers = brokers.annotate(
-        numBundles       = Count('topic__bundle'),
+        numBundles       = Count('topic__bundle', True),
         numTopics        = Count('topic'),
         numProducers     = Sum('topic__producerCount'),
         numSubscriptions = Sum('topic__subscriptionCount'),

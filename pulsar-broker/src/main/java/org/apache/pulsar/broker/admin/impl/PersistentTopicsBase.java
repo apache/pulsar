@@ -39,7 +39,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -642,7 +641,8 @@ public class PersistentTopicsBase extends AdminResource {
         }, null);
     }
 
-    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative,
+            boolean perPartition) {
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
         if (partitionMetadata.partitions == 0) {
             throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
@@ -670,14 +670,16 @@ public class PersistentTopicsBase extends AdminResource {
                 if (statFuture.isDone() && !statFuture.isCompletedExceptionally()) {
                     try {
                         stats.add(statFuture.get());
-                        stats.partitions.put(topicName.getPartition(i).toString(), statFuture.get());
+                        if (perPartition) {
+                            stats.partitions.put(topicName.getPartition(i).toString(), statFuture.get());
+                        }
                     } catch (Exception e) {
                         asyncResponse.resume(new RestException(e));
                         return null;
                     }
                 }
             }
-            if (stats.partitions.isEmpty()) {
+            if (perPartition && stats.partitions.isEmpty()) {
                 String path = ZkAdminPaths.partitionedTopicPath(topicName);
                 try {
                     boolean zkPathExists = zkPathExists(path);
@@ -1339,8 +1341,15 @@ public class PersistentTopicsBase extends AdminResource {
      * Get the Topic object reference from the Pulsar broker
      */
     private Topic getTopicReference(TopicName topicName) {
-        return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
-                .orElseThrow(() -> topicNotFoundReason(topicName));
+        try {
+            return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                    .get(pulsar().getConfiguration().getZooKeeperSessionTimeoutMillis(), TimeUnit.MILLISECONDS)
+                    .orElseThrow(() -> topicNotFoundReason(topicName));
+        } catch (RestException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
     }
 
     private RestException topicNotFoundReason(TopicName topicName) {

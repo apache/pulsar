@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
@@ -224,7 +223,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink name is not provided")
     public void testRegisterSinkMissingSinkName() {
         try {
             testRegisterSinkMissingArguments(
@@ -243,7 +242,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Package is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink package is not provided")
     public void testRegisterSinkMissingPackage() {
         try {
             testRegisterSinkMissingArguments(
@@ -283,7 +282,10 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "zip file is empty")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink package does not have the" +
+            " correct format. Pulsar cannot determine if the package is a NAR package" +
+            " or JAR package.Sink classname is not provided and attempts to load it as a NAR package produced error: " +
+            "zip file is empty")
     public void testRegisterSinkMissingPackageDetails() {
         try {
             testRegisterSinkMissingArguments(
@@ -303,7 +305,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class from archive")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract Sink class from archive")
     public void testRegisterSinkInvalidJarNoSink() throws IOException {
         try {
             FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
@@ -444,6 +446,33 @@ public class SinkApiV3ResourceTest {
                 sinkConfig,
                 null, null);
 
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink config is not provided")
+    public void testMissingSinkConfig() {
+        resource.registerSink(
+                tenant,
+                namespace,
+                sink,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink config is not provided")
+    public void testUpdateMissingSinkConfig() {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
+        resource.updateSink(
+                tenant,
+                namespace,
+                sink,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null, null);
     }
 
     private void registerDefaultSink() throws IOException {
@@ -653,7 +682,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink name is not provided")
     public void testUpdateSinkMissingFunctionName() throws Exception {
         try {
             testUpdateSinkMissingArguments(
@@ -665,7 +694,7 @@ public class SinkApiV3ResourceTest {
             topicsToSerDeClassName,
             className,
             parallelism,
-                "Sink Name is not provided");
+                "Sink name is not provided");
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -921,6 +950,7 @@ public class SinkApiV3ResourceTest {
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -934,7 +964,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSinkWithUrl() throws IOException, ClassNotFoundException {
+    public void testUpdateSinkWithUrl() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 
         String filePackageUrl = "file://" + JAR_FILE_PATH;
@@ -955,13 +985,13 @@ public class SinkApiV3ResourceTest {
         mockStatic(FunctionCommon.class);
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
+        PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
 
         doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
         FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -992,6 +1022,7 @@ public class SinkApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -1017,6 +1048,7 @@ public class SinkApiV3ResourceTest {
                     anyString(),
                     any(File.class),
                     any(Namespace.class));
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -1063,7 +1095,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink name is not provided")
     public void testDeregisterSinkMissingFunctionName() {
         try {
             testDeregisterSinkMissingArguments(
@@ -1190,7 +1222,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink name is not provided")
     public void testGetSinkMissingFunctionName() {
         try {
 

@@ -89,12 +89,15 @@ public class SourcesImpl extends ComponentImpl {
             throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
         }
         if (sourceName == null) {
-            throw new RestException(Response.Status.BAD_REQUEST, ComponentTypeUtils.toString(componentType) + " Name is not provided");
+            throw new RestException(Response.Status.BAD_REQUEST, "Source name is not provided");
+        }
+        if (sourceConfig == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Source config is not provided");
         }
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not admin and authorized to register {}", tenant, namespace,
+                log.error("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
                         sourceName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -118,7 +121,7 @@ public class SourcesImpl extends ComponentImpl {
                 }
             }
         } catch (PulsarAdminException.NotAuthorizedException e) {
-            log.error("{}/{}/{} Client [{}] is not admin and authorized to operate {} on tenant", tenant, namespace,
+            log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
                     sourceName, clientRole, ComponentTypeUtils.toString(componentType));
             throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
@@ -250,12 +253,15 @@ public class SourcesImpl extends ComponentImpl {
             throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
         }
         if (sourceName == null) {
-            throw new RestException(Response.Status.BAD_REQUEST, ComponentTypeUtils.toString(componentType) + " Name is not provided");
+            throw new RestException(Response.Status.BAD_REQUEST, "Source name is not provided");
+        }
+        if (sourceConfig == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Source config is not provided");
         }
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not admin and authorized to update {}", tenant, namespace,
+                log.error("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
                         sourceName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
 
@@ -335,7 +341,6 @@ public class SourcesImpl extends ComponentImpl {
 
                     componentPackageFile = FunctionCommon.createPkgTempFile();
                     componentPackageFile.deleteOnExit();
-                    log.info("componentPackageFile: {}", componentPackageFile);
                     WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
 
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,

@@ -38,5 +38,6 @@
 
   <modules>
     <module>jcloud</module>
+    <module>file-system</module>
   </modules>
 </project>

@@ -221,7 +221,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testRegisterSourceMissingSourceName() {
         try {
             testRegisterSourceMissingArguments(
@@ -263,7 +263,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Package is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package is not provided")
     public void testRegisterSourceMissingPackage() {
         try {
             testRegisterSourceMissingArguments(
@@ -414,6 +414,33 @@ public class SourceApiV3ResourceTest {
                 sourceConfig,
                 null, null);
 
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
+    public void testMissingSinkConfig() {
+        resource.registerSource(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
+    public void testUpdateMissingSinkConfig() {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        resource.updateSource(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null, null);
     }
 
     private void registerDefaultSource() throws IOException {
@@ -625,7 +652,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testUpdateSourceMissingFunctionName() throws Exception {
         try {
             testUpdateSourceMissingArguments(
@@ -638,7 +665,7 @@ public class SourceApiV3ResourceTest {
                     outputSerdeClassName,
                 className,
                 parallelism,
-                    "Source Name is not provided");
+                    "Source name is not provided");
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -952,7 +979,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSourceWithUrl() throws IOException, ClassNotFoundException {
+    public void testUpdateSourceWithUrl() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 
         String filePackageUrl = "file://" + JAR_FILE_PATH;
@@ -973,6 +1000,7 @@ public class SourceApiV3ResourceTest {
         mockStatic(FunctionCommon.class);
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
+        PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
@@ -1084,7 +1112,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testDeregisterSourceMissingFunctionName() {
         try {
             testDeregisterSourceMissingArguments(
@@ -1215,7 +1243,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testGetSourceMissingFunctionName() {
         try {
             testGetSourceMissingArguments(

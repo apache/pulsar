@@ -234,7 +234,7 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
     public void testRegisterFunctionMissingFunctionName() {
         try {
             testRegisterFunctionMissingArguments(
@@ -712,7 +712,7 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
     public void testUpdateFunctionMissingFunctionName() {
         try {
             testUpdateFunctionMissingArguments(
@@ -726,7 +726,7 @@ public class FunctionApiV2ResourceTest {
                     outputSerdeClassName,
                     className,
                     parallelism,
-                    "Function Name is not provided");
+                    "Function name is not provided");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -1155,7 +1155,7 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
     public void testDeregisterFunctionMissingFunctionName() {
         try {
             testDeregisterFunctionMissingArguments(
@@ -1282,7 +1282,7 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
     public void testGetFunctionMissingFunctionName() throws IOException {
         try {
             testGetFunctionMissingArguments(
