@@ -29,7 +29,7 @@ producer.newMessage().value("delayed message").deliverAfter(10, TimeUnit.SECONDS
 > Note:
 >
 > 1. Messages are only delayed on shared subscriptions, other subscriptions will deliver immediately.
-> 2. Delayed messages will be send individually even if enable message batching on producer.
+> 2. Delayed messages are send individually even if you enable message batching on producer.
 
 ### Go Functions
 
@@ -86,7 +86,7 @@ strategies are added to check the compatibility with all existing schema version
 
 ### Replicated subscription
 
-In 2.4.0 release, added a mechanism to keep subscription state in-sync, within a sub-second timeframe, 
+In 2.4.0 release, a mechanism is added to keep subscription state in sync, within a sub-second timeframe, 
 in the context of a topic that is being asynchronously replicated across multiple geographical 
 regions. Here is [architecture](https://github.com/apache/pulsar/wiki/PIP-33%3A-Replicated-subscriptions) 
 for replicated subscription.
@@ -104,18 +104,18 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 ### New IO connectors
 
 A new batch of connectors is added, including Flume, Redis sink, Solr sink, RabbitMQ sink. 
-Here is list of builtin [connectors](http://pulsar.apache.org/docs/en/io-connectors/) 
-that Pulsar already supports now.
+The following lists builtin [connectors](http://pulsar.apache.org/docs/en/io-connectors/) 
+that Pulsar supported.
 
 ### Security
 
-In 2.4.0 release, added support Kerberos in Apache Pulsar broker and client. 
-Following the [document](http://pulsar.apache.org/docs/en/security-kerberos/) to enable Kerberos authentication.
+In 2.4.0 release, Kerberos is supported in Apache Pulsar broker and client. 
+To enable Kerberos authentication, refer to the [document](http://pulsar.apache.org/docs/en/security-kerberos/).
 
 Also added role based Pulsar Function authentication and authorization.
 
 ## Conclusion
 
-If you want download pulsar 2.4.0, click [here](/download). You can send any questions or suggestions 
+If you want download Pulsar 2.4.0, click [here](/download). You can send any questions or suggestions 
 to our mailing lists, contribute to Pulsar on [GitHub](https://github.com/apache/pulsar) or join 
 the Apache Pulsar community on [Slack](https://apache-pulsar.herokuapp.com/).
