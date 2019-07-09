@@ -29,7 +29,7 @@ producer.newMessage().value("delayed message").deliverAfter(10, TimeUnit.SECONDS
 > Note:
 >
 > 1. Messages are only delayed on shared subscriptions, other subscriptions will deliver immediately.
-> 2. Delayed messages are send individually even if you enable message batching on producer.
+> 2. Delayed messages are sent individually even if you enable message batching on producer.
 
 ### Go Functions
 
@@ -75,11 +75,11 @@ client.newConsumer()
 
 ### Schema versioning
 
-Before 2.4.0 release, avro schema uses one schema for both its writer schema and reader schema. 
+Before 2.4.0 release, Avro schema used one schema for both writer schema and reader schema. 
 Multiple schemas version is supported now.
 
-With multiple schemas, producer can send messages with different schema version and consumer 
-can read messages with different schema.
+With multiple schemas, a producer can send messages with different schema versions and a consumer 
+can read messages with different schemas.
 
 In 2.4.0 release, `FORWARD_TRANSITIVE`, `BACKWARD_TRANSITIVE` and `FULL_TRANSITIVE` compatibility 
 strategies are added to check the compatibility with all existing schema version.
@@ -105,7 +105,7 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 
 A new batch of connectors is added, including Flume, Redis sink, Solr sink, RabbitMQ sink. 
 The following lists builtin [connectors](http://pulsar.apache.org/docs/en/io-connectors/) 
-that Pulsar supported.
+that Pulsar supports.
 
 ### Security
 
@@ -116,6 +116,6 @@ Also added role based Pulsar Function authentication and authorization.
 
 ## Conclusion
 
-If you want download Pulsar 2.4.0, click [here](/download). You can send any questions or suggestions 
+If you want to download Pulsar 2.4.0, click [here](/download). You can send any questions or suggestions 
 to our mailing lists, contribute to Pulsar on [GitHub](https://github.com/apache/pulsar) or join 
 the Apache Pulsar community on [Slack](https://apache-pulsar.herokuapp.com/).
