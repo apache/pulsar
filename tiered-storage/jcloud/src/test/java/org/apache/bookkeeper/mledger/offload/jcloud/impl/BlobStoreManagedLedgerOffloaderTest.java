@@ -20,9 +20,9 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.AdditionalAnswers.delegatesTo;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
 
 import com.amazonaws.auth.AWSCredentials;
