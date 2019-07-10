@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.util.UUID.randomUUID;
 import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -153,7 +153,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         doAnswer(invocationOnMock -> {
             cons1.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
             return null;
-        }).when(consumer1).connectionClosed(anyObject());
+        }).when(consumer1).connectionClosed(any());
         ProducerImpl<byte[]> producer1 = spy(prod1);
         doAnswer(invocationOnMock -> prod1.getState()).when(producer1).getState();
         doAnswer(invocationOnMock -> prod1.getClientCnx()).when(producer1).getClientCnx();
@@ -161,7 +161,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         doAnswer(invocationOnMock -> {
             prod1.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
             return null;
-        }).when(producer1).connectionClosed(anyObject());
+        }).when(producer1).connectionClosed(any());
         ProducerImpl<byte[]> producer2 = spy(prod2);
         doAnswer(invocationOnMock -> prod2.getState()).when(producer2).getState();
         doAnswer(invocationOnMock -> prod2.getClientCnx()).when(producer2).getClientCnx();
@@ -169,7 +169,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         doAnswer(invocationOnMock -> {
             prod2.connectionClosed((ClientCnx) invocationOnMock.getArguments()[0]);
             return null;
-        }).when(producer2).connectionClosed(anyObject());
+        }).when(producer2).connectionClosed(any());
 
         ClientCnx clientCnx = producer1.getClientCnx();
 
@@ -200,11 +200,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // let server send signal to close-connection and client close the connection
         Thread.sleep(1000);
         // [1] Verify: producer1 must get connectionClosed signal
-        verify(producer1, atLeastOnce()).connectionClosed(anyObject());
+        verify(producer1, atLeastOnce()).connectionClosed(any());
         // [2] Verify: consumer1 must get connectionClosed signal
-        verify(consumer1, atLeastOnce()).connectionClosed(anyObject());
+        verify(consumer1, atLeastOnce()).connectionClosed(any());
         // [3] Verify: producer2 should have not received connectionClosed signal
-        verify(producer2, never()).connectionClosed(anyObject());
+        verify(producer2, never()).connectionClosed(any());
 
         // sleep for sometime to let other disconnected producer and consumer connect again: but they should not get
         // connected with same broker as that broker is already out from active-broker list
@@ -224,7 +224,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2);
         // let producer2 give some time to get disconnect signal and get disconencted
         Thread.sleep(200);
-        verify(producer2, atLeastOnce()).connectionClosed(anyObject());
+        verify(producer2, atLeastOnce()).connectionClosed(any());
 
         // producer1 must not be able to connect again
         assertTrue(prod1.getClientCnx() == null);

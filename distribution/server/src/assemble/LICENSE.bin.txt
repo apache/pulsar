@@ -421,7 +421,7 @@ The Apache Software License, Version 2.0
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.2.0.jar
  * OkHttp - com.squareup.okhttp-okhttp-2.5.0.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
- * Javassist -- org.javassist-javassist-3.21.0-GA.jar
+ * Javassist -- org.javassist-javassist-3.25.0-GA.jar
   * gRPC
     - io.grpc-grpc-all-1.18.0.jar
     - io.grpc-grpc-auth-1.18.0.jar
@@ -455,7 +455,7 @@ The Apache Software License, Version 2.0
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.1.3.jar
   * Objenesis
-    - org.objenesis-objenesis-2.1.jar
+    - org.objenesis-objenesis-2.6.jar
   * Squareup
     - com.squareup.okhttp-logging-interceptor-2.7.5.jar
     - com.squareup.okhttp-okhttp-ws-2.7.5.jar
