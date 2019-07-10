@@ -18,9 +18,30 @@
  */
 package org.apache.pulsar.functions.sink;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
@@ -38,30 +59,9 @@ import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.io.core.SinkContext;
-import org.mockito.ArgumentMatcher;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertTrue;
-import static org.testng.AssertJUnit.fail;
 
 @Slf4j
 public class PulsarSinkTest {
@@ -109,7 +109,7 @@ public class PulsarSinkTest {
         doReturn(producerBuilder).when(producerBuilder).property(anyString(), anyString());
         doReturn(producerBuilder).when(producerBuilder).properties(any());
         doReturn(producerBuilder).when(producerBuilder).sendTimeout(anyInt(), any());
-        
+
         CompletableFuture completableFuture = new CompletableFuture<>();
         completableFuture.complete(mock(MessageId.class));
         TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
@@ -297,14 +297,11 @@ public class PulsarSinkTest {
             } else {
                 Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(defaultTopic));
             }
-            verify(pulsarClient.newProducer(), times(1)).topic(argThat(new ArgumentMatcher<String>() {
-
-                @Override
-                public boolean matches(Object o) {
-                    if (o instanceof String) {
-                        return getTopicEquals(o, topic, defaultTopic);
-                    }
-                    return false;
+            verify(pulsarClient.newProducer(), times(1)).topic(argThat(otherTopic -> {
+                if (topic != null) {
+                    return topic.equals(otherTopic);
+                } else {
+                    return defaultTopic.equals(otherTopic);
                 }
             }));
         }
@@ -346,15 +343,8 @@ public class PulsarSinkTest {
             } else {
                 Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(defaultTopic));
             }
-            verify(pulsarClient.newProducer(), times(1)).topic(argThat(new ArgumentMatcher<String>() {
-
-                @Override
-                public boolean matches(Object o) {
-                    if (o instanceof String) {
-                        return getTopicEquals(o, topic, defaultTopic);
-                    }
-                    return false;
-                }
+            verify(pulsarClient.newProducer(), times(1)).topic(argThat(o -> {
+                return getTopicEquals(o, topic, defaultTopic);
             }));
         }
 
@@ -408,28 +398,15 @@ public class PulsarSinkTest {
             } else {
                 Assert.assertTrue(pulsarSinkEffectivelyOnceProcessor.publishProducers.containsKey(String.format("%s-%s-id-1", defaultTopic, defaultTopic)));
             }
-            verify(pulsarClient.newProducer(), times(1)).topic(argThat(new ArgumentMatcher<String>() {
 
-                @Override
-                public boolean matches(Object o) {
-                    if (o instanceof String) {
-                        return getTopicEquals(o, topic, defaultTopic);
-                    }
-                    return false;
-                }
+            verify(pulsarClient.newProducer(), times(1)).topic(argThat(o -> {
+                return getTopicEquals(o, topic, defaultTopic);
             }));
-            verify(pulsarClient.newProducer(), times(1)).producerName(argThat(new ArgumentMatcher<String>() {
-
-                @Override
-                public boolean matches(Object o) {
-                    if (o instanceof String) {
-                        if (topic != null) {
-                            return String.format("%s-id-1", topic).equals(o);
-                        } else {
-                            return String.format("%s-id-1", defaultTopic).equals(o);
-                        }
-                    }
-                    return false;
+            verify(pulsarClient.newProducer(), times(1)).producerName(argThat(o -> {
+                if (topic != null) {
+                    return String.format("%s-id-1", topic).equals(o);
+                } else {
+                    return String.format("%s-id-1", defaultTopic).equals(o);
                 }
             }));
         }
