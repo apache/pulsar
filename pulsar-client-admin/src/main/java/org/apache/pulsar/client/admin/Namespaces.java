@@ -930,17 +930,17 @@ public interface Namespaces {
     void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles) throws PulsarAdminException;
 
     /**
-     * Set message-publish-rate (topics under this namespace can dispatch this many messages per second)
+     * Set message-publish-rate (topics under this namespace can publish this many messages per second)
      *
      * @param namespace
-     * @param dispatchRate
+     * @param publishMsgRate
      *            number of messages per second
      * @throws PulsarAdminException
      *             Unexpected error
      */
     void setPublishRate(String namespace, PublishRate publishMsgRate) throws PulsarAdminException;
 
-    /** Get message-publish-rate (topics under this namespace can dispatch this many messages per second)
+    /** Get message-publish-rate (topics under this namespace can publish this many messages per second)
     *
     * @param namespace
     * @returns messageRate
