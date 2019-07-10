@@ -994,7 +994,7 @@ public class KubernetesRuntime implements Runtime {
     }
 
     private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
-        return String.format("%s-%d.%s.%s", jobName, instanceId, jobName, jobNamespace);
+        return String.format("%s-%d.%s.%s.svc.cluster.local", jobName, instanceId, jobName, jobNamespace);
     }
 
     public static void doChecks(Function.FunctionDetails functionDetails) {
