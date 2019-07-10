@@ -156,6 +156,11 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
+            byte[] payload, Schema<T> schema) {
+        this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema);
+    }
+
+    public MessageImpl(String topic, String msgId, Map<String, String> properties,
                        ByteBuf payload, Schema<T> schema) {
         String[] data = msgId.split(":");
         long ledgerId = Long.parseLong(data[0]);
