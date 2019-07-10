@@ -205,6 +205,10 @@ flexible messaging model and an intuitive client API.</description>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.11.2</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
+    <testng.version>6.14.3</testng.version>
+    <mockito.version>2.28.2</mockito.version>
+    <powermock.version>2.0.2</powermock.version>
+    <javassist.version>3.25.0-GA</javassist.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -239,25 +243,25 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
-        <version>6.14.3</version>
+        <version>${testng.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>1.10.19</version>
+        <version>${mockito.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <version>1.7.3</version>
+        <artifactId>powermock-api-mockito2</artifactId>
+        <version>${powermock.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-module-testng</artifactId>
-        <version>1.7.3</version>
+        <version>${powermock.version}</version>
       </dependency>
 
       <dependency>
@@ -1003,6 +1007,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
         <version>${joda.version}</version>
+      </dependency>      
+      <dependency>
+        <groupId>org.javassist</groupId>
+        <artifactId>javassist</artifactId>
+        <version>${javassist.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -1030,7 +1039,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <dependency>
       <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
+      <artifactId>powermock-api-mockito2</artifactId>
       <scope>test</scope>
     </dependency>
 

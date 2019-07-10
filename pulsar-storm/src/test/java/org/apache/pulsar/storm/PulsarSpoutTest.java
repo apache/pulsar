@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.storm;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -33,7 +33,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -43,26 +42,20 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.shade.io.netty.buffer.PooledByteBufAllocator;
 import org.apache.pulsar.storm.PulsarSpout.SpoutConsumer;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Values;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 
 public class PulsarSpoutTest {
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarSpoutTest.class);
-    
     @Test
     public void testAckFailedMessage() throws Exception {
-        
+
         PulsarSpoutConfiguration conf = new PulsarSpoutConfiguration();
         conf.setServiceUrl("http://localhost:8080");
         conf.setSubscriptionName("sub1");
@@ -77,13 +70,13 @@ public class PulsarSpoutTest {
             @Override
             public void declareOutputFields(OutputFieldsDeclarer declarer) {
             }
-            
+
         });
-        
+
         ClientBuilder builder = spy(new ClientBuilderImpl());
         PulsarSpout spout = spy(new PulsarSpout(conf, builder));
-        
-        Message<byte[]> msg = new MessageImpl<>(conf.getTopic(), "1:1", Maps.newHashMap(), null, Schema.BYTES);
+
+        Message<byte[]> msg = new MessageImpl<>(conf.getTopic(), "1:1", Maps.newHashMap(), new byte[0], Schema.BYTES);
         Consumer<byte[]> consumer = mock(Consumer.class);
         SpoutConsumer spoutConsumer = new SpoutConsumer(consumer);
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -92,13 +85,13 @@ public class PulsarSpoutTest {
         Field consField = PulsarSpout.class.getDeclaredField("consumer");
         consField.setAccessible(true);
         consField.set(spout, spoutConsumer);
-        
+
         spout.fail(msg);
         spout.ack(msg);
         spout.emitNextAvailableTuple();
         verify(consumer, atLeast(1)).receive(anyInt(), any());
     }
-    
+
     @Test
     public void testPulsarSpout() throws Exception {
         PulsarSpoutConfiguration conf = new PulsarSpoutConfiguration();
@@ -138,9 +131,7 @@ public class PulsarSpoutTest {
         when(client.getSharedConsumer(any())).thenReturn(consumer);
         instances.put(componentId, client);
 
-        ByteBuf data = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
-        data.writeBytes("test".getBytes());
-        Message<byte[]> msg = new MessageImpl<>(conf.getTopic(), "1:1", Maps.newHashMap(), data, Schema.BYTES);
+        Message<byte[]> msg = new MessageImpl<>(conf.getTopic(), "1:1", Maps.newHashMap(), "test".getBytes(), Schema.BYTES);
         when(consumer.receive(anyInt(), any())).thenReturn(msg);
 
         spout.open(config, context, collector);
@@ -149,5 +140,5 @@ public class PulsarSpoutTest {
         assertTrue(called.get());
         verify(consumer, atLeast(1)).receive(anyInt(), any());
     }
-    
+
 }

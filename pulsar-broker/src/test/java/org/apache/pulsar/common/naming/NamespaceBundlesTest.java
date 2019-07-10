@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -169,7 +169,7 @@ public class NamespaceBundlesTest {
             bundles = new NamespaceBundles(topicName.getNamespaceObject(), newPar, factory);
             bundles.findBundle(topicName);
             fail("Should have failed due to out-of-range");
-        } catch (ArrayIndexOutOfBoundsException iae) {
+        } catch (IndexOutOfBoundsException iae) {
             // OK, expected
         }
     }

@@ -19,11 +19,11 @@
 
 package org.apache.pulsar.functions.secretsprovider;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import java.lang.reflect.Field;
 import java.util.Map;
+
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link Exceptions}.

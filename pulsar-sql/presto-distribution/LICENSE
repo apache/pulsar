@@ -370,7 +370,6 @@ The Apache Software License, Version 2.0
   * FindBugs JSR305
     - jsr305-3.0.2.jar
   * Objenesis
-    - objenesis-2.1.jar
     - objenesis-2.6.jar
   * Okio
     - okio-1.13.0.jar
@@ -438,7 +437,7 @@ The Apache Software License, Version 2.0
     - jackson-module-jaxb-annotations-2.8.11.jar
     - jackson-module-jsonSchema-2.8.11.jar
   * Java Assist
-    - javassist-3.21.0-GA.jar
+    - javassist-3.25.0-GA.jar
   * Jetty
     - jetty-http-9.4.12.v20180830.jar
     - jetty-io-9.4.12.v20180830.jar
