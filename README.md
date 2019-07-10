@@ -81,7 +81,7 @@ Check https://pulsar.apache.org for documentation and examples.
 
 ## Setting up your IDE
 
-Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with
+Apache Pulsar is using [lombok](https://projectlombok.org/) and [protobuf](https://developers.google.com/protocol-buffers/) so you have to ensure your IDE setup with
 required plugins.
 
 ### Intellij
@@ -103,6 +103,8 @@ To configure annotation processing in IntelliJ:
 4. Click “OK”.
 
 5. Install the lombok plugin in intellij.
+
+6. Install the protobuf plugin in intellij.
 
 ### Eclipse
 
