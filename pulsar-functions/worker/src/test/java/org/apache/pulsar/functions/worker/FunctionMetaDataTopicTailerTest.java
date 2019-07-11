@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -79,6 +79,6 @@ public class FunctionMetaDataTopicTailerTest {
         receiveFuture.thenApply(Function.identity()).get();
 
         verify(reader, times(2)).readNextAsync();
-        verify(fsm, times(1)).processRequest(any(MessageId.class), any(ServiceRequest.class));
+        verify(fsm, times(1)).processRequest(any(), any(ServiceRequest.class));
     }
 }

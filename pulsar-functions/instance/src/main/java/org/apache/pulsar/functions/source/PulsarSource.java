@@ -47,7 +47,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private final Map<String, String> properties;
     private final ClassLoader functionClassLoader;
     private List<String> inputTopics;
-    private List<Consumer<T>> inputConsumers;
+    private List<Consumer<T>> inputConsumers = Collections.emptyList();
     private final TopicSchema topicSchema;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties,

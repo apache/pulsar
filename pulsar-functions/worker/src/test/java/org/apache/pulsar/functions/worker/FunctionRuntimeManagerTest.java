@@ -44,11 +44,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -131,16 +131,11 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner).startFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
-            public boolean matches(Object o) {
-                if (o instanceof FunctionRuntimeInfo) {
-                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
-
-                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)) {
-                        return false;
-                    }
-                    return true;
+            public boolean matches(FunctionRuntimeInfo functionRuntimeInfo) {
+                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)) {
+                    return false;
                 }
-                return false;
+                return true;
             }
         }));
         verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
@@ -231,16 +226,11 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner, times(1)).terminateFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner).terminateFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
-            public boolean matches(Object o) {
-                if (o instanceof FunctionRuntimeInfo) {
-                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
-
-                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)) {
-                        return false;
-                    }
-                    return true;
+            public boolean matches(FunctionRuntimeInfo functionRuntimeInfo) {
+                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)) {
+                    return false;
                 }
-                return false;
+                return true;
             }
         }));
 
@@ -329,32 +319,22 @@ public class FunctionRuntimeManagerTest {
 
         verify(functionActioner).stopFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
-            public boolean matches(Object o) {
-                if (o instanceof FunctionRuntimeInfo) {
-                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
-
-                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
-                        return false;
-                    }
-                    return true;
+            public boolean matches(FunctionRuntimeInfo functionRuntimeInfo) {
+                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
+                    return false;
                 }
-                return false;
+                return true;
             }
         }));
 
         verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner).startFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
-            public boolean matches(Object o) {
-                if (o instanceof FunctionRuntimeInfo) {
-                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
-
-                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
-                        return false;
-                    }
-                    return true;
+            public boolean matches(FunctionRuntimeInfo functionRuntimeInfo) {
+                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
+                    return false;
                 }
-                return false;
+                return true;
             }
         }));
 
@@ -385,19 +365,11 @@ public class FunctionRuntimeManagerTest {
         // make sure terminate is not called since this is a update operation
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
-        verify(functionActioner).stopFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
-            @Override
-            public boolean matches(Object o) {
-                if (o instanceof FunctionRuntimeInfo) {
-                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
-
-                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
-                        return false;
-                    }
-                    return true;
+        verify(functionActioner).stopFunction(argThat(functionRuntimeInfo -> {
+                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
+                    return false;
                 }
-                return false;
-            }
+                return true;
         }));
 
         verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
@@ -630,33 +602,17 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner, times(1)).stopFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
-        verify(functionActioner).startFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
-            @Override
-            public boolean matches(Object o) {
-                if (o instanceof FunctionRuntimeInfo) {
-                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
-
-                    if (!functionRuntimeInfo.getFunctionInstance().equals(assignment1.getInstance())) {
-                        return false;
-                    }
-                    return true;
+        verify(functionActioner).startFunction(argThat(functionRuntimeInfo -> {
+                if (!functionRuntimeInfo.getFunctionInstance().equals(assignment1.getInstance())) {
+                    return false;
                 }
-                return false;
-            }
+                return true;
         }));
-        verify(functionActioner).stopFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
-            @Override
-            public boolean matches(Object o) {
-                if (o instanceof FunctionRuntimeInfo) {
-                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
-
-                    if (functionRuntimeInfo.getRuntimeSpawner() != null) {
-                        return false;
-                    }
-                    return true;
+        verify(functionActioner).stopFunction(argThat(functionRuntimeInfo -> {
+                if (functionRuntimeInfo.getRuntimeSpawner() != null) {
+                    return false;
                 }
-                return false;
-            }
+                return true;
         }));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
