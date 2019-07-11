@@ -130,7 +130,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private final Map<String, String> properties;
 
-    private final ClassLoader frameworkClassLoader;
+    private final ClassLoader runtimeClassLoader;
     private ClassLoader functionClassLoader;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
@@ -168,7 +168,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // In process mode the JavaInstanceMain will declare a CollectorRegistry and pass it down
         this.collectorRegistry = collectorRegistry;
 
-        this.frameworkClassLoader = Thread.currentThread().getContextClassLoader();
+        this.runtimeClassLoader = Thread.currentThread().getContextClassLoader();
     }
 
     /**
@@ -261,7 +261,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
-                Thread.currentThread().setContextClassLoader(frameworkClassLoader);
+                Thread.currentThread().setContextClassLoader(runtimeClassLoader);
 
                 // register end time
                 stats.processTimeEnd();
@@ -442,7 +442,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stats.incrSinkExceptions(e);
             throw new RuntimeException(e);
         } finally {
-            Thread.currentThread().setContextClassLoader(frameworkClassLoader);
+            Thread.currentThread().setContextClassLoader(runtimeClassLoader);
         }
     }
 
@@ -458,7 +458,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             log.info("Encountered exception in source read: ", e);
             throw new RuntimeException(e);
         } finally {
-            Thread.currentThread().setContextClassLoader(frameworkClassLoader);
+            Thread.currentThread().setContextClassLoader(runtimeClassLoader);
         }
 
         // check record is valid
@@ -491,7 +491,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             } catch (Throwable e) {
                 log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
             } finally {
-                Thread.currentThread().setContextClassLoader(frameworkClassLoader);
+                Thread.currentThread().setContextClassLoader(runtimeClassLoader);
             }
             source = null;
         }
@@ -505,7 +505,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             } catch (Throwable e) {
                 log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
             } finally {
-                Thread.currentThread().setContextClassLoader(frameworkClassLoader);
+                Thread.currentThread().setContextClassLoader(runtimeClassLoader);
             }
             sink = null;
         }
@@ -725,7 +725,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             log.error("Source open produced uncaught exception: ", e);
             throw e;
         } finally {
-            Thread.currentThread().setContextClassLoader(this.frameworkClassLoader);
+            Thread.currentThread().setContextClassLoader(this.runtimeClassLoader);
         }
     }
 
@@ -780,7 +780,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             log.error("Sink open produced uncaught exception: ", e);
             throw e;
         } finally {
-            Thread.currentThread().setContextClassLoader(this.frameworkClassLoader);
+            Thread.currentThread().setContextClassLoader(this.runtimeClassLoader);
         }
     }
 }

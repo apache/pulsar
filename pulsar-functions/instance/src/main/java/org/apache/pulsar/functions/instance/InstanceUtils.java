@@ -34,9 +34,7 @@ import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 @UtilityClass
 public class InstanceUtils {
@@ -137,23 +135,5 @@ public class InstanceUtils {
         properties.put("id", fullyQualifiedName);
         properties.put("instance_id", String.valueOf(instanceId));
         return properties;
-    }
-
-    public static boolean isAssignable(Class from, Class to) {
-        if (from == null) {
-            return false;
-        }
-
-        Set<String> classNames = new HashSet<>();
-        for (Class clazz : from.getInterfaces()) {
-            classNames.add(clazz.getName());
-        }
-        boolean assignable = classNames.contains(to.getName());
-
-        if (!assignable) {
-            return isAssignable(from.getSuperclass(), to);
-        } else {
-            return true;
-        }
     }
 }

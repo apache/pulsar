@@ -296,7 +296,7 @@ public class KubernetesRuntimeTest {
 
         String expectedArgs = "exec java -cp " + classpath
                 + extraDepsEnv
-                + " -Dpulsar.functions.framework.classpath=/pulsar/lib/*"
+                + " -Dpulsar.functions.runtime.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
