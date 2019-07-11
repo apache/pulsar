@@ -32,9 +32,9 @@ import java.util.List;
 
 /**
  * This is the initial class that gets called when starting a Java Function instance.
- * Multiple class loaders are used to separate function runtime dependencies from user code dependencies
+ * Multiple class loaders are used to separate function instance dependencies from user code dependencies
  * This class will create three classloaders:
- *      1. The root classloader that will share interfaces between the function runtime
+ *      1. The root classloader that will share interfaces between the function instance
  *      classloader and user code classloader. This classloader will contain the following dependencies
  *          - pulsar-functions-api
  *          - pulsar-client-api
@@ -43,7 +43,7 @@ import java.util.List;
  *          - log4j-core
  *          - log4j-api
  *
- *      2. The Function runtime classloader, a child of the root classloader, that loads all pulsar broker/worker dependencies
+ *      2. The Function instance classloader, a child of the root classloader, that loads all pulsar broker/worker dependencies
  *      3. The user code classloader, a child of the root classloader, that loads all user code dependencies
  *
  * This class should not use any other dependencies!
@@ -51,7 +51,7 @@ import java.util.List;
  */
 public class JavaInstanceMain {
 
-    private static final String FUNCTIONS_RUNTIME_CLASSPATH = "pulsar.functions.runtime.classpath";
+    private static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
     public JavaInstanceMain() { }
 
@@ -60,12 +60,12 @@ public class JavaInstanceMain {
         // Set root classloader to current classpath
         ClassLoader root = Thread.currentThread().getContextClassLoader();
 
-        // Get classpath for runtime
-        String runtime_classpath = System.getProperty(FUNCTIONS_RUNTIME_CLASSPATH);
-        assert runtime_classpath != null;
+        // Get classpath for function instance
+        String functionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
+        assert functionInstanceClasspath != null;
 
         List<File> files = new LinkedList<>();
-        for (String entry: runtime_classpath.split(":")) {
+        for (String entry: functionInstanceClasspath.split(":")) {
             if (isBlank(entry)) {
                 continue;
             }
@@ -78,23 +78,23 @@ public class JavaInstanceMain {
                     files.add(new File(entry));
                 }
             } else {
-                System.out.println(String.format("[WARN] %s on functions runtime classpath does not exist", f.getAbsolutePath()));
+                System.out.println(String.format("[WARN] %s on functions instance classpath does not exist", f.getAbsolutePath()));
             }
         }
 
-        ClassLoader functionRuntimeClsLoader = loadJar(root, files.toArray(new File[files.size()]));
+        ClassLoader functionInstanceClsLoader = loadJar(root, files.toArray(new File[files.size()]));
 
         System.out.println("Using function root classloader: " + root);
-        System.out.println("Using function runtime classloader: " + functionRuntimeClsLoader);
+        System.out.println("Using function instance classloader: " + functionInstanceClsLoader);
 
-        // use the function runtime classloader to create org.apache.pulsar.functions.runtime.JavaInstanceStarter
-        Object main = createInstance("org.apache.pulsar.functions.runtime.JavaInstanceStarter", functionRuntimeClsLoader);
+        // use the function instance classloader to create org.apache.pulsar.functions.runtime.JavaInstanceStarter
+        Object main = createInstance("org.apache.pulsar.functions.runtime.JavaInstanceStarter", functionInstanceClsLoader);
 
-        // Invoke start method of JavaInstanceStarter to start the runtime code
+        // Invoke start method of JavaInstanceStarter to start the function instance code
         Method method = main.getClass().getDeclaredMethod("start", String[].class, ClassLoader.class, ClassLoader.class);
 
         System.out.println("Starting function instance...");
-        method.invoke(main, args, functionRuntimeClsLoader, root);
+        method.invoke(main, args, functionInstanceClsLoader, root);
     }
 
     public static Object createInstance(String userClassName,

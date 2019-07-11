@@ -50,7 +50,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
-    static final String FUNCTIONS_RUNTIME_CLASSPATH = "pulsar.functions.runtime.classpath";
+    static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
     public static List<String> composeCmd(InstanceConfig instanceConfig,
                                           String instanceFile,
@@ -266,13 +266,13 @@ public class RuntimeUtils {
             }
 
             // add complete classpath for broker/worker so that the function instance can load
-            // the functions runtime dependencies separately from user code dependencies
-            String functionRuntimeClasspath = System.getProperty(FUNCTIONS_RUNTIME_CLASSPATH);
-            if (functionRuntimeClasspath == null) {
-                log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_RUNTIME_CLASSPATH);
-                functionRuntimeClasspath = System.getProperty("java.class.path");
+            // the functions instance dependencies separately from user code dependencies
+            String functionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
+            if (functionInstanceClasspath == null) {
+                log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_INSTANCE_CLASSPATH);
+                functionInstanceClasspath = System.getProperty("java.class.path");
             }
-            args.add(String.format("-D%s=%s", FUNCTIONS_RUNTIME_CLASSPATH, functionRuntimeClasspath));
+            args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClasspath));
 
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));

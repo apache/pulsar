@@ -124,8 +124,8 @@ public class JavaInstanceStarter implements AutoCloseable {
 
     public JavaInstanceStarter() { }
 
-    public void start(String[] args, ClassLoader runtimeClassLoader, ClassLoader rootClassLoader) throws Exception {
-        Thread.currentThread().setContextClassLoader(runtimeClassLoader);
+    public void start(String[] args, ClassLoader functionInstanceClassLoader, ClassLoader rootClassLoader) throws Exception {
+        Thread.currentThread().setContextClassLoader(functionInstanceClassLoader);
 
         JCommander jcommander = new JCommander(this);
         // parse args by JCommander
@@ -167,7 +167,7 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         SecretsProvider secretsProvider;
         try {
-            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, runtimeClassLoader);
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, functionInstanceClassLoader);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

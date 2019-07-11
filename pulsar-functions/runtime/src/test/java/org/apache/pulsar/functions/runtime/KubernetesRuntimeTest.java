@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_RUNTIME_CLASSPATH;
+import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -139,7 +139,7 @@ public class KubernetesRuntimeTest {
 
     @BeforeClass
     public void setup() {
-        System.setProperty(FUNCTIONS_RUNTIME_CLASSPATH, "/pulsar/lib/*");
+        System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
 
     @AfterMethod
@@ -296,7 +296,7 @@ public class KubernetesRuntimeTest {
 
         String expectedArgs = "exec java -cp " + classpath
                 + extraDepsEnv
-                + " -Dpulsar.functions.runtime.classpath=/pulsar/lib/*"
+                + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"

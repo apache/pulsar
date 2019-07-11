@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
-import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_RUNTIME_CLASSPATH;
+import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -127,7 +127,7 @@ public class ProcessRuntimeTest {
 
     @BeforeClass
     public void setup() {
-        System.setProperty(FUNCTIONS_RUNTIME_CLASSPATH, "/pulsar/lib/*");
+        System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
 
     @AfterMethod
@@ -274,7 +274,7 @@ public class ProcessRuntimeTest {
 
         String expectedArgs = "java -cp " + classpath
                 + extraDepsEnv
-                + " -Dpulsar.functions.runtime.classpath=/pulsar/lib/*"
+                + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=java_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
