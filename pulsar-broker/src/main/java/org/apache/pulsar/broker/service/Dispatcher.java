@@ -27,7 +27,6 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 
 public interface Dispatcher {
     void addConsumer(Consumer consumer) throws BrokerServiceException;
@@ -43,7 +42,7 @@ public interface Dispatcher {
 
     boolean isConsumerConnected();
 
-    CopyOnWriteArrayList<Consumer> getConsumers();
+    List<Consumer> getConsumers();
 
     boolean canUnsubscribe(Consumer consumer);
 
