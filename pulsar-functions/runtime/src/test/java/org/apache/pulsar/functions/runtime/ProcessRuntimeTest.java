@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
-import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_FRAMEWORK_CLASSPATH;
+import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_RUNTIME_CLASSPATH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -127,7 +127,7 @@ public class ProcessRuntimeTest {
 
     @BeforeClass
     public void setup() {
-        System.setProperty(FUNCTIONS_FRAMEWORK_CLASSPATH, "/pulsar/lib/*");
+        System.setProperty(FUNCTIONS_RUNTIME_CLASSPATH, "/pulsar/lib/*");
     }
 
     @AfterMethod

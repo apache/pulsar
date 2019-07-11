@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_FRAMEWORK_CLASSPATH;
+import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_RUNTIME_CLASSPATH;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -139,7 +139,7 @@ public class KubernetesRuntimeTest {
 
     @BeforeClass
     public void setup() {
-        System.setProperty(FUNCTIONS_FRAMEWORK_CLASSPATH, "/pulsar/lib/*");
+        System.setProperty(FUNCTIONS_RUNTIME_CLASSPATH, "/pulsar/lib/*");
     }
 
     @AfterMethod
