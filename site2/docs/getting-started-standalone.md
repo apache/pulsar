@@ -18,7 +18,7 @@ This tutorial guides you through every step of the installation process.
 Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
 
 > #### Tip
-> By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. Though it may fail to start with less than 512MB.
+> By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. 
 
 ### Install Pulsar using binary release
 
