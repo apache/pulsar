@@ -57,6 +57,26 @@
                 </goals>
               </execution>
               <execution>
+                <id>add-no-repo-and-version</id>
+                <goals>
+                  <goal>tag</goal>
+                </goals>
+                <configuration>
+                  <repository>pulsar-standalone</repository>
+                  <tag>${project.version}</tag>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-no-repo-and-latest</id>
+                <goals>
+                  <goal>tag</goal>
+                </goals>
+                <configuration>
+                  <repository>pulsar-standalone</repository>
+                  <tag>latest</tag>
+                </configuration>
+              </execution>
+              <execution>
                 <id>tag-and-push-latest</id>
                 <goals>
                   <goal>tag</goal>
