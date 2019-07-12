@@ -1550,6 +1550,10 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
     client.close();
 }
 
+static long messagesReceived = 0;
+
+static void unackMessageListenerFunction(Consumer consumer, const Message &msg) { messagesReceived++; }
+
 TEST(BasicEndToEndTest, testPartitionTopicUnAckedMessageTimeout) {
     Client client(lookupUrl);
     long unAckedMessagesTimeoutMs = 10000;
@@ -1565,7 +1569,6 @@ TEST(BasicEndToEndTest, testPartitionTopicUnAckedMessageTimeout) {
     ASSERT_FALSE(res != 204 && res != 409);
 
     std::string subName = "my-sub-name";
-    std::string content = "msg-content";
 
     Producer producer;
     Result result = client.createProducer(topicName, producer);
@@ -1573,31 +1576,29 @@ TEST(BasicEndToEndTest, testPartitionTopicUnAckedMessageTimeout) {
 
     Consumer consumer;
     ConsumerConfiguration consConfig;
+    consConfig.setMessageListener(
+        std::bind(unackMessageListenerFunction, std::placeholders::_1, std::placeholders::_2));
     consConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
     result = client.subscribe(topicName, subName, consConfig, consumer);
     ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
 
-    Message msg = MessageBuilder().setContent(content).build();
-    result = producer.send(msg);
-    ASSERT_EQ(ResultOk, result);
+    for (int i = 0; i < 10; i++) {
+        Message msg = MessageBuilder().setContent("test-" + std::to_string(i)).build();
+        producer.sendAsync(msg, nullptr);
+    }
 
-    Message receivedMsg1;
-    MessageId msgId1;
-    consumer.receive(receivedMsg1);
-    msgId1 = receivedMsg1.getMessageId();
-    ASSERT_EQ(content, receivedMsg1.getDataAsString());
-
-    Message receivedMsg2;
-    MessageId msgId2;
-    consumer.receive(receivedMsg2, 3 * unAckedMessagesTimeoutMs);
-    msgId2 = receivedMsg2.getMessageId();
-    ASSERT_EQ(content, receivedMsg2.getDataAsString());
-
-    ASSERT_EQ(msgId1, msgId2);
-    consumer.unsubscribe();
-    consumer.close();
-    producer.close();
-    client.close();
+    producer.flush();
+    long timeWaited = 0;
+    while (true) {
+        // maximum wait time
+        ASSERT_LE(timeWaited, unAckedMessagesTimeoutMs * 3);
+        if (messagesReceived >= 10 * 2) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        timeWaited += 500;
+    }
 }
 
 TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
