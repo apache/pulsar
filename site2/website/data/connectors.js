@@ -6,18 +6,6 @@ module.exports = [
         link: 'https://www.aerospike.com/'
     },
     {
-        name: 'debezium-mysql',
-        longName: 'Debezium MySQL CDC',
-        type: 'Source',
-        link: 'https://debezium.io/'
-    },
-    {
-        name: 'debezium-postgres',
-        longName: 'Debezium PostgreSQL CDC',
-        type: 'Source',
-        link: 'https://debezium.io/'
-    },
-    {
         name: 'canal',
         longName: 'Alibaba Canal CDC',
         type: 'Source',
@@ -34,6 +22,18 @@ module.exports = [
         longName: 'Test Data Generator',
         type: 'Source',
         link: ''
+    },
+    {
+        name: 'debezium-mysql',
+        longName: 'Debezium MySQL CDC',
+        type: 'Source',
+        link: 'https://debezium.io/'
+    },
+    {
+        name: 'debezium-postgres',
+        longName: 'Debezium PostgreSQL CDC',
+        type: 'Source',
+        link: 'https://debezium.io/'
     },
     {
         name: 'elastic-search',
