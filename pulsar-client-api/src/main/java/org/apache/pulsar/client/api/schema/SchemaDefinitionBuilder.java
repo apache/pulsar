@@ -49,7 +49,7 @@ public interface SchemaDefinitionBuilder<T> {
      * @param key property key
      * @param value property value
      *
-     * @return record schema definition
+     * @return schema definition builder
      */
     SchemaDefinitionBuilder<T> addProperty(String key, String value);
 
@@ -58,7 +58,7 @@ public interface SchemaDefinitionBuilder<T> {
      *
      * @param pojo pojo schema definition
      *
-     * @return record schema definition
+     * @return schema definition builder
      */
     SchemaDefinitionBuilder<T> withPojo(Class pojo);
 
@@ -67,9 +67,18 @@ public interface SchemaDefinitionBuilder<T> {
      *
      * @param jsonDefinition json schema definition
      *
-     * @return record schema definition
+     * @return schema definition builder
      */
     SchemaDefinitionBuilder<T> withJsonDef(String jsonDefinition);
+
+    /**
+     * Set schema whether decode by schema version
+     *
+     * @param supportSchemaVersioning decode by version
+     *
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withSupportSchemaVersioning(boolean supportSchemaVersioning);
 
     /**
      * Build the schema definition.

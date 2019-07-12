@@ -104,7 +104,7 @@ public class LeaderElectionService {
                                 public void run() {
                                     // If the node is deleted, attempt the re-election
                                     log.info("Broker [{}] is calling re-election from the thread",
-                                            pulsar.getWebServiceAddress());
+                                            pulsar.getSafeWebServiceAddress());
                                     elect();
                                 }
                             });
@@ -125,13 +125,13 @@ public class LeaderElectionService {
 
             // If broker comes here it is a follower. Do nothing, wait for the watch to trigger
             log.info("Broker [{}] is the follower now. Waiting for the watch to trigger...",
-                    pulsar.getWebServiceAddress());
+                    pulsar.getSafeWebServiceAddress());
 
         } catch (NoNodeException nne) {
             // There's no leader yet... try to become the leader
             try {
                 // Create the root node and add current broker's URL as its contents
-                LeaderBroker leaderBroker = new LeaderBroker(pulsar.getWebServiceAddress());
+                LeaderBroker leaderBroker = new LeaderBroker(pulsar.getSafeWebServiceAddress());
                 ZkUtils.createFullPathOptimistic(pulsar.getLocalZkCache().getZooKeeper(), ELECTION_ROOT,
                         jsonMapper.writeValueAsBytes(leaderBroker), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
@@ -141,7 +141,7 @@ public class LeaderElectionService {
 
                 // Notify the listener that this broker is now the leader so that it can collect usage and start load
                 // manager.
-                log.info("Broker [{}] is the leader now, notifying the listener...", pulsar.getWebServiceAddress());
+                log.info("Broker [{}] is the leader now, notifying the listener...", pulsar.getSafeWebServiceAddress());
                 leaderListener.brokerIsTheLeaderNow();
             } catch (NodeExistsException nee) {
                 // Re-elect the new leader

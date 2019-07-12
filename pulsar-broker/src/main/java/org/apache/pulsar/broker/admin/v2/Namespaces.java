@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -185,7 +186,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(property, namespace);
         internalGrantPermissionOnSubscription(subscription, roles);
     }
-    
+
     @DELETE
     @Path("/{tenant}/{namespace}/permissions/{role}")
     @ApiOperation(value = "Revoke all permissions to a role on a namespace.")
@@ -208,7 +209,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(property, namespace);
         internalRevokePermissionsOnSubscription(subscription, role);
     }
-    
+
     @GET
     @Path("/{tenant}/{namespace}/replication")
     @ApiOperation(value = "Get the replication clusters for a namespace.", response = String.class, responseContainer = "List")
@@ -336,7 +337,7 @@ public class Namespaces extends NamespacesBase {
     public void setDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             DispatchRate dispatchRate) {
         validateNamespaceName(tenant, namespace);
-        internalSetDispatchRate(dispatchRate);
+        internalSetTopicDispatchRate(dispatchRate);
     }
 
     @GET
@@ -347,7 +348,7 @@ public class Namespaces extends NamespacesBase {
     public DispatchRate getDispatchRate(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetDispatchRate();
+        return internalGetTopicDispatchRate();
     }
 
     @POST
@@ -391,6 +392,28 @@ public class Namespaces extends NamespacesBase {
                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetSubscribeRate();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/replicatorDispatchRate")
+    @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
+                                            @PathParam("namespace") String namespace,
+                                            DispatchRate dispatchRate) {
+        validateNamespaceName(tenant, namespace);
+        internalSetReplicatorDispatchRate(dispatchRate);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/replicatorDispatchRate")
+    @ApiOperation(value = "Get replicator dispatch-rate configured for the namespace, -1 represents not configured yet")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public DispatchRate getReplicatorDispatchRate(@PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetReplicatorDispatchRate();
     }
 
     @GET
@@ -467,6 +490,42 @@ public class Namespaces extends NamespacesBase {
             PersistencePolicies persistence) {
         validateNamespaceName(tenant, namespace);
         internalSetPersistence(persistence);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/persistence/bookieAffinity")
+    @ApiOperation(value = "Set the bookie-affinity-group to namespace-persistent policy.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void setBookieAffinityGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            BookieAffinityGroupData bookieAffinityGroup) {
+        validateNamespaceName(tenant, namespace);
+        internalSetBookieAffinityGroup(bookieAffinityGroup);
+    }
+
+    @GET
+    @Path("/{property}/{namespace}/persistence/bookieAffinity")
+    @ApiOperation(value = "Get the bookie-affinity-group from namespace-local policy.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public BookieAffinityGroupData getBookieAffinityGroup(@PathParam("property") String property,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return internalGetBookieAffinityGroup();
+    }
+
+    @DELETE
+    @Path("/{property}/{namespace}/persistence/bookieAffinity")
+    @ApiOperation(value = "Delete the bookie-affinity-group from namespace-local policy.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void deleteBookieAffinityGroup(@PathParam("property") String property,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        internalDeleteBookieAffinityGroup();
     }
 
     @GET
@@ -841,6 +900,38 @@ public class Namespaces extends NamespacesBase {
                                                          SchemaAutoUpdateCompatibilityStrategy strategy) {
         validateNamespaceName(tenant, namespace);
         internalSetSchemaAutoUpdateCompatibilityStrategy(strategy);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/schemaValidationEnforced")
+    @ApiOperation(value = "Get schema validation enforced flag for namespace.",
+                  notes = "If the flag is set to true, when a producer without a schema attempts to produce to a topic"
+                          + " with schema in this namespace, the producer will be failed to connect. PLEASE be"
+                          + " carefully on using this, since non-java clients don't support schema.if you enable"
+                          + " this setting, it will cause non-java clients failed to produce.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
+    public boolean getSchemaValidtionEnforced(@PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetSchemaValidationEnforced();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/schemaValidationEnforced")
+    @ApiOperation(value = "Set schema validation enforced flag on namespace.",
+                  notes = "If the flag is set to true, when a producer without a schema attempts to produce to a topic"
+                          + " with schema in this namespace, the producer will be failed to connect. PLEASE be"
+                          + " carefully on using this, since non-java clients don't support schema.if you enable"
+                          + " this setting, it will cause non-java clients failed to produce.")
+            @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Tenant or Namespace doesn't exist"),
+                            @ApiResponse(code = 412, message = "schemaValidationEnforced value is not valid") })
+    public void setSchemaValidtionEnforced(@PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace,
+                                             boolean schemaValidationEnforced) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSchemaValidationEnforced(schemaValidationEnforced);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);

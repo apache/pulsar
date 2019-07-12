@@ -254,6 +254,7 @@ The Apache Software License, Version 2.0
     - netty-transport-native-unix-common-4.1.31.Final.jar
  * Joda Time
     - joda-time-2.9.9.jar
+    - joda-time-2.10.1.jar
  * Jetty
     - http2-client-9.4.11.v20180605.jar
     - http2-common-9.4.11.v20180605.jar
@@ -369,7 +370,6 @@ The Apache Software License, Version 2.0
   * FindBugs JSR305
     - jsr305-3.0.2.jar
   * Objenesis
-    - objenesis-2.1.jar
     - objenesis-2.6.jar
   * Okio
     - okio-1.13.0.jar
@@ -410,17 +410,17 @@ The Apache Software License, Version 2.0
     - async-http-client-2.7.0.jar
     - async-http-client-netty-utils-2.7.0.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.9.0.jar
-    - bookkeeper-common-allocator-4.9.0.jar
-    - bookkeeper-proto-4.9.0.jar
-    - bookkeeper-server-4.9.0.jar
-    - bookkeeper-stats-api-4.9.0.jar
-    - bookkeeper-tools-framework-4.9.0.jar
-    - circe-checksum-4.9.0.jar
-    - codahale-metrics-provider-4.9.0.jar
-    - cpu-affinity-4.9.0.jar
-    - http-server-4.9.0.jar
-    - prometheus-metrics-provider-4.9.0.jar
+    - bookkeeper-common-4.9.2.jar
+    - bookkeeper-common-allocator-4.9.2.jar
+    - bookkeeper-proto-4.9.2.jar
+    - bookkeeper-server-4.9.2.jar
+    - bookkeeper-stats-api-4.9.2.jar
+    - bookkeeper-tools-framework-4.9.2.jar
+    - circe-checksum-4.9.2.jar
+    - codahale-metrics-provider-4.9.2.jar
+    - cpu-affinity-4.9.2.jar
+    - http-server-4.9.2.jar
+    - prometheus-metrics-provider-4.9.2.jar
   * Apache Commons
     - commons-cli-1.2.jar
     - commons-codec-1.10.jar
@@ -437,7 +437,7 @@ The Apache Software License, Version 2.0
     - jackson-module-jaxb-annotations-2.8.11.jar
     - jackson-module-jsonSchema-2.8.11.jar
   * Java Assist
-    - javassist-3.21.0-GA.jar
+    - javassist-3.25.0-GA.jar
   * Jetty
     - jetty-http-9.4.12.v20180830.jar
     - jetty-io-9.4.12.v20180830.jar
@@ -454,6 +454,8 @@ The Apache Software License, Version 2.0
     - zookeeper-3.4.13.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.5.0.jar
+  * Swagger
+    - swagger-annotations-1.5.21.jar
 
 Protocol Buffers License
  * Protocol Buffers
@@ -503,9 +505,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
    - javax.annotation-api-1.2.jar
    - javax.annotation-api-1.3.1.jar
-   - javax.activation-api-1.2.0.jar
    - javax.activation-1.2.0.jar
-   - activation-1.0.2.jar
  * HK2 - Dependency Injection Kernel
    - hk2-api-2.5.0-b42.jar
    - hk2-locator-2.5.0-b42.jar
@@ -519,7 +519,6 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-media-jaxb-2.26.jar
     - jersey-server-2.26.jar
     - jersey-common-2.26.jar
- * JavaBeans(TM) Activation Framework -- activation-1.1.1.jar
  * JAXB
     - jaxb-api-2.2.6.jar
     - jaxb-api-2.3.1.jar

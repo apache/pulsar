@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -197,8 +198,8 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder keepAliveInterval(int keepAliveIntervalSeconds, TimeUnit unit) {
-        conf.setKeepAliveIntervalSeconds((int)unit.toSeconds(keepAliveIntervalSeconds));
+    public ClientBuilder keepAliveInterval(int keepAliveInterval, TimeUnit unit) {
+        conf.setKeepAliveIntervalSeconds((int)unit.toSeconds(keepAliveInterval));
         return this;
     }
 
@@ -222,5 +223,11 @@ public class ClientBuilderImpl implements ClientBuilder {
     
     public ClientConfigurationData getClientConfigurationData() {
         return conf;
+    }
+
+    @Override
+    public ClientBuilder clock(Clock clock) {
+        conf.setClock(clock);
+        return this;
     }
 }

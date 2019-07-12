@@ -20,20 +20,31 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Sets;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import java.util.Set;
 
 import lombok.Data;
 
 @Data
+@ApiModel(value = "TenantInfo", description = "Information of adminRoles and allowedClusters for tenant")
 public class TenantInfo {
     /**
      * List of role enabled as admin for this tenant
      */
+    @ApiModelProperty(
+        value = "Comma separated list of auth principal allowed to administrate the tenant.",
+        name = "adminRoles"
+    )
     private Set<String> adminRoles;
 
     /**
      * List of clusters this tenant is restricted on
      */
+    @ApiModelProperty(
+        value = "Comma separated allowed clusters.",
+        name = "allowedClusters"
+    )
     private Set<String> allowedClusters;
 
     public TenantInfo() {

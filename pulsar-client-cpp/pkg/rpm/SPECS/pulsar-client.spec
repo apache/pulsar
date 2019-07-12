@@ -52,7 +52,7 @@ static library.
 
 %build
 cd pulsar-client-cpp
-cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
+cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON -DBUILD_PYTHON_WRAPPER=OFF
 make pulsarShared pulsarStatic -j 3
 
 %install

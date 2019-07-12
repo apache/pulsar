@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 public abstract class BaseAvroSchemaCompatibilityTest {
 
@@ -69,6 +72,11 @@ public abstract class BaseAvroSchemaCompatibilityTest {
                     "\"type\":\"string\",\"default\":\"bar\"}]}";
     private static final SchemaData schemaData7 = getSchemaData(schemaJson7);
 
+    private static final String schemaJson8 =
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
+                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                    "{\"name\":\"field2\",\"type\":\"string\"}]}";
+    private static final SchemaData schemaData8 = getSchemaData(schemaJson8);
 
     public abstract SchemaCompatibilityCheck getSchemaCheck();
 
@@ -156,6 +164,45 @@ public abstract class BaseAvroSchemaCompatibilityTest {
                                                                  SchemaCompatibilityStrategy.FULL),
                 "adding a field without default is not fully compatible");
 
+    }
+
+    @Test
+    public void testBackwardTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData5,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2, schemaData5),
+                schemaData6, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Collections.singletonList(schemaData2), schemaData8,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData8,
+                SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData8,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2, schemaData5),
+                schemaData8, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+    }
+
+    @Test
+    public void testForwardTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData3,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2, schemaData3),
+                schemaData7, SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData3, schemaData2), schemaData1,
+                SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData3, schemaData2), schemaData1,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+    }
+
+    @Test
+    public void testFullTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData3,
+                SchemaCompatibilityStrategy.FULL));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData3,
+                SchemaCompatibilityStrategy.FULL_TRANSITIVE));
     }
 
     private static SchemaData getSchemaData(String schemaJson) {

@@ -26,7 +26,6 @@ import io.netty.buffer.ByteBuf;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.channels.ClosedChannelException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -37,14 +36,14 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.schema.BytesSchemaVersion;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,8 +139,11 @@ public class BinaryProtoLookupService implements LookupService {
                 }
             }).exceptionally((sendException) -> {
                 // lookup failed
-                log.warn("[{}] failed to send lookup request : {}", topicName.toString(), sendException.getMessage(),
-                        sendException instanceof ClosedChannelException ? null : sendException);
+                log.warn("[{}] failed to send lookup request : {}", topicName.toString(), sendException.getMessage());
+                if (log.isDebugEnabled()) {
+                    log.warn("[{}] Lookup response exception: {}", topicName.toString(), sendException);
+                }
+
                 addressFuture.completeExceptionally(sendException);
                 return null;
             });
@@ -211,7 +213,7 @@ public class BinaryProtoLookupService implements LookupService {
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                 .setMax(0, TimeUnit.MILLISECONDS)
-                .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(), 
+                .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(),
                                             client.getConfiguration().getMaxBackoffIntervalNanos())
                 .create();
         getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);

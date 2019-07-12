@@ -20,28 +20,49 @@ package org.apache.pulsar.client.admin.internal;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.common.sasl.SaslConstants;
 import org.asynchttpclient.RequestBuilder;
 
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
+import javax.ws.rs.client.WebTarget;
 
 public class ComponentResource extends BaseResource {
 
-    protected ComponentResource(Authentication auth) {
-        super(auth);
+    protected ComponentResource(Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
     }
 
-    public RequestBuilder addAuthHeaders(RequestBuilder requestBuilder) throws PulsarAdminException {
+    public RequestBuilder addAuthHeaders(WebTarget target, RequestBuilder requestBuilder) throws PulsarAdminException {
 
         try {
-            if (auth != null && auth.getAuthData().hasDataForHttp()) {
-                for (Map.Entry<String, String> header : auth.getAuthData().getHttpHeaders()) {
-                    requestBuilder.addHeader(header.getKey(), header.getValue());
+            if (auth != null) {
+                Set<Entry<String, String>> headers = getAuthHeaders(target);
+                if (headers != null && !headers.isEmpty()) {
+                    headers.forEach(header -> requestBuilder.addHeader(header.getKey(), header.getValue()));
                 }
             }
-
             return requestBuilder;
         } catch (Throwable t) {
             throw new PulsarAdminException.GettingAuthenticationDataException(t);
+        }
+    }
+
+    private Set<Entry<String, String>> getAuthHeaders(WebTarget target) throws Exception {
+        AuthenticationDataProvider authData = auth.getAuthData(target.getUri().getHost());
+        String targetUrl = target.getUri().toString();
+        if (auth.getAuthMethodName().equalsIgnoreCase(SaslConstants.AUTH_METHOD_NAME)) {
+            CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
+            auth.authenticationStage(targetUrl, authData, null, authFuture);
+            return auth.newRequestHeader(targetUrl, authData, authFuture.get());
+        } else if (authData.hasDataForHttp()) {
+            return auth.newRequestHeader(targetUrl, authData, null);
+        } else {
+            return null;
         }
     }
 }

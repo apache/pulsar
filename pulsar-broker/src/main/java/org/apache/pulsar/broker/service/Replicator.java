@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 
 public interface Replicator {
 
     void startProducer();
-    
+
     ReplicatorStats getStats();
 
     CompletableFuture<Void> disconnect();
@@ -36,4 +39,13 @@ public interface Replicator {
 
     String getRemoteCluster();
 
+    default void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
+        //No-op
+    }
+
+    default Optional<DispatchRateLimiter> getRateLimiter() {
+        return Optional.empty();
+    }
+
+    boolean isConnected();
 }

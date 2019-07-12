@@ -31,7 +31,10 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -42,6 +45,8 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
@@ -93,6 +98,10 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private DeadLetterPolicy deadLetterPolicy;
 
     private boolean autoUpdatePartitions = true;
+
+    private boolean replicateSubscriptionState = false;
+
+    private boolean resetIncludeHead = false;
 
     @JsonIgnore
     public String getSingleTopic() {

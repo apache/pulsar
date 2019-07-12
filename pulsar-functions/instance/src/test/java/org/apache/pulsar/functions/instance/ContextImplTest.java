@@ -18,7 +18,24 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import io.prometheus.client.CollectorRegistry;
+
+import java.nio.ByteBuffer;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -31,28 +48,9 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
-import org.apache.pulsar.functions.utils.ComponentType;
-import org.mockito.Matchers;
 import org.slf4j.Logger;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.nio.ByteBuffer;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.same;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit test {@link ContextImpl}.
@@ -75,7 +73,7 @@ public class ContextImplTest {
         logger = mock(Logger.class);
         client = mock(PulsarClientImpl.class);
         when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
-        when(client.createProducerAsync(Matchers.any(ProducerConfigurationData.class), Matchers.any(Schema.class), eq(null)))
+        when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(producer));
         when(client.getSchema(anyString())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(producer.sendAsync(anyString())).thenReturn(CompletableFuture.completedFuture(null));
@@ -89,7 +87,7 @@ public class ContextImplTest {
             logger,
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
-                ComponentType.FUNCTION, null);
+                FunctionDetails.ComponentType.FUNCTION, null);
         context.setCurrentMessageContext(new Record<String>() {
             @Override
             public String getValue() {
@@ -153,6 +151,6 @@ public class ContextImplTest {
 
     @Test
     public void testPublishUsingDefaultSchema() throws Exception {
-        context.publish("sometopic", "Somevalue");
+        context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
     }
  }

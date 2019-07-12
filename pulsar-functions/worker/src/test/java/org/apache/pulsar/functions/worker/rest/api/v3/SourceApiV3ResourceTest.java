@@ -18,9 +18,31 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.doNothing;
+import static org.powermock.api.mockito.PowerMockito.doReturn;
+import static org.powermock.api.mockito.PowerMockito.doThrow;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertEquals;
+
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import lombok.extern.slf4j.Slf4j;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import javax.ws.rs.core.Response;
+
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -42,7 +64,6 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.ComponentType;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -53,7 +74,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.RestException;
-import org.apache.pulsar.functions.worker.rest.api.SourceImpl;
+import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
 import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.api.mockito.PowerMockito;
@@ -64,35 +85,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-import javax.ws.rs.core.Response;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Path;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
-import static org.powermock.api.mockito.PowerMockito.doReturn;
-import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.assertEquals;
-
 /**
- * Unit test of {@link SourceApiV3Resource}.
+ * Unit test of {@link SourcesApiV3Resource}.
  */
 @PrepareForTest({WorkerUtils.class, ConnectorUtils.class, FunctionCommon.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
-@Slf4j
 public class SourceApiV3ResourceTest {
 
     @ObjectFactory
@@ -122,7 +119,7 @@ public class SourceApiV3ResourceTest {
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
     private RuntimeFactory mockedRuntimeFactory;
     private Namespace mockedNamespace;
-    private SourceImpl resource;
+    private SourcesImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
@@ -171,9 +168,9 @@ public class SourceApiV3ResourceTest {
             .setPulsarServiceUrl("pulsar://localhost:6650/");
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
-        this.resource = spy(new SourceImpl(() -> mockedWorkerService));
+        this.resource = spy(new SourcesImpl(() -> mockedWorkerService));
         mockStatic(InstanceUtils.class);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(ComponentType.SOURCE);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.SOURCE);
     }
 
     //
@@ -222,7 +219,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testRegisterSourceMissingSourceName() {
         try {
             testRegisterSourceMissingArguments(
@@ -243,7 +240,28 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Package is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source class UnknownClass must be in class path")
+    public void testRegisterSourceWrongClassName() {
+        try {
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    "UnknownClass",
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package is not provided")
     public void testRegisterSourceMissingPackage() {
         try {
             testRegisterSourceMissingArguments(
@@ -384,28 +402,55 @@ public class SourceApiV3ResourceTest {
             sourceConfig.setParallelism(parallelism);
         }
 
-        resource.registerFunction(
+        resource.registerSource(
                 tenant,
                 namespace,
                 function,
                 inputStream,
                 details,
                 pkgUrl,
-                new Gson().toJson(sourceConfig),
+                sourceConfig,
                 null, null);
 
     }
 
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
+    public void testMissingSinkConfig() {
+        resource.registerSource(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
+    public void testUpdateMissingSinkConfig() {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        resource.updateSource(
+                tenant,
+                namespace,
+                source,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null, null);
+    }
+
     private void registerDefaultSource() throws IOException {
         SourceConfig sourceConfig = createDefaultSourceConfig();
-        resource.registerFunction(
+        resource.registerSource(
             tenant,
             namespace,
                 source,
             new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
-            new Gson().toJson(sourceConfig),
+            sourceConfig,
                 null, null);
     }
 
@@ -444,6 +489,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
+    @Test
     public void testRegisterSourceSuccess() throws Exception {
         mockStatic(WorkerUtils.class);
         doNothing().when(WorkerUtils.class);
@@ -451,6 +497,8 @@ public class SourceApiV3ResourceTest {
                 anyString(),
                 any(File.class),
                 any(Namespace.class));
+
+        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -495,14 +543,14 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setParallelism(parallelism);
         sourceConfig.setTopicName(outputTopic);
         sourceConfig.setSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(
+        resource.registerSource(
                 actualTenant,
                 actualNamespace,
                 actualName,
                 new FileInputStream(JAR_FILE_PATH),
                 mockedFormData,
                 null,
-                new Gson().toJson(sourceConfig),
+                sourceConfig,
                 null, null);
     }
 
@@ -602,7 +650,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testUpdateSourceMissingFunctionName() throws Exception {
         try {
             testUpdateSourceMissingArguments(
@@ -615,7 +663,7 @@ public class SourceApiV3ResourceTest {
                     outputSerdeClassName,
                 className,
                 parallelism,
-                    "Source Name is not provided");
+                    "Source name is not provided");
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -789,7 +837,7 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -827,15 +875,15 @@ public class SourceApiV3ResourceTest {
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
         }
 
-        resource.updateFunction(
+        resource.updateSource(
             tenant,
             namespace,
             function,
             inputStream,
             details,
             null,
-            new Gson().toJson(sourceConfig),
-                null, null);
+            sourceConfig,
+                null, null, null);
 
     }
 
@@ -859,20 +907,20 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(), any(File.class));
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
 
-        resource.updateFunction(
+        resource.updateSource(
             tenant,
             namespace,
                 source,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
             null,
-            new Gson().toJson(sourceConfig),
-                null, null);
+            sourceConfig,
+                null, null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't exist")
@@ -929,7 +977,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSourceWithUrl() throws IOException {
+    public void testUpdateSourceWithUrl() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 
         String filePackageUrl = "file://" + JAR_FILE_PATH;
@@ -950,9 +998,10 @@ public class SourceApiV3ResourceTest {
         mockStatic(FunctionCommon.class);
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
+        PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(Path.class), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -965,15 +1014,15 @@ public class SourceApiV3ResourceTest {
             CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
-        resource.updateFunction(
+        resource.updateSource(
             tenant,
             namespace,
                 source,
             null,
             null,
             filePackageUrl,
-            new Gson().toJson(sourceConfig),
-                null, null);
+            sourceConfig,
+                null, null, null);
 
     }
 
@@ -1061,7 +1110,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testDeregisterSourceMissingFunctionName() {
         try {
             testDeregisterSourceMissingArguments(
@@ -1192,7 +1241,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testGetSourceMissingFunctionName() {
         try {
             testGetSourceMissingArguments(
@@ -1345,9 +1394,9 @@ public class SourceApiV3ResourceTest {
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
         mockStatic(InstanceUtils.class);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(f1.getFunctionDetails())).thenReturn(ComponentType.SOURCE);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(f2.getFunctionDetails())).thenReturn(ComponentType.FUNCTION);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(f3.getFunctionDetails())).thenReturn(ComponentType.SINK);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f1.getFunctionDetails())).thenReturn(FunctionDetails.ComponentType.SOURCE);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f2.getFunctionDetails())).thenReturn(FunctionDetails.ComponentType.FUNCTION);
+        PowerMockito.when(InstanceUtils.calculateSubjectType(f3.getFunctionDetails())).thenReturn(FunctionDetails.ComponentType.SINK);
 
         List<String> sourceList = listDefaultSources();
         assertEquals(functions, sourceList);

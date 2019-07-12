@@ -38,6 +38,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -54,6 +55,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.ApiParam;
 import static org.apache.pulsar.common.util.Codec.decode;
 
 /**
@@ -66,9 +68,17 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}")
     @ApiOperation(value = "Get the list of topics under a namespace.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getList(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 412, message = "Namespace name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public List<String> getList(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetList();
     }
@@ -76,9 +86,16 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/partitioned")
     @ApiOperation(value = "Get the list of partitioned topics under a namespace.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getPartitionedTopicList(@PathParam("tenant") String tenant,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 412, message = "Namespace name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public List<String> getPartitionedTopicList(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetPartitionedTopicList();
@@ -88,10 +105,19 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/permissions")
     @ApiOperation(value = "Get permissions on a topic.", notes = "Retrieve the effective permissions for a topic. These permissions are defined by the permissions set at the"
             + "namespace level combined (union) with any eventual specific permission set on the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public Map<String, Set<AuthAction>> getPermissionsOnTopic(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic) {
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public Map<String, Set<AuthAction>> getPermissionsOnTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetPermissionsOnTopic();
     }
@@ -99,12 +125,24 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/permissions/{role}")
     @ApiOperation(value = "Grant a new permission to a role on a single topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void grantPermissionsOnTopic(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("role") String role, Set<AuthAction> actions) {
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void grantPermissionsOnTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Client role to which grant permissions", required = true)
+            @PathParam("role") String role,
+            @ApiParam(value = "Actions to be granted (produce,functions,consume)", allowableValues = "produce,functions,consume")
+            Set<AuthAction> actions) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalGrantPermissionsOnTopic(role, actions);
     }
@@ -113,11 +151,20 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/permissions/{role}")
     @ApiOperation(value = "Revoke permissions on a topic.", notes = "Revoke permissions to a role on a single topic. If the permission was not set at the topic"
             + "level, but rather at the namespace level, this operation will return an error (HTTP status code 412).")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
-            @ApiResponse(code = 412, message = "Permissions are not set at the topic level") })
-    public void revokePermissionsOnTopic(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 412, message = "Permissions are not set at the topic level"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void revokePermissionsOnTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Client role to which grant permissions", required = true)
             @PathParam("role") String role) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalRevokePermissionsOnTopic(role);
@@ -127,30 +174,47 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 409, message = "Partitioned topic already exist"),
-        @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
-        @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 409, message = "Partitioned topic already exist"),
+            @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
-    public void createPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+    public void createPartitionedTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
+            int numPartitions) {
         validateGlobalNamespaceOwnership(tenant,namespace);
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        internalCreatePartitionedTopic(numPartitions, authoritative);
+        internalCreatePartitionedTopic(numPartitions);
     }
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}")
     @ApiOperation(value="Create a non-partitioned topic.", notes = "This is the only REST endpoint from which non-partitioned topics could be created.")
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 409, message = "Partitioned topic already exist"),
-        @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
-        @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 409, message = "Partitioned topic already exist"),
+            @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
-    public void createNonPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, 
+    public void createNonPartitionedTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateGlobalNamespaceOwnership(tenant,namespace);
         validateTopicName(tenant, namespace, encodedTopic);
@@ -176,12 +240,23 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Increment partitons of an existing partitioned topic.", notes = "It only increments partitions of existing non-global partitioned-topic")
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
-        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+            @ApiResponse(code = 401, message = "Don't have permission to adminisActions to be grantedtrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 406, message = "The number of partitions should be more than 1"),
+            @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
+            @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error")
     })
-    public void updatePartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, int numPartitions) {
+    public void updatePartitionedTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
+            int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
         internalUpdatePartitionedTopic(numPartitions);
     }
@@ -190,12 +265,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Get partitioned topic metadata.")
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
-        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error")
     })
-    public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    public PartitionedTopicMetadata getPartitionedMetadata(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetPartitionedMetadata(authoritative);
@@ -205,13 +289,23 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Delete a partitioned topic.", notes = "It will also delete all the partitions of the topic if it exists.")
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 404, message = "Partitioned topic does not exist"),
-        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Partitioned topic does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error")
     })
-    public void deletePartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void deletePartitionedTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully", defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
         internalDeletePartitionedTopic(authoritative, force);
@@ -220,10 +314,22 @@ public class PersistentTopics extends PersistentTopicsBase {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/unload")
     @ApiOperation(value = "Unload a topic")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public void unloadTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Topic name is not valid or can't find owner for topic"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void unloadTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalUnloadTopic(authoritative);
@@ -233,11 +339,22 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}")
     @ApiOperation(value = "Delete a topic.", notes = "The topic cannot be deleted if delete is not forcefully and there's any active "
             + "subscription or producer connected to the it. Force delete ignores connected clients and deletes topic by explicitly closing them.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
-            @ApiResponse(code = 412, message = "Topic has active producers/subscriptions") })
-    public void deleteTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @QueryParam("force") @DefaultValue("false") boolean force,
+            @ApiResponse(code = 412, message = "Topic has active producers/subscriptions"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void deleteTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully", defaultValue = "false", type = "boolean")
+            @QueryParam("force") @DefaultValue("false") boolean force,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalDeleteTopic(authoritative, force);
@@ -246,10 +363,22 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscriptions")
     @ApiOperation(value = "Get the list of persistent subscriptions for a given topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public List<String> getSubscriptions(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
+    })
+    public List<String> getSubscriptions(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetSubscriptions(authoritative);
@@ -258,10 +387,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("{tenant}/{namespace}/{topic}/stats")
     @ApiOperation(value = "Get the stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public TopicStats getStats(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public TopicStats getStats(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetStats(authoritative);
@@ -270,10 +410,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("{tenant}/{namespace}/{topic}/internalStats")
     @ApiOperation(value = "Get the internal stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PersistentTopicInternalStats getInternalStats(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public PersistentTopicInternalStats getInternalStats(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetInternalStats(authoritative);
@@ -282,10 +433,20 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("{tenant}/{namespace}/{topic}/internal-info")
     @ApiOperation(value = "Get the internal stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public void getManagedLedgerInfo(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @Suspended AsyncResponse asyncResponse) {
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void getManagedLedgerInfo(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,@Suspended AsyncResponse asyncResponse) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalGetManagedLedgerInfo(asyncResponse);
     }
@@ -294,37 +455,81 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("{tenant}/{namespace}/{topic}/partitioned-stats")
     @ApiOperation(value = "Get the stats for the partitioned topic.")
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 404, message = "Topic does not exist"),
-        @ApiResponse(code = 412, message = "Partitioned topic name is invalid")
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
-    public PartitionedTopicStats getPartitionedStats(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    public void getPartitionedStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Get per partition stats")
+            @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        return internalGetPartitionedStats(authoritative);
+        try {
+            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/partitioned-internalStats")
     @ApiOperation(hidden = true, value = "Get the stats-internal for the partitioned topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PartitionedTopicInternalStats getPartitionedStatsInternal(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void getPartitionedStatsInternal(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetPartitionedStatsInternal(authoritative);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetPartitionedStatsInternal(asyncResponse, authoritative);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
-    
+
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}")
     @ApiOperation(value = "Delete a subscription.", notes = "There should not be any active consumers on the subscription.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
-            @ApiResponse(code = 412, message = "Subscription has active consumers") })
-    public void deleteSubscription(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
+            @ApiResponse(code = 412, message = "Subscription has active consumers"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void deleteSubscription(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription to be deleted")
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalDeleteSubscription(decode(encodedSubName), authoritative);
@@ -333,11 +538,25 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/skip_all")
     @ApiOperation(value = "Skip all messages on a topic subscription.", notes = "Completely clears the backlog on the subscription.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
             @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
-    public void skipAllMessages(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
+            @ApiResponse(code = 412, message = "Can't find owner for topic"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void skipAllMessages(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Name of subscription")
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalSkipAllMessages(decode(encodedSubName), authoritative);
@@ -345,12 +564,27 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/skip/{numMessages}")
-    @ApiOperation(value = "Skip messages on a topic subscription.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
-    public void skipMessages(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
+    @ApiOperation(value = "Skipping messages on a topic subscription.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 405, message = "Skipping messages on a partitioned topic is not allowed"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void skipMessages(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Name of subscription")
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "The number of messages to skip", defaultValue = "0")
             @PathParam("numMessages") int numMessages,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalSkipMessages(decode(encodedSubName), numMessages, authoritative);
@@ -358,12 +592,27 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/expireMessages/{expireTimeInSeconds}")
-    @ApiOperation(value = "Expire messages on a topic subscription.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
-    public void expireTopicMessages(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
+    @ApiOperation(value = "Expiry messages on a topic subscription.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 405, message = "Expiry messages on a non-persistent topic is not allowed"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void expireTopicMessages(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription to be Expiry messages on")
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Expires beyond the specified number of seconds", defaultValue = "0")
             @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalExpireMessages(decode(encodedSubName), expireTimeInSeconds, authoritative);
@@ -371,12 +620,26 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/all_subscription/expireMessages/{expireTimeInSeconds}")
-    @ApiOperation(value = "Expire messages on all subscriptions of topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
-    public void expireMessagesForAllSubscriptions(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiOperation(value = "Expiry messages on all subscriptions of topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic or subscription does not exist"),
+            @ApiResponse(code = 405, message = "Expiry messages on a non-persistent topic is not allowed"),
+            @ApiResponse(code = 412, message = "Can't find owner for topic"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void expireMessagesForAllSubscriptions(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Expires beyond the specified number of seconds", defaultValue = "0")
             @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalExpireMessagesForAllSubscriptions(expireTimeInSeconds, authoritative);
@@ -385,24 +648,61 @@ public class PersistentTopics extends PersistentTopicsBase {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subscriptionName}")
     @ApiOperation(value = "Reset subscription to message position closest to given position.", notes = "Creates a subscription on the topic at the specified message id")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
-            @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
-    public void createSubscription(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String topic, @PathParam("subscriptionName") String encodedSubName,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+            @ApiResponse(code = 405, message = "Not supported for partitioned topics"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void createSubscription(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String topic,
+            @ApiParam(value = "Subscription to create position on", required = true)
+            @PathParam("subscriptionName") String encodedSubName,
+            @ApiParam(value = "messageId where to create the subscription. " +
+                    "It can be 'latest', 'earliest' or (ledgerId:entryId)",
+                    defaultValue = "latest",
+                    allowableValues = "latest,earliest,ledgerId:entryId"
+            )
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("replicated") boolean replicated) {
         validateTopicName(tenant, namespace, topic);
-        internalCreateSubscription(decode(encodedSubName), messageId, authoritative);
+        internalCreateSubscription(decode(encodedSubName), messageId, authoritative, replicated);
     }
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/resetcursor/{timestamp}")
     @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).", notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist") })
-    public void resetCursor(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 405, message = "Method Not Allowed"),
+            @ApiResponse(code = 412, message = "Failed to reset cursor on subscription or " +
+                    "Unable to find position for timestamp specified"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+            })
+    public void resetCursor(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription to reset position on", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "time in minutes to reset back to (or minutes, hours,days,weeks eg:100m, 3h, 2d, 5w)")
             @PathParam("timestamp") long timestamp,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalResetCursor(decode(encodedSubName), timestamp, authoritative);
@@ -411,12 +711,28 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/resetcursor")
     @ApiOperation(value = "Reset subscription to message position closest to given position.", notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
-            @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
-    public void resetCursorOnPosition(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+            @ApiResponse(code = 405, message = "Not supported for partitioned topics"),
+            @ApiResponse(code = 412, message = "Unable to find position for position specified"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void resetCursorOnPosition(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(name = "subName", value = "Subscription to reset position on", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
+            MessageIdImpl messageId) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId);
     }
@@ -424,11 +740,27 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/position/{messagePosition}")
     @ApiOperation(value = "Peek nth message on a topic subscription.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist") })
-    public Response peekNthMessage(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist"),
+            @ApiResponse(code = 405, message = "Skipping messages on a non-persistent topic is not allowed"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public Response peekNthMessage(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(name = "subName", value = "Subscribed message expired", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "The number of messages (default 1)", defaultValue = "1")
             @PathParam("messagePosition") int messagePosition,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalPeekNthMessage(decode(encodedSubName), messagePosition, authoritative);
@@ -437,10 +769,18 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("{tenant}/{namespace}/{topic}/backlog")
     @ApiOperation(value = "Get estimated backlog for offline topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public PersistentOfflineTopicStats getBacklog(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+    @ApiResponses(value = {
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public PersistentOfflineTopicStats getBacklog(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetBacklog(authoritative);
@@ -450,11 +790,23 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/terminate")
     @ApiOperation(value = "Terminate a topic. A topic that is terminated will not accept any more "
             + "messages to be published and will let consumer to drain existing messages in backlog")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public MessageId terminate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Termination of a partitioned topic is not allowed"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public MessageId terminate(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalTerminate(authoritative);
@@ -463,13 +815,25 @@ public class PersistentTopics extends PersistentTopicsBase {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/compaction")
     @ApiOperation(value = "Trigger a compaction operation on a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-                            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-                            @ApiResponse(code = 404, message = "Topic does not exist"),
-                            @ApiResponse(code = 409, message = "Compaction already running")})
-    public void compact(@PathParam("tenant") String tenant,
-                        @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-                        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
+            @ApiResponse(code = 409, message = "Compaction already running"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void compact(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalTriggerCompaction(authoritative);
     }
@@ -477,12 +841,23 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/compaction")
     @ApiOperation(value = "Get the status of a compaction operation for a topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-                            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-                            @ApiResponse(code = 404, message = "Topic does not exist, or compaction hasn't run") })
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist, or compaction hasn't run"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
     public LongRunningProcessStatus compactionStatus(
+            @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalCompactionStatus(authoritative);
@@ -491,14 +866,25 @@ public class PersistentTopics extends PersistentTopicsBase {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/offload")
     @ApiOperation(value = "Offload a prefix of a topic to long term storage")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-                            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-                            @ApiResponse(code = 404, message = "Topic does not exist"),
-                            @ApiResponse(code = 409, message = "Offload already running")})
-    public void triggerOffload(@PathParam("tenant") String tenant,
-                               @PathParam("namespace") String namespace,
-                               @PathParam("topic") @Encoded String encodedTopic,
-                               @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
+            @ApiResponse(code = 409, message = "Offload already running"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void triggerOffload(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                MessageIdImpl messageId) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalTriggerOffload(authoritative, messageId);
@@ -507,13 +893,24 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/offload")
     @ApiOperation(value = "Offload a prefix of a topic to long term storage")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-                            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-                            @ApiResponse(code = 404, message = "Topic does not exist")})
-    public OffloadProcessStatus offloadStatus(@PathParam("tenant") String tenant,
-                                              @PathParam("namespace") String namespace,
-                                              @PathParam("topic") @Encoded String encodedTopic,
-                                              @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public OffloadProcessStatus offloadStatus(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalOffloadStatus(authoritative);
     }
@@ -521,13 +918,24 @@ public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{tenant}/{namespace}/{topic}/lastMessageId")
     @ApiOperation(value = "Return the last commit message id of topic")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-            @ApiResponse(code = 404, message = "Topic does not exist")})
-    public MessageId getLastMessageId(@PathParam("tenant") String tenant,
-                                                    @PathParam("namespace") String namespace,
-                                                    @PathParam("topic") @Encoded String encodedTopic,
-                                                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Operation is not allowed on the persistent topic"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public MessageId getLastMessageId(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetLastMessageId(authoritative);
     }

@@ -155,6 +155,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         LOG_INFO(getName() << "Created producer on broker " << cnx->cnxString());
 
         Lock lock(mutex_);
+        keepMaxMessageSize_ = cnx->getMaxMessageSize();
         cnx->registerProducer(producerId_, shared_from_this());
         producerName_ = responseData.producerName;
         schemaVersion_ = responseData.schemaVersion;
@@ -231,6 +232,14 @@ void ProducerImpl::failPendingMessages(Result result) {
     // without holding producer mutex.
     for (MessageQueue::const_iterator it = pendingMessagesQueue_.begin(); it != pendingMessagesQueue_.end();
          it++) {
+        // When dealing any failure message, if the current message is a batch one, we should also release
+        // the reserved spots in the pendingMessageQueue_, for all individual messages inside this batch
+        // message. See 'ProducerImpl::sendAsync' for more details.
+        if (it->msg_.impl_->metadata.has_num_messages_in_batch()) {
+            // batch message - need to release more spots
+            // -1 since the pushing batch message into the queue already released a spot
+            pendingMessagesQueue_.release(it->msg_.impl_->metadata.num_messages_in_batch() - 1);
+        }
         messagesToFail.push_back(*it);
     }
 
@@ -338,7 +347,7 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
 
     uint32_t uncompressedSize = payload.readableBytes();
     uint32_t payloadSize = uncompressedSize;
-
+    ClientConnectionPtr cnx = getCnx().lock();
     if (!batchMessageContainer) {
         // If batching is enabled we compress all the payloads together before sending the batch
         payload = CompressionCodecProvider::getCodec(conf_.getCompressionType()).encode(payload);
@@ -352,9 +361,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         }
         payload = encryptedPayload;
 
-        if (payloadSize > Commands::MaxMessageSize) {
+        if (payloadSize > keepMaxMessageSize_) {
             LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
-                                << Commands::MaxMessageSize << " bytes");
+                                << keepMaxMessageSize_ << " bytes");
             cb(ResultMessageTooBig, msg);
             return;
         }
@@ -673,7 +682,9 @@ void ProducerImpl::start() { HandlerBase::start(); }
 void ProducerImpl::shutdown() {
     Lock lock(mutex_);
     state_ = Closed;
-    sendTimer_->cancel();
+    if (sendTimer_) {
+        sendTimer_->cancel();
+    }
     producerCreatedPromise_.setFailed(ResultAlreadyClosed);
 }
 

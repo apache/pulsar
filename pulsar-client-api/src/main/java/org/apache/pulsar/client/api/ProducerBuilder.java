@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MaximizeAction;
-
 import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
 
 /**
@@ -260,6 +258,8 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <li>{@link CompressionType#ZLIB}: Standard ZLib compression</li>
      * <li>{@link CompressionType#ZSTD} Compress with Zstandard codec. Since Pulsar 2.3. Zstd cannot be used if consumer
      * applications are not in version >= 2.3 as well</li>
+     * <li>{@link CompressionType#SNAPPY} Compress with Snappy codec. Since Pulsar 2.4. Snappy cannot be used if consumer
+     * applications are not in version >= 2.4 as well</li>
      * </ul>
      *
      * @param compressionType
@@ -362,6 +362,16 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
+
+    /**
+     * Set the batcher builder {@link BatcherBuilder} of the producer. Producer will use the batcher builder to
+     * build a batch message container.This is only be used when batching is enabled
+     *
+     * @param batcherBuilder
+     *          batcher builder
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder);
 
     /**
      * Set the baseline for the sequence ids for messages published by the producer.

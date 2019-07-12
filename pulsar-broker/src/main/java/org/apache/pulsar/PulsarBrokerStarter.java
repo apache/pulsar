@@ -39,16 +39,18 @@ import java.util.Optional;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 
-
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
+import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.slf4j.Logger;
@@ -103,6 +105,11 @@ public class PulsarBrokerStarter {
             log.error("Malformed configuration file: {}", bookieConfigFile, e);
             throw new IllegalArgumentException("Malformed configuration file");
         }
+
+        if (bookieConf.getMaxPendingReadRequestPerThread() < bookieConf.getRereplicationEntryBatchSize()) {
+            throw new IllegalArgumentException(
+                "rereplicationEntryBatchSize should be smaller than " + "maxPendingReadRequestPerThread");
+        }
         return bookieConf;
     }
 
@@ -139,6 +146,11 @@ public class PulsarBrokerStarter {
                 brokerConfig = loadConfig(starterArguments.brokerConfigFile);
             }
 
+            int maxFrameSize = brokerConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING;
+            if (maxFrameSize >= DirectMemoryUtils.maxDirectMemory()) {
+                throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
+            }
+
             // init functions worker
             if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {
                 WorkerConfig workerConfig;
@@ -149,13 +161,12 @@ public class PulsarBrokerStarter {
                 }
                 // worker talks to local broker
                 boolean useTls = workerConfig.isUseTls();
-                String localhost = "127.0.0.1";
                 String pulsarServiceUrl = useTls
-                        ? PulsarService.brokerUrlTls(localhost, brokerConfig.getBrokerServicePortTls().get())
-                        : PulsarService.brokerUrl(localhost, brokerConfig.getBrokerServicePort().get());
+                        ? PulsarService.brokerUrlTls(brokerConfig)
+                        : PulsarService.brokerUrl(brokerConfig);
                 String webServiceUrl = useTls
-                        ? PulsarService.webAddressTls(localhost, brokerConfig.getWebServicePortTls().get())
-                        : PulsarService.webAddress(localhost, brokerConfig.getWebServicePort().get());
+                        ? PulsarService.webAddressTls(brokerConfig)
+                        : PulsarService.webAddress(brokerConfig);
                 workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
                 workerConfig.setPulsarWebServiceUrl(webServiceUrl);
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
@@ -167,11 +178,28 @@ public class PulsarBrokerStarter {
                         + "-fw-" + hostname
                         + "-" + workerConfig.getWorkerPort());
                 // inherit broker authorization setting
+                workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
+                workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
+
                 workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
                 workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
                 workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
+
+                workerConfig.setUseTls(brokerConfig.isTlsEnabled());
+                workerConfig.setTlsHostnameVerificationEnable(false);
+
+                workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+                workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+
+                // client in worker will use this config to authenticate with broker
+                workerConfig.setClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
+                workerConfig.setClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
+
+                // inherit super users
+                workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
+
                 functionsWorkerService = new WorkerService(workerConfig);
             } else {
                 functionsWorkerService = null;
@@ -294,6 +322,11 @@ public class PulsarBrokerStarter {
                 starter.shutdown();
             })
         );
+
+        PulsarByteBufAllocator.registerOOMListener(oomException -> {
+            log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
+            starter.shutdown();
+        });
 
         try {
             starter.start();

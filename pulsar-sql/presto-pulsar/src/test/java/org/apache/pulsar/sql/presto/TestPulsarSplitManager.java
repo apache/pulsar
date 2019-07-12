@@ -32,24 +32,23 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static com.facebook.presto.spi.type.TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
 
 @Test(singleThreaded = true)
 public class TestPulsarSplitManager extends TestPulsarConnector {
@@ -94,23 +93,23 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
             int totalSize = 0;
             for (PulsarSplit pulsarSplit : resultCaptor.getResult()) {
-                Assert.assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
-                Assert.assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
-                Assert.assertEquals(pulsarSplit.getTableName(), topicName.getLocalName());
-                Assert.assertEquals(pulsarSplit.getSchema(),
+                assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
+                assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
+                assertEquals(pulsarSplit.getTableName(), topicName.getLocalName());
+                assertEquals(pulsarSplit.getSchema(),
                         new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()));
-                Assert.assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
-                Assert.assertEquals(pulsarSplit.getStartPositionEntryId(), totalSize);
-                Assert.assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
-                Assert.assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, totalSize));
-                Assert.assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
-                Assert.assertEquals(pulsarSplit.getEndPositionEntryId(), totalSize + pulsarSplit.getSplitSize());
-                Assert.assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, totalSize + pulsarSplit.getSplitSize()));
+                assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
+                assertEquals(pulsarSplit.getStartPositionEntryId(), totalSize);
+                assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
+                assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, totalSize));
+                assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
+                assertEquals(pulsarSplit.getEndPositionEntryId(), totalSize + pulsarSplit.getSplitSize());
+                assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, totalSize + pulsarSplit.getSplitSize()));
 
                 totalSize += pulsarSplit.getSplitSize();
             }
 
-            Assert.assertEquals(totalSize, topicsToNumEntries.get(topicName.getSchemaName()).intValue());
+            assertEquals(totalSize, topicsToNumEntries.get(topicName.getSchemaName()).intValue());
             cleanup();
         }
 
@@ -142,23 +141,23 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 List<PulsarSplit> splits = getSplitsForPartition(topicName.getPartition(i), resultCaptor.getResult());
                 int totalSize = 0;
                 for (PulsarSplit pulsarSplit : splits) {
-                    Assert.assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
-                    Assert.assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
-                    Assert.assertEquals(pulsarSplit.getTableName(), topicName.getPartition(i).getLocalName());
-                    Assert.assertEquals(pulsarSplit.getSchema(),
+                    assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
+                    assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
+                    assertEquals(pulsarSplit.getTableName(), topicName.getPartition(i).getLocalName());
+                    assertEquals(pulsarSplit.getSchema(),
                             new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()));
-                    Assert.assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
-                    Assert.assertEquals(pulsarSplit.getStartPositionEntryId(), totalSize);
-                    Assert.assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
-                    Assert.assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, totalSize));
-                    Assert.assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
-                    Assert.assertEquals(pulsarSplit.getEndPositionEntryId(), totalSize + pulsarSplit.getSplitSize());
-                    Assert.assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, totalSize + pulsarSplit.getSplitSize()));
+                    assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
+                    assertEquals(pulsarSplit.getStartPositionEntryId(), totalSize);
+                    assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
+                    assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, totalSize));
+                    assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
+                    assertEquals(pulsarSplit.getEndPositionEntryId(), totalSize + pulsarSplit.getSplitSize());
+                    assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, totalSize + pulsarSplit.getSplitSize()));
 
                     totalSize += pulsarSplit.getSplitSize();
                 }
 
-                Assert.assertEquals(totalSize, topicsToNumEntries.get(topicName.getSchemaName()).intValue());
+                assertEquals(totalSize, topicsToNumEntries.get(topicName.getSchemaName()).intValue());
             }
 
             cleanup();
@@ -166,13 +165,9 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
     }
 
     private List<PulsarSplit> getSplitsForPartition(TopicName target, Collection<PulsarSplit> splits) {
-        return splits.stream().filter(new Predicate<PulsarSplit>() {
-            @Override
-            public boolean test(PulsarSplit pulsarSplit) {
-                 TopicName topicName = TopicName.get(pulsarSplit.getSchemaName() + "/" + pulsarSplit.getTableName());
-
-                 return target.equals(topicName);
-            }
+        return splits.stream().filter(pulsarSplit -> {
+             TopicName topicName = TopicName.get(pulsarSplit.getSchemaName() + "/" + pulsarSplit.getTableName());
+             return target.equals(topicName);
         }).collect(Collectors.toList());
     }
 
@@ -213,24 +208,24 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         int totalSize = 0;
         int initalStart = 1;
         for (PulsarSplit pulsarSplit : resultCaptor.getResult()) {
-            Assert.assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
-            Assert.assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
-            Assert.assertEquals(pulsarSplit.getTableName(), topicName.getLocalName());
-            Assert.assertEquals(pulsarSplit.getSchema(),
+            assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
+            assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
+            assertEquals(pulsarSplit.getTableName(), topicName.getLocalName());
+            assertEquals(pulsarSplit.getSchema(),
                     new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()));
-            Assert.assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
-            Assert.assertEquals(pulsarSplit.getStartPositionEntryId(), initalStart);
-            Assert.assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
-            Assert.assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, initalStart));
-            Assert.assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
-            Assert.assertEquals(pulsarSplit.getEndPositionEntryId(), initalStart + pulsarSplit.getSplitSize());
-            Assert.assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, initalStart + pulsarSplit
+            assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
+            assertEquals(pulsarSplit.getStartPositionEntryId(), initalStart);
+            assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
+            assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, initalStart));
+            assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
+            assertEquals(pulsarSplit.getEndPositionEntryId(), initalStart + pulsarSplit.getSplitSize());
+            assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, initalStart + pulsarSplit
                     .getSplitSize()));
 
             initalStart += pulsarSplit.getSplitSize();
             totalSize += pulsarSplit.getSplitSize();
         }
-        Assert.assertEquals(totalSize, 49);
+        assertEquals(totalSize, 49);
 
     }
 
@@ -273,28 +268,28 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         for (int i = 0; i < partitions; i++) {
             List<PulsarSplit> splits = getSplitsForPartition(topicName.getPartition(i), resultCaptor.getResult());
             int totalSize = 0;
-            int initalStart = 1;
+            int initialStart = 1;
             for (PulsarSplit pulsarSplit : splits) {
-                Assert.assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
-                Assert.assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
-                Assert.assertEquals(pulsarSplit.getTableName(), topicName.getPartition(i).getLocalName());
-                Assert.assertEquals(pulsarSplit.getSchema(),
+                assertEquals(pulsarSplit.getConnectorId(), pulsarConnectorId.toString());
+                assertEquals(pulsarSplit.getSchemaName(), topicName.getNamespace());
+                assertEquals(pulsarSplit.getTableName(), topicName.getPartition(i).getLocalName());
+                assertEquals(pulsarSplit.getSchema(),
                         new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()));
-                Assert.assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
-                Assert.assertEquals(pulsarSplit.getStartPositionEntryId(), initalStart);
-                Assert.assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
-                Assert.assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, initalStart));
-                Assert.assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
-                Assert.assertEquals(pulsarSplit.getEndPositionEntryId(), initalStart + pulsarSplit.getSplitSize());
-                Assert.assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, initalStart + pulsarSplit.getSplitSize()));
+                assertEquals(pulsarSplit.getSchemaType(), topicsToSchemas.get(topicName.getSchemaName()).getType());
+                assertEquals(pulsarSplit.getStartPositionEntryId(), initialStart);
+                assertEquals(pulsarSplit.getStartPositionLedgerId(), 0);
+                assertEquals(pulsarSplit.getStartPosition(), PositionImpl.get(0, initialStart));
+                assertEquals(pulsarSplit.getEndPositionLedgerId(), 0);
+                assertEquals(pulsarSplit.getEndPositionEntryId(), initialStart + pulsarSplit.getSplitSize());
+                assertEquals(pulsarSplit.getEndPosition(), PositionImpl.get(0, initialStart + pulsarSplit.getSplitSize()));
 
-                initalStart += pulsarSplit.getSplitSize();
+                initialStart += pulsarSplit.getSplitSize();
                 totalSize += pulsarSplit.getSplitSize();
             }
 
-            Assert.assertEquals(totalSize, 49);
+            assertEquals(totalSize, 49);
         }
     }
 
-    
+
 }

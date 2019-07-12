@@ -19,17 +19,17 @@
 package org.apache.pulsar.io.influxdb;
 
 import com.google.common.collect.Maps;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
 
 import java.util.Map;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -56,6 +56,8 @@ import static org.mockito.Mockito.when;
  */
 @Slf4j
 public class InfluxDBGenericRecordSinkTest {
+
+    private Message<GenericRecord> message;
 
     /**
      * A Simple class to test InfluxDB class
@@ -107,6 +109,8 @@ public class InfluxDBGenericRecordSinkTest {
 
     @Test
     public void testOpenAndWrite() throws Exception {
+        message = mock(MessageImpl.class);
+        GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a cpu Record
         Cpu cpu = new Cpu();
         cpu.setMeasurement("cpu");
@@ -121,16 +125,18 @@ public class InfluxDBGenericRecordSinkTest {
         AvroSchema<Cpu> schema = AvroSchema.of(Cpu.class);
 
         byte[] bytes = schema.encode(cpu);
-        ByteBuf payload = Unpooled.copiedBuffer(bytes);
         AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
         autoConsumeSchema.setSchema(GenericSchemaImpl.of(schema.getSchemaInfo()));
 
-        Message<GenericRecord> message = new MessageImpl("influx_cpu", "77:777",
-            configMap, payload, autoConsumeSchema);
         Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
             .message(message)
             .topicName("influx_cpu")
             .build();
+
+        genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
+
+        when(message.getValue())
+                .thenReturn(genericAvroSchema.decode(bytes));
 
         log.info("cpu:{}, Message.getValue: {}, record.getValue: {}",
             cpu.toString(),
@@ -143,7 +149,7 @@ public class InfluxDBGenericRecordSinkTest {
         verify(this.influxDB, times(1)).createDatabase("testDB");
 
         doAnswer(invocationOnMock -> {
-            BatchPoints batchPoints = invocationOnMock.getArgumentAt(0, BatchPoints.class);
+            BatchPoints batchPoints = invocationOnMock.getArgument(0, BatchPoints.class);
             Assert.assertNotNull(batchPoints, "batchPoints should not be null.");
             return null;
         }).when(influxDB).write(any(BatchPoints.class));

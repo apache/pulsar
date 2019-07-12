@@ -329,7 +329,7 @@ dashboard:
     tls: {}
     hostname: ""
     path: "/"
-    port: server
+    port: 80
 
 
 ## Pulsar Extra: Bastion

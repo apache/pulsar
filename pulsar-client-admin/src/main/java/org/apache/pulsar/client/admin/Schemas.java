@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.pulsar.common.schema.PostSchemaPayload;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -52,6 +52,15 @@ public interface Schemas {
      * @throws PulsarAdminException
      */
     void deleteSchema(String topic) throws PulsarAdminException;
+
+    /**
+     * Create a schema for a given <tt>topic</tt> with the provided schema info.
+     *
+     * @param topic topic name, in fully qualified fomrat
+     * @param schemaInfo schema info
+     * @throws PulsarAdminException
+     */
+    void createSchema(String topic, SchemaInfo schemaInfo) throws PulsarAdminException;
 
     /**
      * Create a schema for a given <tt>topic</tt>.

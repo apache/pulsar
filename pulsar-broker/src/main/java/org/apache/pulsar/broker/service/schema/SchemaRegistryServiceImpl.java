@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.schema;
 
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toMap;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -35,11 +36,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
+
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
@@ -63,7 +68,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
-        return getSchema(schemaId, SchemaVersion.Latest);
+        return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
+                if (schema != null && schema.schema.isDeleted()) {
+                    return null;
+                } else {
+                    return schema;
+                }
+            });
     }
 
     @Override
@@ -82,15 +93,30 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
+        return schemaStorage.getAll(schemaId).thenApply(schemas ->
+                schemas.stream().map(future -> future.thenCompose(stored ->
+                    Functions.bytesToSchemaInfo(stored.data)
+                        .thenApply(Functions::schemaInfoToSchema)
+                        .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
+        )).collect(Collectors.toList()));
+    }
+
+    @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId)
-            .thenApply(
+            .thenCompose(
                 (existingSchema) ->
-                    existingSchema == null
-                        || existingSchema.schema.isDeleted()
-                        || isCompatible(existingSchema, schema, strategy))
+                {
+                    if (existingSchema == null || existingSchema.schema.isDeleted()) {
+                        return completedFuture(true);
+                    } else {
+                        return isCompatible(schemaId, schema, strategy);
+                    }
+                }
+            )
             .thenCompose(isCompatible -> {
                     if (isCompatible) {
                         byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
@@ -118,9 +144,16 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatibleWithLatestVersion(String schemaId, SchemaData schema,
+    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
                                                                     SchemaCompatibilityStrategy strategy) {
-        return checkCompatibilityWithLatest(schemaId, schema, strategy);
+        switch (strategy) {
+            case FORWARD_TRANSITIVE:
+            case BACKWARD_TRANSITIVE:
+            case FULL_TRANSITIVE:
+                return checkCompatibilityWithAll(schemaId, schema, strategy);
+            default:
+                return checkCompatibilityWithLatest(schemaId, schema, strategy);
+        }
     }
 
     @Override
@@ -157,9 +190,35 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                                     SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId)
             .thenApply(
-                (existingSchema) ->
-                    !(existingSchema == null || existingSchema.schema.isDeleted())
-                        && isCompatible(existingSchema, schema, strategy));
+                    (existingSchema) ->
+                        !(existingSchema == null || existingSchema.schema.isDeleted())
+                            && isCompatible(existingSchema, schema, strategy));
+    }
+
+    private CompletableFuture<Boolean> checkCompatibilityWithAll(String schemaId, SchemaData schema,
+                                                                 SchemaCompatibilityStrategy strategy) {
+        return getAllSchemas(schemaId)
+            .thenCompose(FutureUtils::collect)
+            .thenApply(list -> {
+                    // Trim the prefix of schemas before the latest delete.
+                    int lastIndex = list.size() - 1;
+                    for (int i = lastIndex; i >= 0; i--) {
+                        if (list.get(i).schema.isDeleted()) {
+                            if (i == lastIndex) { // if the latest schema is a delete, there's no schemas to compare
+                                return Collections.<SchemaAndMetadata>emptyList();
+                            } else {
+                                return list.subList(i + 1, list.size());
+                            }
+                        }
+                    }
+                    return list;
+                })
+            .thenApply(schemaAndMetadataList -> schemaAndMetadataList
+                       .stream()
+                       .map(schemaAndMetadata -> schemaAndMetadata.schema)
+                       .collect(Collectors.toList()))
+            .thenApply(schemas -> compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                       .isCompatible(schemas, schema, strategy));
     }
 
     interface Functions {

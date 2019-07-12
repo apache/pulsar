@@ -273,13 +273,12 @@ public class PulsarStandalone implements AutoCloseable {
             }
             // worker talks to local broker
             boolean useTls = workerConfig.isUseTls();
-            String localhost = "127.0.0.1";
             String pulsarServiceUrl = useTls
-                    ? PulsarService.brokerUrlTls(localhost, config.getBrokerServicePortTls().get())
-                    : PulsarService.brokerUrl(localhost, config.getBrokerServicePort().get());
+                    ? PulsarService.brokerUrlTls(config)
+                    : PulsarService.brokerUrl(config);
             String webServiceUrl = useTls
-                    ? PulsarService.webAddressTls(localhost, config.getWebServicePortTls().get())
-                    : PulsarService.webAddress(localhost, config.getWebServicePort().get());
+                    ? PulsarService.webAddressTls(config)
+                    : PulsarService.webAddress(config);
             workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
             workerConfig.setPulsarWebServiceUrl(webServiceUrl);
             if (this.isNoStreamStorage()) {
@@ -288,7 +287,7 @@ public class PulsarStandalone implements AutoCloseable {
             } else if (workerConfig.getStateStorageServiceUrl() == null) {
                 workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
             }
-            
+
             String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                 config.getAdvertisedAddress());
             workerConfig.setWorkerHostname(hostname);
@@ -298,11 +297,27 @@ public class PulsarStandalone implements AutoCloseable {
                     + "-fw-" + hostname
                     + "-" + workerConfig.getWorkerPort());
             // inherit broker authorization setting
+            workerConfig.setAuthenticationEnabled(config.isAuthenticationEnabled());
+            workerConfig.setAuthenticationProviders(config.getAuthenticationProviders());
+
             workerConfig.setAuthorizationEnabled(config.isAuthorizationEnabled());
             workerConfig.setAuthorizationProvider(config.getAuthorizationProvider());
             workerConfig.setConfigurationStoreServers(config.getConfigurationStoreServers());
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
+
+            workerConfig.setUseTls(config.isTlsEnabled());
+            workerConfig.setTlsHostnameVerificationEnable(false);
+
+            workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
+            workerConfig.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
+
+            // client in worker will use this config to authenticate with broker
+            workerConfig.setClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
+            workerConfig.setClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
+
+            // inherit super users
+            workerConfig.setSuperUserRoles(config.getSuperUserRoles());
 
             fnWorkerService = new WorkerService(workerConfig);
         }

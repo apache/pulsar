@@ -29,6 +29,7 @@ import com.google.gson.reflect.TypeToken;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -84,7 +85,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(port);
+        config.setWebServicePort(Optional.of(port));
         config.setClusterName("test");
         config.setConfigurationStoreServers("dummy-zk-servers");
         service = spy(new WebSocketService(config));
@@ -406,7 +407,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             }
 
             Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-            final String baseUrl = pulsar.getWebServiceAddress()
+            final String baseUrl = pulsar.getSafeWebServiceAddress()
                     .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort().get()), (Integer.toString(port)))
                     + "/admin/v2/proxy-stats/";
 

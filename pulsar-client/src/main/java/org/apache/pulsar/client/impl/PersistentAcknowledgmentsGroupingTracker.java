@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 /**
@@ -205,6 +205,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
             cnx.ctx().flush();
         }
+    }
+
+    @Override
+    public void flushAndClean() {
+        flush();
+        lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+        pendingIndividualAcks.clear();
     }
 
     @Override

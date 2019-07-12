@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNull;
@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -81,7 +82,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, Optional.empty(), null);
     }
 
     @AfterMethod

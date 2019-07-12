@@ -33,7 +33,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.4.0-SNAPSHOT</version>
+  <version>2.5.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -108,6 +108,9 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-broker-auth-sasl</module>
     <module>pulsar-client-auth-sasl</module>
 
+    <!-- transaction related modules -->
+    <module>pulsar-transaction</module>
+
     <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
     <module>jclouds-shaded</module>
 
@@ -145,10 +148,10 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.9.0</bookkeeper.version>
+    <bookkeeper.version>4.9.2</bookkeeper.version>
     <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.32.Final</netty.version>
-    <storm.version>1.0.5</storm.version>
+    <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.12.v20180830</jetty.version>
     <jersey.version>2.27</jersey.version>
     <athenz.version>1.8.17</athenz.version>
@@ -175,7 +178,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
     <aerospike-client.version>4.1.11</aerospike-client.version>
-    <kafka-client.version>0.10.2.1</kafka-client.version>
+    <kafka-client.version>2.3.0</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.297</aws-sdk.version>
     <avro.version>1.8.2</avro.version>
@@ -183,23 +186,29 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.1.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
+    <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
+    <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
     <elasticsearch.version>6.3.2</elasticsearch.version>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <debezium.version>0.9.2.Final</debezium.version>
+    <debezium.version>0.9.5.Final</debezium.version>
     <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <zstd.version>1.3.7-3</zstd.version>
+    <snappy.version>1.1.1.3</snappy.version>
     <hbase.version>1.4.9</hbase.version>
 
     <!-- test dependencies -->
-    <arquillian-cube.version>1.15.1</arquillian-cube.version>
-    <arquillian-junit.version>1.1.14.Final</arquillian-junit.version>
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.10.5</testcontainers.version>
+    <testcontainers.version>1.11.2</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
+    <testng.version>6.14.3</testng.version>
+    <mockito.version>2.28.2</mockito.version>
+    <powermock.version>2.0.2</powermock.version>
+    <javassist.version>3.25.0-GA</javassist.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -234,31 +243,25 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
-        <version>6.13.1</version>
+        <version>${testng.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>1.10.19</version>
+        <version>${mockito.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <version>1.7.3</version>
+        <artifactId>powermock-api-mockito2</artifactId>
+        <version>${powermock.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-module-testng</artifactId>
-        <version>1.7.3</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.googlecode.jmockit</groupId>
-        <artifactId>jmockit</artifactId>
-        <version>1.7</version>
+        <version>${powermock.version}</version>
       </dependency>
 
       <dependency>
@@ -317,6 +320,12 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-*</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.bookkeeper</groupId>
+        <artifactId>bookkeeper-common-allocator</artifactId>
+        <version>${bookkeeper.version}</version>
       </dependency>
 
       <!-- reflection libs -->
@@ -490,6 +499,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.github.luben</groupId>
         <artifactId>zstd-jni</artifactId>
         <version>${zstd.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
       </dependency>
 
       <dependency>
@@ -968,9 +983,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>javax.xml.bind</groupId>
-        <artifactId>activation</artifactId>
-        <version>1.0.2</version>
+        <groupId>com.sun.activation</groupId>
+        <artifactId>javax.activation</artifactId>
+        <version>1.2.0</version>
       </dependency>
 
       <dependency>
@@ -987,6 +1002,16 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.elasticsearch.client</groupId>
         <artifactId>elasticsearch-rest-high-level-client</artifactId>
         <version>${elasticsearch.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>joda-time</groupId>
+        <artifactId>joda-time</artifactId>
+        <version>${joda.version}</version>
+      </dependency>      
+      <dependency>
+        <groupId>org.javassist</groupId>
+        <artifactId>javassist</artifactId>
+        <version>${javassist.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -1014,7 +1039,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <dependency>
       <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
+      <artifactId>powermock-api-mockito2</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -1076,6 +1101,10 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>io.netty</groupId>
           <artifactId>netty-tcnative-boringssl-static</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
   </dependencies>
@@ -1109,8 +1138,9 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
-            -Dio.netty.leakDetectionLevel=advanced
+          <argLine> -Xmx2G
+            -Dpulsar.allocator.pooled=false
+            -Dpulsar.allocator.leak_detection=Advanced
             -Dlog4j.configurationFile=log4j2.xml
           </argLine>
           <reuseForks>false</reuseForks>
@@ -1158,7 +1188,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.hgrm</exclude>
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/api/proto/*.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
@@ -1247,6 +1277,7 @@ flexible messaging model and an intuitive client API.</description>
                  and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarMarkers.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
@@ -1276,6 +1307,12 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- LZ4 code is under BSD 2-clause  -->
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
+
+            <!-- These files is go module configs -->
+            <exclude>pulsar-client-go/go.mod</exclude>
+            <exclude>pulsar-client-go/go.sum</exclude>
+            <exclude>pulsar-function-go/go.mod</exclude>
+            <exclude>pulsar-function-go/go.sum</exclude>
 
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
@@ -1345,7 +1382,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.21.0</version>
+          <version>3.0.0-M3</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

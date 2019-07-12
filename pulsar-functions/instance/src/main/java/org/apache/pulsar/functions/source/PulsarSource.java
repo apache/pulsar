@@ -46,7 +46,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private final PulsarSourceConfig pulsarSourceConfig;
     private final Map<String, String> properties;
     private List<String> inputTopics;
-    private List<Consumer<T>> inputConsumers;
+    private List<Consumer<T>> inputConsumers = Collections.emptyList();
     private final TopicSchema topicSchema;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties) {
@@ -122,6 +122,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         throw new RuntimeException("Failed to process message: " + message.getMessageId());
                     }
+                    consumer.negativeAcknowledge(message);
                 })
                 .build();
 

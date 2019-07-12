@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import static org.apache.pulsar.common.util.Codec.decode;
@@ -48,18 +49,20 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.DeleteSchemaResponse;
-import org.apache.pulsar.common.schema.GetSchemaResponse;
-import org.apache.pulsar.common.schema.PostSchemaPayload;
-import org.apache.pulsar.common.schema.PostSchemaResponse;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
+import org.apache.pulsar.common.protocol.schema.PostSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +88,7 @@ public class SchemasResource extends AdminResource {
         this.clock = clock;
     }
 
-    private long getLongSchemaVersion(SchemaVersion schemaVersion) {
+    private static long getLongSchemaVersion(SchemaVersion schemaVersion) {
         if (schemaVersion instanceof LongSchemaVersion) {
             return ((LongSchemaVersion) schemaVersion).getVersion();
         } else {
@@ -116,29 +119,7 @@ public class SchemasResource extends AdminResource {
         String schemaId = buildSchemaId(tenant, namespace, topic);
         pulsar().getSchemaRegistryService().getSchema(schemaId)
             .handle((schema, error) -> {
-                if (isNull(error)) {
-                    if (isNull(schema)) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else {
-                        response.resume(
-                            Response.ok()
-                                .encoding(MediaType.APPLICATION_JSON)
-                                .entity(GetSchemaResponse.builder()
-                                    .version(getLongSchemaVersion(schema.version))
-                                    .type(schema.schema.getType())
-                                    .timestamp(schema.schema.getTimestamp())
-                                    .data(new String(schema.schema.getData()))
-                                    .properties(schema.schema.getProps())
-                                    .build()
-                                )
-                                .build()
-                        );
-                    }
-                } else {
-                    response.resume(error);
-                }
+                handleGetSchemaResponse(response, schema, error);
                 return null;
             });
     }
@@ -165,35 +146,41 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
 
         String schemaId = buildSchemaId(tenant, namespace, topic);
-        ByteBuffer bbVersion = ByteBuffer.allocate(Long.SIZE);
+        ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
         bbVersion.putLong(Long.parseLong(version));
         SchemaVersion v = pulsar().getSchemaRegistryService().versionFromBytes(bbVersion.array());
         pulsar().getSchemaRegistryService().getSchema(schemaId, v)
             .handle((schema, error) -> {
-                if (isNull(error)) {
-                    if (isNull(schema)) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
-                    } else {
-                        response.resume(
-                            Response.ok()
-                                .encoding(MediaType.APPLICATION_JSON)
-                                .entity(GetSchemaResponse.builder()
-                                    .version(getLongSchemaVersion(schema.version))
-                                    .type(schema.schema.getType())
-                                    .timestamp(schema.schema.getTimestamp())
-                                    .data(new String(schema.schema.getData()))
-                                    .properties(schema.schema.getProps())
-                                    .build()
-                                ).build()
-                        );
-                    }
-                } else {
-                    response.resume(error);
-                }
+                handleGetSchemaResponse(response, schema, error);
                 return null;
             });
+    }
+
+    private static void handleGetSchemaResponse(AsyncResponse response,
+                                                SchemaAndMetadata schema, Throwable error) {
+        if (isNull(error)) {
+            if (isNull(schema)) {
+                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+            } else if (schema.schema.isDeleted()) {
+                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+            } else {
+                response.resume(
+                    Response.ok()
+                        .encoding(MediaType.APPLICATION_JSON)
+                        .entity(GetSchemaResponse.builder()
+                            .version(getLongSchemaVersion(schema.version))
+                            .type(schema.schema.getType())
+                            .timestamp(schema.schema.getTimestamp())
+                            .data(new String(schema.schema.getData(), UTF_8))
+                            .properties(schema.schema.getProps())
+                            .build()
+                        ).build()
+                );
+            }
+        } else {
+            response.resume(error);
+        }
+
     }
 
     @DELETE
@@ -244,7 +231,9 @@ public class SchemasResource extends AdminResource {
         @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
         @ApiResponse(code = 403, message = "Client is not authenticated"),
         @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
+        @ApiResponse(code = 409, message = "Incompatible schema"),
         @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+        @ApiResponse(code = 422, message = "Invalid schema data"),
     })
     public void postSchema(
         @PathParam("tenant") String tenant,
@@ -274,6 +263,7 @@ public class SchemasResource extends AdminResource {
                 .timestamp(clock.millis())
                 .type(SchemaType.valueOf(payload.getType()))
                 .user(defaultIfEmpty(clientAppId(), ""))
+                .props(payload.getProperties())
                 .build(),
             SchemaCompatibilityStrategy.FULL
         ).thenAccept(version ->
@@ -287,6 +277,11 @@ public class SchemasResource extends AdminResource {
         ).exceptionally(error -> {
             if (error instanceof IncompatibleSchemaException) {
                 response.resume(Response.status(Response.Status.CONFLICT).build());
+            } else if (error instanceof InvalidSchemaDataException) {
+                response.resume(Response.status(
+                    422, /* Unprocessable Entity */
+                    error.getMessage()
+                ).build());
             } else {
                 response.resume(
                     Response.serverError().build()

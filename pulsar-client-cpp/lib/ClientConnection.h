@@ -19,6 +19,7 @@
 #ifndef _PULSAR_CLIENT_CONNECTION_HEADER_
 #define _PULSAR_CLIENT_CONNECTION_HEADER_
 
+#include <pulsar/defines.h>
 #include <pulsar/Result.h>
 
 #include <boost/asio.hpp>
@@ -76,7 +77,7 @@ struct ResponseData {
 
 typedef std::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
 
-class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
+class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     enum State
     {
         Pending,
@@ -143,6 +144,8 @@ class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     const std::string& cnxString() const;
 
     int getServerProtocolVersion() const;
+
+    int getMaxMessageSize() const;
 
     Commands::ChecksumType getChecksumType() const;
 
@@ -236,6 +239,7 @@ class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     TimeDuration operationsTimeout_;
     AuthenticationPtr authentication_;
     int serverProtocolVersion_;
+    int maxMessageSize_;
 
     ExecutorServicePtr executor_;
 

@@ -25,14 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderListener;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
@@ -56,8 +49,13 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
+
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
+        }
+
+        if (readerConfiguration.isResetIncludeHead()) {
+            consumerConfiguration.setResetIncludeHead(true);
         }
 
         if (readerConfiguration.getReaderListener() != null) {
@@ -85,7 +83,7 @@ public class ReaderImpl<T> implements Reader<T> {
 
         final int partitionIdx = TopicName.getPartitionIndex(readerConfiguration.getTopicName());
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration, listenerExecutor,
-                partitionIdx, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
+                partitionIdx, false, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
                 client.getConfiguration().getDefaultBackoffIntervalNanos(), client.getConfiguration().getMaxBackoffIntervalNanos());
         
     }
@@ -155,5 +153,25 @@ public class ReaderImpl<T> implements Reader<T> {
     @Override
     public boolean isConnected() {
         return consumer.isConnected();
+    }
+
+    @Override
+    public void seek(MessageId messageId) throws PulsarClientException {
+        consumer.seek(messageId);
+    }
+
+    @Override
+    public void seek(long timestamp) throws PulsarClientException {
+        consumer.seek(timestamp);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(MessageId messageId) {
+        return consumer.seekAsync(messageId);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(long timestamp) {
+        return consumer.seekAsync(timestamp);
     }
 }

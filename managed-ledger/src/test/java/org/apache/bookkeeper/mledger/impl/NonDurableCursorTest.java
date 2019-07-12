@@ -576,5 +576,62 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c2.getNumberOfEntriesInBacklog(), 5);
     }
 
+    @Test
+    void testCursorWithNameIsCachable() throws Exception {
+        final String p1CursorName = "entry-1";
+        final String p2CursorName = "entry-2";
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+
+        Position p1 = ledger.addEntry(p1CursorName.getBytes());
+        Position p2 = ledger.addEntry(p2CursorName.getBytes());
+
+        ManagedCursor c1 = ledger.newNonDurableCursor(p1, p1CursorName);
+        ManagedCursor c2 = ledger.newNonDurableCursor(p1, p1CursorName);
+        ManagedCursor c3 = ledger.newNonDurableCursor(p2, p2CursorName);
+        ManagedCursor c4 = ledger.newNonDurableCursor(p2, p2CursorName);
+
+        assertEquals(c1, c2);
+        assertEquals(c3, c4);
+
+        assertNotEquals(c1, c3);
+        assertNotEquals(c2, c3);
+        assertNotEquals(c1, c4);
+        assertNotEquals(c2, c4);
+
+        assertNotNull(c1.getName());
+        assertNotNull(c2.getName());
+        assertNotNull(c3.getName());
+        assertNotNull(c4.getName());
+        ledger.close();
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    void testCursorWithNameIsNotNull() throws Exception {
+        final String p1CursorName = "entry-1";
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+
+        Position p1 = ledger.addEntry(p1CursorName.getBytes());
+
+        try {
+            ledger.newNonDurableCursor(p1, null);
+        } catch (NullPointerException npe) {
+            assertEquals(npe.getMessage(), "cursor name can't be null");
+            throw npe;
+        } finally {
+            ledger.close();
+        }
+    }
+
+    @Test
+    void deleteNonDurableCursorWithName() throws Exception {
+        ManagedLedger ledger = factory.open("deleteManagedLedgerWithNonDurableCursor");
+
+        ManagedCursor c = ledger.newNonDurableCursor(PositionImpl.earliest, "custom-name");
+        assertEquals(Iterables.size(ledger.getCursors()), 1);
+
+        ledger.deleteCursor(c.getName());
+        assertEquals(Iterables.size(ledger.getCursors()), 0);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(NonDurableCursorTest.class);
 }

@@ -19,19 +19,26 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 
-import com.google.common.collect.Maps;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -79,7 +86,9 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
         storage.init();
         storage.start();
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, Maps.newHashMap(), MockClock);
+        Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
+        checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock);
     }
 
     @AfterMethod
@@ -98,9 +107,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         deleteSchema(schemaId1, version(1));
 
-        SchemaData latest2 = getLatestSchema(schemaId1, version(1));
-
-        assertTrue(latest2.isDeleted());
+        assertNull(schemaRegistryService.getSchema(schemaId1).get());
     }
 
     @Test
@@ -137,6 +144,18 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         SchemaData version1 = getSchema(schemaId1, version(0));
         assertEquals(schema1, version1);
+    }
+
+    @Test
+    public void getAllVersionSchema() throws Exception {
+        putSchema(schemaId1, schema1, version(0));
+        putSchema(schemaId1, schema2, version(1));
+        putSchema(schemaId1, schema3, version(2));
+
+        List<SchemaData> allSchemas = getAllSchemas(schemaId1);
+        assertEquals(schema1, allSchemas.get(0));
+        assertEquals(schema2, allSchemas.get(1));
+        assertEquals(schema3, allSchemas.get(2));
     }
 
     @Test
@@ -218,9 +237,43 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schema2, version(1));
     }
 
+    @Test(expectedExceptions = ExecutionException.class)
+    public void checkIsCompatible() throws Exception {
+        String schemaJson1 =
+                "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
+                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+        SchemaData schemaData1 = getSchemaData(schemaJson1);
+
+        String schemaJson2 =
+                "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
+                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                        "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
+        SchemaData schemaData2 = getSchemaData(schemaJson2);
+
+        String schemaJson3 =
+                "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
+                        ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                        "{\"name\":\"field2\",\"type\":\"string\"}]}";
+        SchemaData schemaData3 = getSchemaData(schemaJson3);
+
+        putSchema(schemaId1, schemaData1, version(0), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+        putSchema(schemaId1, schemaData2, version(1), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+
+        assertTrue(schemaRegistryService.isCompatible(schemaId1, schemaData3,
+                SchemaCompatibilityStrategy.BACKWARD).get());
+        assertFalse(schemaRegistryService.isCompatible(schemaId1, schemaData3,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE).get());
+        putSchema(schemaId1, schemaData3, version(2), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+    }
+
     private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion) throws Exception {
+        putSchema(schemaId, schema, expectedVersion, SchemaCompatibilityStrategy.FULL);
+    }
+
+    private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion,
+                           SchemaCompatibilityStrategy strategy) throws ExecutionException, InterruptedException {
         CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
-                schemaId, schema, SchemaCompatibilityStrategy.FULL);
+                schemaId, schema, strategy);
         SchemaVersion newVersion = put.get();
         assertEquals(expectedVersion, newVersion);
     }
@@ -239,6 +292,15 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         return schemaAndVersion.schema;
     }
 
+    private List<SchemaData> getAllSchemas(String schemaId) throws Exception {
+        List<SchemaData> result = new ArrayList<>();
+        for (CompletableFuture<SchemaRegistry.SchemaAndMetadata> schema :
+                schemaRegistryService.getAllSchemas(schemaId).get()) {
+            result.add(schema.get().schema);
+        }
+        return result;
+    }
+
     private void deleteSchema(String schemaId, SchemaVersion expectedVersion) throws Exception {
         SchemaVersion version = schemaRegistryService.deleteSchema(schemaId, userId).get();
         assertEquals(expectedVersion, version);
@@ -254,6 +316,10 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             .data(randomString.toString().getBytes())
             .props(new TreeMap<>())
             .build();
+    }
+
+    private SchemaData getSchemaData(String schemaJson) {
+        return SchemaData.builder().data(schemaJson.getBytes()).type(SchemaType.AVRO).user(userId).build();
     }
 
     private SchemaVersion version(long version) {

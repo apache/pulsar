@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.Set;
+
 /**
  * A plugin interface that allows you to intercept (and possibly mutate)
  * messages received by the consumer.
@@ -94,4 +96,26 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * @param exception the exception on acknowledge.
      */
     void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable exception);
+
+    /**
+     *
+     * This method will be called when a redelivery from a negative acknowledge occurs.
+     *
+     * <p>Any exception thrown by this method will be ignored by the caller.
+     *
+     * @param consumer the consumer which contains the interceptor
+     * @param messageIds message to ack, null if acknowledge fail.
+     */
+    void onNegativeAcksSend(Consumer<T> consumer, Set<MessageId> messageIds);
+
+    /**
+     *
+     * This method will be called when a redelivery from an acknowledge timeout occurs.
+     *
+     * <p>Any exception thrown by this method will be ignored by the caller.
+     *
+     * @param consumer the consumer which contains the interceptor
+     * @param messageIds message to ack, null if acknowledge fail.
+     */
+    void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds);
 }

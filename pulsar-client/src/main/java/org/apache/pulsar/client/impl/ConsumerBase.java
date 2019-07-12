@@ -61,7 +61,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected int maxReceiverQueueSize;
     protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
-    private int refCount = 0;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
@@ -181,16 +180,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void acknowledge(MessageId messageId) throws PulsarClientException {
         try {
             acknowledgeAsync(messageId).get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -207,16 +198,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void acknowledgeCumulative(MessageId messageId) throws PulsarClientException {
         try {
             acknowledgeCumulativeAsync(messageId).get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -265,16 +248,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void unsubscribe() throws PulsarClientException {
         try {
             unsubscribeAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -285,16 +260,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void close() throws PulsarClientException {
         try {
             closeAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -316,6 +283,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         case Failover:
             return SubType.Failover;
+
+        case Key_Shared:
+            return SubType.Key_Shared;
         }
 
         // Should not happen since we cover all cases above
@@ -386,11 +356,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected synchronized void incrRefCount() {
-        ++refCount;
+    protected void onNegativeAcksSend(Set<MessageId> messageIds) {
+        if (interceptors != null) {
+            interceptors.onNegativeAcksSend(this, messageIds);
+        }
     }
 
-    protected synchronized boolean shouldTearDown() {
-        return refCount > 0 ? refCount-- == 0 : refCount == 0;
+    protected void onAckTimeoutSend(Set<MessageId> messageIds) {
+        if (interceptors != null) {
+            interceptors. onAckTimeoutSend(this, messageIds);
+        }
     }
 }

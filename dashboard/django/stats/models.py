@@ -64,15 +64,20 @@ class Property(Model):
 
 @python_2_unicode_compatible
 class Namespace(Model):
-    name = CharField(max_length=200, unique=True)
+    name = CharField(max_length=200)
     property = ForeignKey(Property, on_delete=SET_NULL, db_index=True, null=True)
     clusters = ManyToManyField(Cluster)
+    timestamp = BigIntegerField(db_index=True)
+    deleted = BooleanField(default=False)
 
     def is_global(self):
         return self.name.split('/', 2)[1] == 'global'
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        index_together = ('name', 'timestamp', 'deleted')
 
 @python_2_unicode_compatible
 class Bundle(Model):
@@ -95,6 +100,7 @@ class Topic(Model):
     bundle = ForeignKey(Bundle, on_delete=SET_NULL, db_index=True, null=True)
 
     timestamp              = BigIntegerField(db_index=True)
+    deleted                = BooleanField(default=False)
     averageMsgSize         = IntegerField(default=0)
     msgRateIn              = DecimalField(max_digits = 12, decimal_places=1, default=0)
     msgRateOut             = DecimalField(max_digits = 12, decimal_places=1, default=0)
@@ -134,7 +140,7 @@ class Topic(Model):
         return url
 
     class Meta:
-        index_together = ('name', 'cluster', 'timestamp')
+        index_together = ('name', 'cluster', 'timestamp', 'deleted')
 
     def __str__(self):
         return self.name
@@ -146,6 +152,7 @@ class Subscription(Model):
     namespace        = ForeignKey(Namespace, on_delete=SET_NULL, null=True, db_index=True)
 
     timestamp        = BigIntegerField(db_index=True)
+    deleted          = BooleanField(default=False)
     msgBacklog       = BigIntegerField(default=0)
     msgRateExpired   = DecimalField(max_digits = 12, decimal_places=1, default=0)
     msgRateOut       = DecimalField(max_digits = 12, decimal_places=1, default=0)
@@ -160,6 +167,9 @@ class Subscription(Model):
     )
     subscriptionType = CharField(max_length=1, choices=SUBSCRIPTION_TYPES, default='N')
     unackedMessages  = BigIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('name', 'topic', 'timestamp')
 
     def __str__(self):
         return self.name

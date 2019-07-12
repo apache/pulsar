@@ -144,11 +144,17 @@ public class ValidatorUtils {
         }
 
         // validate function class-type
-        Object functionObject = createInstance(functionDetailsBuilder.getClassName(), classLoader);
-        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionObject, false);
+        Class functionClass;
+        try {
+            functionClass = classLoader.loadClass(functionDetailsBuilder.getClassName());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(
+                    String.format("Function class %s must be in class path", functionDetailsBuilder.getClassName()), e);
+        }
+        Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionClass, false);
 
-        if (!(functionObject instanceof org.apache.pulsar.functions.api.Function)
-                && !(functionObject instanceof java.util.function.Function)) {
+        if (!(org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass))
+                && !(java.util.function.Function.class.isAssignableFrom(functionClass))) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
 

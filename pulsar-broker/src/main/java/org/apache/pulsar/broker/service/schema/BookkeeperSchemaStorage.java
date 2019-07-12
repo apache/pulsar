@@ -30,6 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -49,7 +50,7 @@ import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -99,7 +100,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     public void start() throws IOException {
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
             pulsar.getConfiguration(),
-            pulsar.getZkClient()
+            pulsar.getZkClient(),
+            Optional.empty(),
+            null
         );
     }
 
@@ -116,6 +119,33 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             LongSchemaVersion longVersion = (LongSchemaVersion) version;
             return getSchema(key, longVersion.getVersion());
         }
+    }
+
+    @Override
+    public CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key) {
+        CompletableFuture<List<CompletableFuture<StoredSchema>>> result = new CompletableFuture<>();
+        getSchemaLocator(getSchemaPath(key)).thenAccept(locator -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Get all schemas - locator: {}", key, locator);
+            }
+
+            if (!locator.isPresent()) {
+                result.complete(Collections.emptyList());
+            }
+
+            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
+            List<CompletableFuture<StoredSchema>> list = new ArrayList<>();
+            schemaLocator.getIndexList().forEach(indexEntry -> list.add(readSchemaEntry(indexEntry.getPosition())
+                .thenApply(entry -> new StoredSchema
+                    (
+                        entry.getSchemaData().toByteArray(),
+                        new LongSchemaVersion(schemaLocator.getInfo().getVersion())
+                    )
+                )
+            ));
+            result.complete(list);
+        });
+        return result;
     }
 
     @Override
@@ -165,6 +195,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @Override
     public SchemaVersion versionFromBytes(byte[] version) {
+        // The schema storage converts the schema from bytes to long
+        // so it handles both cases 1) version is 64 bytes long pre 2.4.0;
+        // 2) version is 8 bytes long post 2.4.0
+        //
+        // NOTE: if you are planning to change the logic here. you should consider
+        //       both 64 bytes and 8 bytes cases.
         ByteBuffer bb = ByteBuffer.wrap(version);
         return new LongSchemaVersion(bb.getLong());
     }
@@ -611,7 +647,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     public static Exception bkException(String operation, int rc, long ledgerId, long entryId) {
-        String message = org.apache.bookkeeper.client.api.BKException.getMessage(rc) + " -  ledger=" + ledgerId;
+        String message = org.apache.bookkeeper.client.api.BKException.getMessage(rc)
+                + " -  ledger=" + ledgerId + " - operation=" + operation;
 
         if (entryId != -1) {
             message += " - entry=" + entryId;

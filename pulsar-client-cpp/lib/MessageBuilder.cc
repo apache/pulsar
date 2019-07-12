@@ -94,6 +94,12 @@ MessageBuilder& MessageBuilder::setPartitionKey(const std::string& partitionKey)
     return *this;
 }
 
+MessageBuilder& MessageBuilder::setOrderingKey(const std::string& orderingKey) {
+    checkMetadata();
+    impl_->metadata.set_ordering_key(orderingKey);
+    return *this;
+}
+
 MessageBuilder& MessageBuilder::setEventTimestamp(uint64_t eventTimestamp) {
     checkMetadata();
     impl_->metadata.set_event_time(eventTimestamp);

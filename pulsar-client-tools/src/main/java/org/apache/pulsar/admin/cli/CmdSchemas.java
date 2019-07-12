@@ -24,10 +24,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
-
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.schema.PostSchemaPayload;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 @Parameters(commandDescription = "Operations about schemas")
 public class CmdSchemas extends CmdBase {
@@ -52,11 +52,13 @@ public class CmdSchemas extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
+            SchemaInfo schemaInfo;
             if (version == null) {
-                print(admin.schemas().getSchemaInfo(topic));
+                schemaInfo = admin.schemas().getSchemaInfo(topic);
             } else {
-                print(admin.schemas().getSchemaInfo(topic, version));
+                schemaInfo = admin.schemas().getSchemaInfo(topic, version);
             }
+            System.out.println(schemaInfo);
         }
     }
 

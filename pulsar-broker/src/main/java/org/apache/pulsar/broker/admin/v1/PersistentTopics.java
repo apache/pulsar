@@ -38,6 +38,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -55,6 +56,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import javax.ws.rs.container.AsyncResponse;
 
 /**
  */
@@ -134,9 +136,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 409, message = "Partitioned topic already exist") })
     public void createPartitionedTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            int numPartitions, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            int numPartitions) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalCreatePartitionedTopic(numPartitions, authoritative);
+        internalCreatePartitionedTopic(numPartitions);
     }
 
     /**
@@ -271,12 +273,18 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(hidden = true, value = "Get the stats for the partitioned topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PartitionedTopicStats getPartitionedStats(@PathParam("property") String property,
+    public void getPartitionedStats(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetPartitionedStats(authoritative);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
 
@@ -285,14 +293,20 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(hidden = true, value = "Get the stats-internal for the partitioned topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PartitionedTopicInternalStats getPartitionedStatsInternal(@PathParam("property") String property,
+    public void getPartitionedStatsInternal(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetPartitionedStatsInternal(authoritative);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetPartitionedStatsInternal(asyncResponse, authoritative);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
-    
+
     @DELETE
     @Path("/{property}/{cluster}/{namespace}/{topic}/subscription/{subName}")
     @ApiOperation(hidden = true, value = "Delete a subscription.", notes = "There should not be any active consumers on the subscription.")
@@ -397,9 +411,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void createSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String topic,
            @PathParam("subscriptionName") String encodedSubName,
-           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId, @QueryParam("replicated") boolean replicated) {
         validateTopicName(property, cluster, namespace, topic);
-        internalCreateSubscription(decode(encodedSubName), messageId, authoritative);
+        internalCreateSubscription(decode(encodedSubName), messageId, authoritative, replicated);
     }
 
     @GET

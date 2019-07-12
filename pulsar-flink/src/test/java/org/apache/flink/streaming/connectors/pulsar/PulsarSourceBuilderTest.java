@@ -18,15 +18,21 @@
  */
 package org.apache.flink.streaming.connectors.pulsar;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.regex.Pattern;
 
 /**
@@ -42,17 +48,36 @@ public class PulsarSourceBuilderTest {
     }
 
     @Test
-    public void testBuild() {
+    public void testBuild() throws PulsarClientException {
         SourceFunction sourceFunction = pulsarSourceBuilder
                 .serviceUrl("testServiceUrl")
                 .topic("testTopic")
                 .subscriptionName("testSubscriptionName")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .build();
+        Assert.assertNotNull(sourceFunction);
+    }
+
+
+    @Test
+    public void testBuildWithConfPojo() throws PulsarClientException {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
+
+        ConsumerConfigurationData consumerConf = new ConsumerConfigurationData();
+        consumerConf.setTopicNames(new HashSet<>(Arrays.asList("testTopic")));
+        consumerConf.setSubscriptionName("testSubscriptionName");
+        consumerConf.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+
+        SourceFunction sourceFunction = pulsarSourceBuilder
+                .pulsarAllClientConf(clientConf)
+                .pulsarAllConsumerConf(consumerConf)
                 .build();
         Assert.assertNotNull(sourceFunction);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testBuildWithoutSettingRequiredProperties() {
+    public void testBuildWithoutSettingRequiredProperties() throws PulsarClientException {
         pulsarSourceBuilder.build();
     }
 
@@ -112,6 +137,11 @@ public class PulsarSourceBuilderTest {
         pulsarSourceBuilder.subscriptionName(" ");
     }
 
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testSubscriptionInitialPosition() {
+        pulsarSourceBuilder.subscriptionInitialPosition(null);
+    }
+
     private class TestDeserializationSchema<T> implements DeserializationSchema<T> {
 
         @Override
@@ -129,4 +159,79 @@ public class PulsarSourceBuilderTest {
             return null;
         }
     }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testServiceUrlNullWithConfPojo() throws PulsarClientException {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl(null);
+
+        ConsumerConfigurationData consumerConf = new ConsumerConfigurationData();
+        consumerConf.setTopicNames(new HashSet<String>(Arrays.asList("testServiceUrl")));
+        consumerConf.setSubscriptionName("testSubscriptionName");
+
+        pulsarSourceBuilder
+                .pulsarAllClientConf(clientConf)
+                .pulsarAllConsumerConf(consumerConf)
+                .build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testServiceUrlWithBlankWithConfPojo() throws PulsarClientException {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl(StringUtils.EMPTY);
+
+        ConsumerConfigurationData consumerConf = new ConsumerConfigurationData();
+        consumerConf.setTopicNames(new HashSet<String>(Arrays.asList("testTopic")));
+        consumerConf.setSubscriptionName("testSubscriptionName");
+
+        pulsarSourceBuilder
+                .pulsarAllClientConf(clientConf)
+                .pulsarAllConsumerConf(consumerConf)
+                .build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testTopicPatternWithNullWithConfPojo() throws PulsarClientException {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
+        ConsumerConfigurationData consumerConf = new ConsumerConfigurationData();
+        consumerConf.setTopicsPattern(null);
+        consumerConf.setSubscriptionName("testSubscriptionName");
+
+        pulsarSourceBuilder
+                .pulsarAllClientConf(clientConf)
+                .pulsarAllConsumerConf(consumerConf)
+                .build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testSubscriptionNameWithNullWithConfPojo() throws PulsarClientException {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
+
+        ConsumerConfigurationData consumerConf = new ConsumerConfigurationData();
+        consumerConf.setTopicNames(new HashSet<String>(Arrays.asList("testTopic")));
+        consumerConf.setSubscriptionName(null);
+
+        pulsarSourceBuilder
+                .pulsarAllClientConf(clientConf)
+                .pulsarAllConsumerConf(consumerConf)
+                .build();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testSubscriptionNameWithBlankWithConfPojo() throws PulsarClientException {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl("testServiceUrl");
+
+        ConsumerConfigurationData consumerConf = new ConsumerConfigurationData();
+        consumerConf.setTopicNames(new HashSet<String>(Arrays.asList("testTopic")));
+        consumerConf.setSubscriptionName(StringUtils.EMPTY);
+
+        pulsarSourceBuilder
+                .pulsarAllClientConf(clientConf)
+                .pulsarAllConsumerConf(consumerConf)
+                .build();
+    }
+
 }

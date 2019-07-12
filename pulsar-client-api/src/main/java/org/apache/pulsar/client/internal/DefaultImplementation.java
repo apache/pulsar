@@ -36,12 +36,18 @@ import java.util.function.Supplier;
 import lombok.experimental.UtilityClass;
 
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
-import org.apache.pulsar.client.api.schema.*;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -214,10 +220,10 @@ public class DefaultImplementation {
                         .invoke(null,schemaDefinition));
     }
 
-    public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(Class<T> clazz) {
+    public static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition) {
         return catchExceptions(
-                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.ProtobufSchema", "of", Class.class)
-                        .invoke(null, clazz));
+                () -> (Schema<T>) getStaticMethod("org.apache.pulsar.client.impl.schema.ProtobufSchema", "of", SchemaDefinition.class)
+                        .invoke(null, schemaDefinition));
     }
 
     public static <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
@@ -250,6 +256,14 @@ public class DefaultImplementation {
                         "of", Schema.class, Schema.class).invoke(null, keySchema, valueSchema));
     }
 
+    public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
+                                                                  KeyValueEncodingType keyValueEncodingType) {
+        return catchExceptions(
+                () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
+                        "of", Schema.class, Schema.class, KeyValueEncodingType.class)
+                        .invoke(null, keySchema, valueSchema, keyValueEncodingType));
+    }
+
     public static <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type) {
         return catchExceptions(
                 () -> (Schema<KeyValue<K, V>>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchema",
@@ -262,7 +276,7 @@ public class DefaultImplementation {
                         "getSchema", SchemaInfo.class).invoke(null, schemaInfo));
     }
 
-    public static GenericSchema getGenericSchema(SchemaInfo schemaInfo) {
+    public static GenericSchema<GenericRecord> getGenericSchema(SchemaInfo schemaInfo) {
         return catchExceptions(
             () -> (GenericSchema) getStaticMethod("org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl",
                 "of", SchemaInfo.class).invoke(null, schemaInfo));
@@ -272,5 +286,102 @@ public class DefaultImplementation {
         return catchExceptions(
                 () -> (RecordSchemaBuilder) getConstructor("org.apache.pulsar.client.impl.schema.RecordSchemaBuilderImpl",
                         String.class).newInstance(name));
+    }
+
+    /**
+     * Decode the kv encoding type from the schema info.
+     *
+     * @param schemaInfo the schema info
+     * @return the kv encoding type
+     */
+    public static KeyValueEncodingType decodeKeyValueEncodingType(SchemaInfo schemaInfo) {
+        return catchExceptions(
+            () -> (KeyValueEncodingType) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo",
+                "decodeKeyValueEncodingType", SchemaInfo.class
+            ).invoke(null, schemaInfo));
+    }
+
+    /**
+     * Encode key & value into schema into a KeyValue schema.
+     *
+     * @param keySchema the key schema
+     * @param valueSchema the value schema
+     * @param keyValueEncodingType the encoding type to encode and decode key value pair
+     * @return the final schema info
+     */
+    public static <K, V> SchemaInfo encodeKeyValueSchemaInfo(Schema<K> keySchema,
+                                                             Schema<V> valueSchema,
+                                                             KeyValueEncodingType keyValueEncodingType) {
+        return encodeKeyValueSchemaInfo("KeyValue", keySchema, valueSchema, keyValueEncodingType);
+    }
+
+    /**
+     * Encode key & value into schema into a KeyValue schema.
+     *
+     * @param schemaName the final schema name
+     * @param keySchema the key schema
+     * @param valueSchema the value schema
+     * @param keyValueEncodingType the encoding type to encode and decode key value pair
+     * @return the final schema info
+     */
+    public static <K, V> SchemaInfo encodeKeyValueSchemaInfo(String schemaName,
+                                                             Schema<K> keySchema,
+                                                             Schema<V> valueSchema,
+                                                             KeyValueEncodingType keyValueEncodingType) {
+        return catchExceptions(
+            () -> (SchemaInfo) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo",
+                "encodeKeyValueSchemaInfo", String.class, Schema.class, Schema.class, KeyValueEncodingType.class
+            ).invoke(null, schemaName, keySchema, valueSchema, keyValueEncodingType));
+    }
+
+    /**
+     * Decode the key/value schema info to get key schema info and value schema info.
+     *
+     * @param schemaInfo key/value schema info.
+     * @return the pair of key schema info and value schema info
+     */
+    public static KeyValue<SchemaInfo, SchemaInfo> decodeKeyValueSchemaInfo(SchemaInfo schemaInfo) {
+        return catchExceptions(
+            () -> (KeyValue<SchemaInfo, SchemaInfo>) getStaticMethod("org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo",
+                "decodeKeyValueSchemaInfo", SchemaInfo.class
+            ).invoke(null, schemaInfo));
+    }
+
+    /**
+     * Jsonify the schema info.
+     *
+     * @param schemaInfo the schema info
+     * @return the jsonified schema info
+     */
+    public static String jsonifySchemaInfo(SchemaInfo schemaInfo) {
+        return catchExceptions(
+            () -> (String) getStaticMethod("org.apache.pulsar.client.impl.schema.SchemaUtils",
+                "jsonifySchemaInfo", SchemaInfo.class
+            ).invoke(null, schemaInfo));
+    }
+
+    /**
+     * Jsonify the key/value schema info.
+     *
+     * @param kvSchemaInfo the key/value schema info
+     * @return the jsonified schema info
+     */
+    public static String jsonifyKeyValueSchemaInfo(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) {
+        return catchExceptions(
+            () -> (String) getStaticMethod("org.apache.pulsar.client.impl.schema.SchemaUtils",
+                "jsonifyKeyValueSchemaInfo", KeyValue.class
+            ).invoke(null, kvSchemaInfo));
+    }
+
+    public static BatcherBuilder newDefaultBatcherBuilder() {
+        return catchExceptions(
+            () -> (BatcherBuilder) getConstructor("org.apache.pulsar.client.impl.DefaultBatcherBuilder")
+                    .newInstance());
+    }
+
+    public static BatcherBuilder newKeyBasedBatcherBuilder() {
+        return catchExceptions(
+                () -> (BatcherBuilder) getConstructor("org.apache.pulsar.client.impl.KeyBasedBatcherBuilder")
+                        .newInstance());
     }
 }

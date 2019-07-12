@@ -108,6 +108,7 @@ public class RawReaderImpl implements RawReader {
                 conf,
                 client.externalExecutorProvider().getExecutor(),
                 TopicName.getPartitionIndex(conf.getSingleTopic()),
+                false,
                 consumerFuture,
                 SubscriptionMode.Durable,
                 MessageId.earliest,

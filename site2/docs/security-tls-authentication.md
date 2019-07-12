@@ -32,6 +32,8 @@ Generate the certificate request. When asked for a **common name**, enter the **
 $ openssl req -config openssl.cnf \
       -key admin.key.pem -new -sha256 -out admin.csr.pem
 ```
+> Note
+> If there is no openssl.cnf, please read [Certificate authority](http://pulsar.apache.org/docs/en/security-tls-transport/#certificate-authority) to get the openssl.cnf.
 
 Sign with request with the certificate authority. Note that that client certs uses the **usr_cert** extension, which allows the cert to be used for client authentication.
 
@@ -42,6 +44,16 @@ $ openssl ca -config openssl.cnf -extensions usr_cert \
 ```
 
 This will give you a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem`, which, with `ca.cert.pem`, can be used by clients to authenticate themselves to brokers and proxies as the role token ``admin``.
+
+> Note
+> If got "unable to load CA private key" error and the reason is "No such file or directory: /etc/pki/CA/private/cakey.pem" in this step. Please try :
+>
+> ```bash
+> $ cd /etc/pki/tls/misc/CA
+> $ ./CA -newca
+> ```
+>
+> to generate `cakey.pem` .
 
 ## Enabling TLS Authentication ...
 

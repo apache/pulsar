@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
 public interface SchemaStorage {
 
     CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
 
     CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
+
+    CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
 
     CompletableFuture<SchemaVersion> delete(String key);
 

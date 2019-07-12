@@ -1,44 +1,45 @@
 ---
 id: standalone-docker
-title: Start a standalone cluster with Docker
-sidebar_label: Pulsar in Docker
+title: Set up a standalone Pulsar in Docker
+sidebar_label: Run Pulsar in Docker
 ---
 
-For the purposes of local development and testing, you can run Pulsar in standalone
+For local development and testing, you can run Pulsar in standalone
 mode on your own machine within a Docker container.
 
-If you don't have Docker installed, you can download the [Community edition](https://www.docker.com/community-edition)
+If you have not installed Docker, download the [Community edition](https://www.docker.com/community-edition)
 and follow the instructions for your OS.
 
-## Starting Pulsar inside Docker
+## Start Pulsar in Docker
 
-```shell
-$ docker run -it \
-  -p 6650:6650 \
-  -p 8080:8080 \
-  -v $PWD/data:/pulsar/data \
-  apachepulsar/pulsar:{{site.current_version}} \
-  bin/pulsar standalone
-```
+* For MacOS and Linux:
 
-Under Windows, you should use something like the following docker command:
+  ```shell
+  $ docker run -it \
+    -p 6650:6650 \
+    -p 8080:8080 \
+    -v $PWD/data:/pulsar/data \
+    apachepulsar/pulsar:{{pulsar:version}} \
+    bin/pulsar standalone
+  ```
 
-```shell
-$ docker run -it \
-  -p 6650:6650 \
-  -p 8080:8080 \
-  -v "$PWD/data:/pulsar/data".ToLower() \
-  apachepulsar/pulsar:{{site.current_version}} \
-  bin/pulsar standalone
-```
+* For Windows:  
+  
+  ```shell
+  $ docker run -it \
+    -p 6650:6650 \
+    -p 8080:8080 \
+    -v "$PWD/data:/pulsar/data".ToLower() \
+    apachepulsar/pulsar:{{pulsar:version}} \
+    bin/pulsar standalone
+  ```
 
 A few things to note about this command:
- * `$PWD/data` : The docker host directory under the Windows operating system must be lowercase.`$PWD/data` can provide you with the specified directory, for example: `E:/data`.
- * `-v $PWD/data:/pulsar/data`: This will make the process inside the container to store the
-   data and metadata in the filesystem outside the container, in order to not start "fresh" every
-   time the container is restarted.
+ * `$PWD/data` : The docker host directory in Windows operating system must be lowercase.`$PWD/data` provides you with the specified directory, for example: `E:/data`.
+ * `-v $PWD/data:/pulsar/data`: This makes the process inside the container to store the
+   data and metadata in the filesystem outside the container, in order not to start "fresh" every time the container is restarted.
 
-If Pulsar has been successfully started, you should see `INFO`-level log messages like this:
+If you start Pulsar successfully, you will see `INFO`-level log messages like this:
 
 ```
 2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
@@ -46,32 +47,33 @@ If Pulsar has been successfully started, you should see `INFO`-level log message
 ...
 ```
 
+> #### Tip
+> 
+> When you start a local standalone cluster, a `public/default`
+namespace is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces.
+For more information, see [Topics](concepts-messaging.md#topics).
 
-> #### Automatically created namespace
-> When you start a local standalone cluster, Pulsar will automatically create a `public/default`
-namespace that you can use for development purposes. All Pulsar topics are managed within namespaces.
-For more info, see [Topics](concepts-messaging.md#topics).
+## Use Pulsar in Docker
 
-
-## Start publishing and consuming messages
-
-Pulsar currently offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
+Pulsar offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
 and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can
-use one of these root URLs for interacting with your cluster:
+use one of these root URLs to interact with your cluster:
 
 * `pulsar://localhost:6650`
 * `http://localhost:8080`
 
-Here's an example that lets you quickly get started with Pulsar by using the [Python](client-libraries-python.md)
+The following example will guide you get started with Pulsar quickly by using the [Python](client-libraries-python.md)
 client API.
 
-You can install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
+Install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
 
 ```shell
 $ pip install pulsar-client
 ```
 
-First create a consumer and subscribe to the topic:
+### Consume a message
+
+Create a consumer and subscribe to the topic:
 
 ```python
 import pulsar
@@ -88,7 +90,9 @@ while True:
 client.close()
 ```
 
-Now we can start a producer to send some test messages:
+### Produce a message
+
+Now start a producer to send some test messages:
 
 ```python
 import pulsar
@@ -102,11 +106,10 @@ for i in range(10):
 client.close()
 ```
 
-
 ## Get the topic statistics
 
-In Pulsar you can use REST, Java, or command-line tools to control every aspect of the system.
-You can find detailed documentation of all the APIs in the [Admin API Overview](admin-api-overview.md).
+In Pulsar, you can use REST, Java, or command-line tools to control every aspect of the system.
+For details on APIs, refer to [Admin API Overview](admin-api-overview.md).
 
 In the simplest example, you can use curl to probe the stats for a particular topic:
 
@@ -114,7 +117,7 @@ In the simplest example, you can use curl to probe the stats for a particular to
 $ curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
 ```
 
-The output will be something like this:
+The output is something like this:
 
 ```json
 {

@@ -19,8 +19,8 @@
 package org.apache.pulsar.common.api.raw;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
-import static org.apache.pulsar.common.api.Commands.hasChecksum;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
+import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
@@ -30,8 +30,7 @@ import java.io.IOException;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -50,7 +49,7 @@ public class MessageParser {
      * provided {@link MessageProcessor} will be invoked for each individual message.
      */
     public static void parseMessage(TopicName topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
-            MessageProcessor processor) throws IOException {
+            MessageProcessor processor, int maxMessageSize) throws IOException {
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
         ByteBuf uncompressedPayload = null;
@@ -69,12 +68,17 @@ public class MessageParser {
                 return;
             }
 
+            if (msgMetadata.hasMarkerType()) {
+                // Ignore marker messages as they don't contain user data
+                return;
+            }
+
             if (msgMetadata.getEncryptionKeysCount() > 0) {
                 throw new IOException("Cannot parse encrypted message " + msgMetadata + " on topic " + topicName);
             }
 
             uncompressedPayload = uncompressPayloadIfNeeded(topicName, msgMetadata, headersAndPayload, ledgerId,
-                    entryId);
+                    entryId, maxMessageSize);
 
             if (uncompressedPayload == null) {
                 // Message was discarded on decompression error
@@ -115,11 +119,11 @@ public class MessageParser {
     }
 
     public static ByteBuf uncompressPayloadIfNeeded(TopicName topic, MessageMetadata msgMetadata,
-            ByteBuf payload, long ledgerId, long entryId) {
+            ByteBuf payload, long ledgerId, long entryId, int maxMessageSize) {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(msgMetadata.getCompression());
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
-        if (payloadSize > PulsarDecoder.MaxMessageSize) {
+        if (payloadSize > maxMessageSize) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
             log.error("[{}] Got corrupted payload message size {} at {}:{}", topic, payloadSize,
                     ledgerId, entryId);

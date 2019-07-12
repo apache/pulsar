@@ -33,8 +33,8 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -82,12 +82,21 @@ public interface Topic {
     void addProducer(Producer producer) throws BrokerServiceException;
 
     void removeProducer(Producer producer);
+    
+    /**
+     * record add-latency in micro-seconds.
+     * 
+     * @param latencyUSec
+     */
+    void recordAddLatency(long latencyUSec);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition);
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            boolean replicateSubscriptionState);
 
-    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition);
+    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
+            boolean replicateSubscriptionState);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
@@ -117,6 +126,8 @@ public interface Topic {
 
     boolean isEncryptionRequired();
 
+    boolean getSchemaValidationEnforced();
+
     boolean isReplicated();
 
     BacklogQuota getBacklogQuota();
@@ -145,6 +156,11 @@ public interface Topic {
      * schema.
      */
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
+
+    /**
+     * Delete the schema if this topic has a schema defined for it.
+     */
+    CompletableFuture<SchemaVersion> deleteSchema();
 
     /**
      * Check if schema is compatible with current topic schema.

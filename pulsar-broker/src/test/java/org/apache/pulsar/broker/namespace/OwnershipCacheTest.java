@@ -20,8 +20,7 @@ package org.apache.pulsar.broker.namespace;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.PulsarService.webAddress;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -87,7 +86,7 @@ public class OwnershipCacheTest {
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
         brokerService = mock(BrokerService.class);
-        doReturn(CompletableFuture.completedFuture(1)).when(brokerService).unloadServiceUnit(anyObject());
+        doReturn(CompletableFuture.completedFuture(1)).when(brokerService).unloadServiceUnit(any());
 
         doReturn(zkCache).when(pulsar).getLocalZkCache();
         doReturn(localCache).when(pulsar).getLocalZkCacheService();
@@ -96,8 +95,8 @@ public class OwnershipCacheTest {
         doReturn(Optional.ofNullable(new Integer(port))).when(config).getBrokerServicePort();
         doReturn(Optional.ofNullable(null)).when(config).getWebServicePort();
         doReturn(brokerService).when(pulsar).getBrokerService();
-        doReturn(webAddress(config)).when(pulsar).getWebServiceAddress();
-        doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();
+        doReturn(webAddress(config)).when(pulsar).getSafeWebServiceAddress();
+        doReturn(selfBrokerUrl).when(pulsar).getSafeBrokerServiceUrl();
     }
 
     @AfterMethod

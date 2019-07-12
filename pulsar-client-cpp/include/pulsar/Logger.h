@@ -19,19 +19,19 @@
 #pragma once
 
 #include <memory>
-
-#pragma GCC visibility push(default)
+#include <string>
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
-class Logger {
+class PULSAR_PUBLIC Logger {
    public:
     enum Level
     {
-        DEBUG = 0,
-        INFO = 1,
-        WARN = 2,
-        ERROR = 3
+        LEVEL_DEBUG = 0,
+        LEVEL_INFO = 1,
+        LEVEL_WARN = 2,
+        LEVEL_ERROR = 3
     };
 
     virtual ~Logger() {}
@@ -41,7 +41,7 @@ class Logger {
     virtual void log(Level level, int line, const std::string& message) = 0;
 };
 
-class LoggerFactory {
+class PULSAR_PUBLIC LoggerFactory {
    public:
     virtual ~LoggerFactory() {}
 
@@ -50,4 +50,3 @@ class LoggerFactory {
 
 typedef std::shared_ptr<LoggerFactory> LoggerFactoryPtr;
 }  // namespace pulsar
-#pragma GCC visibility pop

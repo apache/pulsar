@@ -36,6 +36,11 @@ public class AggregatedNamespaceStats {
 
     public long storageSize;
     public long msgBacklog;
+    public long msgDelayed;
+
+    long backlogSize;
+    long offloadedStorageUsed;
+    long backlogQuotaLimit;
 
     public StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(
             ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
@@ -61,6 +66,8 @@ public class AggregatedNamespaceStats {
         throughputOut += stats.throughputOut;
 
         storageSize += stats.storageSize;
+        backlogSize += stats.backlogSize;
+        offloadedStorageUsed += stats.offloadedStorageUsed;
 
         storageWriteRate += stats.storageWriteRate;
         storageReadRate += stats.storageReadRate;
@@ -83,8 +90,10 @@ public class AggregatedNamespaceStats {
         stats.subscriptionStats.forEach((n, as) -> {
             AggregatedSubscriptionStats subsStats =
                     subscriptionStats.computeIfAbsent(n, k -> new AggregatedSubscriptionStats());
+            msgDelayed += as.msgDelayed;
             subsStats.blockedSubscriptionOnUnackedMsgs = as.blockedSubscriptionOnUnackedMsgs;
             subsStats.msgBacklog += as.msgBacklog;
+            subsStats.msgDelayed += as.msgDelayed;
             subsStats.msgRateRedeliver += as.msgRateRedeliver;
             subsStats.unackedMessages += as.unackedMessages;
             as.consumerStat.forEach((c, v) -> {
@@ -109,6 +118,7 @@ public class AggregatedNamespaceStats {
 
         storageSize = 0;
         msgBacklog = 0;
+        msgDelayed = 0;
         storageWriteRate = 0;
         storageReadRate = 0;
 
