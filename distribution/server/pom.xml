@@ -156,12 +156,6 @@
       <version>${project.version}</version>
       <!-- make sure the api examples are compiled before assembly -->
       <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <!-- local-runner -->
