@@ -19,12 +19,14 @@
 package org.apache.pulsar.admin.cli;
 
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.longThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.mockito.Mockito.times;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -45,10 +47,10 @@ import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
+import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
-import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -69,7 +71,6 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -98,7 +99,7 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("update-dynamic-config --config brokerShutdownTimeoutMs --value 100"));
         verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100");
-        
+
         brokers.run(split("delete-dynamic-config --config brokerShutdownTimeoutMs"));
         verify(mockBrokers).deleteDynamicConfiguration("brokerShutdownTimeoutMs");
 
@@ -288,13 +289,13 @@ public class PulsarAdminToolTest {
                 .run(split("set-bookie-affinity-group myprop/clust/ns1 --primary-group test1 --secondary-group test2"));
         verify(mockNamespaces).setBookieAffinityGroup("myprop/clust/ns1",
                 new BookieAffinityGroupData("test1", "test2"));
-        
+
         namespaces.run(split("get-bookie-affinity-group myprop/clust/ns1"));
         verify(mockNamespaces).getBookieAffinityGroup("myprop/clust/ns1");
-        
+
         namespaces.run(split("delete-bookie-affinity-group myprop/clust/ns1"));
         verify(mockNamespaces).deleteBookieAffinityGroup("myprop/clust/ns1");
-        
+
         namespaces.run(split("unload myprop/clust/ns1"));
         verify(mockNamespaces).unload("myprop/clust/ns1");
 
@@ -653,10 +654,9 @@ public class PulsarAdminToolTest {
 
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp
-        class TimestampMatcher extends ArgumentMatcher<Long> {
+        class TimestampMatcher implements ArgumentMatcher<Long> {
             @Override
-            public boolean matches(Object argument) {
-                long timestamp = (Long) argument;
+            public boolean matches(Long timestamp) {
                 long expectedTimestamp = System.currentTimeMillis() - (1 * 60 * 1000);
                 if (timestamp < (expectedTimestamp + 1000) && timestamp > (expectedTimestamp - 1000)) {
                     return true;
@@ -665,8 +665,8 @@ public class PulsarAdminToolTest {
             }
         }
         cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds1 -s sub1 -t 1m"));
-        verify(mockTopics).resetCursor(Matchers.eq("persistent://myprop/clust/ns1/ds1"), Matchers.eq("sub1"),
-                Matchers.longThat(new TimestampMatcher()));
+        verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds1"), eq("sub1"),
+                longThat(new TimestampMatcher()));
     }
 
     @Test
@@ -736,10 +736,9 @@ public class PulsarAdminToolTest {
 
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp
-        class TimestampMatcher extends ArgumentMatcher<Long> {
+        class TimestampMatcher implements ArgumentMatcher<Long> {
             @Override
-            public boolean matches(Object argument) {
-                long timestamp = (Long) argument;
+            public boolean matches(Long timestamp) {
                 long expectedTimestamp = System.currentTimeMillis() - (1 * 60 * 1000);
                 if (timestamp < (expectedTimestamp + 1000) && timestamp > (expectedTimestamp - 1000)) {
                     return true;
@@ -748,10 +747,9 @@ public class PulsarAdminToolTest {
             }
         }
         topics.run(split("reset-cursor persistent://myprop/clust/ns1/ds1 -s sub1 -t 1m"));
-        verify(mockTopics).resetCursor(Matchers.eq("persistent://myprop/clust/ns1/ds1"), Matchers.eq("sub1"),
-                Matchers.longThat(new TimestampMatcher()));
+        verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds1"), eq("sub1"),
+                longThat(new TimestampMatcher()));
     }
-
 
     @Test
     void nonPersistentTopics() throws Exception {
@@ -844,7 +842,7 @@ public class PulsarAdminToolTest {
         assertNull(atuh.getCertFilePath());
         assertNull(atuh.getKeyFilePath());
     }
-    
+
     String[] split(String s) {
         return s.split(" ");
     }
