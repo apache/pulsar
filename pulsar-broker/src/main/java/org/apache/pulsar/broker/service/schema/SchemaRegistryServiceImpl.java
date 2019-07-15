@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
@@ -102,6 +103,21 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         )).collect(Collectors.toList()));
     }
 
+    public CompletableFuture<Long> getMaxDeletedVersion(String schemaId) {
+        return getAllSchemas(schemaId).thenCompose(FutureUtils::collect).thenCompose(list -> {
+            // -1L Identify no delete schema
+            long maxDeletedVersion = -1L;
+            for (int i = 0; i < list.size(); i++) {
+                long version = ((LongSchemaVersion)schemaStorage.versionFromBytes(list.get(i).version.bytes())).getVersion();
+                if (list.get(i).schema.isDeleted()
+                        && version > maxDeletedVersion) {
+                    maxDeletedVersion = version;
+                }
+            }
+            return completedFuture(maxDeletedVersion);
+        });
+    }
+
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
@@ -129,7 +145,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             .setTimestamp(clock.millis())
                             .addAllProps(toPairs(schema.getProps()))
                             .build();
-                        return schemaStorage.put(schemaId, info.toByteArray(), context);
+                        try {
+                            long deleteVersion = getMaxDeletedVersion(schemaId).get();
+                            return schemaStorage.put(schemaId, info.toByteArray(), context, deleteVersion);
+                        } catch (InterruptedException | ExecutionException e) {
+                            return FutureUtil.failedFuture(e);
+                        }
                     } else {
                         return FutureUtil.failedFuture(new IncompatibleSchemaException());
                     }
@@ -140,7 +161,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
         byte[] deletedEntry = deleted(schemaId, user).toByteArray();
-        return schemaStorage.put(schemaId, deletedEntry, new byte[]{});
+        return schemaStorage.put(schemaId, deletedEntry, new byte[]{}, -1);
     }
 
     @Override
