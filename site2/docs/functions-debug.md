@@ -13,7 +13,7 @@ You can use the following methods to debug Pulsar Functions:
 
 ## Use unit test
 
-A Pulsar Function at its core is just a function with inputs and outputs, thus testing a Pulsar Function can be done in a similar way as testing any function.
+A Pulsar Function is a function with inputs and outputs, you can test a Pulsar Function in a similar way as you test any function.
 
 For example, if you have the following Pulsar Function:
 
@@ -39,7 +39,7 @@ public void testJavaNativeExclamationFunction() {
 }
 ```
 
-Consequently, if you have a Pulsar Function that implements the `org.apache.pulsar.functions.api.Function` interface:
+The following Pulsar Function implements the `org.apache.pulsar.functions.api.Function` interface.
 
 ```java
 import org.apache.pulsar.functions.api.Context;
@@ -53,9 +53,7 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
-You can write a unit test for this function as well. Remember to mock the `Context` parameter.
-
-For example:
+In this situation, you can write a unit test for this function as well. Remember to mock the `Context` parameter. The following is an example.
 
 ```java
 @Test
@@ -67,13 +65,12 @@ public void testExclamationFunction() {
 ```
 
 ## Debug with localrun mode
-
-> Note  
-> Currently, debugging with localrun mode is only supported by Pulsar Functions written in Java. You need Pulsar version 2.4.0 or later to do the following. Even though localrun is available in versions earlier than Pulsar 2.4.0, you cannot debug with localrun mode programmatically or run Functions as threads.
-
 When you run a Pulsar Function in localrun mode, it launches an instance of the Function on your local machine as a thread.
 
 In this mode, a Pulsar Function consumes and produces actual data to a Pulsar cluster, and mirrors how the function actually runs in a Pulsar cluster.
+
+> Note  
+> Currently, debugging with localrun mode is only supported by Pulsar Functions written in Java. You need Pulsar version 2.4.0 or later to do the following. Even though localrun is available in versions earlier than Pulsar 2.4.0, you cannot debug with localrun mode programmatically or run Functions as threads.
 
 You can launch your function in the following manner.
 
@@ -89,7 +86,7 @@ LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).b
 localRunner.start(true);
 ```
 
-So you can debug functions using an IDE easily. You can set breakpoints and manually step through a function to debug with real data.
+So you can debug functions using an IDE easily. Set breakpoints and manually step through a function to debug with real data.
 
 The following example illustrates how to programmatically launch a function in localrun mode.
 
@@ -114,7 +111,7 @@ public static void main(String[] args) throws Exception {
 }
 ```
 
-To use localrun programmatically, add the following dependency.
+To use localrun mode programmatically, add the following dependency.
 
 ```xml
 <dependency>
@@ -127,7 +124,8 @@ To use localrun programmatically, add the following dependency.
 
 For complete code samples, see [here](https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging).
 
-Debugging with localrun mode for Pulsar Functions written in other languages will be supported soon.
+> Note   
+> Debugging with localrun mode for Pulsar Functions written in other languages will be supported soon.
 
 ## Use log topic
 
@@ -171,7 +169,7 @@ $ bin/pulsar-admin functions create \
 
 ## Use Functions CLI
 
-The [Pulsar Functions CLI](reference-pulsar-admin.md#functions) helps you in debugging Pulsar Functions with the following subcommands:
+With [Pulsar Functions CLI](reference-pulsar-admin.md#functions), you can debug Pulsar Functions with the following subcommands:
 
 * `get`
 * `status`
