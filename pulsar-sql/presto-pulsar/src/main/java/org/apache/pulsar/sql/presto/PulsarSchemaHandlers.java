@@ -32,8 +32,6 @@ class PulsarSchemaHandlers {
         if (schemaInfo.getType().isPrimitive()) {
             return new PulsarPrimitiveSchemaHandler(schemaInfo);
         } else if (schemaInfo.getType().isStruct()) {
-            // TODO: change avro and json schema to use pulsar's generic schema. because
-            //       it takes care of schema versionings.
             switch (schemaInfo.getType()) {
                 case JSON:
                     return new JSONSchemaHandler(columnHandles);
