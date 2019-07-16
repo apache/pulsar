@@ -450,8 +450,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         }
 
         for (SchemaStorageFormat.IndexEntry entry : index) {
-            if (Arrays.equals(entry.getHash().toByteArray(), hash) && entry.getVersion() > maxDeletedVersion) {
-                return completedFuture(entry.getVersion());
+            if (Arrays.equals(entry.getHash().toByteArray(), hash)) {
+                if (entry.getVersion() > maxDeletedVersion) {
+                    return completedFuture(entry.getVersion());
+                } else {
+                    return completedFuture(null);
+                }
             }
         }
 

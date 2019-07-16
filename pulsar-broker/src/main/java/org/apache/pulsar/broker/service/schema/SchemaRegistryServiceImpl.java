@@ -145,12 +145,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             .setTimestamp(clock.millis())
                             .addAllProps(toPairs(schema.getProps()))
                             .build();
-                        try {
-                            long deleteVersion = getMaxDeletedVersion(schemaId).get();
-                            return schemaStorage.put(schemaId, info.toByteArray(), context, deleteVersion);
-                        } catch (InterruptedException | ExecutionException e) {
-                            return FutureUtil.failedFuture(e);
-                        }
+                        
+                        return getMaxDeletedVersion(schemaId).thenCompose(deleteVersion ->
+                                schemaStorage.put(schemaId, info.toByteArray(), context, deleteVersion));
+
                     } else {
                         return FutureUtil.failedFuture(new IncompatibleSchemaException());
                     }
