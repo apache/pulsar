@@ -33,6 +33,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1529,6 +1530,7 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
+<<<<<<< HEAD
      * Get the strategy used to check the a new schema provided by a producer is compatible with the current schema
      * before it is installed.
      *
@@ -1550,10 +1552,35 @@ public interface Namespaces {
      *
      * @param namespace The namespace in whose policy should be set
      * @param strategy The schema compatibility strategy
+=======
+     * Set the offload configuration for all the topics on a namespace.
+     * <p/>
+     * Set the offload configuration on a namespace. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *  "driver": "S3",                            // offload driver type
+     *  "endpoint": "https//endpoint",             // endpoint hostname
+     *  "bucket": "pulsar-storage-<namespace>",    // bucket name
+     *  "maxBlockSizeInBytes": 67108864,
+     *  "readBufferSizeInBytes": 1048576
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+>>>>>>> add offload per namespace method to pulsar-client-admin
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
      *             Namespace does not exist
+<<<<<<< HEAD
      * @throws PulsarAdminException
      *             Unexpected error
      */
@@ -1591,4 +1618,45 @@ public interface Namespaces {
      */
     void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
             throws PulsarAdminException;
+=======
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setOffload(String namespace, OffloadPolicies offload) throws PulsarAdminException;
+
+    /**
+     * Get the offload configuration for a namespace.
+     * <p/>
+     * Get the offload configuration for a namespace.
+     * <p/>
+     * Response example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *  "driver": "S3",                            // offload driver type
+     *  "endpoint": "https//endpoint",             // endpoint hostname
+     *  "bucket": "pulsar-storage-<namespace>",    // bucket name
+     *  "maxBlockSizeInBytes": 67108864,
+     *  "readBufferSizeInBytes": 1048576
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    OffloadPolicies getOffload(String namespace) throws PulsarAdminException;
+>>>>>>> add offload per namespace method to pulsar-client-admin
 }
