@@ -18,50 +18,44 @@
  */
 package org.apache.pulsar.transaction.buffer;
 
-import com.google.common.annotations.Beta;
-import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
-/**
- * The metadata for the transaction in the transaction buffer.
- */
-@Beta
-public interface TransactionMeta {
+public interface TransactionCursor {
+    /**
+     * Get the spcified transaction meta.
+     *
+     * @param txnID
+     * @param createIfNotExist
+     * @return
+     */
+    CompletableFuture<TransactionMeta> getTxnMeta(TxnID txnID, boolean createIfNotExist);
 
     /**
-     * Returns the transaction id.
+     * Commit transaction.
      *
-     * @return the transaction id
+     * @param committedLedgerId
+     * @param committedEntryId
+     * @param txnID
+     * @param position
+     * @return
      */
-    TxnID id();
+    CompletableFuture<Void> commitTxn(long committedLedgerId, long committedEntryId, TxnID txnID, Position position);
 
     /**
-     * Return the status of the transaction.
+     * Abort transaction.
      *
-     * @return the status of the transaction
+     * @param txnID
+     * @return
      */
-    TxnStatus status();
+    CompletableFuture<Void> abortTxn(TxnID txnID);
 
     /**
-     * Return the number of entries appended to the transaction.
+     * Remove transaction from index.
      *
-     * @return the number of entries
+     * @param txnID
+     * @return
      */
-    int numEntries();
-
-    long committedAtLedgerId();
-
-    long committedAtEntryId();
-
-    CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId);
-
-    CompletableFuture<Void> appendEntry(long sequenceId, Position position);
-
-    CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId);
-
-    CompletableFuture<TransactionMeta> abortTxn();
-
+    CompletableFuture<Void> removeTxn(TxnID txnID);
 }

@@ -19,12 +19,15 @@
 package org.apache.pulsar.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
+import lombok.Builder;
+import lombok.Setter;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * A simple implementation of {@link TransactionEntry}.
  */
+@Builder
 class TransactionEntryImpl implements TransactionEntry {
 
     private final TxnID txnId;

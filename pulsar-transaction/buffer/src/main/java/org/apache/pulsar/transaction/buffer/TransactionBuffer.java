@@ -45,7 +45,7 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
  * commits the buffer again.
  */
 @Beta
-public interface TransactionBuffer extends AutoCloseable {
+public interface TransactionBuffer {
 
     /**
      * Return the metadata of a transaction in the buffer.
@@ -99,6 +99,8 @@ public interface TransactionBuffer extends AutoCloseable {
                                       long committedAtLedgerId,
                                       long committedAtEntryId);
 
+    CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId, ByteBuf marker);
+
     /**
      * Abort the transaction and all the entries of this transaction will
      * be discarded.
@@ -109,6 +111,8 @@ public interface TransactionBuffer extends AutoCloseable {
      *         is not in the buffer.
      */
     CompletableFuture<Void> abortTxn(TxnID txnID);
+
+    CompletableFuture<Void> abortTxn(TxnID txnID, ByteBuf marker);
 
     /**
      * Purge all the data of the transactions who are committed and stored
@@ -125,7 +129,5 @@ public interface TransactionBuffer extends AutoCloseable {
     /**
      * {@inheritDoc}
      */
-    @Override
-    void close();
-
+    CompletableFuture<Void> closeBuffer();
 }
