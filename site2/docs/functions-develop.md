@@ -14,18 +14,49 @@ Interface | Description | Use cases
 Language-native interface | No Pulsar-specific libraries or special dependencies required (only core libraries from Java/Python/Go). | Functions that do not require access to the function [context](#context).
 Pulsar Function SDK for Java/Python/Go | Pulsar-specific libraries that provide a range of functionality not provided by "native" interfaces. | Functions that require access to the function [context](#context).
 
+The language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, has no external dependencies. The following example is language-native function.
+
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
-<!--Python-->
-In Python, the language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, has no external dependencies.
+```Java
+public class JavaNativeExclamationFunction implements Function<String, String> {
+    @Override
+    public String apply(String input) {
+        return String.format("%s!", input);
+    }
+}
+```
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclamationFunction.java).
 
+<!--Python-->
 ```python
 def process(input):
     return "{}!".format(input)
 ```
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/native_exclamation_function.py).
 
-However, the function uses Pulsar Functions [SDK for Python](#python-sdk-functions):
+<!--Go-->
+```Go
 
+```
+For complete code, see [here]().
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+The following example uses Pulsar Functions SDK.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Java-->
+```Java
+public class ExclamationFunction implements Function<String, String> {
+    @Override
+    public String process(String input, Context context) {
+        return String.format("%s!", input);
+    }
+}
+```
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java).
+
+<!--Python-->
 ```python
 from pulsar import Function
 
@@ -34,9 +65,9 @@ class DisplayFunctionName(Function):
         function_name = context.function_name()
         return "The function processing this message has the name {0}".format(function_name)
 ```
-<!--Go-->
-The following example uses Pulsar Functions SDK.
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/exclamation_function.py).
 
+<!--Go-->
 ```
 import (
 	"context"
@@ -60,14 +91,15 @@ func main() {
 }
 
 ```
+For complete code, see [here]().
 
-<!-- END_DOCUSAURUS_CODE_TABS -->
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Schema registry
 Pulsar has a built in [Schema Registry](concepts-schema-registry) and comes bundled with a variety of popular schema types(avro, json and protobuf). Pulsar Functions can leverage existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
 
 ## SerDe
-SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions use SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
+SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions uses SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
