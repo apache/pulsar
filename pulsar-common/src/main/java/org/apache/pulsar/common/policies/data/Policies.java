@@ -79,6 +79,7 @@ public class Policies {
     public long offload_threshold = -1;
     @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
+    public OffloadPolicies offload_policies = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     @Deprecated
@@ -107,6 +108,7 @@ public class Policies {
                 max_consumers_per_topic, max_consumers_per_subscription,
                 compaction_threshold, offload_threshold,
                 offload_deletion_lag_ms,
+                offload_policies,
                 schema_auto_update_compatibility_strategy,
                 schema_validation_enforced,
                 schema_compatibility_strategy,
@@ -140,6 +142,7 @@ public class Policies {
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
+                    && offload_policies == other.offload_policies
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
@@ -188,6 +191,7 @@ public class Policies {
                 .add("compaction_threshold", compaction_threshold)
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
+                .add("offload_policies", offload_policies)
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
                 .add("schema_validation_enforced", schema_validation_enforced)
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
