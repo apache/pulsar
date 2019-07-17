@@ -68,9 +68,9 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         }
     }
 
-    @Test
-    public void testTopic() throws Exception {
-
+    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    public void testTopic(String delimiter) throws Exception {
+        updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         for (TopicName topicName : topicNames) {
             setup();
             log.info("!----- topic: %s -----!", topicName);
@@ -115,8 +115,9 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
-    @Test
-    public void testPartitionedTopic() throws Exception {
+    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    public void testPartitionedTopic(String delimiter) throws Exception {
+        updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         for (TopicName topicName : partitionedTopicNames) {
             setup();
             log.info("!----- topic: %s -----!", topicName);
@@ -171,9 +172,9 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         }).collect(Collectors.toList());
     }
 
-    @Test
-    public void testPublishTimePredicatePushdown() throws Exception {
-
+    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    public void testPublishTimePredicatePushdown(String delimiter) throws Exception {
+        updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         TopicName topicName = TOPIC_1;
 
         setup();
@@ -229,9 +230,9 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
-    @Test
-    public void testPublishTimePredicatePushdownPartitionedTopic() throws Exception {
-
+    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    public void testPublishTimePredicatePushdownPartitionedTopic(String delimiter) throws Exception {
+        updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         TopicName topicName = PARTITIONED_TOPIC_1;
 
         setup();

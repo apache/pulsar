@@ -83,4 +83,18 @@ public class PulsarConnectorUtils {
         }
         return properties;
     }
+
+
+    public static String rewriteNamespaceDelimiterIfNeeded(String namespace, PulsarConnectorConfig config) {
+        return config.getNamespaceDelimiterRewriteEnable()
+                ? namespace.replace("/", config.getRewriteNamespaceDelimiter())
+                : namespace;
+    }
+
+    public static String restoreNamespaceDelimiterIfNeeded(String namespace, PulsarConnectorConfig config) {
+        return config.getNamespaceDelimiterRewriteEnable()
+                ? namespace.replace(config.getRewriteNamespaceDelimiter(), "/")
+                : namespace;
+    }
+
 }
