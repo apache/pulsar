@@ -7,11 +7,11 @@ sidebar_label: Develop functions
 This tutorial walks you through how to develop Pulsar Functions.
 
 ## Available APIs
-In Java, Python, and Go, you have two options to write Pulsar Functions.
+In Java and Python, you have two options to write Pulsar Functions. In Go, you can use Pulsar Functions SDK for Go.
 
 Interface | Description | Use cases
 :---------|:------------|:---------
-Language-native interface | No Pulsar-specific libraries or special dependencies required (only core libraries from Java/Python/Go). | Functions that do not require access to the function [context](#context).
+Language-native interface | No Pulsar-specific libraries or special dependencies required (only core libraries from Java/Python). | Functions that do not require access to the function [context](#context).
 Pulsar Function SDK for Java/Python/Go | Pulsar-specific libraries that provide a range of functionality not provided by "native" interfaces. | Functions that require access to the function [context](#context).
 
 The language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, has no external dependencies. The following example is language-native function.
@@ -35,12 +35,6 @@ def process(input):
 ```
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/native_exclamation_function.py).
 
-<!--Go-->
-```Go
-
-```
-For complete code, see [here]().
-
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 The following example uses Pulsar Functions SDK.
@@ -60,38 +54,36 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 ```python
 from pulsar import Function
 
-class DisplayFunctionName(Function):
-    def process(self, input, context):
-        function_name = context.function_name()
-        return "The function processing this message has the name {0}".format(function_name)
+class ExclamationFunction(Function):
+  def __init__(self):
+    pass
+
+  def process(self, input, context):
+    return input + '!'
 ```
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/exclamation_function.py).
 
 <!--Go-->
-```
+```Go
+package main
+
 import (
 	"context"
 	"fmt"
 
-    "github.com/apache/pulsar/pulsar-function-go/log"
 	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
-func contextFunc(ctx context.Context) {
-	if fc, ok := pf.FromContext(ctx); ok {
-		tenant := fc.GetFuncTenant()
-		namespace := fc.GetFuncNamespace()
-		name := fc.GetFuncName()
-		log.Info("Function tenant/namespace/name: %s/%s/%s\n", tenant, namespace, name)
-	}
+func HandleRequest(ctx context.Context, in []byte) error{
+	fmt.Println(string(in) + "!")
+	return nil
 }
 
 func main() {
-	pf.Start(contextFunc)
+	pf.Start(HandleRequest)
 }
-
 ```
-For complete code, see [here]().
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-function-go/examples/inputFunc.go#L20-L36).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
