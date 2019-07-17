@@ -95,11 +95,7 @@ public interface TransactionBuffer {
      * @throws org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID,
-                                      long committedAtLedgerId,
-                                      long committedAtEntryId);
-
-    CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId, ByteBuf marker);
+    CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId);
 
     /**
      * Abort the transaction and all the entries of this transaction will
@@ -111,8 +107,6 @@ public interface TransactionBuffer {
      *         is not in the buffer.
      */
     CompletableFuture<Void> abortTxn(TxnID txnID);
-
-    CompletableFuture<Void> abortTxn(TxnID txnID, ByteBuf marker);
 
     /**
      * Purge all the data of the transactions who are committed and stored

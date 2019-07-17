@@ -22,9 +22,12 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
+/**
+ * The transaction Cursor maintained the index of all transaction.
+ */
 public interface TransactionCursor {
     /**
-     * Get the spcified transaction meta.
+     * Get the specified transaction meta.
      *
      * @param txnID
      * @param createIfNotExist
@@ -35,10 +38,10 @@ public interface TransactionCursor {
     /**
      * Commit transaction.
      *
-     * @param committedLedgerId
-     * @param committedEntryId
-     * @param txnID
-     * @param position
+     * @param committedLedgerId the ledger which  txn committed at.
+     * @param committedEntryId  the entry which txn committed at.
+     * @param txnID             the id which txn committed.
+     * @param position          the commit position at transaction log.
      * @return
      */
     CompletableFuture<Void> commitTxn(long committedLedgerId, long committedEntryId, TxnID txnID, Position position);
@@ -46,7 +49,7 @@ public interface TransactionCursor {
     /**
      * Abort transaction.
      *
-     * @param txnID
+     * @param txnID aborted transaction id.
      * @return
      */
     CompletableFuture<Void> abortTxn(TxnID txnID);
@@ -54,7 +57,7 @@ public interface TransactionCursor {
     /**
      * Remove transaction from index.
      *
-     * @param txnID
+     * @param txnID the remove transaction id
      * @return
      */
     CompletableFuture<Void> removeTxn(TxnID txnID);

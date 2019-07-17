@@ -91,8 +91,13 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
+        public long lastSequenceId() {
+            return entries.lastKey();
+        }
+
+        @Override
         public CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId) {
-            return null;
+            return CompletableFuture.failedFuture(new UnsupportedOperationException());
         }
 
         @Override
@@ -271,12 +276,6 @@ class InMemTransactionBuffer implements TransactionBuffer {
         return commitFuture;
     }
 
-    @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId,
-                                             ByteBuf marker) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
-    }
-
     private void addTxnToTxnIdex(TxnID txnId, long committedAtLedgerId) {
         synchronized (txnIndex) {
             txnIndex
@@ -299,11 +298,6 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         return abortFuture;
-    }
-
-    @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnID, ByteBuf marker) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
     }
 
     @Override

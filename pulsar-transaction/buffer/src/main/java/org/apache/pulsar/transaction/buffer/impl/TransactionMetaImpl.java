@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.transaction.buffer.impl;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
-import org.apache.avro.reflect.MapEntry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
@@ -74,6 +70,11 @@ public class TransactionMetaImpl implements TransactionMeta {
     @Override
     public long committedAtEntryId() {
         return committedAtEntryId;
+    }
+
+    @Override
+    public long lastSequenceId() {
+        return entries.lastKey();
     }
 
     @Override

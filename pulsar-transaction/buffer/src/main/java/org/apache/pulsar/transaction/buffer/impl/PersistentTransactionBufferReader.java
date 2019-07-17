@@ -36,6 +36,9 @@ import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
 
+/**
+ * A persistent transaction buffer reader implementation.
+ */
 @Slf4j
 public class PersistentTransactionBufferReader implements TransactionBufferReader {
 
@@ -53,8 +56,8 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
     public CompletableFuture<List<TransactionEntry>> readNext(int numEntries) {
         CompletableFuture<List<TransactionEntry>> readFuture = new CompletableFuture<>();
 
-        meta.readEntries(numEntries, currentSeuquenceId).thenCompose( entries -> {
-            readEntry(entries).thenCompose( txnEntries -> {
+        meta.readEntries(numEntries, currentSeuquenceId).thenCompose(entries -> {
+            readEntry(entries).thenCompose(txnEntries -> {
                 readFuture.complete(txnEntries);
                 return null;
             }).exceptionally(readError -> {

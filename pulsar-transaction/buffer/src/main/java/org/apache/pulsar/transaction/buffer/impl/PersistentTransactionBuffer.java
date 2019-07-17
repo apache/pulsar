@@ -19,11 +19,15 @@
 package org.apache.pulsar.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import lombok.Builder;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang.SerializationUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -32,12 +36,43 @@ import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
+/**
+ * A persistent transaction buffer implementation.
+ */
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 
     private TransactionCursor txnCursor;
 
-    abstract class TxnCtx implements PublishContext {}
+
+    abstract class TxnCtx implements PublishContext{
+        private long sequenceId;
+
+        TxnCtx(long sequenceId) {
+            this.sequenceId = sequenceId;
+        }
+
+        @Override
+        public String getProducerName() {
+            return "txn-producer";
+        }
+
+        @Override
+        public long getSequenceId() {
+            return this.sequenceId;
+        }
+    }
+
+    @Builder
+    private static final class Marker implements Serializable {
+        TxnID txnID;
+        TxnStatus status;
+
+        public byte[] serialize() {
+            return SerializationUtils.serialize(this);
+        }
+    }
 
     public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService)
         throws BrokerServiceException.NamingException {
@@ -47,24 +82,14 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
-        CompletableFuture<TransactionMeta> getFuture = new CompletableFuture<>();
-
-        txnCursor.getTxnMeta(txnID, false).thenCompose(meta -> {
-            getFuture.complete(meta);
-            return null;
-        }).exceptionally(e -> {
-            getFuture.completeExceptionally(e);
-            return null;
-        });
-
-        return getFuture;
+        return txnCursor.getTxnMeta(txnID, false);
     }
 
     @Override
     public CompletableFuture<Void> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Void> appendFuture = new CompletableFuture<>();
 
-        publishMessage(buffer, new TxnCtx() {
+        publishMessage(buffer, new TxnCtx(sequenceId) {
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
                 if (e != null) {
@@ -105,32 +130,36 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
-    }
-
-    @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId,
-                                             ByteBuf marker) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
 
-        publishMessage(marker, new TxnCtx() {
-            @Override
-            public void completed(Exception e, long ledgerId, long entryId) {
-                if (e != null) {
-                    commitFuture.completeExceptionally(e);
-                    return;
-                }
+        Marker commitMarker = Marker.builder().txnID(txnID).status(TxnStatus.COMMITTED).build();
+        ByteBuf marker = Unpooled.wrappedBuffer(commitMarker.serialize());
 
-                txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID, PositionImpl.get(ledgerId, entryId))
-                         .thenCompose(v -> {
-                             commitFuture.complete(null);
-                             return null;
-                         })
-                         .exceptionally(error -> {
-                             commitFuture.completeExceptionally(error);
-                             return null;
-                         });
-            }
+        txnCursor.getTxnMeta(txnID, false).thenCompose(meta -> {
+            publishMessage(marker, new TxnCtx(meta.lastSequenceId() + 1) {
+                @Override
+                public void completed(Exception e, long ledgerId, long entryId) {
+                    if (e != null) {
+                        commitFuture.completeExceptionally(e);
+                        return;
+                    }
+
+                    txnCursor
+                        .commitTxn(committedAtLedgerId, committedAtEntryId, txnID, PositionImpl.get(ledgerId, entryId))
+                        .thenCompose(v -> {
+                            commitFuture.complete(null);
+                            return null;
+                        }).exceptionally(error -> {
+                        commitFuture.completeExceptionally(error);
+                        return null;
+                    });
+
+                }
+            });
+            return null;
+        }).exceptionally(e -> {
+            commitFuture.completeExceptionally(e);
+            return null;
         });
 
         return commitFuture;
@@ -138,30 +167,34 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> abortTxn(TxnID txnID) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
-    }
-
-    @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnID, ByteBuf marker) {
-
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
 
-        publishMessage(marker, new TxnCtx() {
-            @Override
-            public void completed(Exception e, long ledgerId, long entryId) {
-                if (e != null) {
-                    abortFuture.completeExceptionally(e);
-                    return;
-                }
+        Marker abortMarker = Marker.builder().txnID(txnID).status(TxnStatus.ABORTED).build();
+        ByteBuf marker = Unpooled.wrappedBuffer(abortMarker.serialize());
 
-                txnCursor.abortTxn(txnID).thenCompose(v -> {
-                    abortFuture.complete(null);
-                    return null;
-                }).exceptionally(error -> {
-                    abortFuture.completeExceptionally(error);
-                    return null;
-                });
-            }
+        txnCursor.getTxnMeta(txnID, false).thenCompose(meta -> {
+            publishMessage(marker, new TxnCtx(meta.lastSequenceId() + 1) {
+                @Override
+                public void completed(Exception e, long ledgerId, long entryId) {
+                    if (e != null) {
+                        abortFuture.completeExceptionally(e);
+                        return;
+                    }
+
+                    txnCursor.abortTxn(txnID).thenCompose(v -> {
+                        abortFuture.complete(null);
+                        return null;
+                    }).exceptionally(error -> {
+                        abortFuture.completeExceptionally(error);
+                        return null;
+                    });
+
+                }
+            });
+            return null;
+        }).exceptionally(e -> {
+            abortFuture.completeExceptionally(e);
+            return null;
         });
 
         return abortFuture;
