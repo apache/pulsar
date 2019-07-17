@@ -2141,7 +2141,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetOffload(OffloadPolicies offload) {
+    protected void internalSetOffloadPolicies(OffloadPolicies offload) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
