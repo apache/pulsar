@@ -24,6 +24,7 @@ import java.util.Properties;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * Factory to create {@link LedgerOffloader} to offload ledgers into long-term storage.
@@ -53,5 +54,21 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
              Map<String, String> userMetadata,
              OrderedScheduler scheduler)
         throws IOException;
+
+    /**
+     * Create a ledger offloader with the provided configuration, offload policies, user-metadata and scheduler.
+     *
+     * @param properties service configuration
+     * @param offloadPolicies the namespace offload policies
+     * @param userMetadata user metadata
+     * @param scheduler scheduler
+     * @return the offloader instance
+     * @throws IOException when fail to create an offloader
+     */
+    T create(Properties properties,
+             OffloadPolicies offloadPolicies,
+             Map<String, String> userMetadata,
+             OrderedScheduler scheduler)
+            throws IOException;
 
 }

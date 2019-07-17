@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.NamespacesBase.getBundles;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -85,6 +86,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -93,14 +95,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
-import org.apache.pulsar.common.naming.NamedEntity;
-import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.naming.*;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
@@ -129,6 +125,8 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.ws.rs.core.Response;
 
 /**
  * Main class for Pulsar broker service
@@ -162,7 +160,8 @@ public class PulsarService implements AutoCloseable {
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
     private Offloaders offloaderManager = new Offloaders();
-    private LedgerOffloader offloader;
+    private LedgerOffloader defaultOffloader;
+    private Map<NamespaceName, LedgerOffloader> namespacesOffloaders;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
@@ -398,7 +397,14 @@ public class PulsarService implements AutoCloseable {
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
 
-            this.offloader = createManagedLedgerOffloader(this.getConfiguration());
+            // Start the leader election service
+            startLeaderElectionService();
+
+            // needs load management service
+            this.startNamespaceService();
+
+            this.defaultOffloader = createManagedLedgerOffloader(this.getConfiguration());
+            this.namespacesOffloaders = createNamespacesOffloaders();
 
             brokerService.start();
 
@@ -560,7 +566,7 @@ public class PulsarService implements AutoCloseable {
             // Namespace not created hence no need to unload it
             String nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
             if (!this.globalZkCache.exists(
-                    AdminResource.path(POLICIES) + "/" + nsName)) {
+                    path(POLICIES) + "/" + nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
             }
@@ -761,7 +767,11 @@ public class PulsarService implements AutoCloseable {
     }
 
     public LedgerOffloader getManagedLedgerOffloader() {
-        return offloader;
+        return defaultOffloader;
+    }
+
+    public LedgerOffloader getManagedLedgerOffloadForNamespace(String namespace) {
+        return namespacesOffloaders.get(namespace);
     }
 
     public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
@@ -791,6 +801,97 @@ public class PulsarService implements AutoCloseable {
             }
         } catch (Throwable t) {
             throw new PulsarServerException(t);
+        }
+    }
+
+    public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf, OffloadPolicies offloadPolicies)
+            throws PulsarServerException {
+        try {
+            if (StringUtils.isNotBlank(offloadPolicies.getDriver())) {
+                checkNotNull(conf.getOffloadersDirectory(),
+                        "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
+                        conf.getManagedLedgerOffloadDriver());
+                this.offloaderManager = OffloaderUtils.searchForOffloaders(conf.getOffloadersDirectory());
+                LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(offloadPolicies.getDriver());
+                try {
+                    return offloaderFactory.create(
+                            conf.getProperties(),
+                            offloadPolicies,
+                            ImmutableMap.of(
+                                    LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
+                                    LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
+                            ),
+                            getOffloaderScheduler(conf));
+                } catch (IOException ioe) {
+                    throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
+                }
+            } else {
+                LOG.info("No ledger offloader configured, using NULL instance");
+                return NullLedgerOffloader.INSTANCE;
+            }
+        } catch (Throwable t) {
+            throw new PulsarServerException(t);
+        }
+    }
+
+    public Map<NamespaceName, LedgerOffloader> createNamespacesOffloaders() {
+        try {
+            List<String> tenants = this.getZkClient().getChildren(path(POLICIES), false);
+            tenants.sort(null);
+            Map<NamespaceName, LedgerOffloader> namespacesOffloaders = Maps.newHashMap();
+            for (String tenantName: tenants) {
+                // this will return a cluster in v1 and a namespace in v2
+                for (String clusterOrNamespace : this.getZkClient().getChildren(path(POLICIES, tenantName), false)) {
+                    // Then get the list of namespaces
+                    try {
+                        final List<String> children = this.getZkClient().getChildren(path(POLICIES, tenantName, clusterOrNamespace), false);
+                        if (children == null || children.isEmpty()) {
+                            NamespaceName namespaceName = NamespaceName.get(tenantName, clusterOrNamespace);
+                            // if the length is 0 then this is probably a leftover cluster from namespace created
+                            // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
+                            if (this.getZkClient().getData(path(POLICIES, namespaceName.toString()), false, null).length != 0) {
+                                namespacesOffloaders.put(namespaceName, createManagedLedgerOffloader(this.config, getNamespacePolicies(namespaceName).offload_policies));
+                            }
+                        } else {
+                            children.forEach(ns -> {
+                                NamespaceName namespaceName = NamespaceName.get(tenantName, clusterOrNamespace, ns);
+                                try {
+                                    namespacesOffloaders.put(namespaceName, createManagedLedgerOffloader(this.config, getNamespacePolicies(namespaceName).offload_policies));
+                                } catch (PulsarServerException e) {
+                                    LOG.error("Error during create managedLedgerOffloader for {}", namespaceName, e);
+                                }
+                            });
+                        }
+                    } catch (KeeperException.NoNodeException e) {
+                        // A cluster was deleted between the 2 getChildren() calls, ignoring
+                    }
+                }
+            }
+            return namespacesOffloaders;
+        } catch (Exception e) {
+            LOG.error("Failed to get tenants list", e);
+            throw new RestException(e);
+        }
+    }
+
+    protected Policies getNamespacePolicies(NamespaceName namespaceName) {
+        try {
+            final String namespace = namespaceName.toString();
+            final String policyPath = path(POLICIES, namespace);
+            Policies policies = this.configurationCacheService.policiesCache ().get(policyPath)
+                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+            // fetch bundles from LocalZK-policies
+            NamespaceBundles bundles = this.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(namespaceName);
+            BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+            policies.bundles = bundleData != null ? bundleData : policies.bundles;
+
+            return policies;
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            LOG.error("Failed to get namespace policies {}", namespaceName, e);
+            throw new RestException(e);
         }
     }
 
@@ -1028,7 +1129,7 @@ public class PulsarService implements AutoCloseable {
             try {
                 NamedEntity.checkName(property);
                 this.getGlobalZkCache().getZooKeeper().create(
-                        AdminResource.path(POLICIES, property),
+                        path(POLICIES, property),
                         ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
                                 new TenantInfo(
                                         Sets.newHashSet(config.getSuperUserRoles()),
@@ -1051,7 +1152,7 @@ public class PulsarService implements AutoCloseable {
                 ClusterData clusterData = new ClusterData(this.getSafeWebServiceAddress(), null /* serviceUrlTls */,
                         brokerServiceUrl, null /* brokerServiceUrlTls */);
                 this.getGlobalZkCache().getZooKeeper().create(
-                        AdminResource.path("clusters", cluster),
+                        path("clusters", cluster),
                         ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                 LOG.info("Created cluster {} for function worker", cluster);
@@ -1073,9 +1174,9 @@ public class PulsarService implements AutoCloseable {
                 int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
                 policies.bundles = getBundles(defaultNumberOfBundles);
 
-                this.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, namespace));
+                this.getConfigurationCache().policiesCache().invalidate(path(POLICIES, namespace));
                 ZkUtils.createFullPathOptimistic(this.getGlobalZkCache().getZooKeeper(),
-                        AdminResource.path(POLICIES, namespace),
+                        path(POLICIES, namespace),
                         ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);

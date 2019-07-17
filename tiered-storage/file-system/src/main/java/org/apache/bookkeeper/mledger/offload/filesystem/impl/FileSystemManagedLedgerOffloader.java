@@ -39,6 +39,7 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

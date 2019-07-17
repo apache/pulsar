@@ -29,6 +29,7 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Properties;
 import lombok.Data;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * Configuration for tiered storage.
@@ -102,6 +103,31 @@ public class TieredStorageConfigurationData implements Serializable, Cloneable {
      * @return tiered storage configuration
      */
     public static TieredStorageConfigurationData create(Properties properties) {
+        TieredStorageConfigurationData data = new TieredStorageConfigurationData();
+        Field[] fields = TieredStorageConfigurationData.class.getDeclaredFields();
+        Arrays.stream(fields).forEach(f -> {
+            if (properties.containsKey(f.getName())) {
+                try {
+                    f.setAccessible(true);
+                    f.set(data, value((String) properties.get(f.getName()), f));
+                } catch (Exception e) {
+                    throw new IllegalArgumentException(String.format("failed to initialize %s field while setting value %s",
+                            f.getName(), properties.get(f.getName())), e);
+                }
+            }
+        });
+        return data;
+    }
+
+    /**
+     * Create a tiered storage configuration from the provided <tt>properties</tt> and <tt>offloadPolicies</tt>.
+     *
+     * @param properties the configuration properties
+     * @param offloadPolicies the offload policies of the current namespace
+     * @return tiered storage configuration
+     */
+    public static TieredStorageConfigurationData create(Properties properties, OffloadPolicies offloadPolicies) {
+        // TODO: replace default conf by policies one
         TieredStorageConfigurationData data = new TieredStorageConfigurationData();
         Field[] fields = TieredStorageConfigurationData.class.getDeclaredFields();
         Arrays.stream(fields).forEach(f -> {
