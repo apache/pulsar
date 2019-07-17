@@ -21,7 +21,9 @@ package org.apache.kafka.clients.producer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.testng.annotations.Test;
 import java.util.Properties;
-
+/**
+ * A test that tests if {@link PulsarKafkaProducer} is thread safe.
+ */
 public class PulsarKafkaProducerThreadSafeTest {
     private static Properties props = new Properties();
     static {
@@ -31,10 +33,12 @@ public class PulsarKafkaProducerThreadSafeTest {
     }
     private static PulsarKafkaProducer producer = new PulsarKafkaProducer<>(props, new StringSerializer(), new StringSerializer());
 
-    /*
-    * Test if this class is thread safe.
-    * */
-    @Test(threadPoolSize = 5, invocationCount = 5)
+   /**
+    * This test run 10 times in threadPool witch size is 5.
+    * Different threads have same producer and different topics witch is based on thread time.
+    * This test will be failed when producer failed to send if PulsarKafkaProducer is not thread safe.
+    */
+    @Test(threadPoolSize = 5, invocationCount = 10)
     public static void testPulsarKafkaProducerThreadSafe(){
         String topic1 = "persistent://public/default/topic-" + System.currentTimeMillis();
         ProducerRecord<String, String> record1 = new ProducerRecord<>(topic1, "Hello");
