@@ -25,6 +25,7 @@ import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
+import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.NO_DELETED_VERSION;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -139,7 +140,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .thenApply(entry -> new StoredSchema
                     (
                         entry.getSchemaData().toByteArray(),
-                        new LongSchemaVersion(schemaLocator.getInfo().getVersion())
+                        new LongSchemaVersion(indexEntry.getVersion())
                     )
                 )
             ));
@@ -312,7 +313,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                                 // There was a race condition on the schema creation. Since it has now been created,
                                 // retry the whole operation so that we have a chance to recover without bubbling error
                                 // back to producer/consumer
-                                putSchemaIfAbsent(schemaId, data, hash, -1)
+                                putSchemaIfAbsent(schemaId, data, hash, NO_DELETED_VERSION)
                                         .thenAccept(version -> future.complete(version))
                                         .exceptionally(ex2 -> {
                                             future.completeExceptionally(ex2);
