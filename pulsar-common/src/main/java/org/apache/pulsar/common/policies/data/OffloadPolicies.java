@@ -18,20 +18,18 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.tieredStorage.OffloadType;
-
 import java.util.Objects;
 
 /**
  */
 public class OffloadPolicies {
-    private OffloadType driver;
+    private String driver;
     private String endpoint;
     private String bucket;
     private long maxBlockSizeInBytes;
     private long readBufferSizeInBytes;
 
-    public OffloadPolicies(OffloadType driver, String endpoint, String bucket, long maxBlockSizeInBytes, long readBufferSizeInBytes) {
+    public OffloadPolicies(String driver, String endpoint, String bucket, long maxBlockSizeInBytes, long readBufferSizeInBytes) {
         this.driver = driver;
         this.endpoint = endpoint;
         this.bucket = bucket;
@@ -39,7 +37,7 @@ public class OffloadPolicies {
         this.readBufferSizeInBytes = readBufferSizeInBytes;
     }
 
-    public OffloadType getDriver() {
+    public String getDriver() {
         return driver;
     }
 
@@ -66,7 +64,7 @@ public class OffloadPolicies {
         OffloadPolicies that = (OffloadPolicies) o;
         return maxBlockSizeInBytes == that.maxBlockSizeInBytes &&
                 readBufferSizeInBytes == that.readBufferSizeInBytes &&
-                driver == that.driver &&
+                Objects.equals(driver, that.driver) &&
                 Objects.equals(endpoint, that.endpoint) &&
                 Objects.equals(bucket, that.bucket);
     }
