@@ -38,6 +38,9 @@
       "io-develop",
       "io-cdc"
     ],
+    "Pulsar Schema": [
+      "schema-get-started"
+    ],
     "Pulsar SQL": [
       "sql-overview",
       "sql-getting-started",
