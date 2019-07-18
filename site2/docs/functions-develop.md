@@ -527,9 +527,33 @@ $ bin/pulsar-admin functions create \
 
 All logs produced by `LoggingFunction` above can be accessed via the `logging-function-logs` topic.
 
+<!--Go-->
+The following Go Function example shows different log levels based on the function input.
+
+```
+import (
+	"context"
+
+	"github.com/apache/pulsar/pulsar-function-go/log"
+	"github.com/apache/pulsar/pulsar-function-go/pf"
+)
+
+func loggerFunc(ctx context.Context, input []byte) {
+	if len(input) <= 100 {
+		log.Infof("This input has a length of: %d", len(input))
+	} else {
+		log.Warnf("This input is getting too long! It has {%d} characters", len(input))
+	}
+}
+
+func main() {
+	pf.Start(loggerFunc)
+}
+```
+
+When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/log`, and you do not have to use the `getLogger()` context object. 
 
 <!--END_DOCUSAURUS_CODE_TABS-->
-
 
 ## Metrics
 Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
