@@ -131,6 +131,8 @@
         <exclude>io.netty:netty-transport-native-epoll</exclude>
         <exclude>io.netty:netty-transport-native-unix-common</exclude>
 
+        <exclude>org.apache.pulsar:pulsar-functions-runtime-all</exclude>
+
         <!-- Already included in pulsar-zookeeper instrumented jar -->
         <exclude>org.apache.zookeeper:zookeeper</exclude>
 
