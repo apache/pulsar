@@ -54,9 +54,7 @@ RUN apt-get update \
 # Install python3.5.6
 RUN curl -O -L https://www.python.org/ftp/python/3.5.6/Python-3.5.6.tgz
 RUN tar -zxvf Python-3.5.6.tgz
-RUN cd Python-3.5.6
-RUN ./configure --enable-optimizations
-RUN make altinstall
+RUN cd Python-3.5.6 && ./configure --enable-optimizations && make altinstall
 
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN python2.7 get-pip.py
