@@ -976,9 +976,6 @@ public class ServerCnxTest {
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */);
         channel.writeInbound(subscribe1);
 
-        ByteBuf closeConsumer = Commands.newCloseConsumer(1 /* consumer id */, 2 /* request id */ );
-        channel.writeInbound(closeConsumer);
-
         ByteBuf subscribe2 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 3 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */);
         channel.writeInbound(subscribe2);
@@ -996,10 +993,6 @@ public class ServerCnxTest {
         Object response;
 
         synchronized (this) {
-            // Close succeeds
-            response = getResponse();
-            assertEquals(response.getClass(), CommandSuccess.class);
-            assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
             // All other subscribe should fail
             response = getResponse();
@@ -1014,9 +1007,12 @@ public class ServerCnxTest {
             assertEquals(response.getClass(), CommandError.class);
             assertEquals(((CommandError) response).getRequestId(), 5);
 
-            // We should not receive response for 1st producer, since it was cancelled by the close
-            assertTrue(channel.outboundMessages().isEmpty());
+            // We should receive response for 1st producer, since it was not cancelled by the close
+            assertTrue(!channel.outboundMessages().isEmpty());
             assertTrue(channel.isActive());
+            response = getResponse();
+            assertEquals(response.getClass(), CommandSuccess.class);
+            assertEquals(((CommandSuccess) response).getRequestId(), 1);
         }
 
         channel.finish();
