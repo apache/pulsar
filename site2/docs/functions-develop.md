@@ -232,15 +232,13 @@ In order to use this class in Pulsar Functions, you have two options:
           tweet_components = str(input_bytes).split('|')
           return Tweet(tweet_components[0], tweet_componentsp[1])
   ```
-<!--Go-->
 
 <!--END_DOCUSAURUS_CODE_TABS-->
-
 
 In both languages, however, you can write custom SerDe logic for more complex, application-specific types.
 
 ## Context
-Both the [Java](#java-sdk-functions) and [Python](#python-sdk-functions) SDKs provide access to a **context object** that can be used by a function. This context object provides a wide variety of information and functionality to the function.
+Both the [Java](#java-sdk-functions), [Python](#python-sdk-functions) and [Go](#go-sdk-functions) SDKs provide access to a **context object** that can be used by a function. This context object provides a wide variety of information and functionality to the function.
 
 * The name and ID of a Pulsar Function.
 * The message ID of each message. Each Pulsar message is automatically assigned with an ID.
@@ -577,8 +575,6 @@ class MetricRecorderFunction(Function):
         if input == 11:
             context.record_metric('elevens-count', 1)
 ```
-
-<!--Go-->
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
