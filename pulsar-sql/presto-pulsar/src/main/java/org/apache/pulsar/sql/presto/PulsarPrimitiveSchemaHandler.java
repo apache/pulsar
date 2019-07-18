@@ -36,12 +36,6 @@ public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
 
     private final SchemaInfo schemaInfo;
     private final Schema<?> schema;
-    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
-        @Override
-        protected byte[] initialValue() {
-            return new byte[1024];
-        }
-    };
 
     public PulsarPrimitiveSchemaHandler(SchemaInfo schemaInfo) {
         this.schemaInfo = schemaInfo;
