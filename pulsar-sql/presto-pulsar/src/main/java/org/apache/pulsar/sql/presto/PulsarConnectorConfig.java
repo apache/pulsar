@@ -44,7 +44,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private Map<String, String> statsProviderConfigs = new HashMap<>();
 
     private boolean namespaceDelimiterRewriteEnable = false;
-    private String rewriteNamespaceDelimiter = "__";
+    private String rewriteNamespaceDelimiter = "/";
 
     /**** --- Ledger Offloading --- ****/
     private String managedLedgerOffloadDriver = null;
