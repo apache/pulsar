@@ -134,8 +134,7 @@ public abstract class PulsarInternalColumn {
             .TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
 
     public static final PulsarInternalColumn PUBLISH_TIME = new PublishTimeColumn("__publish_time__",
-            TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE,
-            "The timestamp in milliseconds of when event as published");
+            TimestampType.TIMESTAMP, "The timestamp in milliseconds of when event as published");
 
     public static final PulsarInternalColumn MESSAGE_ID = new MessageIdColumn("__message_id__", VarcharType.VARCHAR,
             "The message ID of the message used to generate this row");
