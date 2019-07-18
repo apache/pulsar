@@ -24,6 +24,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
 
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -35,6 +36,12 @@ public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
 
     private final SchemaInfo schemaInfo;
     private final Schema<?> schema;
+    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+            return new byte[1024];
+        }
+    };
 
     public PulsarPrimitiveSchemaHandler(SchemaInfo schemaInfo) {
         this.schemaInfo = schemaInfo;
@@ -44,12 +51,7 @@ public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
     @Override
     public Object deserialize(ByteBuf byteBuf) {
         byte[] data = ByteBufUtil.getBytes(byteBuf);
-        return schema.decode(data);
-    }
-
-    @Override
-    public Object extractField(int index, Object currentRecord) {
-        // convert the pulsar objects to the type that presto knows
+        Object currentRecord = schema.decode(data);
         switch (schemaInfo.getType()) {
             case DATE:
                 return ((Date) currentRecord).getTime();
@@ -60,5 +62,10 @@ public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
             default:
                 return currentRecord;
         }
+    }
+
+    @Override
+    public Object extractField(int index, Object currentRecord) {
+        return currentRecord;
     }
 } 

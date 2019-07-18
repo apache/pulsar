@@ -157,22 +157,6 @@ public class PulsarRecordCursor implements RecordCursor {
         }
     }
 
-    private SchemaHandler getSchemaHandler(Schema schema, SchemaType schemaType,
-                                           List<PulsarColumnHandle> columnHandles) {
-        SchemaHandler schemaHandler;
-        switch (schemaType) {
-            case JSON:
-                schemaHandler = new JSONSchemaHandler(columnHandles);
-                break;
-            case AVRO:
-                schemaHandler = new AvroSchemaHandler(schema, columnHandles);
-                break;
-            default:
-                throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaType);
-        }
-        return schemaHandler;
-    }
-
     private ReadOnlyCursor getCursor(TopicName topicName, Position startPosition, ManagedLedgerFactory
             managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig)
             throws ManagedLedgerException, InterruptedException {

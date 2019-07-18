@@ -34,10 +34,13 @@ import com.facebook.presto.spi.TableNotFoundException;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.BooleanType;
+import com.facebook.presto.spi.type.DateType;
 import com.facebook.presto.spi.type.DoubleType;
 import com.facebook.presto.spi.type.IntegerType;
 import com.facebook.presto.spi.type.RealType;
 import com.facebook.presto.spi.type.SmallintType;
+import com.facebook.presto.spi.type.TimeType;
+import com.facebook.presto.spi.type.TimestampType;
 import com.facebook.presto.spi.type.TinyintType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarbinaryType;
@@ -396,9 +399,11 @@ public class PulsarMetadata implements ConnectorMetadata {
             case STRING:
                 return VarcharType.VARCHAR;
             case DATE:
+                return DateType.DATE;
             case TIME:
+                return TimeType.TIME;
             case TIMESTAMP:
-                return BigintType.BIGINT;
+                return TimestampType.TIMESTAMP;
             default:
                 log.error("Cannot convert type: %s", pulsarType);
                 return null;
