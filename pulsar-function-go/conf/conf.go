@@ -100,6 +100,9 @@ func (c *Conf) GetConf() *Conf {
 				log.Errorf("unmarshal yaml file error:%s", err.Error())
 				return nil
 			}
+		} else if (err != nil || os.IsNotExist(err)) && confContent == "" {
+			log.Errorf("not found conf file, err:%s", err.Error())
+			return nil
 		}
 	}
 
