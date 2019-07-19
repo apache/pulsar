@@ -217,17 +217,17 @@ public class TopicsImpl extends BaseResource implements Topics {
             throw new PulsarAdminException(e);
         }
     }
-    
+
     @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
     	TopicName tn = validateTopic(topic);
     	WebTarget path = topicPath(tn);
     	return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
-    
+
     @Override
     public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
-        checkArgument(numPartitions > 1, "Number of partitions should be more than 1");
+        checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
         return asyncPutRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
@@ -247,7 +247,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions) {
-        checkArgument(numPartitions > 1, "Number of partitions must be more than 1");
+        checkArgument(numPartitions > 0, "Number of partitions must be more than 0");
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
         return asyncPostRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
@@ -569,7 +569,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 });
         return future;
     }
-    
+
     @Override
     public void deleteSubscription(String topic, String subName) throws PulsarAdminException {
         try {
