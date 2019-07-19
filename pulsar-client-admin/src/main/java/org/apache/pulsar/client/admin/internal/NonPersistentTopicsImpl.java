@@ -63,7 +63,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
 
     @Override
     public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
-        checkArgument(numPartitions > 1, "Number of partitions should be more than 1");
+        checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "partitions");
         return asyncPutRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
