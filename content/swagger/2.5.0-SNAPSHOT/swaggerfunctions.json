@@ -1348,12 +1348,6 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
         "replicated" : {
           "type" : "boolean"
         },
@@ -1395,6 +1389,12 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "producerName" : {
+          "type" : "string"
         },
         "keyBytes" : {
           "type" : "array",
