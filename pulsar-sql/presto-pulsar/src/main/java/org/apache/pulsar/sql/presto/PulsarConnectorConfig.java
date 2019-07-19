@@ -23,12 +23,14 @@ import io.airlift.configuration.Config;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.protocol.Commands;
 
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
 
 public class PulsarConnectorConfig implements AutoCloseable {
 
@@ -201,6 +203,13 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Config("pulsar.rewrite-namespace-delimiter")
     public PulsarConnectorConfig setRewriteNamespaceDelimiter(String rewriteNamespaceDelimiter) {
+        Matcher m = NamedEntity.NAMED_ENTITY_PATTERN.matcher(rewriteNamespaceDelimiter);
+        if (m.matches()) {
+            throw new IllegalArgumentException(
+                    "Can't use " + rewriteNamespaceDelimiter + "as delimiter, "
+                    + "because delimiter must contain characters which name of namespace not allowed"
+            );
+        }
         this.rewriteNamespaceDelimiter = rewriteNamespaceDelimiter;
         return this;
     }
