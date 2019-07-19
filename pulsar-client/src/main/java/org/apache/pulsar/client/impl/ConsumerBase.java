@@ -236,7 +236,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return doAcknowledge(messageId, AckType.Cumulative, Collections.emptyMap());
     }
 
-	@Override
+    @Override
     public void negativeAcknowledge(Message<?> message) {
         negativeAcknowledge(message.getMessageId());
     }
