@@ -4,7 +4,7 @@ title: Get started
 sidebar_label: Get started
 ---
 
-When schema is enabled, Pulsar does not parse data though, it takes bytes as inputs and sends bytes as outputs. While data has meaning beyond bytes, you need to parse data and might encounter parse exceptions which mainly occur in the following situations:
+When a schema is enabled, Pulsar does not parse data though, it takes bytes as inputs and sends bytes as outputs. While data has meaning beyond bytes, you need to parse data and might encounter parse exceptions which mainly occur in the following situations:
 
 * The field does not exist
 
@@ -24,6 +24,9 @@ public class User {
     int age;
 }
 ```
+
+When constructing a producer with the _User_ class, you can specify a schema or not as below.
+
 ## Without schema
 
 If you construct a producer without specifying a schema, then the producer can only produce messages of type `byte[]`. If you have a POJO class, you need to serialize the POJO into bytes before sending messages.
@@ -53,3 +56,7 @@ Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
 User user = new User(“Tom”, 28);
 producer.send(User);
 ```
+
+## Summary
+
+When constructing a producer with a schema, you do not need to serialize messages into bytes, instead Pulsar schema does this job in the background.
