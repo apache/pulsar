@@ -4,7 +4,7 @@ title: Get started
 sidebar_label: Get started
 ---
 
-When a schema is enabled, Pulsar does not parse data though, it takes bytes as inputs and sends bytes as outputs. While data has meaning beyond bytes, you need to parse data and might encounter parse exceptions which mainly occur in the following situations:
+When a schema is enabled, Pulsar does parse data, it takes bytes as inputs and sends bytes as outputs. While data has meaning beyond bytes, you need to parse data and might encounter parse exceptions which mainly occur in the following situations:
 
 * The field does not exist
 
