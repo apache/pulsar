@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
@@ -115,6 +116,6 @@ public class TransactionCursorImpl implements TransactionCursor {
 
     @Override
     public CompletableFuture<Void> removeTxn(TxnID txnID) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 }

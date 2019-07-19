@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
@@ -97,17 +98,17 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
         @Override
         public CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId) {
-            return CompletableFuture.failedFuture(new UnsupportedOperationException());
+            return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
         @Override
         public CompletableFuture<Void> appendEntry(long sequenceId, Position position) {
-            return CompletableFuture.failedFuture(new UnsupportedOperationException());
+            return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
         @Override
         public CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
-            return CompletableFuture.failedFuture(new UnsupportedOperationException());
+            return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
         @Override

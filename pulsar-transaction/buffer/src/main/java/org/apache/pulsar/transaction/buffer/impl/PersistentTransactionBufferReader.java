@@ -80,11 +80,9 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
         for (Map.Entry<Long, Position> longPositionEntry : entries.entrySet()) {
             readEntry(longPositionEntry.getValue()).thenApply(entry -> {
-                TransactionEntry txnEntry = TransactionEntryImpl.builder().sequenceId(longPositionEntry.getKey())
-                                                                .committedAtLedgerId(meta.committedAtLedgerId())
-                                                                .committedAtEntryId(meta.committedAtEntryId())
-                                                                .txnId(meta.id()).entryBuf(entry.getDataBuffer())
-                                                                .build();
+                TransactionEntry txnEntry = new TransactionEntryImpl(meta.id(), longPositionEntry.getKey(),
+                                                                     entry.getDataBuffer(), meta.committedAtLedgerId(),
+                                                                     meta.committedAtEntryId());
                 txnEntries.add(txnEntry);
                 return null;
             }).exceptionally(e -> {

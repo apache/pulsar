@@ -31,6 +31,7 @@ import org.apache.commons.lang.SerializationUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionCursor;
@@ -202,11 +203,11 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> purgeTxns(List<Long> dataLedgers) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     @Override
     public CompletableFuture<Void> closeBuffer() {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 }
