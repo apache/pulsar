@@ -54,9 +54,7 @@ public class PulsarKafkaProducerThreadSafeTest extends PulsarStandaloneTestSuite
     @Test(threadPoolSize = 5, invocationCount = 10)
     public void testPulsarKafkaProducerThreadSafe() {
         String topic1 = "persistent://public/default/topic-" + System.currentTimeMillis();
-        ProducerRecord<String, String> record1 = new ProducerRecord<>(topic1, "Hello");
-        producer.send(record1, (recordMetadata, e) -> {
-            throw new Error();
-        });
+        ProducerRecord<String, String> record = new ProducerRecord<>(topic1, "Hello");
+        producer.send(record);
     }
 }
