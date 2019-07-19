@@ -80,43 +80,26 @@ var (
 	confContent  string
 )
 
-func fileExists(path string) bool {
-	if path == "" {
-		return false
-	}
-	_, err := os.Stat(path)
-	if err != nil || os.IsNotExist(err) {
-		return false
-	}
-
-	return true
-}
-
 func (c *Conf) GetConf() *Conf {
-	var confFileExists = false
 	flag.Parse()
 
 	if help {
 		flag.Usage()
 	}
 
-	confFileExists = fileExists(confFilePath)
-
-	if confContent == "" && (confFilePath == "" || !confFileExists) {
+	if confContent == "" && confFilePath == "" {
 		log.Errorf("no yaml file or conf content provided")
 		return nil
 	}
 
-	if confFileExists {
+	if confFilePath != "" {
 		yamlFile, err := ioutil.ReadFile(confFilePath)
-		if err != nil {
-			log.Errorf("not found conf file, err:%s", err.Error())
-			return nil
-		}
-		err = yaml.Unmarshal(yamlFile, c)
-		if err != nil {
-			log.Errorf("unmarshal yaml file error:%s", err.Error())
-			return nil
+		if err == nil {
+			err = yaml.Unmarshal(yamlFile, c)
+			if err != nil {
+				log.Errorf("unmarshal yaml file error:%s", err.Error())
+				return nil
+			}
 		}
 	}
 
