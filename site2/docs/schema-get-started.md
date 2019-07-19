@@ -4,7 +4,7 @@ title: Get started
 sidebar_label: Get started
 ---
 
-Pulsar does not parse data, and it takes bytes as inputs and sends bytes as outputs. While data has meaning beyond bytes, you need to parse data and might encounter parse exceptions which mainly occur in the following situations:
+When schema is enabled, Pulsar does not parse data though, it takes bytes as inputs and sends bytes as outputs. While data has meaning beyond bytes, you need to parse data and might encounter parse exceptions which mainly occur in the following situations:
 
 * The field does not exist
 
@@ -44,7 +44,7 @@ If you construct a producer with specifying a schema, then you can send a class 
 
 **Example**
 
-This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to a topic directly without worrying about how to serialize it into bytes. 
+This example constructs a producer with the _JSONSchema_, and you can send the _User_ class to topics directly without worrying about how to serialize it into bytes. 
 
 ```
 Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
