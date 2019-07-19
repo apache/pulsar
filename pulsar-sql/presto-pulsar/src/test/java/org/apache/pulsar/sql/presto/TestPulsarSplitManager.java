@@ -26,7 +26,6 @@ import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.Range;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.predicate.ValueSet;
-import com.facebook.presto.spi.type.TimeZoneKey;
 import io.airlift.log.Logger;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,8 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.spi.type.DateTimeEncoding.packDateTimeWithZone;
-import static com.facebook.presto.spi.type.TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE;
+import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -185,9 +183,8 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
 
         Map<ColumnHandle, Domain> domainMap = new HashMap<>();
-        Domain domain = Domain.create(ValueSet.ofRanges(Range.range(TIMESTAMP_WITH_TIME_ZONE, packDateTimeWithZone
-                (currentTimeMs + 1L, TimeZoneKey.UTC_KEY), true, packDateTimeWithZone(currentTimeMs + 50L,
-                TimeZoneKey.UTC_KEY), true)), false);
+        Domain domain = Domain.create(ValueSet.ofRanges(Range.range(TIMESTAMP, currentTimeMs + 1L, true,
+                currentTimeMs + 50L, true)), false);
         domainMap.put(PulsarInternalColumn.PUBLISH_TIME.getColumnHandle(pulsarConnectorId.toString(), false), domain);
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(domainMap);
 
@@ -243,9 +240,8 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
 
         Map<ColumnHandle, Domain> domainMap = new HashMap<>();
-        Domain domain = Domain.create(ValueSet.ofRanges(Range.range(TIMESTAMP_WITH_TIME_ZONE, packDateTimeWithZone
-                (currentTimeMs + 1L, TimeZoneKey.UTC_KEY), true, packDateTimeWithZone(currentTimeMs + 50L,
-                TimeZoneKey.UTC_KEY), true)), false);
+        Domain domain = Domain.create(ValueSet.ofRanges(Range.range(TIMESTAMP, currentTimeMs + 1L, true,
+                currentTimeMs + 50L, true)), false);
         domainMap.put(PulsarInternalColumn.PUBLISH_TIME.getColumnHandle(pulsarConnectorId.toString(), false), domain);
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(domainMap);
 

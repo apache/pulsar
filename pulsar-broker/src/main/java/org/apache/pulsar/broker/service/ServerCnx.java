@@ -668,7 +668,7 @@ public class ServerCnx extends PulsarHandler {
                                     error = ServerError.ServiceNotReady;
                                 }else {
                                     error = getErrorCode(existingConsumerFuture);
-                                    consumers.remove(consumerId, consumerFuture);
+                                    consumers.remove(consumerId);
                                 }
                                 ctx.writeAndFlush(Commands.newError(requestId, error,
                                         "Consumer is already present on the connection"));
@@ -863,7 +863,8 @@ public class ServerCnx extends PulsarHandler {
                                     error = ServerError.ServiceNotReady;
                                 }else {
                                     error = getErrorCode(existingProducerFuture);
-                                    producers.remove(producerId, producerFuture);
+                                    // remove producer with producerId as it's already completed with exception
+                                    producers.remove(producerId);
                                 }
                                 log.warn("[{}][{}] Producer with id {} is already present on the connection", remoteAddress,
                                         producerId, topicName);
