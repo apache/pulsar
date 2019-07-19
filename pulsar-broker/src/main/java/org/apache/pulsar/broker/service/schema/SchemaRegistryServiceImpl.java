@@ -161,7 +161,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
         byte[] deletedEntry = deleted(schemaId, user).toByteArray();
-        return schemaStorage.put(schemaId, deletedEntry, new byte[]{}, NO_DELETED_VERSION);
+        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
+                schemaStorage.put(schemaId, deletedEntry, new byte[]{}, ((LongSchemaVersion)schemaStorage
+                .versionFromBytes(schemaAndMetadataList.get(0).version.bytes())).getVersion() - 1L));
+
     }
 
     private static boolean isTransitiveStrategy(SchemaCompatibilityStrategy strategy) {
