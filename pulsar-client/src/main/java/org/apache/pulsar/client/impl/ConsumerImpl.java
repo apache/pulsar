@@ -479,6 +479,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
         unAckedMessageTracker.remove(messageId);
     }
+    
+    @Override
+    public void flushAcknowledgements() {
+    	acknowledgmentsGroupingTracker.flush();
+    }
 
     @Override
     public void connectionOpened(final ClientCnx cnx) {

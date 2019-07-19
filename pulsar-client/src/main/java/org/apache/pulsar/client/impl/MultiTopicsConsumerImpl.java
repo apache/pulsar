@@ -421,6 +421,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
         consumer.negativeAcknowledge(topicMessageId.getInnerMessageId());
     }
+    
+    @Override
+    public void flushAcknowledgements() {
+    	for (ConsumerImpl<T> consumer : consumers.values()) {
+    		consumer.flushAcknowledgements();
+    	}
+    }
 
     @Override
     public CompletableFuture<Void> unsubscribeAsync() {

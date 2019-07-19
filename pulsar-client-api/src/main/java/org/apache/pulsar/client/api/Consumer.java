@@ -255,6 +255,13 @@ public interface Consumer<T> extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId);
+    
+    /**
+     * Flush all batched acknowledgements and wait until all acknowledgments have been persisted.
+     * 
+     * Flush acks returns immediately if batching of acks is disabled.
+     */
+    void flushAcknowledgements();
 
     /**
      * Get statistics for the consumer.
