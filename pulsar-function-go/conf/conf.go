@@ -102,7 +102,7 @@ func (c *Conf) GetConf() *Conf {
 
 	confFileExists = fileExists(confFilePath)
 
-	if (confContent == "" && (confFilePath == "" || !confFileExists){
+	if confContent == "" && (confFilePath == "" || !confFileExists) {
 		log.Errorf("no yaml file or conf content provided")
 		return nil
 	}
