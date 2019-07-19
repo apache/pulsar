@@ -185,7 +185,7 @@ public class KubernetesRuntime implements Runtime {
         }
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
-                logConfigFile = "kubernetes_instance_log4j2.yml";
+                logConfigFile = "kubernetes_instance_log4j2.xml";
                 break;
             case PYTHON:
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";

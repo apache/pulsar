@@ -80,7 +80,11 @@ class PulsarMockReadHandle implements ReadHandle {
 
     @Override
     public long getLastAddConfirmed() {
-        return entries.get(entries.size() - 1).getEntryId();
+        if (entries.isEmpty()) {
+            return -1;
+        } else {
+            return entries.get(entries.size() - 1).getEntryId();
+        }
     }
 
     @Override
