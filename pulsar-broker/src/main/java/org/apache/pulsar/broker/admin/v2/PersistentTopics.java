@@ -74,13 +74,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
-    public List<String> getList(
+    public void getList(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace) {
-        validateNamespaceName(tenant, namespace);
-        return internalGetList();
+        try {
+            validateNamespaceName(tenant, namespace);
+            asyncResponse.resume(internalGetList());
+        } catch (Exception e) {
+            asyncResponse.resume(e instanceof RestException ? e : new RestException(e));
+        }
     }
 
     @GET
