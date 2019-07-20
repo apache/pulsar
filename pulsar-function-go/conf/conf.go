@@ -27,7 +27,7 @@ import (
 	"os/user"
 	"time"
 
-	"github.com/apache/pulsar/pulsar-function-go/log"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	"gopkg.in/yaml.v2"
 )
 

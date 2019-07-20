@@ -36,7 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
@@ -50,72 +50,70 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * A function container implemented using java thread.
- */
+
 @Slf4j
-public class JavaInstanceMain implements AutoCloseable {
+public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--function_details", description = "Function details json\n", required = true)
-    protected String functionDetailsJsonString;
+    public String functionDetailsJsonString;
     @Parameter(
             names = "--jar",
             description = "Path to Jar\n",
             listConverter = StringConverter.class)
-    protected String jarFile;
+    public String jarFile;
 
     @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
-    protected int instanceId;
+    public int instanceId;
 
     @Parameter(names = "--function_id", description = "Function Id\n", required = true)
-    protected String functionId;
+    public String functionId;
 
     @Parameter(names = "--function_version", description = "Function Version\n", required = true)
-    protected String functionVersion;
+    public String functionVersion;
 
     @Parameter(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
-    protected String pulsarServiceUrl;
+    public String pulsarServiceUrl;
 
     @Parameter(names = "--client_auth_plugin", description = "Client auth plugin name\n")
-    protected String clientAuthenticationPlugin;
+    public String clientAuthenticationPlugin;
 
     @Parameter(names = "--client_auth_params", description = "Client auth param\n")
-    protected String clientAuthenticationParameters;
+    public String clientAuthenticationParameters;
 
     @Parameter(names = "--use_tls", description = "Use tls connection\n")
-    protected String useTls = Boolean.FALSE.toString();
+    public String useTls = Boolean.FALSE.toString();
 
     @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
-    protected String tlsAllowInsecureConnection = Boolean.TRUE.toString();
+    public String tlsAllowInsecureConnection = Boolean.TRUE.toString();
 
     @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
-    protected String tlsHostNameVerificationEnabled = Boolean.FALSE.toString();
+    public String tlsHostNameVerificationEnabled = Boolean.FALSE.toString();
 
     @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
-    protected String tlsTrustCertFilePath;
+    public String tlsTrustCertFilePath;
 
     @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required= false)
-    protected String stateStorageServiceUrl;
+    public String stateStorageServiceUrl;
 
     @Parameter(names = "--port", description = "Port to listen on\n", required = true)
-    protected int port;
+    public int port;
 
     @Parameter(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
-    protected int metrics_port;
+    public int metrics_port;
 
     @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
-    protected int maxBufferedTuples;
+    public int maxBufferedTuples;
 
     @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in seconds between healtchecks", required = true)
-    protected int expectedHealthCheckInterval;
+    public int expectedHealthCheckInterval;
 
     @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
-    protected String secretsProviderClassName;
+    public String secretsProviderClassName;
 
     @Parameter(names = "--secrets_provider_config", description = "The config that needs to be passed to secrets provider", required = false)
-    protected String secretsProviderConfig;
+    public String secretsProviderConfig;
 
     @Parameter(names = "--cluster_name", description = "The name of the cluster this instance is running on", required = true)
-    protected String clusterName;
+    public String clusterName;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
@@ -124,17 +122,22 @@ public class JavaInstanceMain implements AutoCloseable {
     private HTTPServer metricsServer;
     private ScheduledFuture healthCheckTimer;
 
-    public JavaInstanceMain() { }
+    public JavaInstanceStarter() { }
 
+    public void start(String[] args, ClassLoader functionInstanceClassLoader, ClassLoader rootClassLoader) throws Exception {
+        Thread.currentThread().setContextClassLoader(functionInstanceClassLoader);
 
-    public void start() throws Exception {
+        JCommander jcommander = new JCommander(this);
+        // parse args by JCommander
+        jcommander.parse(args);
+
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionId(functionId);
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         instanceConfig.setClusterName(clusterName);
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
         }
@@ -142,7 +145,7 @@ public class JavaInstanceMain implements AutoCloseable {
             functionDetailsJsonString = functionDetailsJsonString.substring(0, functionDetailsJsonString.length() - 1);
         }
         JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
-        FunctionDetails functionDetails = functionDetailsBuilder.build();
+        Function.FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
 
@@ -164,7 +167,7 @@ public class JavaInstanceMain implements AutoCloseable {
 
         SecretsProvider secretsProvider;
         try {
-            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, functionInstanceClassLoader);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -180,7 +183,7 @@ public class JavaInstanceMain implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProvider, collectorRegistry);
+                secretsProvider, collectorRegistry, rootClassLoader);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
@@ -232,16 +235,6 @@ public class JavaInstanceMain implements AutoCloseable {
 
     private static boolean isTrue(String param) {
         return Boolean.TRUE.toString().equals(param);
-    }
-
-    public static void main(String[] args) throws Exception {
-        JavaInstanceMain javaInstanceMain = new JavaInstanceMain();
-        JCommander jcommander = new JCommander(javaInstanceMain);
-        jcommander.setProgramName("JavaInstanceMain");
-
-        // parse args by JCommander
-        jcommander.parse(args);
-        javaInstanceMain.start();
     }
 
     @Override
@@ -309,7 +302,7 @@ public class JavaInstanceMain implements AutoCloseable {
 
         @Override
         public void getMetrics(com.google.protobuf.Empty request,
-                                       io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData> responseObserver) {
+                               io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData> responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
@@ -324,7 +317,7 @@ public class JavaInstanceMain implements AutoCloseable {
         }
 
         public void resetMetrics(com.google.protobuf.Empty request,
-                io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+                                 io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
