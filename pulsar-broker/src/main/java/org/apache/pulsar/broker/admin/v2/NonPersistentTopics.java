@@ -20,10 +20,7 @@ package org.apache.pulsar.broker.admin.v2;
 
 import com.google.common.collect.Lists;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.*;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +34,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
@@ -153,19 +152,35 @@ public class NonPersistentTopics extends PersistentTopics {
     @GET
     @Path("/{tenant}/{namespace}")
     @ApiOperation(value = "Get the list of non-persistent topics under a namespace.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getList(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
-        validateNamespaceName(tenant, namespace);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] list of topics on namespace {}", clientAppId(), namespaceName);
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "The tenant/namespace does not exist"),
+            @ApiResponse(code = 412, message = "Namespace name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
+    })
+    public void getList(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace) {
+        Policies policies = null;
+        try {
+            validateNamespaceName(tenant, namespace);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] list of topics on namespace {}", clientAppId(), namespaceName);
+            }
+            validateAdminAccessForTenant(tenant);
+            policies = getNamespacePolicies(namespaceName);
+
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            validateGlobalNamespaceOwnership(namespaceName);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+            return;
         }
-        validateAdminAccessForTenant(tenant);
-        Policies policies = getNamespacePolicies(namespaceName);
-
-
-        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-        validateGlobalNamespaceOwnership(namespaceName);
 
         final List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
         final List<String> boundaries = policies.bundles.getBoundaries();
@@ -174,31 +189,29 @@ public class NonPersistentTopics extends PersistentTopics {
             try {
                 futures.add(pulsar().getAdminClient().topics().getListInBundleAsync(namespaceName.toString(), bundle));
             } catch (PulsarServerException e) {
-                log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s", clientAppId(),
-                        namespaceName, bundle), e);
-                throw new RestException(e);
+                log.error("[{}] Failed to get list of topics under namespace {}/{}", clientAppId(), namespaceName,
+                        bundle, e);
+                asyncResponse.resume(new RestException(e));
+                return;
             }
         }
+
         final List<String> topics = Lists.newArrayList();
-        try {
-            FutureUtil.waitForAll(futures).get();
-            futures.forEach(topicListFuture -> {
+        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+            for (int i = 0; i < futures.size(); i++) {
                 try {
-                    if (topicListFuture.isDone() && topicListFuture.get() != null) {
-                        topics.addAll(topicListFuture.get());
+                    if (futures.get(i).isDone() && futures.get(i).get() != null) {
+                        topics.addAll(futures.get(i).get());
                     }
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error(String.format("[%s] Failed to get list of topics under namespace %s", clientAppId(),
-                            namespaceName), e);
+                    log.error("[{}] Failed to get list of topics under namespace {}", clientAppId(), namespaceName, e);
+                    asyncResponse.resume(new RestException(e instanceof ExecutionException ? e.getCause() : e));
+                    return null;
                 }
-            });
-        } catch (InterruptedException | ExecutionException e) {
-            log.error(
-                    String.format("[%s] Failed to get list of topics under namespace %s", clientAppId(), namespaceName),
-                    e);
-            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
-        }
-        return topics;
+            }
+            asyncResponse.resume(topics);
+            return null;
+        });
     }
 
     @GET
