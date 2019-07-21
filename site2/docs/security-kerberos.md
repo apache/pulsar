@@ -344,16 +344,52 @@ For example:
 superUserRoles=client/{clientIp}@EXAMPLE.COM
 ```
 
-## 4. Regarding authorization between BookKeeper and Broker
+## 4. Regarding authentication between ZooKeeper and Broker
 
-Adding `bookkeeperClientAuthenticationPlugin` parameter in `broker.conf` is a prerequisite for Broker (as a Kerberos client) being authenticated by Bookie (as a Kerberos Server):
+Pulsar Broker acts as a Kerberos client when authenticating with Zookeeper. According to [ZooKeeper document](https://cwiki.apache.org/confluence/display/ZOOKEEPER/Client-Server+mutual+authentication), you need these settings in `conf/zookeeper.conf`:
+
+```
+authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+requireClientAuthScheme=sasl
+```
+
+And add a section of `Client` configurations, which use in the `pulsar_jaas.conf` that used by Pulsar Broker:
+
+```
+ Client {
+   com.sun.security.auth.module.Krb5LoginModule required
+   useKeyTab=true
+   storeKey=true
+   useTicketCache=false
+   keyTab="/etc/security/keytabs/pulsarbroker.keytab"
+   principal="broker/localhost@EXAMPLE.COM";
+};
+```
+
+In this setting, Pulsar Broker's principal and keyTab file indicates Broker's role when authenticating with ZooKeeper.
+
+## 5. Regarding authentication between BookKeeper and Broker
+
+Pulsar Broker acts as a Kerberos client when authenticating with Bookie. According to [BookKeeper document](http://bookkeeper.apache.org/docs/latest/security/sasl/), you need add `bookkeeperClientAuthenticationPlugin` parameter in `broker.conf`:
 
 ```
 bookkeeperClientAuthenticationPlugin=org.apache.bookkeeper.sasl.SASLClientProviderFactory
 ```
 
-`SASLClientProviderFactory` class will create a SASL client in Broker, and use this client authenticate with Bookie node.
+In this setting, `SASLClientProviderFactory` will create a BookKeeper SASL client in Broker, and use this client authenticate with Bookie node.
 
+And add a section of `BookKeeper` configurations in the `pulsar_jaas.conf` that used by Pulsar Broker:
 
-For more details of how to configure Kerberos for BookKeeper and Zookeeper, refer to [BookKeeper document](http://bookkeeper.apache.org/docs/latest/security/sasl/).
+```
+ BookKeeper {
+   com.sun.security.auth.module.Krb5LoginModule required
+   useKeyTab=true
+   storeKey=true
+   useTicketCache=false
+   keyTab="/etc/security/keytabs/pulsarbroker.keytab"
+   principal="broker/localhost@EXAMPLE.COM";
+};
+```
+
+In this setting, Pulsar Broker's principal and keyTab file indicates Broker's role when authenticating with Bookie.
 
