@@ -275,12 +275,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         // register listener to capture zk-latency
-        zkStatsListener = new EventListner() {
-            @Override
-            public void recordLatency(EventType eventType, long latencyMs) {
-                pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
-            }
-        };
+        zkStatsListener = (eventType, latencyMs) -> pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());

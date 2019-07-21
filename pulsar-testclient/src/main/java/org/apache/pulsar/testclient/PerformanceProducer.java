@@ -336,12 +336,10 @@ public class PerformanceProducer {
 
         long start = System.nanoTime();
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                printAggregatedThroughput(start);
-                printAggregatedStats();
-            }
-        });
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            printAggregatedThroughput(start);
+            printAggregatedStats();
+        }));
 
         Collections.shuffle(producers);
         AtomicBoolean isDone = new AtomicBoolean();
