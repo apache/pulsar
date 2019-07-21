@@ -111,6 +111,23 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void deleteSchemaAndAddSchema() throws Exception {
+        putSchema(schemaId1, schema1, version(0));
+        SchemaData latest = getLatestSchema(schemaId1, version(0));
+        assertEquals(schema1, latest);
+
+        deleteSchema(schemaId1, version(1));
+
+        assertNull(schemaRegistryService.getSchema(schemaId1).get());
+
+        putSchema(schemaId1, schema1, version(2));
+
+        latest = getLatestSchema(schemaId1, version(2));
+        assertEquals(schema1, latest);
+
+    }
+
+    @Test
     public void getReturnsTheLastWrittenEntry() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         putSchema(schemaId1, schema2, version(1));

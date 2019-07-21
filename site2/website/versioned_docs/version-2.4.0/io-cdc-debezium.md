@@ -54,10 +54,10 @@ Here is a JSON configuration example:
 }
 ```
 
-Optionally, you can create a `debezium-mysql-source-config.yaml` file, and copy the [contents] (https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml) below to the `debezium-mysql-source-config.yaml` file.
+Optionally, you can create a `debezium-mysql-source-config.yaml` file, and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml) below to the `debezium-mysql-source-config.yaml` file.
 
 ```$yaml
-tenant: "pubilc"
+tenant: "public"
 namespace: "default"
 name: "debezium-mysql-source"
 topicName: "debezium-mysql-topic"
@@ -160,7 +160,7 @@ Here is a JSON configuration example:
 ```
 
 
-Optionally, you can create a `debezium-postgres-source-config.yaml` file, and copy the [contents] (https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the`debezium-postgres-source-config.yaml` file.
+Optionally, you can create a `debezium-postgres-source-config.yaml` file, and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the`debezium-postgres-source-config.yaml` file.
 
 ```yaml
 tenant: "public"

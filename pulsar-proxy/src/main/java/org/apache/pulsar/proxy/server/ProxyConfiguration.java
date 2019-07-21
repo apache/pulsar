@@ -253,6 +253,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private boolean tlsEnabledWithBroker = false;
 
+    @FieldContext(
+            category = CATEGORY_AUTHORIZATION,
+            doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
+    )
+    private String anonymousUserRole = null;
+
     /***** --- TLS --- ****/
 
     @Deprecated

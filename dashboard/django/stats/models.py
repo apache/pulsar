@@ -182,7 +182,7 @@ class Consumer(Model):
     address = CharField(max_length=64, null=True)
     availablePermits = IntegerField(default=0)
     connectedSince   = DateTimeField(null=True)
-    consumerName     = CharField(max_length=64, null=True)
+    consumerName     = CharField(max_length=256, null=True)
     msgRateOut       = DecimalField(max_digits = 12, decimal_places=1, default=0)
     msgRateRedeliver = DecimalField(max_digits = 12, decimal_places=1, default=0)
     msgThroughputOut = DecimalField(max_digits = 12, decimal_places=1, default=0)

@@ -28,7 +28,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 
 
 public interface NonPersistentDispatcher extends Dispatcher{
@@ -38,8 +37,8 @@ public interface NonPersistentDispatcher extends Dispatcher{
     void removeConsumer(Consumer consumer) throws BrokerServiceException ;
 
     boolean isConsumerConnected();
-    
-    CopyOnWriteArrayList<Consumer> getConsumers();
+
+    List<Consumer> getConsumers();
 
     boolean canUnsubscribe(Consumer consumer);
 
@@ -50,13 +49,13 @@ public interface NonPersistentDispatcher extends Dispatcher{
     void reset();
 
     SubType getType();
-    
+
     void sendMessages(List<Entry> entries);
-    
+
     Rate getMesssageDropRate();
-    
+
     boolean hasPermits();
-    
+
     @Override
     default void redeliverUnacknowledgedMessages(Consumer consumer) {
         // No-op

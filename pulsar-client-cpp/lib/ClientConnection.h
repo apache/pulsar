@@ -24,6 +24,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/asio/strand.hpp>
 #include <boost/any.hpp>
 #include <mutex>
 #include <functional>
@@ -125,7 +126,9 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
                                       LookupDataResultPromisePtr promise);
 
     void sendCommand(const SharedBuffer& cmd);
+    void sendCommandInternal(const SharedBuffer& cmd);
     void sendMessage(const OpSendMsg& opSend);
+    void sendMessageInternal(const OpSendMsg& opSend);
 
     void registerProducer(int producerId, ProducerImplPtr producer);
     void registerConsumer(int consumerId, ConsumerImplPtr consumer);
@@ -220,7 +223,11 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     template <typename ConstBufferSequence, typename WriteHandler>
     inline void asyncWrite(const ConstBufferSequence& buffers, WriteHandler handler) {
         if (tlsSocket_) {
-            boost::asio::async_write(*tlsSocket_, buffers, handler);
+#if BOOST_VERSION >= 106600
+            boost::asio::async_write(*tlsSocket_, buffers, boost::asio::bind_executor(strand_, handler));
+#else
+            boost::asio::async_write(*tlsSocket_, buffers, strand_.wrap(handler));
+#endif
         } else {
             boost::asio::async_write(*socket_, buffers, handler);
         }
@@ -229,7 +236,11 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     template <typename MutableBufferSequence, typename ReadHandler>
     inline void asyncReceive(const MutableBufferSequence& buffers, ReadHandler handler) {
         if (tlsSocket_) {
-            tlsSocket_->async_read_some(buffers, handler);
+#if BOOST_VERSION >= 106600
+            tlsSocket_->async_read_some(buffers, boost::asio::bind_executor(strand_, handler));
+#else
+            tlsSocket_->async_read_some(buffers, strand_.wrap(handler));
+#endif
         } else {
             socket_->async_receive(buffers, handler);
         }
@@ -319,6 +330,12 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     friend class PulsarFriend;
 
     bool isTlsAllowInsecureConnection_;
+
+#if BOOST_VERSION >= 106600
+    boost::asio::strand<boost::asio::io_service::executor_type> strand_;
+#else
+    boost::asio::io_service::strand strand_;
+#endif
 };
 }  // namespace pulsar
 

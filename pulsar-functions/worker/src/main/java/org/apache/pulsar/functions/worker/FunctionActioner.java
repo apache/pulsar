@@ -242,6 +242,11 @@ public class FunctionActioner {
         } finally {
             tempPkgFile.delete();
         }
+
+        if(details.getRuntime() == Function.FunctionDetails.Runtime.GO && !pkgFile.canExecute()) {
+            pkgFile.setExecutable(true);
+            log.info("Golang function package file {} is set to executable", pkgFile);
+        }
     }
 
     private void cleanupFunctionFiles(FunctionRuntimeInfo functionRuntimeInfo) {

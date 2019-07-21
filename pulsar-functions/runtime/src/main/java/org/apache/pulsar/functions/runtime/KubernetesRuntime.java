@@ -250,9 +250,9 @@ public class KubernetesRuntime implements Runtime {
         if (channel == null && stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
             stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
+            String jobName = createJobName(instanceConfig.getFunctionDetails());
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
-                String address = createJobName(instanceConfig.getFunctionDetails()) + "-" +
-                        i + "." + createJobName(instanceConfig.getFunctionDetails());
+                String address = getServiceUrl(jobName, jobNamespace, i);
                 channel[i] = ManagedChannelBuilder.forAddress(address, GRPC_PORT)
                         .usePlaintext(true)
                         .build();
@@ -991,6 +991,10 @@ public class KubernetesRuntime implements Runtime {
 
     private static String createJobName(String tenant, String namespace, String functionName) {
         return "pf-" + tenant + "-" + namespace + "-" + functionName;
+    }
+
+    private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
+        return String.format("%s-%d.%s.%s.svc.cluster.local", jobName, instanceId, jobName, jobNamespace);
     }
 
     public static void doChecks(Function.FunctionDetails functionDetails) {
