@@ -51,7 +51,12 @@ public class SparkStreamingPulsarReceiverTest extends PulsarTestSuite {
         consConf.setTopicNames(set);
         consConf.setSubscriptionName(SUBS);
 
-        MessageListener msgListener = spy((MessageListener) (consumer, msg) -> {});
+        MessageListener msgListener = spy(new MessageListener() {
+            @Override
+            public void received(Consumer consumer, Message msg) {
+                return;
+            }
+        });
         final ArgumentCaptor<Consumer> consCaptor = ArgumentCaptor.forClass(Consumer.class);
         final ArgumentCaptor<Message> msgCaptor = ArgumentCaptor.forClass(Message.class);
         doNothing().when(msgListener).received(consCaptor.capture(), msgCaptor.capture());
