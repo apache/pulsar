@@ -87,7 +87,9 @@ import org.testng.annotations.Test;
  * Basic tests using the deprecated client APIs from Pulsar-1.x
  */
 public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
+
     private static final Logger log = LoggerFactory.getLogger(V1_ProducerConsumerTest.class);
+    private static final long BATCHING_MAX_PUBLISH_DELAY_THRESHOLD = 1;
 
     @BeforeMethod
     @Override
@@ -160,7 +162,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic2")
                 .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .enableBatching(batchMessageDelayMs != 0)
                 .create();
 
@@ -218,7 +220,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic3")
                 .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .enableBatching(batchMessageDelayMs != 0)
                 .create();
 
@@ -254,7 +256,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic4")
                 .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .enableBatching(batchMessageDelayMs != 0)
                 .create();
 
@@ -305,7 +307,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic5")
                 .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(2 * batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(2 * BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .enableBatching(batchMessageDelayMs != 0)
                 .sendTimeout(1, TimeUnit.SECONDS)
                 .create();
@@ -527,7 +529,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         // publish 100 messages so that the consumers blocked on receive() will now get the messages
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic7")
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .batchingMaxMessages(5)
                 .enableBatching(batchMessageDelayMs != 0)
                 .create();
@@ -1365,7 +1367,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             Producer<byte[]> producer = pulsarClient.newProducer()
                     .topic("persistent://my-property/use/my-ns/unacked-topic")
                     .enableBatching(batchMessageDelayMs != 0)
-                    .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                    .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5)
                     .create();
 
