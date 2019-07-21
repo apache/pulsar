@@ -128,7 +128,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
                 .setZkServers(this.pulsarConnectorConfig.getZookeeperUri())
                 .setClientTcpNoDelay(false)
-                .setStickyReadsEnabled(true)
+                .setStickyReadsEnabled(false)
                 .setUseV2WireProtocol(true);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }
