@@ -64,7 +64,7 @@ class OpFindNewest implements ReadEntryCallback {
         switch (state) {
         case checkFirst:
             if (!condition.apply(entry)) {
-                callback.findEntryComplete(null, OpFindNewest.this.ctx);
+                callback.findEntryComplete(startPosition, OpFindNewest.this.ctx);
                 return;
             } else {
                 lastMatchedPosition = position;

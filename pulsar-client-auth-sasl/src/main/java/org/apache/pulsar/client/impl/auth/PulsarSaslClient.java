@@ -52,9 +52,10 @@ public class PulsarSaslClient {
     public PulsarSaslClient(String serverHostname, String serverType, Subject subject) throws SaslException {
         checkArgument(subject != null, "Cannot create SASL client with NULL JAAS subject");
         checkArgument(!Strings.isNullOrEmpty(serverHostname), "Cannot create SASL client with NUll server name");
-        checkArgument(serverType.equalsIgnoreCase(SaslConstants.SASL_BROKER_PROTOCOL) ||
-                serverType.equalsIgnoreCase(SaslConstants.SASL_PROXY_PROTOCOL),
-            "Server type [" + serverType + "] invalid, should be broker or proxy");
+        if (!serverType.equals(SaslConstants.SASL_BROKER_PROTOCOL) && !serverType
+                                                                           .equals(SaslConstants.SASL_PROXY_PROTOCOL)) {
+            log.warn("The server type {} is not recommended", serverType);
+        }
 
         String serverPrincipal = serverType.toLowerCase() + "/" + serverHostname;
         this.clientSubject = subject;

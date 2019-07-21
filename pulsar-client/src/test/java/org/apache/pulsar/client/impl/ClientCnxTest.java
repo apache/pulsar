@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
@@ -47,8 +47,8 @@ public class ClientCnxTest {
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         ChannelFuture listenerFuture = mock(ChannelFuture.class);
-        when(listenerFuture.addListener(anyObject())).thenReturn(listenerFuture);
-        when(ctx.writeAndFlush(anyObject())).thenReturn(listenerFuture);
+        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
 
         Field ctxField = PulsarHandler.class.getDeclaredField("ctx");
         ctxField.setAccessible(true);

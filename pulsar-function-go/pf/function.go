@@ -33,7 +33,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/pulsar/pulsar-function-go/log"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 )
 
 type function interface {

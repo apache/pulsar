@@ -90,8 +90,6 @@ import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_ST
 @Slf4j
 public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
-    // The class loader that used for loading functions
-    private ClassLoader fnClassLoader;
     private final InstanceConfig instanceConfig;
     private final FunctionCacheManager fnCache;
     private final String jarFile;
@@ -132,6 +130,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private final Map<String, String> properties;
 
+    private final ClassLoader instanceClassLoader;
+    private ClassLoader functionClassLoader;
+
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
                                 String jarFile,
@@ -166,12 +167,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // metrics collection especially in threaded mode
         // In process mode the JavaInstanceMain will declare a CollectorRegistry and pass it down
         this.collectorRegistry = collectorRegistry;
+
+        this.instanceClassLoader = Thread.currentThread().getContextClassLoader();
     }
 
     /**
      * NOTE: this method should be called in the instance thread, in order to make class loading work.
      */
-    JavaInstance setupJavaInstance(ContextImpl contextImpl) throws Exception {
+    JavaInstance setupJavaInstance() throws Exception {
         // initialize the thread context
         ThreadContext.put("function", FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
@@ -181,18 +184,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
 
         // start the function thread
-        loadJars();
+        functionClassLoader = loadJars();
 
-        ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
         Object object = Reflections.createInstance(
                 instanceConfig.getFunctionDetails().getClassName(),
-                clsLoader);
+                functionClassLoader);
+
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
 
         // start the state table
         setupStateTable();
+
+        ContextImpl contextImpl = setupContext();
+
         // start the output producer
         setupOutput(contextImpl);
         // start the input consumer
@@ -225,8 +231,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     this.instanceCache.getScheduledExecutorService(),
                     this.componentType);
 
-            ContextImpl contextImpl = setupContext();
-            javaInstance = setupJavaInstance(contextImpl);
+            javaInstance = setupJavaInstance();
             if (null != stateTable) {
                 StateContextImpl stateContext = new StateContextImpl(stateTable);
                 javaInstance.getContext().setStateContext(stateContext);
@@ -254,7 +259,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.processTimeStart();
 
                 // process the message
+                Thread.currentThread().setContextClassLoader(functionClassLoader);
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
+                Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time
                 stats.processTimeEnd();
@@ -289,7 +296,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void loadJars() throws Exception {
+    private ClassLoader loadJars() throws Exception {
+        ClassLoader fnClassLoader;
         try {
             log.info("Load JAR: {}", jarFile);
             // Let's first try to treat it as a nar archive
@@ -309,13 +317,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         log.info("Initialize function class loader for function {} at function cache manager",
                 instanceConfig.getFunctionDetails().getName());
 
-        this.fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
+        fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
         if (null == fnClassLoader) {
             throw new Exception("No function class loader available.");
         }
 
-        // make sure the function class loader is accessible thread-locally
-        Thread.currentThread().setContextClassLoader(fnClassLoader);
+        return fnClassLoader;
     }
 
     private void createStateTable(String tableNs, String tableName, StorageClientSettings settings) throws Exception {
@@ -425,23 +432,33 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {
+        if (!(this.sink instanceof PulsarSink)) {
+            Thread.currentThread().setContextClassLoader(functionClassLoader);
+        }
         try {
             this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
             stats.incrSinkExceptions(e);
             throw new RuntimeException(e);
+        } finally {
+            Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
     }
 
     private Record readInput() {
         Record record;
+        if (!(this.source instanceof PulsarSource)) {
+            Thread.currentThread().setContextClassLoader(functionClassLoader);
+        }
         try {
             record = this.source.read();
         } catch (Exception e) {
             stats.incrSourceExceptions(e);
             log.info("Encountered exception in source read: ", e);
             throw new RuntimeException(e);
+        } finally {
+            Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
 
         // check record is valid
@@ -466,19 +483,29 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (source != null) {
+            if (!(this.source instanceof PulsarSource)) {
+                Thread.currentThread().setContextClassLoader(functionClassLoader);
+            }
             try {
                 source.close();
             } catch (Throwable e) {
                 log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+            } finally {
+                Thread.currentThread().setContextClassLoader(instanceClassLoader);
             }
             source = null;
         }
 
         if (sink != null) {
+            if (!(this.sink instanceof PulsarSink)) {
+                Thread.currentThread().setContextClassLoader(functionClassLoader);
+            }
             try {
                 sink.close();
             } catch (Throwable e) {
                 log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+            } finally {
+                Thread.currentThread().setContextClassLoader(instanceClassLoader);
             }
             sink = null;
         }
@@ -667,11 +694,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
                 pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
             }
-            object = new PulsarSource(this.client, pulsarSourceConfig, this.properties);
+            object = new PulsarSource(this.client, pulsarSourceConfig, this.properties, this.functionClassLoader);
         } else {
             object = Reflections.createInstance(
                     sourceSpec.getClassName(),
-                    Thread.currentThread().getContextClassLoader());
+                    this.functionClassLoader);
         }
 
         Class<?>[] typeArgs;
@@ -683,11 +710,22 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source<?>) object;
 
-        if (sourceSpec.getConfigs().isEmpty()) {
-            this.source.open(new HashMap<>(), contextImpl);
-        } else {
-            this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
-                    new TypeToken<Map<String, Object>>(){}.getType()), contextImpl);
+        if (!(this.source instanceof PulsarSource)) {
+            Thread.currentThread().setContextClassLoader(this.functionClassLoader);
+        }
+        try {
+            if (sourceSpec.getConfigs().isEmpty()) {
+                this.source.open(new HashMap<>(), contextImpl);
+            } else {
+                this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
+                        new TypeToken<Map<String, Object>>() {
+                        }.getType()), contextImpl);
+            }
+        } catch (Exception e) {
+            log.error("Source open produced uncaught exception: ", e);
+            throw e;
+        } finally {
+            Thread.currentThread().setContextClassLoader(this.instanceClassLoader);
         }
     }
 
@@ -713,12 +751,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
 
-                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats);
+                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader);
             }
         } else {
             object = Reflections.createInstance(
                     sinkSpec.getClassName(),
-                    Thread.currentThread().getContextClassLoader());
+                    this.functionClassLoader);
         }
 
         if (object instanceof Sink) {
@@ -726,11 +764,23 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } else {
             throw new RuntimeException("Sink does not implement correct interface");
         }
-        if (sinkSpec.getConfigs().isEmpty()) {
-            this.sink.open(new HashMap<>(), contextImpl);
-        } else {
-            this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
-                    new TypeToken<Map<String, Object>>() {}.getType()), contextImpl);
+
+        if (!(this.sink instanceof PulsarSink)) {
+            Thread.currentThread().setContextClassLoader(this.functionClassLoader);
+        }
+        try {
+            if (sinkSpec.getConfigs().isEmpty()) {
+                this.sink.open(new HashMap<>(), contextImpl);
+            } else {
+                this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
+                        new TypeToken<Map<String, Object>>() {
+                        }.getType()), contextImpl);
+            }
+        } catch (Exception e) {
+            log.error("Sink open produced uncaught exception: ", e);
+            throw e;
+        } finally {
+            Thread.currentThread().setContextClassLoader(this.instanceClassLoader);
         }
     }
 }

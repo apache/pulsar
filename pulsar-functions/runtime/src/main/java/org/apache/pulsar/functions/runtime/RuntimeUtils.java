@@ -39,7 +39,6 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -51,6 +50,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
+    static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
     public static List<String> composeCmd(InstanceConfig instanceConfig,
                                           String instanceFile,
@@ -255,17 +255,25 @@ public class RuntimeUtils {
             args.add("-cp");
 
             String classpath = instanceFile;
+
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 classpath = classpath + ":" + extraDependenciesDir + "/*";
             }
             args.add(classpath);
 
-            // Keep the same env property pointing to the Java instance file so that it can be picked up
-            // by the child process and manually added to classpath
-            args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, extraDependenciesDir));
             }
+
+            // add complete classpath for broker/worker so that the function instance can load
+            // the functions instance dependencies separately from user code dependencies
+            String functionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
+            if (functionInstanceClasspath == null) {
+                log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_INSTANCE_CLASSPATH);
+                functionInstanceClasspath = System.getProperty("java.class.path");
+            }
+            args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClasspath));
+
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
@@ -283,7 +291,8 @@ public class RuntimeUtils {
                     args.add("-Xmx" + String.valueOf(resources.getRam()));
                 }
             }
-            args.add(JavaInstanceMain.class.getName());
+            args.add("org.apache.pulsar.functions.instance.JavaInstanceMain");
+
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {

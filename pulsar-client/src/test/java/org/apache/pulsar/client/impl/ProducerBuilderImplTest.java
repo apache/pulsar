@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.mockito.Matchers;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
@@ -29,7 +28,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
@@ -51,7 +51,7 @@ public class ProducerBuilderImplTest {
         when(client.newProducer()).thenReturn(producerBuilderImpl);
 
         when(client.createProducerAsync(
-                Matchers.any(ProducerConfigurationData.class), Matchers.any(Schema.class), eq(null)))
+                any(ProducerConfigurationData.class), any(Schema.class), eq(null)))
                 .thenReturn(CompletableFuture.completedFuture(producer));
     }
 

@@ -656,3 +656,65 @@ func TestConsumerShared(t *testing.T) {
 		}
 	}()
 }
+
+func TestConsumer_AckTimeout(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topic := fmt.Sprintf("my-topic-%d", time.Now().Unix())
+
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topic,
+	})
+
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	consumer, err := client.Subscribe(ConsumerOptions{
+		Topic:            topic,
+		SubscriptionName: "my-sub",
+		AckTimeout:       10 * time.Second,
+		Name:             "my-consumer-name",
+		Type:             Shared,
+	})
+
+	assert.Nil(t, err)
+	defer consumer.Close()
+
+	assert.Equal(t, consumer.Topic(), "persistent://public/default/"+topic)
+	assert.Equal(t, consumer.Subscription(), "my-sub")
+
+	ctx := context.Background()
+
+	// send one message
+	if err := producer.Send(ctx, ProducerMessage{
+		Payload: []byte(fmt.Sprintf("hello-pulsar")),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// receive message but not ack
+	msg, err := consumer.Receive(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, string(msg.Payload()), fmt.Sprintf("hello-pulsar"))
+
+	// wait ack timeout
+	time.Sleep(10 * time.Second)
+
+	// receive message again
+	msgAgain, err := consumer.Receive(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, string(msgAgain.Payload()), fmt.Sprintf("hello-pulsar"))
+
+	if err := consumer.Ack(msgAgain); err != nil {
+		assert.Nil(t, err)
+	}
+
+	if err := consumer.Unsubscribe(); err != nil {
+		assert.Nil(t, err)
+	}
+}

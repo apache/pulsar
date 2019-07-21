@@ -19,8 +19,6 @@
 package org.apache.pulsar.io.influxdb;
 
 import com.google.common.collect.Maps;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -46,7 +44,7 @@ import org.testng.annotations.Test;
 
 import java.util.Map;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -151,7 +149,7 @@ public class InfluxDBGenericRecordSinkTest {
         verify(this.influxDB, times(1)).createDatabase("testDB");
 
         doAnswer(invocationOnMock -> {
-            BatchPoints batchPoints = invocationOnMock.getArgumentAt(0, BatchPoints.class);
+            BatchPoints batchPoints = invocationOnMock.getArgument(0, BatchPoints.class);
             Assert.assertNotNull(batchPoints, "batchPoints should not be null.");
             return null;
         }).when(influxDB).write(any(BatchPoints.class));

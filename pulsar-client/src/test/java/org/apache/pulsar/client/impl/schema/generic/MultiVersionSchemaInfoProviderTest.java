@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.client.api.schema.GenericSchema;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -33,9 +35,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Unit test for {@link MultiVersionSchemaInfoProvider}.

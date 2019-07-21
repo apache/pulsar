@@ -51,6 +51,7 @@ import com.google.common.base.Predicate;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 
 import javax.inject.Inject;
+import java.sql.Timestamp;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -321,13 +322,13 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                             Range range = domain.getValues().getRanges().getOrderedRanges().get(0);
 
                             if (!range.getHigh().isUpperUnbounded()) {
-                                upperBoundTs = new SqlTimestampWithTimeZone(range.getHigh().getValueBlock().get()
-                                        .getLong(0, 0)).getMillisUtc();
+                                upperBoundTs = new Timestamp(range.getHigh().getValueBlock().get()
+                                        .getLong(0, 0)).getTime();
                             }
 
                             if (!range.getLow().isLowerUnbounded()) {
-                                lowerBoundTs = new SqlTimestampWithTimeZone(range.getLow().getValueBlock().get()
-                                        .getLong(0, 0)).getMillisUtc();
+                                lowerBoundTs = new Timestamp(range.getLow().getValueBlock().get()
+                                        .getLong(0, 0)).getTime();
                             }
 
                             PositionImpl overallStartPos;
@@ -335,15 +336,20 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                 overallStartPos = (PositionImpl) readOnlyCursor.getReadPosition();
                             } else {
                                 overallStartPos = findPosition(readOnlyCursor, lowerBoundTs);
+                                if (overallStartPos == null) {
+                                    overallStartPos = (PositionImpl) readOnlyCursor.getReadPosition();
+                                }
                             }
 
                             PositionImpl overallEndPos;
                             if (upperBoundTs == null) {
-
                                 readOnlyCursor.skipEntries(Math.toIntExact(totalNumEntries));
                                 overallEndPos = (PositionImpl) readOnlyCursor.getReadPosition();
                             } else {
                                 overallEndPos = findPosition(readOnlyCursor, upperBoundTs);
+                                if (overallEndPos == null) {
+                                    overallEndPos = overallStartPos;
+                                }
                             }
 
                             // Just use a close bound since presto can always filter out the extra entries even if

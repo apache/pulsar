@@ -18,8 +18,30 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -33,8 +55,8 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -48,32 +70,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
-import static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyMap;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 @PrepareForTest({ ZooKeeperDataCache.class, BrokerService.class })
 public class PersistentSubscriptionTest {
@@ -170,14 +166,14 @@ public class PersistentSubscriptionTest {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
                     .deleteComplete(invocationOnMock.getArguments()[2]);
             return null;
-        }).when(cursorMock).asyncDelete(anyList(), any(AsyncCallbacks.DeleteCallback.class), anyObject());
+        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
         doAnswer((invocationOnMock) -> {
             assertTrue(((PositionImpl)invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)) == 0);
             ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
                     .markDeleteComplete(invocationOnMock.getArguments()[3]);
             return null;
-        }).when(cursorMock).asyncMarkDelete(anyObject(), anyObject(), any(AsyncCallbacks.MarkDeleteCallback.class), anyObject());
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
 
         List<Position> positions = new ArrayList<>();
         positions.add(new PositionImpl(1, 1));
@@ -197,8 +193,8 @@ public class PersistentSubscriptionTest {
         persistentSubscription.commitTxn(txnID1, Collections.emptyMap());
 
         // Verify corresponding ledger method was called with expected args.
-        verify(cursorMock, times(1)).asyncDelete(anyList(), any(), any());
-        verify(cursorMock, times(1)).asyncMarkDelete(any(), anyMap(), anyObject(), any());
+        verify(cursorMock, times(1)).asyncDelete(any(List.class), any(), any());
+        verify(cursorMock, times(1)).asyncMarkDelete(any(), any(Map.class), any(), any());
     }
 
     @Test
@@ -216,7 +212,7 @@ public class PersistentSubscriptionTest {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
                     .deleteComplete(invocationOnMock.getArguments()[2]);
             return null;
-        }).when(cursorMock).asyncDelete(anyList(), any(AsyncCallbacks.DeleteCallback.class), anyObject());
+        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
         doReturn(PulsarApi.CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
 

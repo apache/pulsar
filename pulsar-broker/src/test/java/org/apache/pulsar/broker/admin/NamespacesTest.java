@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -33,6 +33,9 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -69,25 +72,19 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 @Test
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
@@ -560,26 +557,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // setup to redirect to another broker in the same cluster
         doReturn(Optional.of(new URL("http://otherhost" + ":" + BROKER_WEBSERVICE_PORT))).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceName>() {
-
+                .getWebServiceUrl(Mockito.argThat(new ArgumentMatcher<NamespaceName>() {
                     @Override
-                    public void describeTo(Description description) {
-                        // TODO Auto-generated method stub
-
-                    }
-
-                    @Override
-                    public boolean matches(Object item) {
-                        NamespaceName nsname = (NamespaceName) item;
+                    public boolean matches(NamespaceName nsname) {
                         return nsname.equals(NamespacesTest.this.testGlobalNamespaces.get(0));
                     }
-
-                    @Override
-                    public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-                        // TODO Auto-generated method stub
-
-                    }
-
                 }), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
 
         admin.namespaces().setNamespaceReplicationClusters(testGlobalNamespaces.get(0).toString(),
@@ -631,7 +613,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // delete the topic from ZK
         mockZookKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
 
-        ZkUtils.createFullPathOptimistic(mockZookKeeper, "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(),
+        ZkUtils.createFullPathOptimistic(mockZookKeeper,
+                "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(),
                 new byte[0], null, null);
         try {
             namespaces.deleteNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), false);
@@ -675,67 +658,27 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
-        org.apache.pulsar.client.admin.Namespaces namespacesAdmin = mock(org.apache.pulsar.client.admin.Namespaces.class);
+        org.apache.pulsar.client.admin.Namespaces namespacesAdmin = mock(
+                org.apache.pulsar.client.admin.Namespaces.class);
         doReturn(namespacesAdmin).when(admin).namespaces();
 
-        doReturn(null).when(nsSvc).getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
-
+        doReturn(null).when(nsSvc).getWebServiceUrl(Mockito.argThat(new ArgumentMatcher<NamespaceBundle>() {
             @Override
-            public void describeTo(Description description) {
+            public boolean matches(NamespaceBundle bundle) {
+                return bundle.getNamespaceObject().equals(testNs);
             }
-
-            @Override
-            public boolean matches(Object item) {
-                if (item instanceof NamespaceBundle) {
-                    NamespaceBundle bundle = (NamespaceBundle) item;
-                    return bundle.getNamespaceObject().equals(testNs);
-                }
-                return false;
-            }
-
-            @Override
-            public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-            }
-
         }), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doReturn(false).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<NamespaceBundle>() {
-
+        doReturn(false).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new ArgumentMatcher<NamespaceBundle>() {
             @Override
-            public void describeTo(Description description) {
+            public boolean matches(NamespaceBundle bundle) {
+                return bundle.getNamespaceObject().equals(testNs);
             }
-
-            @Override
-            public boolean matches(Object item) {
-                if (item instanceof NamespaceBundle) {
-                    NamespaceBundle bundle = (NamespaceBundle) item;
-                    return bundle.getNamespaceObject().equals(testNs);
-                }
-                return false;
-            }
-
-            @Override
-            public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-            }
-
         }));
         doReturn(Optional.of(new NamespaceEphemeralData())).when(nsSvc)
-                .getOwner(Mockito.argThat(new Matcher<NamespaceBundle>() {
-
+                .getOwner(Mockito.argThat(new ArgumentMatcher<NamespaceBundle>() {
                     @Override
-                    public void describeTo(Description description) {
-                    }
-
-                    @Override
-                    public boolean matches(Object item) {
-                        if (item instanceof NamespaceBundle) {
-                            NamespaceBundle bundle = (NamespaceBundle) item;
-                            return bundle.getNamespaceObject().equals(testNs);
-                        }
-                        return false;
-                    }
-
-                    @Override
-                    public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
+                    public boolean matches(NamespaceBundle bundle) {
+                        return bundle.getNamespaceObject().equals(testNs);
                     }
                 }));
 
@@ -760,7 +703,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         NamespaceBundles nsBundles = nsSvc.getNamespaceBundleFactory().getBundles(testNs, bundleData);
         // make one bundle owned
-        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(nsBundles.getBundles().get(0), false, true, false);
+        doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(nsBundles.getBundles().get(0), false,
+                true, false);
         doReturn(true).when(nsSvc).isServiceUnitOwned(nsBundles.getBundles().get(0));
         doNothing().when(namespacesAdmin).deleteNamespaceBundle(
                 testTenant + "/" + testLocalCluster + "/" + bundledNsLocal, "0x00000000_0x80000000");
@@ -793,54 +737,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         final NamespaceName testNs = this.testLocalNamespaces.get(1);
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
-
-                    @Override
-                    public void describeTo(Description description) {
-                        // TODO Auto-generated method stub
-
-                    }
-
-                    @Override
-                    public boolean matches(Object item) {
-                        if (item instanceof NamespaceName) {
-                            NamespaceName ns = (NamespaceName) item;
-                            return ns.equals(testNs);
-                        }
-                        return false;
-                    }
-
-                    @Override
-                    public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-                        // TODO Auto-generated method stub
-
-                    }
-
-                }), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<NamespaceBundle>() {
-
-            @Override
-            public void describeTo(Description description) {
-                // TODO Auto-generated method stub
-
-            }
-
-            @Override
-            public boolean matches(Object item) {
-                if (item instanceof NamespaceName) {
-                    NamespaceName ns = (NamespaceName) item;
-                    return ns.equals(testNs);
-                }
-                return false;
-            }
-
-            @Override
-            public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-                // TODO Auto-generated method stub
-
-            }
-
-        }));
+                .getWebServiceUrl(Mockito.argThat(ns -> ns.equals(testNs)), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
+        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(ns -> ns.equals(testNs)));
 
         NamespaceBundle bundle = nsSvc.getNamespaceBundleFactory().getFullBundle(testNs);
         doNothing().when(namespaces).validateBundleOwnership(bundle, false, true);
@@ -914,54 +812,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
-
-                    @Override
-                    public void describeTo(Description description) {
-                        // TODO Auto-generated method stub
-
-                    }
-
-                    @Override
-                    public boolean matches(Object item) {
-                        if (item instanceof NamespaceBundle) {
-                            NamespaceBundle bundle = (NamespaceBundle) item;
-                            return bundle.getNamespaceObject().equals(testNs);
-                        }
-                        return false;
-                    }
-
-                    @Override
-                    public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-                        // TODO Auto-generated method stub
-
-                    }
-
-                }), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<NamespaceBundle>() {
-
-            @Override
-            public void describeTo(Description description) {
-                // TODO Auto-generated method stub
-
-            }
-
-            @Override
-            public boolean matches(Object item) {
-                if (item instanceof NamespaceBundle) {
-                    NamespaceBundle bundle = (NamespaceBundle) item;
-                    return bundle.getNamespaceObject().equals(testNs);
-                }
-                return false;
-            }
-
-            @Override
-            public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-                // TODO Auto-generated method stub
-
-            }
-
-        }));
+                .getWebServiceUrl(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)),
+                        Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
+        doReturn(true).when(nsSvc)
+                .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
 
         NamespaceBundles nsBundles = nsSvc.getNamespaceBundleFactory().getBundles(testNs, bundleData);
         NamespaceBundle testBundle = nsBundles.getBundles().get(0);
@@ -1119,7 +973,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn("persistent").when(topics).domain();
 
         topics.validateTopicName(topicName.getTenant(), topicName.getCluster(),
-                                 topicName.getNamespacePortion(), topicName.getEncodedLocalName());
+                topicName.getNamespacePortion(), topicName.getEncodedLocalName());
         topics.validateAdminOperationOnTopic(false);
     }
 
@@ -1163,7 +1017,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testSubscribeRate() throws Exception {
         SubscribeRate subscribeRate = new SubscribeRate(1, 5);
         String namespace = "my-tenants/my-namespace";
-        admin.tenants().createTenant("my-tenants", new TenantInfo(Sets.newHashSet(), Sets.newHashSet(testLocalCluster)));
+        admin.tenants().createTenant("my-tenants",
+                new TenantInfo(Sets.newHashSet(), Sets.newHashSet(testLocalCluster)));
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
         admin.namespaces().setSubscribeRate(namespace, subscribeRate);
         assertEquals(subscribeRate, admin.namespaces().getSubscribeRate(namespace));
@@ -1171,7 +1026,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().createPartitionedTopic(topicName, 2);
         pulsar.getConfiguration().setAuthorizationEnabled(false);
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<?> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("subscribe-rate")
@@ -1202,43 +1057,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     private void mockWebUrl(URL localWebServiceUrl, NamespaceName namespace) throws Exception {
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(new Matcher<NamespaceBundle>() {
-                    @Override
-                    public void describeTo(Description description) {
-                    }
-
-                    @Override
-                    public boolean matches(Object item) {
-                        if (item instanceof NamespaceBundle) {
-                            NamespaceBundle bundle = (NamespaceBundle) item;
-                            return bundle.getNamespaceObject().equals(namespace);
-                        }
-                        return false;
-                    }
-
-                    @Override
-                    public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-                    }
-                }), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
-        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(new Matcher<NamespaceBundle>() {
-            @Override
-            public void describeTo(Description description) {
-            }
-
-            @Override
-            public boolean matches(Object item) {
-                if (item instanceof NamespaceBundle) {
-                    NamespaceBundle bundle = (NamespaceBundle) item;
-                    return bundle.getNamespaceObject().equals(namespace);
-                }
-                return false;
-            }
-
-            @Override
-            public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
-            }
-        }));
+                .getWebServiceUrl(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(namespace)),
+                        Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
+        doReturn(true).when(nsSvc)
+                .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(namespace)));
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
 }

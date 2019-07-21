@@ -1550,6 +1550,57 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
     client.close();
 }
 
+static long messagesReceived = 0;
+
+static void unackMessageListenerFunction(Consumer consumer, const Message &msg) { messagesReceived++; }
+
+TEST(BasicEndToEndTest, testPartitionTopicUnAckedMessageTimeout) {
+    Client client(lookupUrl);
+    long unAckedMessagesTimeoutMs = 10000;
+
+    std::string topicName = "persistent://public/default/testPartitionTopicUnAckedMessageTimeout";
+
+    // call admin api to make it partitioned
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/testPartitionTopicUnAckedMessageTimeout/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    std::string subName = "my-sub-name";
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consConfig;
+    consConfig.setMessageListener(
+        std::bind(unackMessageListenerFunction, std::placeholders::_1, std::placeholders::_2));
+    consConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    result = client.subscribe(topicName, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    for (int i = 0; i < 10; i++) {
+        Message msg = MessageBuilder().setContent("test-" + std::to_string(i)).build();
+        producer.sendAsync(msg, nullptr);
+    }
+
+    producer.flush();
+    long timeWaited = 0;
+    while (true) {
+        // maximum wait time
+        ASSERT_LE(timeWaited, unAckedMessagesTimeoutMs * 3);
+        if (messagesReceived >= 10 * 2) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        timeWaited += 500;
+    }
+}
+
 TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     Client client(lookupUrl);
     std::string topicName = "testUnAckedMessageTimeoutListener";

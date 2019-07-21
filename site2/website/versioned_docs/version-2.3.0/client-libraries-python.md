@@ -89,7 +89,7 @@ msg_id = msg.message_id()
 reader = client.create_reader('my-topic', msg_id)
 
 while True:
-    msg = reader.receive()
+    msg = reader.read_next()
     print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     # No acknowledgment
 ```

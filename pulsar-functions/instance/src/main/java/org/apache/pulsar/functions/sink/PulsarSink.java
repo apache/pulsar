@@ -58,6 +58,7 @@ public class PulsarSink<T> implements Sink<T> {
     private final PulsarClient client;
     private final PulsarSinkConfig pulsarSinkConfig;
     private final Map<String, String> properties;
+    private final ClassLoader functionClassLoader;
     private ComponentStatsManager stats;
 
     @VisibleForTesting
@@ -237,12 +238,14 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties, ComponentStatsManager stats) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties,
+                      ComponentStatsManager stats, ClassLoader functionClassLoader) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
         this.properties = properties;
         this.stats = stats;
+        this.functionClassLoader = functionClassLoader;
     }
 
     @Override
@@ -314,9 +317,7 @@ public class PulsarSink<T> implements Sink<T> {
             return (Schema<T>) Schema.BYTES;
         }
 
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(),
-                Thread.currentThread().getContextClassLoader());
-
+        Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
         if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check
             return null;

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -112,9 +110,9 @@ public class InMemoryDeliveryTrackerTest {
         NavigableMap<Long, TimerTask> tasks = new TreeMap<>();
 
         when(timer.newTimeout(any(), anyLong(), any())).then(invocation -> {
-            TimerTask task = invocation.getArgumentAt(0, TimerTask.class);
-            long timeout = invocation.getArgumentAt(1, Long.class);
-            TimeUnit unit = invocation.getArgumentAt(2, TimeUnit.class);
+            TimerTask task = invocation.getArgument(0, TimerTask.class);
+            long timeout = invocation.getArgument(1, Long.class);
+            TimeUnit unit = invocation.getArgument(2, TimeUnit.class);
             long scheduleAt = clockTime.get() + unit.toMillis(timeout);
             tasks.put(scheduleAt, task);
 

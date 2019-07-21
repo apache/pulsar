@@ -19,8 +19,8 @@
 package org.apache.pulsar.functions.worker.executor;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
 
 import com.google.common.collect.Lists;
@@ -142,10 +142,10 @@ public class MockExecutorController {
 
     private static Answer<ScheduledFuture<?>> answerAtFixedRate(MockExecutorController controller, int numTimes) {
         return invocationOnMock -> {
-            Runnable task = invocationOnMock.getArgumentAt(0, Runnable.class);
-            long initialDelay = invocationOnMock.getArgumentAt(1, long.class);
-            long delay = invocationOnMock.getArgumentAt(2, long.class);
-            TimeUnit unit = invocationOnMock.getArgumentAt(3, TimeUnit.class);
+            Runnable task = invocationOnMock.getArgument(0);
+            long initialDelay = invocationOnMock.getArgument(1);
+            long delay = invocationOnMock.getArgument(2);
+            TimeUnit unit = invocationOnMock.getArgument(3);
 
             DeferredTask deferredTask = null;
             for (int i = 0; i < numTimes; i++) {
@@ -163,9 +163,9 @@ public class MockExecutorController {
     private static Answer<ScheduledFuture<?>> answerDelay(MockExecutorController executor) {
         return invocationOnMock -> {
 
-           Runnable task = invocationOnMock.getArgumentAt(0, Runnable.class);
-           long value = invocationOnMock.getArgumentAt(1, long.class);
-           TimeUnit unit = invocationOnMock.getArgumentAt(2, TimeUnit.class);
+           Runnable task = invocationOnMock.getArgument(0);
+           long value = invocationOnMock.getArgument(1);
+           TimeUnit unit = invocationOnMock.getArgument(2);
            DeferredTask deferredTask = executor.addDelayedTask(executor, unit.toMillis(value), task);
            if (value <= 0) {
                task.run();
@@ -178,7 +178,7 @@ public class MockExecutorController {
     private static Answer<Future<?>> answerNow() {
         return invocationOnMock -> {
 
-           Runnable task = invocationOnMock.getArgumentAt(0, Runnable.class);
+           Runnable task = invocationOnMock.getArgument(0);
            task.run();
            SettableFuture<Void> future = SettableFuture.create();
            future.set(null);

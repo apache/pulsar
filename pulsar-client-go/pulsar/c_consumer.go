@@ -211,7 +211,7 @@ func subscribeAsync(client *client, options ConsumerOptions, schema Schema, call
 		C._pulsar_client_subscribe_multi_topics_async(client.ptr, (**C.char)(cArray), C.int(len(options.Topics)),
 			subName, conf, callbackPtr)
 
-		for idx, _ := range options.Topics {
+		for idx := range options.Topics {
 			C.free(unsafe.Pointer(a[idx]))
 		}
 

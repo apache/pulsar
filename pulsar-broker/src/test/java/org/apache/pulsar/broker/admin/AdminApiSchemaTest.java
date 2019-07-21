@@ -121,5 +121,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
         assertEquals(si, readSi);
+
+        readSi = admin.schemas().getSchemaInfo(topicName + "-partition-0");
+        log.info("Read schema of topic {} : {}", topicName, readSi);
+
+        assertEquals(si, readSi);
+
     }
 }

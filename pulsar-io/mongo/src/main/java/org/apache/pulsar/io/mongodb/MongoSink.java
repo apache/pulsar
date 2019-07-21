@@ -18,21 +18,14 @@
  */
 package org.apache.pulsar.io.mongodb;
 
+import static java.util.stream.Collectors.toList;
+
 import com.google.common.collect.Lists;
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoClients;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.core.annotations.Connector;
-import org.apache.pulsar.io.core.annotations.IOType;
-import org.bson.BSONException;
-import org.bson.Document;
-import org.bson.json.JsonParseException;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -42,9 +35,19 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import static java.util.stream.Collectors.toList;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
+import org.bson.BSONException;
+import org.bson.Document;
+import org.bson.json.JsonParseException;
 
 /**
  * The base class for MongoDB sinks.
@@ -70,6 +73,15 @@ public class MongoSink implements Sink<byte[]> {
 
     private ScheduledExecutorService flushExecutor;
 
+    private Supplier<MongoClient> clientProvider;
+
+    public MongoSink() {
+        this(null);
+    }
+
+    public MongoSink(Supplier<MongoClient> clientProvider) {
+        this.clientProvider = clientProvider;
+    }
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -78,7 +90,12 @@ public class MongoSink implements Sink<byte[]> {
         mongoConfig = MongoConfig.load(config);
         mongoConfig.validate();
 
-        mongoClient = MongoClients.create(mongoConfig.getMongoUri());
+        if (clientProvider != null) {
+            mongoClient = clientProvider.get();
+        } else {
+            mongoClient = MongoClients.create(mongoConfig.getMongoUri());
+        }
+
         final MongoDatabase db = mongoClient.getDatabase(mongoConfig.getDatabase());
         collection = db.getCollection(mongoConfig.getCollection());
 

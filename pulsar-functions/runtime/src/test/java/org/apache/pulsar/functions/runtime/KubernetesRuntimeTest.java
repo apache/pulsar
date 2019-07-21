@@ -34,6 +34,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderCo
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Type;
@@ -43,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -133,6 +135,11 @@ public class KubernetesRuntimeTest {
         this.pulsarAdminUrl = "http://localhost:8080";
         this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "logs/functions";
+    }
+
+    @BeforeClass
+    public void setup() {
+        System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
 
     @AfterMethod
@@ -288,13 +295,13 @@ public class KubernetesRuntimeTest {
             "Actual args : " + StringUtils.join(args, " "));
 
         String expectedArgs = "exec java -cp " + classpath
-                + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + extraDepsEnv
-                + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.yml "
+                + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
+                + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " -Xmx" + String.valueOf(RESOURCES.getRam())
-                + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
+                + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + pulsarRootDir + "/" + userJarFile + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()

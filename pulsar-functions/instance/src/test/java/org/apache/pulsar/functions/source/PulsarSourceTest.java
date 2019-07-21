@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.functions.source;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.AssertJUnit.assertEquals;
@@ -29,12 +30,12 @@ import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import lombok.Cleanup;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -43,9 +44,9 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.io.core.SourceContext;
 import org.testng.annotations.Test;
 
@@ -76,14 +77,14 @@ public class PulsarSourceTest {
      */
     private static PulsarClientImpl getPulsarClient() throws PulsarClientException {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
-        ConsumerBuilder consumerBuilder = mock(ConsumerBuilder.class);
+        ConsumerBuilder<?> consumerBuilder = mock(ConsumerBuilder.class);
         doReturn(consumerBuilder).when(consumerBuilder).topics(anyList());
         doReturn(consumerBuilder).when(consumerBuilder).cryptoFailureAction(any());
-        doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
+        doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(any());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
         doReturn(consumerBuilder).when(consumerBuilder).messageListener(any());
-        Consumer consumer = mock(Consumer.class);
+        Consumer<?> consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
         doReturn(consumerBuilder).when(pulsarClient).newConsumer(any());
         doReturn(CompletableFuture.completedFuture(consumer)).when(consumerBuilder).subscribeAsync();
@@ -120,11 +121,13 @@ public class PulsarSourceTest {
 
 
     @Test
-    public void testVoidInputClasses() throws IOException {
+    public void testVoidInputClasses() throws Exception {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
+
+        @Cleanup
+        PulsarSource<?> pulsarSource = new PulsarSource<>(getPulsarClient(), pulsarConfig, new HashMap<>(), Thread.currentThread().getContextClassLoader());
 
         try {
             pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
@@ -142,7 +145,7 @@ public class PulsarSourceTest {
      * Verify that function input type should be consistent with input serde type.
      */
     @Test
-    public void testInconsistentInputType() throws IOException {
+    public void testInconsistentInputType() throws Exception {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
@@ -150,7 +153,9 @@ public class PulsarSourceTest {
         topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result",
                 ConsumerConfig.builder().serdeClassName(TestSerDe.class.getName()).build());
         pulsarConfig.setTopicSchema(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
+
+        @Cleanup
+        PulsarSource<?> pulsarSource = new PulsarSource<>(getPulsarClient(), pulsarConfig, new HashMap<>(), Thread.currentThread().getContextClassLoader());
         try {
             pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
@@ -175,7 +180,9 @@ public class PulsarSourceTest {
         consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
                 ConsumerConfig.builder().serdeClassName(TopicSchema.DEFAULT_SERDE).build());
         pulsarConfig.setTopicSchema(consumerConfigs);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
+
+        @Cleanup
+        PulsarSource<?> pulsarSource = new PulsarSource<>(getPulsarClient(), pulsarConfig, new HashMap<>(), Thread.currentThread().getContextClassLoader());
 
         pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
     }
@@ -188,7 +195,9 @@ public class PulsarSourceTest {
         consumerConfigs.put("persistent://sample/standalone/ns1/test_result",
                 ConsumerConfig.builder().serdeClassName(ComplexSerDe.class.getName()).build());
         pulsarConfig.setTopicSchema(consumerConfigs);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, new HashMap<>());
+
+        @Cleanup
+        PulsarSource<?> pulsarSource = new PulsarSource<>(getPulsarClient(), pulsarConfig, new HashMap<>(), Thread.currentThread().getContextClassLoader());
 
         pulsarSource.setupConsumerConfigs();
     }

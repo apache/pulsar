@@ -25,8 +25,10 @@ import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -36,8 +38,9 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
+
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -47,7 +50,6 @@ import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-@Slf4j
 public class BlockAwareSegmentInputStreamTest {
     private static final byte DEFAULT_ENTRY_BYTE = 0xB;
 

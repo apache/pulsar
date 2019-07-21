@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -787,7 +787,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
-        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(any());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
 
@@ -830,7 +830,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.complete(new ManagedLedgerConfig());
-        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(any());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
         // fail managed-ledger future

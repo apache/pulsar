@@ -32,6 +32,15 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.LinkedList;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Slf4j
@@ -84,7 +93,12 @@ public class TestBasicPresto extends PulsarTestSuite {
                                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                                     .build();
 
-        final String stocksTopic = "stocks";
+        String stocksTopic;
+        if (isBatched) {
+            stocksTopic = "stocks_batched";
+        } else {
+            stocksTopic = "stocks_nonbatched";
+        }
 
         @Cleanup
         Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class))
@@ -96,6 +110,7 @@ public class TestBasicPresto extends PulsarTestSuite {
             final Stock stock = new Stock(i,"STOCK_" + i , 100.0 + i * 10);
             producer.send(stock);
         }
+        producer.flush();
 
         result = execQuery("show schemas in pulsar;");
         assertThat(result.getExitCode()).isEqualTo(0);
@@ -105,7 +120,7 @@ public class TestBasicPresto extends PulsarTestSuite {
         assertThat(result.getExitCode()).isEqualTo(0);
         assertThat(result.getStdout()).contains("stocks");
 
-        ContainerExecResult containerExecResult = execQuery("select * from pulsar.\"public/default\".stocks order by entryid;");
+        ContainerExecResult containerExecResult = execQuery(String.format("select * from pulsar.\"public/default\".%s order by entryid;", stocksTopic));
         assertThat(containerExecResult.getExitCode()).isEqualTo(0);
         log.info("select sql query output \n{}", containerExecResult.getStdout());
         String[] split = containerExecResult.getStdout().split("\n");
@@ -119,6 +134,67 @@ public class TestBasicPresto extends PulsarTestSuite {
             assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
         }
 
+        // test predicate pushdown
+
+        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
+        Connection connection = DriverManager.getConnection(url, "test", null);
+
+        String query = String.format("select * from pulsar" +
+                ".\"public/default\".%s order by __publish_time__", stocksTopic);
+        log.info("Executing query: {}", query);
+        ResultSet res = connection.createStatement().executeQuery(query);
+
+        List<Timestamp> timestamps = new LinkedList<>();
+        while (res.next()) {
+            printCurrent(res);
+            timestamps.add(res.getTimestamp("__publish_time__"));
+        }
+
+        assertThat(timestamps.size()).isGreaterThan(NUM_OF_STOCKS - 2);
+
+        query = String.format("select * from pulsar" +
+                ".\"public/default\".%s where __publish_time__ > timestamp '%s' order by __publish_time__", stocksTopic, timestamps.get(timestamps.size() / 2));
+        log.info("Executing query: {}", query);
+        res = connection.createStatement().executeQuery(query);
+
+        List<Timestamp> returnedTimestamps = new LinkedList<>();
+        while (res.next()) {
+            printCurrent(res);
+            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
+        }
+
+        assertThat(returnedTimestamps.size()).isEqualTo(timestamps.size() / 2);
+
+        // Try with a predicate that has a earlier time than any entry
+        // Should return all rows
+        query = String.format("select * from pulsar" +
+                ".\"public/default\".%s where __publish_time__ > from_unixtime(%s) order by __publish_time__", stocksTopic, 0);
+        log.info("Executing query: {}", query);
+        res = connection.createStatement().executeQuery(query);
+
+        returnedTimestamps = new LinkedList<>();
+        while (res.next()) {
+            printCurrent(res);
+            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
+        }
+
+        assertThat(returnedTimestamps.size()).isEqualTo(timestamps.size());
+
+        // Try with a predicate that has a latter time than any entry
+        // Should return no rows
+
+        query = String.format("select * from pulsar" +
+                ".\"public/default\".%s where __publish_time__ > from_unixtime(%s) order by __publish_time__", stocksTopic, 99999999999L);
+        log.info("Executing query: {}", query);
+        res = connection.createStatement().executeQuery(query);
+
+        returnedTimestamps = new LinkedList<>();
+        while (res.next()) {
+            printCurrent(res);
+            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
+        }
+
+        assertThat(returnedTimestamps.size()).isEqualTo(0);
     }
 
     @AfterSuite
@@ -134,6 +210,18 @@ public class TestBasicPresto extends PulsarTestSuite {
                 .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
 
         return containerExecResult;
+
+    }
+
+    private static void printCurrent(ResultSet rs) throws SQLException {
+        ResultSetMetaData rsmd = rs.getMetaData();
+        int columnsNumber = rsmd.getColumnCount();
+        for (int i = 1; i <= columnsNumber; i++) {
+            if (i > 1) System.out.print(",  ");
+            String columnValue = rs.getString(i);
+            System.out.print(columnValue + " " + rsmd.getColumnName(i));
+        }
+        System.out.println("");
 
     }
 

@@ -45,15 +45,21 @@ COPY --from=pulsar /pulsar /pulsar
 RUN apt-get update \
      && apt-get install -y netcat dnsutils \
                  python2.7 python-setuptools \
-                 python3 python3-setuptools \
+                 python3-setuptools \
+                 libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
                  curl \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
+# Install python3.5.6
+RUN curl -O -L https://www.python.org/ftp/python/3.5.6/Python-3.5.6.tgz
+RUN tar -zxvf Python-3.5.6.tgz
+RUN cd Python-3.5.6 && ./configure --enable-optimizations && make altinstall
+
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN python2.7 get-pip.py
 RUN pip install kazoo pyyaml
-RUN python3 get-pip.py
+RUN python3.5 get-pip.py
 
 ADD target/python-client/ /pulsar/pulsar-client
 RUN /pulsar/bin/install-pulsar-client-27.sh

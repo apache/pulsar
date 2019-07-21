@@ -38,7 +38,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
+import io.netty.buffer.Unpooled;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -57,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 
 /**
  * Tests for the PulsarConsumerSource. The source supports two operation modes.
@@ -542,7 +542,7 @@ public class PulsarConsumerSourceTests {
 
     private static Message<byte[]> createMessage(String content, String messageId) {
         return new MessageImpl<byte[]>("my-topic", messageId, Collections.emptyMap(),
-                                       Unpooled.wrappedBuffer(content.getBytes()), Schema.BYTES);
+                                       content.getBytes(), Schema.BYTES);
     }
 
     private static String createMessageId(long ledgerId, long entryId, long partitionIndex) {

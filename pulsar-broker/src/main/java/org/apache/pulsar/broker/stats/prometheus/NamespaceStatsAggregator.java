@@ -201,8 +201,13 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_throughput_out", stats.throughputOut);
 
         metric(stream, cluster, namespace, "pulsar_storage_size", stats.storageSize);
+        metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.backlogSize);
+        metric(stream, cluster, namespace, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
+
         metric(stream, cluster, namespace, "pulsar_storage_write_rate", stats.storageWriteRate);
         metric(stream, cluster, namespace, "pulsar_storage_read_rate", stats.storageReadRate);
+
+        metric(stream, cluster, namespace, "pulsar_subscription_delayed", stats.msgDelayed);
 
         metricWithRemoteCluster(stream, cluster, namespace, "pulsar_msg_backlog", "local", stats.msgBacklog);
 

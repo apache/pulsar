@@ -20,12 +20,8 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import io.prometheus.client.CollectorRegistry;
 import lombok.extern.slf4j.Slf4j;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -35,6 +31,13 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
+
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Thread based function container factory implementation.
@@ -51,19 +54,34 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private volatile boolean closed;
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
-                                AuthenticationConfig authConfig, SecretsProvider secretsProvider, CollectorRegistry collectorRegistry) throws Exception {
-        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig), storageServiceUrl, secretsProvider, collectorRegistry);
+                                AuthenticationConfig authConfig, SecretsProvider secretsProvider,
+                                CollectorRegistry collectorRegistry, ClassLoader rootClassLoader) throws Exception {
+        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
+                storageServiceUrl, secretsProvider, collectorRegistry, rootClassLoader);
     }
 
     @VisibleForTesting
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
-                                SecretsProvider secretsProvider, CollectorRegistry collectorRegistry) {
+                                SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
+                                ClassLoader rootClassLoader) {
+        if (rootClassLoader == null) {
+            rootClassLoader = Thread.currentThread().getContextClassLoader();
+        }
+
         this.secretsProvider = secretsProvider;
-        this.fnCache = new FunctionCacheManagerImpl();
+        this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
+    }
+
+    public static ClassLoader loadJar(ClassLoader parent, File[] jars) throws MalformedURLException {
+        URL[] urls = new URL[jars.length];
+        for (int i = 0; i < jars.length; i++) {
+            urls[i] = jars[i].toURI().toURL();
+        }
+        return new URLClassLoader(urls, parent);
     }
 
     private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)

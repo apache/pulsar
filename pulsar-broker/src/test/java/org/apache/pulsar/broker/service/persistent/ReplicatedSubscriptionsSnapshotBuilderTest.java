@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -67,7 +67,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         controller = mock(ReplicatedSubscriptionsController.class);
         when(controller.localCluster()).thenReturn(localCluster);
         doAnswer(invocation -> {
-            ByteBuf marker = invocation.getArgumentAt(0, ByteBuf.class);
+            ByteBuf marker = invocation.getArgument(0, ByteBuf.class);
             Commands.skipMessageMetadata(marker);
             markers.add(marker);
             return null;
