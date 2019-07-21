@@ -372,8 +372,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalCreatePartitionedTopic(int numPartitions) {
         validateAdminAccessForTenant(topicName.getTenant());
-        if (numPartitions <= 1) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
+        if (numPartitions <= 0) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
         try {
             String path = ZkAdminPaths.partitionedTopicPath(topicName);
@@ -431,8 +431,8 @@ public class PersistentTopicsBase extends AdminResource {
                     topicName);
             throw new RestException(Status.FORBIDDEN, "Update forbidden on global namespace");
         }
-        if (numPartitions <= 1) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
+        if (numPartitions <= 0) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
         try {
             updatePartitionedTopic(topicName, numPartitions).get();
