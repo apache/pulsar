@@ -10,9 +10,9 @@ In Pulsar, we use Kerberos with [SASL](https://en.wikipedia.org/wiki/Simple_Auth
 
 In this document, we will introduce how to configure `Kerberos` with `SASL` between Pulsar clients and brokers in detail, and then how to configure Kerberos for Pulsar proxy.
 
-## Configuration for Kerberos between Client and Broker
+## 1. Configuration for Kerberos between Client and Broker
 
-### Prerequisites
+### 1.1. Prerequisites
 
 To begin, you need to set up(or already have) a [Key Distribution Center(KDC)](https://en.wikipedia.org/wiki/Key_distribution_center) configured and running. 
 
@@ -21,7 +21,9 @@ If your organization is already using a Kerberos server (for example, by using `
 
 Note that if you are using Oracle Java, you need to download JCE policy files for your Java version and copy them to the `$JAVA_HOME/jre/lib/security` directory.
 
-#### Kerberos Principals
+Here is some other prerequisites that will use in this configuration.
+
+#### 1.1.1. Kerberos Principals
 
 If you are using existing Kerberos system, ask your Kerberos administrator for a principal for each Brokers in your cluster and for every operating system user that will access Pulsar with Kerberos authentication(via clients and tools).
 
@@ -35,9 +37,13 @@ sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{broker-keytabnam
 sudo /usr/sbin/kadmin.local -q 'addprinc -randkey client/{hostname}@{REALM}'
 sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabname}.keytab client/{hostname}@{REALM}"
 ```
+
 Note that it is a *Kerberos* requirement that all your hosts can be resolved with their FQDNs.
 
-#### Configure how to connect to KDC
+The first part of Broker principal (e.g. `broker` in `broker/{hostname}@{REALM}`) is the `serverType` of each host, 
+It can be value `broker` (host machine runs service Pulsar Broker) or `proxy` (host machine runs service Pulsar Proxy). 
+
+#### 1.1.2. Configure how to connect to KDC
 
 You need to specify the path to the `krb5.conf` file for both client and broker side. The contents of `krb5.conf` file indicate the default Realm and KDC information. See [JDK’s Kerberos Requirements](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jgss/tutorials/KerberosReq.html) for more details.
 
@@ -60,7 +66,7 @@ In the configuration file, `EXAMPLE.COM` is the default realm; `kdc = localhost:
 
 Usually machines configured with kerberos already have a system wide configuration and this configuration is optional.
 
-#### JAAS configuration file
+#### 1.1.3. JAAS configuration file
 
 JAAS configuration file is needed for both client and broker sides. It provides the section of information that used to connect KDC. Here is an example named `pulsar_jaas.conf`:
 
@@ -96,18 +102,27 @@ In the `pulsar_jaas.conf` file above
     and the location of the keytab where the principal is stored. It allows the broker to use the keytab specified in this section.
 2. `PulsarClient` is a section name in the JASS file used by each client. This section tells the client which principal to use inside Kerberos
     and the location of the keytab where the principal is stored. It allows the client to use the keytab specified in this section.
+    In the following example, this `PulsarClient` section will also be used in the Pulsar internal admin configuration, 
+    in cli command of `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`. You can also add different section for different use case.
 
-It is also a choice to have 2 separate JAAS configuration files: the file for broker will only have `PulsarBroker` section; while the one for client only have `PulsarClient` section.
+It is also a choice to have 2 separate JAAS configuration files: the file for broker will have both section; while the one for client only have `PulsarClient` section.
 
-### Kerberos configuration for Brokers
 
-1. In the `broker.conf` file, set Kerberos related configuration.
+### 1.2. Kerberos configuration for Brokers
+
+#### 1.2.1. configure `broker.conf` file
+ 
+ In the `broker.conf` file, set Kerberos related configuration.
 
  - Set `authenticationEnabled` to `true`;
  - Set `authenticationProviders` to choose `AuthenticationProviderSasl`;
- - Set `saslJaasClientAllowedIds` regex for principal that is allowed to connect to broker. 
- - Set `saslJaasBrokerSectionName` that corresponding to the section in JAAS configuration file for broker.
+ - Set `saslJaasClientAllowedIds` regex for principal that is allowed to connect to broker;
+ - Set `saslJaasBrokerSectionName` that corresponding to the section in JAAS configuration file for broker;
  
+ In order to get Pulsar internal admin client working right, You need these 2 configuration in `broker.conf` file. 
+ - set `brokerClientAuthenticationPlugin` to client plugin `AuthenticationSasl`;
+ - set `brokerClientAuthenticationParameters` to value in Json string `{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}`, in which `PulsarClient` is the section name in above `pulsar_jaas.conf` file, and `"serverType":"broker"` indicate that internal admin client will connect to a Pulsar Broker;
+
  Here is an example:
 
 ```
@@ -115,9 +130,15 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasBrokerSectionName=PulsarBroker
+
+## Authentication settings of the broker itself. Used when the broker connects to other brokers
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
+brokerClientAuthenticationParameters={"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}
 ```
 
-2. Set JVM parameter for JAAS configuration file and krb5 configuration file with additional option.
+#### 1.2.2. Set Broker JVM parameter
+
+ Set JVM parameter for JAAS configuration file and krb5 configuration file with additional option.
 ```shell
    -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf 
 ```
@@ -125,7 +146,10 @@ You can add this at the end of `PULSAR_EXTRA_OPTS` in the file [`pulsar_env.sh`]
 
 Make sure that the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file are reachable by the operating system user who is starting broker.
 
-### Kerberos configuration for clients
+
+### 1.3. Kerberos configuration for clients
+
+#### 1.3.1. Java Client and Java Admin Client
 
 In client application, include `pulsar-client-auth-sasl` in your project dependency.
 
@@ -172,19 +196,27 @@ java -cp -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.s
 
 Make sure that the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file are reachable by the operating system user who is starting pulsar client.
 
-If you are using command line, you can continue with these step:
-1. Config your `client.conf`: 
+#### 1.3.2. configure CLI tools
+
+If you are using command line tool (such as `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`), you need 2 steps:
+
+Step 1. Config your `client.conf`: 
 ```shell
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
 authParams={"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}
 ```
-2. Set JVM parameter for JAAS configuration file and krb5 configuration file with additional option.
+
+Step 2. Set JVM parameter for JAAS configuration file and krb5 configuration file with additional option.
 ```shell
    -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf 
 ```
-You can add this at the end of `PULSAR_EXTRA_OPTS` in the file [`pulsar_tools_env.sh`](https://github.com/apache/pulsar/blob/master/conf/pulsar_tools_env.sh)
 
-## Kerberos configuration for working with Pulsar Proxy
+You can add this at the end of `PULSAR_EXTRA_OPTS` in the file [`pulsar_tools_env.sh`](https://github.com/apache/pulsar/blob/master/conf/pulsar_tools_env.sh),
+Or you could add this line `OPTS="$OPTS -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf "` directly in to the CLI tools script.
+
+The meaning of configurations are the same as in Java client section.
+
+## 2. Kerberos configuration for working with Pulsar Proxy
 
 With the above configuration, client and broker can do authentication using Kerberos.  
 
@@ -192,7 +224,7 @@ If a client wants to connect to Pulsar Proxy, it is a little different. Client (
 
 Now comparing with the above configuration between client and broker, we will show how to configure Pulsar Proxy. 
 
-### Create principal for Pulsar Proxy in Kerberos
+### 2.1. Create principal for Pulsar Proxy in Kerberos
 
 Comparing with the above configuration, you need to add new principal for Pulsar Proxy. If you already have principals for client and broker, only add proxy principal here.
 
@@ -208,7 +240,7 @@ sudo /usr/sbin/kadmin.local -q 'addprinc -randkey client/{hostname}@{REALM}'
 sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabname}.keytab client/{hostname}@{REALM}"
 ```
 
-### Add a section in JAAS configuration file for Pulsar Proxy
+### 2.2. Add a section in JAAS configuration file for Pulsar Proxy
 
 Comparing with the above configuration, add a new section for Pulsar Proxy in JAAS configuration file.
 
@@ -243,7 +275,7 @@ Here is an example named `pulsar_jaas.conf`:
 };
 ```
 
-### Proxy Client configuration
+### 2.3. Proxy Client configuration
 
 Pulsar client configuration is similar with client and broker configuration, except that `serverType` is set to `proxy` instead of `broker`, because it needs to do Kerberos authentication between client and proxy.
 
@@ -270,7 +302,7 @@ Pulsar client configuration is similar with client and broker configuration, exc
 java -cp -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf $APP-jar-with-dependencies.jar $CLASSNAME
 ```
 
-### Kerberos configuration for Pulsar Proxy service
+### 2.4. Kerberos configuration for Pulsar Proxy service
 
 In the `proxy.conf` file, set Kerberos related configuration. Here is an example:
 ```shell
@@ -282,7 +314,7 @@ saslJaasBrokerSectionName=PulsarProxy
 
 ## related to be authenticated by broker
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
-brokerClientAuthenticationParameters=saslJaasClientSectionName:PulsarProxy,serverType:broker
+brokerClientAuthenticationParameters={"saslJaasClientSectionName":"PulsarProxy", "serverType":"broker"}
 forwardAuthorizationCredentials=true
 ```
 
@@ -290,7 +322,7 @@ The first part is related to authenticate between client and Pulsar Proxy. In th
 
 The second part is related to authenticate between Pulsar Proxy and Pulsar Broker. In this phase, Pulsar Proxy works as SASL client, while Pulsar Broker works as SASL server.
 
-### Broker side configuration.
+### 2.5. Broker side configuration.
 
 The broker side configuration file is the same with the above `broker.conf`, you do not need special configuration for Pulsar Proxy.
 
@@ -301,7 +333,7 @@ saslJaasClientAllowedIds=.*client.*
 saslJaasBrokerSectionName=PulsarBroker
 ```
 
-## Regarding authorization and role token
+## 3. Regarding authorization and role token
 
 For Kerberos authentication, the authenticated principal is used as the role token for Pulsar authorization.  For more information of authorization in Pulsar, see [security authorization](security-authorization.md).
 
@@ -312,13 +344,16 @@ For example:
 superUserRoles=client/{clientIp}@EXAMPLE.COM
 ```
 
-## Regarding authorization between BookKeeper and ZooKeeper
+## 4. Regarding authorization between BookKeeper and Broker
 
 Adding `bookkeeperClientAuthenticationPlugin` parameter in `broker.conf` is a prerequisite for Broker (as a Kerberos client) being authenticated by Bookie (as a Kerberos Server):
 
 ```
 bookkeeperClientAuthenticationPlugin=org.apache.bookkeeper.sasl.SASLClientProviderFactory
 ```
+
+`SASLClientProviderFactory` class will create a SASL client in Broker, and use this client authenticate with Bookie node.
+
 
 For more details of how to configure Kerberos for BookKeeper and Zookeeper, refer to [BookKeeper document](http://bookkeeper.apache.org/docs/latest/security/sasl/).
 
