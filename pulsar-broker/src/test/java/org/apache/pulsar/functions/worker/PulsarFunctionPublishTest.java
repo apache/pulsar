@@ -123,11 +123,7 @@ public class PulsarFunctionPublishTest {
 
         // delete all function temp files
         File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.startsWith("function");
-            }
-        });
+        File[] foundFiles = dir.listFiles((ignoredDir, name) -> name.startsWith("function"));
 
         for (File file : foundFiles) {
             file.delete();
@@ -376,11 +372,7 @@ public class PulsarFunctionPublishTest {
 
         // make sure all temp files are deleted
         File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.startsWith("function");
-            }
-        });
+        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
