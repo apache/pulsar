@@ -106,11 +106,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     private MockZooKeeper(String quorum) throws Exception {
         // This constructor is never called
-        super(quorum, 1, new Watcher() {
-            @Override
-            public void process(WatchedEvent event) {
-            }
-        });
+        super(quorum, 1, event -> {});
         assert false;
     }
 

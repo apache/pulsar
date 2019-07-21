@@ -149,11 +149,7 @@ public class PulsarFunctionE2ETest {
 
         // delete all function temp files
         File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.startsWith("function");
-            }
-        });
+        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         for (File file : foundFiles) {
             file.delete();
@@ -162,7 +158,7 @@ public class PulsarFunctionE2ETest {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
         bkEnsemble.start();
 
         String brokerServiceUrl = "https://127.0.0.1:" + brokerWebServiceTlsPort;
@@ -492,11 +488,7 @@ public class PulsarFunctionE2ETest {
 
         // make sure all temp files are deleted
         File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.startsWith("function");
-            }
-        });
+        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
@@ -726,11 +718,7 @@ public class PulsarFunctionE2ETest {
 
         // make sure all temp files are deleted
         File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.startsWith("function");
-            }
-        });
+        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
@@ -869,11 +857,7 @@ public class PulsarFunctionE2ETest {
 
         // make sure all temp files are deleted
         File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.startsWith("function");
-            }
-        });
+        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
@@ -1221,11 +1205,7 @@ public class PulsarFunctionE2ETest {
 
         // make sure all temp files are deleted
         File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                return name.startsWith("function");
-            }
-        });
+        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }

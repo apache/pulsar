@@ -124,12 +124,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NarClassLoader extends URLClassLoader {
 
-    private static final FileFilter JAR_FILTER = new FileFilter() {
-        @Override
-        public boolean accept(File pathname) {
-            final String nameToTest = pathname.getName().toLowerCase();
-            return nameToTest.endsWith(".jar") && pathname.isFile();
-        }
+    private static final FileFilter JAR_FILTER = pathname -> {
+        final String nameToTest = pathname.getName().toLowerCase();
+        return nameToTest.endsWith(".jar") && pathname.isFile();
     };
 
     /**

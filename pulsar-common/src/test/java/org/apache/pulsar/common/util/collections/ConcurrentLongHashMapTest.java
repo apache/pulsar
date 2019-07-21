@@ -376,11 +376,7 @@ public class ConcurrentLongHashMapTest {
     public void testComputeIfAbsent() {
         ConcurrentLongHashMap<Integer> map = new ConcurrentLongHashMap<>(16, 1);
         AtomicInteger counter = new AtomicInteger();
-        LongFunction<Integer> provider = new LongFunction<Integer>() {
-            public Integer apply(long key) {
-                return counter.getAndIncrement();
-            }
-        };
+        LongFunction<Integer> provider = key -> counter.getAndIncrement();
 
         assertEquals(map.computeIfAbsent(0, provider).intValue(), 0);
         assertEquals(map.get(0).intValue(), 0);

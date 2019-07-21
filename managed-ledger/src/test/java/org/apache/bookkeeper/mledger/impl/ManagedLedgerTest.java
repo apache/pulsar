@@ -1294,31 +1294,25 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         final Position position = ledger.addEntry("entry-0".getBytes());
         Executor executor = Executors.newCachedThreadPool();
         final CountDownLatch counter = new CountDownLatch(2);
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    for (int i = 0; i < N; i++) {
-                        c1.markDelete(position);
-                    }
-                    counter.countDown();
-                } catch (Exception e) {
-                    e.printStackTrace();
+        executor.execute(() -> {
+            try {
+                for (int i = 0; i < N; i++) {
+                    c1.markDelete(position);
                 }
+                counter.countDown();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         });
 
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    for (int i = 0; i < N; i++) {
-                        ledger.openCursor("cursor-" + i);
-                    }
-                    counter.countDown();
-                } catch (Exception e) {
-                    e.printStackTrace();
+        executor.execute(() -> {
+            try {
+                for (int i = 0; i < N; i++) {
+                    ledger.openCursor("cursor-" + i);
                 }
+                counter.countDown();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         });
 
@@ -1832,12 +1826,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl newVersionLedger = (ManagedLedgerImpl) factory.open("backward_test_ledger", conf);
         List<LedgerInfo> mlInfo = newVersionLedger.getLedgersInfoAsList();
 
-        assertTrue(mlInfo.stream().allMatch(new Predicate<LedgerInfo>() {
-            @Override
-            public boolean test(LedgerInfo ledgerInfo) {
-                return ledgerInfo.hasTimestamp();
-            }
-        }));
+        assertTrue(mlInfo.stream().allMatch(ledgerInfo -> ledgerInfo.hasTimestamp()));
     }
 
     @Test
@@ -2288,15 +2277,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 responseException1.set(exception);
             }
         }, ctxStr);
-        ledger.asyncCreateLedger(bk, config, null, new CreateCallback() {
-            @Override
-            public void createComplete(int rc, LedgerHandle lh, Object ctx) {
-
-            }
-        }, Collections.emptyMap());
-        retryStrategically((test) -> {
-            return responseException1.get() != null;
-        }, 5, 1000);
+        ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {}, Collections.emptyMap());
+        retryStrategically((test) -> responseException1.get() != null, 5, 1000);
         assertNotNull(responseException1.get());
         assertEquals(responseException1.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
 
