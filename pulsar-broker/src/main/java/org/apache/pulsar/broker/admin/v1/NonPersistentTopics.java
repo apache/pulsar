@@ -120,8 +120,8 @@ public class NonPersistentTopics extends PersistentTopics {
             int numPartitions) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminAccessForTenant(topicName.getTenant());
-        if (numPartitions <= 1) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
+        if (numPartitions <= 0) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
         try {
             String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(),
