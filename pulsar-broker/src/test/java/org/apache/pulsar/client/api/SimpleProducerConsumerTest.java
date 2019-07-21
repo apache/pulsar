@@ -671,13 +671,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
 
@@ -712,13 +709,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         barrier.reset();
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
         barrier.await();
@@ -742,13 +736,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         barrier.reset();
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
         barrier.await();

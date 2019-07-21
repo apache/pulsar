@@ -204,12 +204,7 @@ public abstract class ZooKeeperCache implements Watcher {
 
     private boolean exists(final String path, Watcher watcher) throws KeeperException, InterruptedException {
         try {
-            return existsCache.get(path, new Callable<Boolean>() {
-                @Override
-                public Boolean call() throws Exception {
-                    return zkSession.get().exists(path, watcher) != null;
-                }
-            });
+            return existsCache.get(path, () -> zkSession.get().exists(path, watcher) != null);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof KeeperException) {
@@ -386,12 +381,9 @@ public abstract class ZooKeeperCache implements Watcher {
     public Set<String> getChildren(final String path, final Watcher watcher)
             throws KeeperException, InterruptedException {
         try {
-            return childrenCache.get(path, new Callable<Set<String>>() {
-                @Override
-                public Set<String> call() throws Exception {
-                    LOG.debug("Fetching children at {}", path);
-                    return Sets.newTreeSet(checkNotNull(zkSession.get()).getChildren(path, watcher));
-                }
+            return childrenCache.get(path, () -> {
+                LOG.debug("Fetching children at {}", path);
+                return Sets.newTreeSet(checkNotNull(zkSession.get()).getChildren(path, watcher));
             });
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
