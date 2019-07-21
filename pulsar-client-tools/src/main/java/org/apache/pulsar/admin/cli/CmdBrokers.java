@@ -65,6 +65,17 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Delete dynamic-serviceConfiguration of broker")
+    private class DeleteConfigurationCmd extends CliCommand {
+        @Parameter(names = "--config", description = "service-configuration name", required = true)
+        private String configName;
+
+        @Override
+        void run() throws Exception {
+            admin.brokers().deleteDynamicConfiguration(configName);
+        }
+    }
+    
     @Parameters(commandDescription = "Get all overridden dynamic-configuration values")
     private class GetAllConfigurationsCmd extends CliCommand {
 
@@ -83,6 +94,15 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get runtime configuration values")
+    private class GetRuntimeConfigCmd extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            print(admin.brokers().getRuntimeConfigurations());
+        }
+    }
+
     @Parameters(commandDescription = "Get internal configuration information")
     private class GetInternalConfigurationCmd extends CliCommand {
 
@@ -92,14 +112,28 @@ public class CmdBrokers extends CmdBase {
         }
 
     }
-    
+
+    @Parameters(commandDescription = "Run a health check against the broker")
+    private class HealthcheckCmd extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            admin.brokers().healthcheck();
+            System.out.println("ok");
+        }
+
+    }
+
     public CmdBrokers(PulsarAdmin admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("namespaces", new Namespaces());
         jcommander.addCommand("update-dynamic-config", new UpdateConfigurationCmd());
+        jcommander.addCommand("delete-dynamic-config", new DeleteConfigurationCmd());
         jcommander.addCommand("list-dynamic-config", new GetUpdatableConfigCmd());
         jcommander.addCommand("get-all-dynamic-config", new GetAllConfigurationsCmd());
         jcommander.addCommand("get-internal-config", new GetInternalConfigurationCmd());
+        jcommander.addCommand("get-runtime-config", new GetRuntimeConfigCmd());
+        jcommander.addCommand("healthcheck", new HealthcheckCmd());
     }
 }

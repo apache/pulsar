@@ -20,7 +20,7 @@
 
 namespace pulsar {
 
-MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0) {}
+MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0), topicName_() {}
 
 const Message::StringMap& MessageImpl::properties() {
     if (properties_.size() == 0) {
@@ -36,6 +36,10 @@ const Message::StringMap& MessageImpl::properties() {
 const std::string& MessageImpl::getPartitionKey() const { return metadata.partition_key(); }
 
 bool MessageImpl::hasPartitionKey() const { return metadata.has_partition_key(); }
+
+const std::string& MessageImpl::getOrderingKey() const { return metadata.ordering_key(); }
+
+bool MessageImpl::hasOrderingKey() const { return metadata.has_ordering_key(); }
 
 uint64_t MessageImpl::getPublishTimestamp() const {
     if (metadata.has_publish_time()) {
@@ -77,5 +81,15 @@ void MessageImpl::setPartitionKey(const std::string& partitionKey) {
     metadata.set_partition_key(partitionKey);
 }
 
+void MessageImpl::setOrderingKey(const std::string& orderingKey) { metadata.set_ordering_key(orderingKey); }
+
 void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) { metadata.set_event_time(eventTimestamp); }
+
+void MessageImpl::setTopicName(const std::string& topicName) {
+    topicName_ = &topicName;
+    messageId.setTopicName(topicName);
+}
+
+const std::string& MessageImpl::getTopicName() { return *topicName_; }
+
 }  // namespace pulsar

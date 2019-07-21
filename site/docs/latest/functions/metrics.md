@@ -27,7 +27,7 @@ import org.apache.pulsar.functions.api.Function;
 
 public class MetricRecordingFunction implements Function<String, Void> {
     @Override
-    public void apply(String input, Context context) {
+    public Void process(String input, Context context) {
         context.recordMetric("number-of-characters", input.length());
         return null;
     }

@@ -71,7 +71,6 @@ class ConnectionHandler {
     }
 
     private Void handleConnectionError(Throwable exception) {
-        exception.printStackTrace();
         log.warn("[{}] [{}] Error connecting to broker: {}", state.topic, state.getHandlerName(), exception.getMessage());
         connection.connectionFailed(new PulsarClientException(exception));
 

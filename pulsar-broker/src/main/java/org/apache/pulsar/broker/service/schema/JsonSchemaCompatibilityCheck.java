@@ -18,31 +18,21 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
+import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
-import org.apache.avro.SchemaValidationException;
-import org.apache.avro.SchemaValidator;
-import org.apache.avro.SchemaValidatorBuilder;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.io.IOException;
-import java.util.Arrays;
-
+/**
+ * {@link SchemaCompatibilityCheck} for {@link SchemaType#JSON}.
+ */
 @SuppressWarnings("unused")
-public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
-
-    private final SchemaCompatibilityStrategy compatibilityStrategy;
-
-    public JsonSchemaCompatibilityCheck () {
-        this(SchemaCompatibilityStrategy.FULL);
-    }
-
-    public JsonSchemaCompatibilityCheck(SchemaCompatibilityStrategy compatibilityStrategy) {
-        this.compatibilityStrategy = compatibilityStrategy;
-    }
+public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCheck {
 
     @Override
     public SchemaType getSchemaType() {
@@ -50,12 +40,11 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
     }
 
     @Override
-    public boolean isCompatible(SchemaData from, SchemaData to) {
-
+    public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
         if (isAvroSchema(from)) {
             if (isAvroSchema(to)) {
                 // if both producer and broker have the schema in avro format
-                return isCompatibleAvroSchema(from, to);
+                return super.isCompatible(from, to, strategy);
             } else if (isJsonSchema(to)) {
                 // if broker have the schema in avro format but producer sent a schema in the old json format
                 // allow old schema format for backwards compatiblity
@@ -85,21 +74,6 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
         }
     }
 
-    private boolean isCompatibleAvroSchema(SchemaData from, SchemaData to) {
-        Schema.Parser fromParser = new Schema.Parser();
-        Schema fromSchema = fromParser.parse(new String(from.getData()));
-        Schema.Parser toParser = new Schema.Parser();
-        Schema toSchema =  toParser.parse(new String(to.getData()));
-
-        SchemaValidator schemaValidator = createSchemaValidator(this.compatibilityStrategy, true);
-        try {
-            schemaValidator.validate(toSchema, Arrays.asList(fromSchema));
-        } catch (SchemaValidationException e) {
-            return false;
-        }
-        return true;
-    }
-
     private ObjectMapper objectMapper;
     private ObjectMapper getObjectMapper() {
         if (objectMapper == null) {
@@ -123,7 +97,7 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
         try {
 
             Schema.Parser fromParser = new Schema.Parser();
-            Schema fromSchema = fromParser.parse(new String(schemaData.getData()));
+            Schema fromSchema = fromParser.parse(new String(schemaData.getData(), UTF_8));
             return true;
         } catch (SchemaParseException e) {
             return false;
@@ -140,20 +114,4 @@ public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
         }
     }
 
-    private static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy,
-                                                         boolean onlyLatestValidator) {
-        final SchemaValidatorBuilder validatorBuilder = new SchemaValidatorBuilder();
-        switch (compatibilityStrategy) {
-            case BACKWARD:
-                return createLatestOrAllValidator(validatorBuilder.canReadStrategy(), onlyLatestValidator);
-            case FORWARD:
-                return createLatestOrAllValidator(validatorBuilder.canBeReadStrategy(), onlyLatestValidator);
-            default:
-                return createLatestOrAllValidator(validatorBuilder.mutualReadStrategy(), onlyLatestValidator);
-        }
-    }
-
-    private static SchemaValidator createLatestOrAllValidator(SchemaValidatorBuilder validatorBuilder, boolean onlyLatest) {
-        return onlyLatest ? validatorBuilder.validateLatest() : validatorBuilder.validateAll();
-    }
 }

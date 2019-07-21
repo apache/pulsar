@@ -198,6 +198,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
+            return null;
+        }
+
+        @Override
         public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
                 AsyncCallbacks.FindEntryCallback callback, Object ctx) {
         }
@@ -218,6 +223,10 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void setAlwaysInactive() {
+        }
+
+        @Override
         public List<Entry> replayEntries(Set<? extends Position> positions)
                 throws InterruptedException, ManagedLedgerException {
             return null;
@@ -225,6 +234,11 @@ public class ManagedCursorContainerTest {
 
         @Override
         public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+            return Sets.newConcurrentHashSet();
+        }
+
+        @Override
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
             return Sets.newConcurrentHashSet();
         }
 

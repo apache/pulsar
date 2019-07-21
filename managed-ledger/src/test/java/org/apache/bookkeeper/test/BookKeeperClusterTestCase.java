@@ -23,6 +23,9 @@
 
 package org.apache.bookkeeper.test;
 
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.UnpooledByteBufAllocator;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -38,7 +41,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieException;
+import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -47,7 +52,9 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.commons.io.FileUtils;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +104,8 @@ public abstract class BookKeeperClusterTestCase {
             startZKCluster();
             // start bookkeeper service
             startBKCluster();
+
+            zkc.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         } catch (Exception e) {
             LOG.error("Error setting up", e);
             throw e;
@@ -198,12 +207,15 @@ public abstract class BookKeeperClusterTestCase {
         conf.setAllowLoopback(true);
         conf.setFlushInterval(60 * 1000);
         conf.setGcWaitTime(60 * 1000);
+        conf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
         String[] ledgerDirNames = new String[ledgerDirs.length];
         for (int i = 0; i < ledgerDirs.length; i++) {
             ledgerDirNames[i] = ledgerDirs[i].getPath();
         }
         conf.setLedgerDirNames(ledgerDirNames);
         conf.setLedgerStorageClass("org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage");
+        conf.setProperty(DbLedgerStorage.WRITE_CACHE_MAX_SIZE_MB, 4);
+        conf.setProperty(DbLedgerStorage.READ_AHEAD_CACHE_MAX_SIZE_MB, 4);
         return conf;
     }
 
@@ -430,7 +442,7 @@ public abstract class BookKeeperClusterTestCase {
     protected BookieServer startBookie(ServerConfiguration conf, final Bookie b) throws Exception {
         BookieServer server = new BookieServer(conf) {
             @Override
-            protected Bookie newBookie(ServerConfiguration conf)
+            protected Bookie newBookie(ServerConfiguration conf, ByteBufAllocator allocator)
                     throws IOException, KeeperException, InterruptedException, BookieException {
                 return b;
             }

@@ -21,7 +21,7 @@
 
 #include <chrono>
 #include <thread>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 
 namespace pulsar {
 
@@ -29,9 +29,9 @@ class RateLimiter {
  public:
     RateLimiter(double rate);
 
-    void aquire();
+    void acquire();
 
-    void aquire(int permits);
+    void acquire(int permits);
 
  private:
     RateLimiter(const RateLimiter&);
@@ -42,8 +42,8 @@ class RateLimiter {
     long storedPermits_;
     double maxPermits_;
     Clock::time_point nextFree_;
-    boost::mutex mutex_;
-    typedef boost::unique_lock<boost::mutex> Lock;
+    std::mutex mutex_;
+    typedef std::unique_lock<std::mutex> Lock;
 };
 
 RateLimiter::RateLimiter(double rate)
@@ -54,11 +54,11 @@ RateLimiter::RateLimiter(double rate)
     assert(rate < 1e6 && "Exceeded maximum rate");
 }
 
-void RateLimiter::aquire() {
-    aquire(1);
+void RateLimiter::acquire() {
+    acquire(1);
 }
 
-void RateLimiter::aquire(int permits) {
+void RateLimiter::acquire(int permits) {
     Clock::time_point now = Clock::now();
 
     Lock lock(mutex_);

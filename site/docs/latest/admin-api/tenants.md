@@ -89,7 +89,7 @@ $ pulsar-admin tenants get my-tenant
 
 ### Delete
 
-#### pulsar-adnin
+#### pulsar-admin
 
 You can delete a tenant using the [`delete`](../../reference/CliTools#pulsar-admin-tenants-delete) subcommand and specifying the tenant name:
 

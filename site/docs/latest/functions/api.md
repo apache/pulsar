@@ -209,7 +209,7 @@ In general, you should use native functions when you don't need access to the fu
 
 There is one example Java native function in [this folder](https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples):
 
-* [`JavaNativeExclmationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclmationFunction.java)
+* [`JavaNativeExclamationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclamationFunction.java)
 
 ### Java SDK functions {#java-sdk}
 

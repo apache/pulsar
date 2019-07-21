@@ -24,13 +24,19 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Optional;
 
-import org.apache.pulsar.common.api.Commands;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,12 +60,27 @@ public class LookupProxyHandler {
             .build("pulsar_proxy_partitions_metadata_requests", "Counter of partitions metadata requests").create()
             .register();
 
+    private static final Counter getTopicsOfNamespaceRequestss = Counter
+            .build("pulsar_proxy_get_topics_of_namespace_requests", "Counter of getTopicsOfNamespace requests")
+            .create()
+            .register();
+
+    private static final Counter getSchemaRequests = Counter
+            .build("pulsar_proxy_get_schema_requests", "Counter of schema requests")
+            .create()
+            .register();
+
     static final Counter rejectedLookupRequests = Counter.build("pulsar_proxy_rejected_lookup_requests",
             "Counter of topic lookup requests rejected due to throttling").create().register();
 
     static final Counter rejectedPartitionsMetadataRequests = Counter
             .build("pulsar_proxy_rejected_partitions_metadata_requests",
                     "Counter of partitions metadata requests rejected due to throttling")
+            .create().register();
+
+    static final Counter rejectedGetTopicsOfNamespaceRequests = Counter
+            .build("pulsar_proxy_rejected_get_topics_of_namespace_requests",
+                    "Counter of getTopicsOfNamespace requests rejected due to throttling")
             .create().register();
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
@@ -244,6 +265,166 @@ public class LookupProxyHandler {
                 return null;
             });
         }
+    }
+
+    public void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
+        getTopicsOfNamespaceRequestss.inc();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received GetTopicsOfNamespace", clientAddress);
+        }
+
+        final long requestId = commandGetTopicsOfNamespace.getRequestId();
+
+        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
+            handleGetTopicsOfNamespace(commandGetTopicsOfNamespace, requestId);
+            this.service.getLookupRequestSemaphore().release();
+        } else {
+            rejectedGetTopicsOfNamespaceRequests.inc();
+            if (log.isDebugEnabled()) {
+                log.debug("GetTopicsOfNamespace Request ID {} from {} rejected - {}.", requestId, clientAddress,
+                    throttlingErrorMessage);
+            }
+            proxyConnection.ctx().writeAndFlush(Commands.newError(
+                requestId, ServerError.ServiceNotReady, throttlingErrorMessage
+            ));
+        }
+    }
+
+    private void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace,
+                                            long clientRequestId) {
+        String serviceUrl = getServiceUrl(clientRequestId);
+
+        if(!StringUtils.isNotBlank(serviceUrl)) {
+            return;
+        }
+        performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl, 10,
+            commandGetTopicsOfNamespace.getMode());
+    }
+
+    private void performGetTopicsOfNamespace(long clientRequestId,
+                                             String namespaceName,
+                                             String brokerServiceUrl,
+                                             int numberOfRetries,
+                                             CommandGetTopicsOfNamespace.Mode mode) {
+        if (numberOfRetries == 0) {
+            proxyConnection.ctx().writeAndFlush(Commands.newError(clientRequestId, ServerError.ServiceNotReady,
+                    "Reached max number of redirections"));
+            return;
+        }
+
+        InetSocketAddress addr = getAddr(brokerServiceUrl, clientRequestId);
+
+        if(addr == null){
+            return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Getting connections to '{}' for getting TopicsOfNamespace '{}' with clientReq Id '{}'",
+                addr, namespaceName, clientRequestId);
+        }
+        proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
+            // Connected to backend broker
+            long requestId = proxyConnection.newRequestId();
+            ByteBuf command;
+            command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode);
+            clientCnx.newGetTopicsOfNamespace(command, requestId).thenAccept(topicList ->
+                proxyConnection.ctx().writeAndFlush(
+                    Commands.newGetTopicsOfNamespaceResponse(topicList, clientRequestId))
+            ).exceptionally(ex -> {
+                log.warn("[{}] Failed to get TopicsOfNamespace {}: {}", clientAddress, namespaceName, ex.getMessage());
+                proxyConnection.ctx().writeAndFlush(
+                        Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
+                return null;
+            });
+        }).exceptionally(ex -> {
+            // Failed to connect to backend broker
+            proxyConnection.ctx().writeAndFlush(
+                    Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
+            return null;
+        });
+    }
+
+    public void handleGetSchema(CommandGetSchema commandGetSchema) {
+        getSchemaRequests.inc();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received GetSchema", clientAddress);
+        }
+
+        final long clientRequestId = commandGetSchema.getRequestId();
+        String serviceUrl = getServiceUrl(clientRequestId);
+
+        if(!StringUtils.isNotBlank(serviceUrl)) {
+            return;
+        }
+        InetSocketAddress addr = getAddr(serviceUrl, clientRequestId);
+
+        if(addr == null){
+            return;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("Getting connections to '{}' for getting schema of topic '{}' with clientReq Id '{}'",
+                    addr, commandGetSchema.getTopic(), clientRequestId);
+        }
+
+        proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
+            // Connected to backend broker
+            long requestId = proxyConnection.newRequestId();
+            ByteBuf command;
+            byte[] schemaVersion = commandGetSchema.getSchemaVersion().toByteArray();
+            command = Commands.newGetSchema(requestId, commandGetSchema.getTopic(),
+                    Optional.ofNullable(BytesSchemaVersion.of(schemaVersion)));
+            clientCnx.sendGetSchema(command, requestId).thenAccept(optionalSchemaInfo -> {
+                        SchemaInfo schemaInfo = optionalSchemaInfo.get();
+                        proxyConnection.ctx().writeAndFlush(
+                                Commands.newGetSchemaResponse(clientRequestId,
+                                        schemaInfo,
+                                        BytesSchemaVersion.of(schemaVersion)));
+            }).exceptionally(ex -> {
+                log.warn("[{}] Failed to get schema {}: {}", clientAddress, commandGetSchema.getTopic(), ex.getMessage());
+                proxyConnection.ctx().writeAndFlush(
+                        Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
+                return null;
+            });
+        }).exceptionally(ex -> {
+            // Failed to connect to backend broker
+            proxyConnection.ctx().writeAndFlush(
+                    Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
+            return null;
+        });
+
+    }
+
+    private String getServiceUrl(long clientRequestId) {
+        if (isBlank(brokerServiceURL)) {
+            ServiceLookupData availableBroker;
+            try {
+                availableBroker = service.getDiscoveryProvider().nextBroker();
+            } catch (Exception e) {
+                log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
+                proxyConnection.ctx().writeAndFlush(Commands.newError(
+                        clientRequestId, ServerError.ServiceNotReady, e.getMessage()
+                ));
+                return null;
+            }
+            return this.connectWithTLS ?
+                    availableBroker.getPulsarServiceUrlTls() : availableBroker.getPulsarServiceUrl();
+        } else {
+            return this.connectWithTLS ?
+                    service.getConfiguration().getBrokerServiceURLTLS() : service.getConfiguration().getBrokerServiceURL();
+        }
+
+    }
+
+    private InetSocketAddress getAddr(String brokerServiceUrl, long clientRequestId) {
+        URI brokerURI;
+        try {
+            brokerURI = new URI(brokerServiceUrl);
+        } catch (URISyntaxException e) {
+            proxyConnection.ctx().writeAndFlush(
+                    Commands.newError(clientRequestId, ServerError.MetadataError, e.getMessage()));
+            return null;
+        }
+        return InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
     }
 
     private static final Logger log = LoggerFactory.getLogger(LookupProxyHandler.class);

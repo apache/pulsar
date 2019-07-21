@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.WatchedEvent;
@@ -103,7 +104,7 @@ public class LeaderElectionService {
                                 public void run() {
                                     // If the node is deleted, attempt the re-election
                                     log.info("Broker [{}] is calling re-election from the thread",
-                                            pulsar.getWebServiceAddress());
+                                            pulsar.getSafeWebServiceAddress());
                                     elect();
                                 }
                             });
@@ -124,13 +125,13 @@ public class LeaderElectionService {
 
             // If broker comes here it is a follower. Do nothing, wait for the watch to trigger
             log.info("Broker [{}] is the follower now. Waiting for the watch to trigger...",
-                    pulsar.getWebServiceAddress());
+                    pulsar.getSafeWebServiceAddress());
 
         } catch (NoNodeException nne) {
             // There's no leader yet... try to become the leader
             try {
                 // Create the root node and add current broker's URL as its contents
-                LeaderBroker leaderBroker = new LeaderBroker(pulsar.getWebServiceAddress());
+                LeaderBroker leaderBroker = new LeaderBroker(pulsar.getSafeWebServiceAddress());
                 ZkUtils.createFullPathOptimistic(pulsar.getLocalZkCache().getZooKeeper(), ELECTION_ROOT,
                         jsonMapper.writeValueAsBytes(leaderBroker), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
@@ -140,7 +141,7 @@ public class LeaderElectionService {
 
                 // Notify the listener that this broker is now the leader so that it can collect usage and start load
                 // manager.
-                log.info("Broker [{}] is the leader now, notifying the listener...", pulsar.getWebServiceAddress());
+                log.info("Broker [{}] is the leader now, notifying the listener...", pulsar.getSafeWebServiceAddress());
                 leaderListener.brokerIsTheLeaderNow();
             } catch (NodeExistsException nee) {
                 // Re-elect the new leader
@@ -178,6 +179,22 @@ public class LeaderElectionService {
     public void stop() {
         if (stopped) {
             return;
+        }
+
+        if (isLeader()) {
+            // Make sure to remove the leader election z-node in case the session doesn't
+            // get closed properly. This is to avoid having to wait the session timeout
+            // to elect a new one.
+            // This delete operation is safe to do here (with version=-1) because either:
+            //  1. The ZK session is still valid, in which case this broker is still
+            //     the "leader" and we have to remove the z-node
+            //  2. The session has already expired, in which case this delete operation
+            //     will not go through
+            try {
+                pulsar.getLocalZkCache().getZooKeeper().delete(ELECTION_ROOT, -1);
+            } catch (Throwable t) {
+                log.warn("Failed to cleanup election root znode: {}", t);
+            }
         }
         stopped = true;
         log.info("LeaderElectionService stopped");

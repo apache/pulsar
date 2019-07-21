@@ -59,11 +59,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     final BlockingQueue<Message<T>> incomingMessages;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
     protected int maxReceiverQueueSize;
-    protected Schema<T> schema;
+    protected final Schema<T> schema;
+    protected final ConsumerInterceptors<T> interceptors;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
-                           CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
+                           CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema, ConsumerInterceptors interceptors) {
         super(client, topic);
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = conf.getSubscriptionName();
@@ -72,15 +73,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
         this.consumerEventListener = conf.getConsumerEventListener();
-        if (receiverQueueSize <= 1) {
-            this.incomingMessages = Queues.newArrayBlockingQueue(1);
-        } else {
-            this.incomingMessages = new GrowableArrayBlockingQueue<>();
-        }
+        // Always use growable queue since items can exceed the advertised size
+        this.incomingMessages = new GrowableArrayBlockingQueue<>();
 
         this.listenerExecutor = listenerExecutor;
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
+        this.interceptors = interceptors;
     }
 
     @Override
@@ -181,16 +180,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void acknowledge(MessageId messageId) throws PulsarClientException {
         try {
             acknowledgeAsync(messageId).get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -207,16 +198,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void acknowledgeCumulative(MessageId messageId) throws PulsarClientException {
         try {
             acknowledgeCumulativeAsync(messageId).get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -253,6 +236,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return doAcknowledge(messageId, AckType.Cumulative, Collections.emptyMap());
     }
 
+    @Override
+    public void negativeAcknowledge(Message<?> message) {
+        negativeAcknowledge(message.getMessageId());
+    }
+
     abstract protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                              Map<String,Long> properties);
 
@@ -260,16 +248,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void unsubscribe() throws PulsarClientException {
         try {
             unsubscribeAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -280,16 +260,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void close() throws PulsarClientException {
         try {
             closeAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -311,6 +283,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         case Failover:
             return SubType.Failover;
+
+        case Key_Shared:
+            return SubType.Key_Shared;
         }
 
         // Should not happen since we cover all cases above
@@ -335,6 +310,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return subscription;
     }
 
+    @Override
+    public String getConsumerName() {
+        return this.consumerName;
+    }
+
     /**
      * Redelivers the given unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
      * active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
@@ -356,4 +336,35 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.maxReceiverQueueSize = newSize;
     }
 
+    protected Message<T> beforeConsume(Message<T> message) {
+        if (interceptors != null) {
+            return interceptors.beforeConsume(this, message);
+        } else {
+            return message;
+        }
+    }
+
+    protected void onAcknowledge(MessageId messageId, Throwable exception) {
+        if (interceptors != null) {
+            interceptors.onAcknowledge(this, messageId, exception);
+        }
+    }
+
+    protected void onAcknowledgeCumulative(MessageId messageId, Throwable exception) {
+        if (interceptors != null) {
+            interceptors.onAcknowledgeCumulative(this, messageId, exception);
+        }
+    }
+
+    protected void onNegativeAcksSend(Set<MessageId> messageIds) {
+        if (interceptors != null) {
+            interceptors.onNegativeAcksSend(this, messageIds);
+        }
+    }
+
+    protected void onAckTimeoutSend(Set<MessageId> messageIds) {
+        if (interceptors != null) {
+            interceptors. onAckTimeoutSend(this, messageIds);
+        }
+    }
 }

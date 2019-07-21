@@ -25,6 +25,9 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -39,6 +42,8 @@ import com.google.common.collect.Sets;
 import lombok.Data;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
@@ -50,7 +55,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
     private int maxPendingMessagesAcrossPartitions = 50000;
-    private MessageRoutingMode messageRoutingMode = MessageRoutingMode.RoundRobinPartition;
+    private MessageRoutingMode messageRoutingMode = null;
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
     private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
@@ -61,6 +66,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
     private int batchingMaxMessages = 1000;
     private boolean batchingEnabled = true; // enabled by default
+    @JsonIgnore
+    private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;
@@ -72,6 +79,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     // Cannot use Optional<Long> since it's not serializable
     private Long initialSequenceId = null;
+
+    private boolean autoUpdatePartitions = true;
 
     private SortedMap<String, String> properties = new TreeMap<>();
 

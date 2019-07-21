@@ -151,7 +151,7 @@ public class DiscoveryServiceServlet extends HttpServlet {
     }
 
     /**
-     * Find next broke url in round-robin
+     * Find next broker url in round-robin
      *
      * @return
      */

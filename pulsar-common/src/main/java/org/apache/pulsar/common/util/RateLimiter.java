@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.MoreObjects;
 
 /**
- * 
+ *
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
  * permit is available, and then takes it. Each {@link #tryAcquire()} tries to acquire permits from available permits,
  * it returns true if it succeed else returns false. Rate limiter release configured permits at every configured rate
@@ -43,14 +43,14 @@ import com.google.common.base.MoreObjects;
  * <li><b>Per second rate-limiting:</b> Per second rate-limiting not satisfied by Guava-RateLimiter
  * <p>
  * <b>Guava RateLimiter:</b> For X permits: it releases X/1000 permits every msec. therefore, for permits=2/sec => it
- * release 1st permit on first 500msec and 2nd permit on next 500ms. therfore, if 2 request comes with in 500msec
+ * release 1st permit on first 500msec and 2nd permit on next 500ms. therefore, if 2 request comes with in 500msec
  * duration then 2nd request fails to acquire permit though we have configured 2 permits/second.
  * <p>
  * <b>RateLimiter:</b> it releases X permits every second. so, in above usecase: if 2 requests comes at the same time
  * then both will acquire the permit.
  * <li><b>Faster: </b>RateLimiter is light-weight and faster than Guava-RateLimiter</li>
  * </ul>
- * 
+ *
  *
  */
 public class RateLimiter implements AutoCloseable{
@@ -109,7 +109,7 @@ public class RateLimiter implements AutoCloseable{
 
     /**
      * Acquires the given number of permits from this {@code RateLimiter}, blocking until the request be granted.
-     * 
+     *
      * This method is equivalent to {@code acquire(1)}.
      *
      * @param permits
@@ -188,8 +188,8 @@ public class RateLimiter implements AutoCloseable{
 
     /**
      * Return available permits for this {@link RateLimiter}
-     * 
-     * @return returns 0 if permis is not available
+     *
+     * @return returns 0 if permits is not available
      */
     public synchronized long getAvailablePermits() {
         return Math.max(0, this.permits - this.acquiredPermits);
@@ -197,7 +197,7 @@ public class RateLimiter implements AutoCloseable{
 
     /**
      * Resets new rate by configuring new value for permits per configured rate-period
-     * 
+     *
      * @param permits
      */
     public synchronized void setRate(long permits) {
@@ -206,7 +206,7 @@ public class RateLimiter implements AutoCloseable{
 
     /**
      * Resets new rate with new permits and rate-time.
-     * 
+     *
      * @param permits
      * @param rateTime
      * @param timeUnit
@@ -220,10 +220,10 @@ public class RateLimiter implements AutoCloseable{
         this.timeUnit = timeUnit;
         this.renewTask = createTask();
     }
-    
+
     /**
      * Returns configured permit rate per pre-configured rate-period.
-     * 
+     *
      * @return rate
      */
     public synchronized long getRate() {

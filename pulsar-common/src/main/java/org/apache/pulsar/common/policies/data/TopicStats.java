@@ -29,6 +29,8 @@ import com.google.common.collect.Maps;
 /**
  */
 public class TopicStats {
+    private int count;
+
     /** Total rate of messages published on the topic. msg/s */
     public double msgRateIn;
 
@@ -55,7 +57,7 @@ public class TopicStats {
 
     /** Map of replication statistics by remote cluster context */
     public Map<String, ReplicatorStats> replication;
-
+    
     public String deduplicationStatus;
 
     public TopicStats() {
@@ -65,6 +67,7 @@ public class TopicStats {
     }
 
     public void reset() {
+        this.count = 0;
         this.msgRateIn = 0;
         this.msgThroughputIn = 0;
         this.msgRateOut = 0;
@@ -81,11 +84,13 @@ public class TopicStats {
     // stats
     public TopicStats add(TopicStats stats) {
         checkNotNull(stats);
+        this.count++;
         this.msgRateIn += stats.msgRateIn;
         this.msgThroughputIn += stats.msgThroughputIn;
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
-        this.averageMsgSize += stats.averageMsgSize;
+        double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
+        this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;
         if (this.publishers.size() != stats.publishers.size()) {
             for (int i = 0; i < stats.publishers.size(); i++) {
@@ -119,4 +124,5 @@ public class TopicStats {
         }
         return this;
     }
+
 }

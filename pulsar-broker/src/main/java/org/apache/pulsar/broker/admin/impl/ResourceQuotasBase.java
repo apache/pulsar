@@ -94,7 +94,7 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to set resource quota for namespace bundle {}: concurrent modification",
                     clientAppId(), nsBundle.toString());
-            throw new RestException(Status.CONFLICT, "Cuncurrent modification on namespace bundle quota");
+            throw new RestException(Status.CONFLICT, "Concurrent modification on namespace bundle quota");
         } catch (Exception e) {
             log.error("[{}] Failed to set resource quota for namespace bundle {}", clientAppId(), nsBundle.toString());
             throw new RestException(e);
@@ -123,7 +123,7 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to unset resource quota for namespace bundle {}: concurrent modification",
                     clientAppId(), nsBundle.toString());
-            throw new RestException(Status.CONFLICT, "Cuncurrent modification on namespace bundle quota");
+            throw new RestException(Status.CONFLICT, "Concurrent modification on namespace bundle quota");
         } catch (Exception e) {
             log.error("[{}] Failed to unset resource quota for namespace bundle {}", clientAppId(),
                     nsBundle.toString());

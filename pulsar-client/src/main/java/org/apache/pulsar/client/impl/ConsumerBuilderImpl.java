@@ -20,10 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -32,9 +33,12 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -44,7 +48,6 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
-
 import lombok.NonNull;
 
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
@@ -52,10 +55,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private final PulsarClientImpl client;
     private ConsumerConfigurationData<T> conf;
     private final Schema<T> schema;
+    private List<ConsumerInterceptor<T>> interceptorList;
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
+    private static long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
 
-    ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+
+    public ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ConsumerConfigurationData<T>(), schema);
     }
 
@@ -80,16 +86,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public Consumer<T> subscribe() throws PulsarClientException {
         try {
             return subscribeAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -104,20 +102,27 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("Subscription name must be set on the consumer builder"));
         }
-
-        return client.subscribeAsync(conf, schema);
+        return interceptorList == null || interceptorList.size() == 0 ?
+                client.subscribeAsync(conf, schema, null) :
+                client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
     }
 
     @Override
     public ConsumerBuilder<T> topic(String... topicNames) {
-        checkArgument(topicNames.length > 0, "Passed in topicNames should not be empty.");
+        checkArgument(topicNames != null && topicNames.length > 0,
+                "Passed in topicNames should not be null or empty.");
+        Arrays.stream(topicNames).forEach(topicName ->
+                checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
         conf.getTopicNames().addAll(Lists.newArrayList(topicNames));
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> topics(List<String> topicNames) {
-        checkArgument(topicNames != null && !topicNames.isEmpty(), "Passed in topicNames list should not be empty.");
+        checkArgument(topicNames != null && !topicNames.isEmpty(),
+                "Passed in topicNames list should not be null or empty.");
+        topicNames.stream().forEach(topicName ->
+                checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
         conf.getTopicNames().addAll(topicNames);
         return this;
     }
@@ -138,15 +143,23 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> subscriptionName(String subscriptionName) {
+        checkArgument(StringUtils.isNotBlank(subscriptionName), "subscriptionName cannot be blank");
         conf.setSubscriptionName(subscriptionName);
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit) {
-        checkArgument(timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
-                "Ack timeout should be should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
+        checkArgument(ackTimeout == 0 || timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
+                "Ack timeout should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
         conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit) {
+        checkArgument(redeliveryDelay >= 0, "redeliveryDelay needs to be >= 0");
+        conf.setNegativeAckRedeliveryDelayMicros(timeUnit.toMicros(redeliveryDelay));
         return this;
     }
 
@@ -163,63 +176,73 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> consumerEventListener(ConsumerEventListener consumerEventListener) {
+    public ConsumerBuilder<T> consumerEventListener(@NonNull ConsumerEventListener consumerEventListener) {
         conf.setConsumerEventListener(consumerEventListener);
         return this;
     }
 
     @Override
-    public ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+    public ConsumerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
     @Override
-    public ConsumerBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
+    public ConsumerBuilder<T> cryptoFailureAction(@NonNull ConsumerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> receiverQueueSize(int receiverQueueSize) {
-        checkArgument(receiverQueueSize >= 0);
+        checkArgument(receiverQueueSize >= 0, "receiverQueueSize needs to be >= 0");
         conf.setReceiverQueueSize(receiverQueueSize);
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit) {
-        checkArgument(delay >= 0);
+        checkArgument(delay >= 0, "acknowledgmentGroupTime needs to be >= 0");
         conf.setAcknowledgementsGroupTimeMicros(unit.toMicros(delay));
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> consumerName(String consumerName) {
+        checkArgument(StringUtils.isNotBlank(consumerName), "consumerName cannot be blank");
         conf.setConsumerName(consumerName);
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> priorityLevel(int priorityLevel) {
+        checkArgument(priorityLevel >= 0, "priorityLevel needs to be >= 0");
         conf.setPriorityLevel(priorityLevel);
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> property(String key, String value) {
+        checkArgument(StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value),
+                "property key/value cannot be blank");
         conf.getProperties().put(key, value);
         return this;
     }
 
     @Override
-    public ConsumerBuilder<T> properties(Map<String, String> properties) {
+    public ConsumerBuilder<T> properties(@NonNull Map<String, String> properties) {
+        checkArgument(!properties.isEmpty(), "properties cannot be empty");
+        properties.entrySet().forEach(entry ->
+                checkArgument(
+                        StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(entry.getValue()),
+                        "properties' key/value cannot be blank"));
         conf.getProperties().putAll(properties);
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
+        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= 0, "maxTotalReceiverQueueSizeAcrossPartitions needs to be >= 0");
         conf.setMaxTotalReceiverQueueSizeAcrossPartitions(maxTotalReceiverQueueSizeAcrossPartitions);
         return this;
     }
@@ -232,17 +255,57 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes) {
+        checkArgument(periodInMinutes >= 0, "periodInMinutes needs to be >= 0");
         conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
         return this;
     }
 
 	@Override
-	public ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition) {
+	public ConsumerBuilder<T> subscriptionInitialPosition(@NonNull SubscriptionInitialPosition
+                                                                      subscriptionInitialPosition) {
         conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
 		return this;
 	}
 
-	public ConsumerConfigurationData<T> getConf() {
-	    return conf;
-	}
+    @Override
+    public ConsumerBuilder<T> subscriptionTopicsMode(@NonNull RegexSubscriptionMode mode) {
+        conf.setRegexSubscriptionMode(mode);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> replicateSubscriptionState(boolean replicateSubscriptionState) {
+        conf.setReplicateSubscriptionState(replicateSubscriptionState);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> intercept(ConsumerInterceptor<T>... interceptors) {
+        if (interceptorList == null) {
+            interceptorList = new ArrayList<>();
+        }
+        interceptorList.addAll(Arrays.asList(interceptors));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy) {
+        if (deadLetterPolicy != null) {
+            if (conf.getAckTimeoutMillis() == 0) {
+                conf.setAckTimeoutMillis(DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER);
+            }
+            conf.setDeadLetterPolicy(deadLetterPolicy);
+        }
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
+        conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
+
+    public ConsumerConfigurationData<T> getConf() {
+        return conf;
+    }
 }

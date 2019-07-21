@@ -32,11 +32,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.AuthenticationUtil;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
 import org.apache.pulsar.client.api.url.URL;
+import org.apache.pulsar.client.impl.AuthenticationUtil;
 
 import com.google.common.io.CharStreams;
 import com.yahoo.athenz.auth.ServiceIdentityProvider;
@@ -59,6 +59,10 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private String providerDomain;
     private PrivateKey privateKey;
     private String keyId = "0";
+    // If auto prefetching is enabled, application will not complete until the static method
+    // ZTSClient.cancelPrefetch() is called.
+    // cf. https://github.com/yahoo/athenz/issues/544
+    private boolean autoPrefetchEnabled = false;
     private long cachedRoleTokenTimestamp;
     private String roleToken;
     private final int minValidity = 2 * 60 * 60; // athenz will only give this token if it's at least valid for 2hrs
@@ -136,6 +140,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         }
 
         this.keyId = authParams.getOrDefault("keyId", "0");
+        this.autoPrefetchEnabled = Boolean.valueOf(authParams.getOrDefault("autoPrefetchEnabled", "false"));
+
         if (authParams.containsKey("athenzConfPath")) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
         }
@@ -156,6 +162,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
 
     @Override
     public void close() throws IOException {
+        if (ztsClient != null) {
+            ztsClient.close();
+        }
     }
 
     private ZTSClient getZtsClient() {
@@ -163,6 +172,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
             ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
                     privateKey, keyId);
             ztsClient = new ZTSClient(ztsUrl, tenantDomain, tenantService, siaProvider);
+            ztsClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
         }
         return ztsClient;
     }

@@ -17,7 +17,6 @@
  * under the License.
  */
 #include "HandlerBase.h"
-#include <boost/bind.hpp>
 
 #include <cassert>
 
@@ -53,7 +52,8 @@ void HandlerBase::grabCnx() {
     LOG_INFO(getName() << "Getting connection from pool");
     ClientImplPtr client = client_.lock();
     Future<Result, ClientConnectionWeakPtr> future = client->getConnection(topic_);
-    future.addListener(boost::bind(&HandlerBase::handleNewConnection, _1, _2, get_weak_from_this()));
+    future.addListener(std::bind(&HandlerBase::handleNewConnection, std::placeholders::_1,
+                                 std::placeholders::_2, get_weak_from_this()));
 }
 
 void HandlerBase::handleNewConnection(Result result, ClientConnectionWeakPtr connection,
@@ -130,7 +130,7 @@ void HandlerBase::scheduleReconnection(HandlerBasePtr handler) {
         handler->timer_->expires_from_now(delay);
         // passing shared_ptr here since time_ will get destroyed, so tasks will be cancelled
         // so we will not run into the case where grabCnx is invoked on out of scope handler
-        handler->timer_->async_wait(boost::bind(&HandlerBase::handleTimeout, _1, handler));
+        handler->timer_->async_wait(std::bind(&HandlerBase::handleTimeout, std::placeholders::_1, handler));
     }
 }
 

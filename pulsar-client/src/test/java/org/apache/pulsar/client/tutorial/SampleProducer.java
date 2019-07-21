@@ -26,7 +26,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 
 public class SampleProducer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
-        PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:6650").build();
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
         Producer<byte[]> producer = client.newProducer().topic("persistent://my-tenant/my-ns/my-topic").create();
 

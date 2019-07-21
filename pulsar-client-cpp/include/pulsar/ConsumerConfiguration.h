@@ -19,37 +19,55 @@
 #ifndef PULSAR_CONSUMERCONFIGURATION_H_
 #define PULSAR_CONSUMERCONFIGURATION_H_
 
-#include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
+#include <functional>
+#include <memory>
+#include <pulsar/defines.h>
 #include <pulsar/Result.h>
 #include <pulsar/ConsumerType.h>
 #include <pulsar/Message.h>
+#include <pulsar/Schema.h>
 #include <pulsar/ConsumerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
+#include <pulsar/InitialPosition.h>
 
-#pragma GCC visibility push(default)
 namespace pulsar {
 
 class Consumer;
 class PulsarWrapper;
 
 /// Callback definition for non-data operation
-typedef boost::function<void(Result result)> ResultCallback;
+typedef std::function<void(Result result)> ResultCallback;
+typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
 
 /// Callback definition for MessageListener
-typedef boost::function<void(Consumer consumer, const Message& msg)> MessageListener;
+typedef std::function<void(Consumer consumer, const Message& msg)> MessageListener;
 
-class ConsumerConfigurationImpl;
+struct ConsumerConfigurationImpl;
 
 /**
  * Class specifying the configuration of a consumer.
  */
-class ConsumerConfiguration {
+class PULSAR_PUBLIC ConsumerConfiguration {
    public:
     ConsumerConfiguration();
     ~ConsumerConfiguration();
     ConsumerConfiguration(const ConsumerConfiguration&);
     ConsumerConfiguration& operator=(const ConsumerConfiguration&);
+
+    /**
+     * Declare the schema of the data that this consumer will be accepting.
+     *
+     * The schema will be checked against the schema of the topic, and the
+     * consumer creation will fail if it's not compatible.
+     *
+     * @param schemaInfo the schema definition object
+     */
+    ConsumerConfiguration& setSchema(const SchemaInfo& schemaInfo);
+
+    /**
+     * @return the schema information declared for this consumer
+     */
+    const SchemaInfo& getSchema() const;
 
     /**
      * Specify the consumer type. The consumer type enables
@@ -132,6 +150,27 @@ class ConsumerConfiguration {
     long getUnAckedMessagesTimeoutMs() const;
 
     /**
+     * Set the delay to wait before re-delivering messages that have failed to be process.
+     * <p>
+     * When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
+     * will be redelivered after a fixed timeout. The default is 1 min.
+     *
+     * @param redeliveryDelay
+     *            redelivery delay for failed messages
+     * @param timeUnit
+     *            unit in which the timeout is provided.
+     * @return the consumer builder instance
+     */
+    void setNegativeAckRedeliveryDelayMs(long redeliveryDelayMillis);
+
+    /**
+     * Get the configured delay to wait before re-delivering messages that have failed to be process.
+     *
+     * @return redelivery delay for failed messages
+     */
+    long getNegativeAckRedeliveryDelayMs() const;
+
+    /**
      * Set the time duration for which the broker side consumer stats will be cached in the client.
      * @param cacheTimeInMs in milliseconds
      */
@@ -152,11 +191,57 @@ class ConsumerConfiguration {
     bool isReadCompacted() const;
     void setReadCompacted(bool compacted);
 
+    /**
+     * Set the time duration in minutes, for which the PatternMultiTopicsConsumer will do a pattern auto
+     * discovery.
+     * The default value is 60 seconds. less than 0 will disable auto discovery.
+     *
+     * @param periodInSeconds       period in seconds to do an auto discovery
+     */
+    void setPatternAutoDiscoveryPeriod(int periodInSeconds);
+    int getPatternAutoDiscoveryPeriod() const;
+
+    void setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition);
+    InitialPosition getSubscriptionInitialPosition() const;
+
+    /**
+     * Check whether the message has a specific property attached.
+     *
+     * @param name the name of the property to check
+     * @return true if the message has the specified property
+     * @return false if the property is not defined
+     */
+    bool hasProperty(const std::string& name) const;
+
+    /**
+     * Get the value of a specific property
+     *
+     * @param name the name of the property
+     * @return the value of the property or null if the property was not defined
+     */
+    const std::string& getProperty(const std::string& name) const;
+
+    /**
+     * Get all the properties attached to this producer.
+     */
+    std::map<std::string, std::string>& getProperties() const;
+
+    /**
+     * Sets a new property on a message.
+     * @param name   the name of the property
+     * @param value  the associated value
+     */
+    ConsumerConfiguration& setProperty(const std::string& name, const std::string& value);
+
+    /**
+     * Add all the properties in the provided map
+     */
+    ConsumerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
+
     friend class PulsarWrapper;
 
    private:
-    boost::shared_ptr<ConsumerConfigurationImpl> impl_;
+    std::shared_ptr<ConsumerConfigurationImpl> impl_;
 };
 }  // namespace pulsar
-#pragma GCC visibility pop
 #endif /* PULSAR_CONSUMERCONFIGURATION_H_ */

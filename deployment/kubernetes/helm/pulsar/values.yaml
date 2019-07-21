@@ -21,10 +21,17 @@
 namespace: pulsar
 namespaceCreate: yes
 
-## If persistence is enabled, components that has state will
+## If persistence is enabled, components that have state will
 ## be deployed with PersistentVolumeClaims, otherwise, for test
-## purposes, they will be deployed with emptDir
+## purposes, they will be deployed with emptyDir
 persistence: no
+
+## If prometheus_persistence is enabled, prometheus will be deployed
+## with PersistentVolumeClaims, otherwise, for test purposes, they
+## will be deployed with emptyDir
+prometheus_persistence: yes
+
+prometheus_rbac: yes
 
 ## which extra components to deploy
 extra:
@@ -41,7 +48,7 @@ extra:
 
 ## Which pulsar image to use
 image:
-  repository: apachepulsar/pulsar
+  repository: apachepulsar/pulsar-all
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -103,8 +110,8 @@ zookeeper:
     maxUnavailable: 1
 
 ## Pulsar Zookeeper metadata. The metadata will be deployed as
-## soon as the las zookeeper node is reachable. The deployment
-## of other components that depends o zookeeper, such as the
+## soon as the last zookeeper node is reachable. The deployment
+## of other components that depends on zookeeper, such as the
 ## bookkeeper nodes, broker nodes, etc will only start to be
 ## deployed when the zookeeper cluster is ready and with the
 ## metadata deployed
@@ -251,6 +258,7 @@ proxy:
   ##
   service:
     annotations: {}
+    type: NodePort
     ports:
     - name: http
       port: 8080
@@ -315,6 +323,14 @@ dashboard:
     ports:
     - name: server
       port: 80
+  ingress:
+    enabled: false
+    annotations: {}
+    tls: {}
+    hostname: ""
+    path: "/"
+    port: 80
+
 
 ## Pulsar Extra: Bastion
 ## templates/bastion-deployment.yaml

@@ -24,9 +24,11 @@ import time
 import os
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
-            AuthenticationTLS
+            AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
+
+from schema_test import *
 
 try:
     # For Python 3.0 and later
@@ -41,20 +43,32 @@ def doHttpPost(url, data):
     req.add_header('Content-Type', 'application/json')
     urlopen(req)
 
-import urllib2
+
 def doHttpPut(url, data):
-    opener = urllib2.build_opener(urllib2.HTTPHandler)
-    request = urllib2.Request(url, data=data.encode())
-    request.add_header('Content-Type', 'application/json')
-    request.get_method = lambda: 'PUT'
-    opener.open(request)
+    try:
+        req = Request(url, data.encode())
+        req.add_header('Content-Type', 'application/json')
+        req.get_method = lambda: 'PUT'
+        urlopen(req)
+    except Exception as ex:
+        # ignore conflicts exception to have test idempotency
+        if '409' in str(ex):
+            pass
+        else:
+            raise ex
+
+
+def doHttpGet(url):
+    req = Request(url)
+    req.add_header('Accept', 'application/json')
+    return urlopen(req).read()
 
 class PulsarTest(TestCase):
 
-    serviceUrl = 'pulsar://localhost:8885'
-    adminUrl = 'http://localhost:8765'
+    serviceUrl = 'pulsar://localhost:6650'
+    adminUrl = 'http://localhost:8080'
 
-    serviceUrlTls = 'pulsar+ssl://localhost:9886'
+    serviceUrlTls = 'pulsar+ssl://localhost:6651'
 
     def test_producer_config(self):
         conf = ProducerConfiguration()
@@ -80,23 +94,23 @@ class PulsarTest(TestCase):
 
     def test_simple_producer(self):
         client = Client(self.serviceUrl)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic')
+        producer.send(b'hello')
         producer.close()
         client.close()
 
     def test_producer_send_async(self):
         client = Client(self.serviceUrl)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic')
+        producer = client.create_producer('my-python-topic')
 
         sent_messages = []
 
         def send_callback(producer, msg):
             sent_messages.append(msg)
 
-        producer.send_async('hello', send_callback)
-        producer.send_async('hello', send_callback)
-        producer.send_async('hello', send_callback)
+        producer.send_async(b'hello', send_callback)
+        producer.send_async(b'hello', send_callback)
+        producer.send_async(b'hello', send_callback)
 
         i = 0
         while len(sent_messages) < 3 and i < 100:
@@ -107,11 +121,11 @@ class PulsarTest(TestCase):
 
     def test_producer_consumer(self):
         client = Client(self.serviceUrl)
-        consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-producer-consumer')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer.send(b'hello')
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
@@ -123,6 +137,64 @@ class PulsarTest(TestCase):
         except:
             pass  # Exception is expected
 
+        consumer.unsubscribe()
+        client.close()
+
+    def test_consumer_initial_position(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('my-python-topic-producer-consumer')
+
+        # Sending 5 messages before consumer creation.
+        # These should be received with initial_position set to Earliest but not with Latest.
+        for i in range(5):
+            producer.send(b'hello-%d' % i)
+
+        consumer = client.subscribe('my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared,
+                                    initial_position=InitialPosition.Earliest)
+
+        # Sending 5 other messages that should be received regardless of the initial_position.
+        for i in range(5, 10):
+            producer.send(b'hello-%d' % i)
+
+        for i in range(10):
+            msg = consumer.receive(1000)
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        consumer.unsubscribe()
+        client.close()
+
+    def test_message_properties(self):
+        client = Client(self.serviceUrl)
+        topic = 'my-python-test-message-properties'
+        consumer = client.subscribe(topic=topic,
+                                    subscription_name='my-subscription',
+                                    schema=pulsar.schema.StringSchema())
+        producer = client.create_producer(topic=topic,
+                                          schema=StringSchema())
+        producer.send('hello',
+                      properties={
+                          'a': '1',
+                          'b': '2'
+                      })
+
+        msg = consumer.receive()
+        self.assertTrue(msg)
+        self.assertEqual(msg.value(), 'hello')
+        self.assertEqual(msg.properties(), {
+                          'a': '1',
+                          'b': '2'
+                      })
+
+        consumer.unsubscribe()
         client.close()
 
     def test_tls_auth(self):
@@ -134,11 +206,11 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=AuthenticationTLS(certs_dir + 'client-cert.pem', certs_dir + 'client-key.pem'))
 
-        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer.send(b'hello')
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
@@ -152,6 +224,83 @@ class PulsarTest(TestCase):
 
         client.close()
 
+    def test_tls_auth2(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls"
+        authParams = "tlsCertFile:%s/client-cert.pem,tlsKeyFile:%s/client-key.pem" % (certs_dir, certs_dir)
+
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+
+        consumer = client.subscribe('my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        client.close()
+
+    def test_tls_auth3(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "tls"
+        authParams = "tlsCertFile:%s/client-cert.pem,tlsKeyFile:%s/client-key.pem" % (certs_dir, certs_dir)
+
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+
+        consumer = client.subscribe('my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        client.close()
+
+    def test_auth_junk_params(self):
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        authPlugin = "someoldjunk.so"
+        authParams = "blah"
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=Authentication(authPlugin, authParams))
+        try:
+            client.subscribe('my-python-topic-producer-consumer',
+                             'my-sub',
+                             consumer_type=ConsumerType.Shared)
+        except:
+            pass  # Exception is expected
+
     def test_message_listener(self):
         client = Client(self.serviceUrl)
 
@@ -162,14 +311,14 @@ class PulsarTest(TestCase):
             received_messages.append(msg)
             consumer.acknowledge(msg)
 
-        client.subscribe('persistent://sample/standalone/ns/my-python-topic-listener',
+        client.subscribe('my-python-topic-listener',
                          'my-sub',
                          consumer_type=ConsumerType.Exclusive,
                          message_listener=listener)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-listener')
-        producer.send('hello-1')
-        producer.send('hello-2')
-        producer.send('hello-3')
+        producer = client.create_producer('my-python-topic-listener')
+        producer.send(b'hello-1')
+        producer.send(b'hello-2')
+        producer.send(b'hello-3')
 
         time.sleep(0.1)
         self.assertEqual(len(received_messages), 3)
@@ -180,11 +329,11 @@ class PulsarTest(TestCase):
 
     def test_reader_simple(self):
         client = Client(self.serviceUrl)
-        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-simple',
+        reader = client.create_reader('my-python-topic-reader-simple',
                                       MessageId.earliest)
 
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-simple')
-        producer.send('hello')
+        producer = client.create_producer('my-python-topic-reader-simple')
+        producer.send(b'hello')
 
         msg = reader.read_next()
         self.assertTrue(msg)
@@ -201,16 +350,16 @@ class PulsarTest(TestCase):
 
     def test_reader_on_last_message(self):
         client = Client(self.serviceUrl)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-on-last-message')
+        producer = client.create_producer('my-python-topic-reader-on-last-message')
 
         for i in range(10):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
-        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-on-last-message',
+        reader = client.create_reader('my-python-topic-reader-on-last-message',
                                       MessageId.latest)
 
         for i in range(10, 20):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         for i in range(10, 20):
             msg = reader.read_next()
@@ -221,26 +370,33 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_reader_on_specific_message(self):
+        num_of_msgs = 10
         client = Client(self.serviceUrl)
         producer = client.create_producer(
-            'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message')
+            'my-python-topic-reader-on-specific-message')
 
-        for i in range(10):
-            producer.send('hello-%d' % i)
+        for i in range(num_of_msgs):
+            producer.send(b'hello-%d' % i)
 
         reader1 = client.create_reader(
-                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message',
+                'my-python-topic-reader-on-specific-message',
                 MessageId.earliest)
 
-        for i in range(5):
+        for i in range(num_of_msgs/2):
             msg = reader1.read_next()
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
             last_msg_id = msg.message_id()
+            last_msg_idx = i
 
         reader2 = client.create_reader(
-                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message',
+                'my-python-topic-reader-on-specific-message',
                 last_msg_id)
 
-        for i in range(5, 10):
+        # The reset would be effectively done on the next position relative to reset.
+        # When available, we should test this behaviour with `startMessageIdInclusive` opt.
+        from_msg_idx = last_msg_idx
+        for i in range(from_msg_idx, num_of_msgs):
             msg = reader2.read_next()
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
@@ -252,18 +408,18 @@ class PulsarTest(TestCase):
     def test_reader_on_specific_message_with_batches(self):
         client = Client(self.serviceUrl)
         producer = client.create_producer(
-            'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+            'my-python-topic-reader-on-specific-message-with-batches',
             batching_enabled=True,
             batching_max_publish_delay_ms=1000)
 
         for i in range(10):
-            producer.send_async('hello-%d' % i, None)
+            producer.send_async(b'hello-%d' % i, None)
 
         # Send one sync message to make sure everything was published
-        producer.send('hello-10')
+        producer.send(b'hello-10')
 
         reader1 = client.create_reader(
-                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+                'my-python-topic-reader-on-specific-message-with-batches',
                 MessageId.earliest)
 
         for i in range(5):
@@ -271,7 +427,7 @@ class PulsarTest(TestCase):
             last_msg_id = msg.message_id()
 
         reader2 = client.create_reader(
-                'persistent://sample/standalone/ns/my-python-topic-reader-on-specific-message-with-batches',
+                'my-python-topic-reader-on-specific-message-with-batches',
                 last_msg_id)
 
         for i in range(5, 11):
@@ -285,18 +441,18 @@ class PulsarTest(TestCase):
 
     def test_producer_sequence_after_reconnection(self):
         # Enable deduplication on namespace
-        doHttpPost(self.adminUrl + '/admin/namespaces/sample/standalone/ns1/deduplication',
+        doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
                    'true')
         client = Client(self.serviceUrl)
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer-sequence-after-reconnection-' \
+        topic = 'my-python-test-producer-sequence-after-reconnection-' \
             + str(time.time())
 
         producer = client.create_producer(topic, producer_name='my-producer-name')
         self.assertEqual(producer.last_sequence_id(), -1)
 
         for i in range(10):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
             self.assertEqual(producer.last_sequence_id(), i)
 
         producer.close()
@@ -305,30 +461,33 @@ class PulsarTest(TestCase):
         self.assertEqual(producer.last_sequence_id(), 9)
 
         for i in range(10, 20):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
             self.assertEqual(producer.last_sequence_id(), i)
+
+        doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
+                   'false')
 
     def test_producer_deduplication(self):
         # Enable deduplication on namespace
-        doHttpPost(self.adminUrl + '/admin/namespaces/sample/standalone/ns1/deduplication',
+        doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
                    'true')
         client = Client(self.serviceUrl)
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer-deduplication-' + str(time.time())
+        topic = 'my-python-test-producer-deduplication-' + str(time.time())
 
         producer = client.create_producer(topic, producer_name='my-producer-name')
         self.assertEqual(producer.last_sequence_id(), -1)
 
         consumer = client.subscribe(topic, 'my-sub')
 
-        producer.send('hello-0', sequence_id=0)
-        producer.send('hello-1', sequence_id=1)
-        producer.send('hello-2', sequence_id=2)
+        producer.send(b'hello-0', sequence_id=0)
+        producer.send(b'hello-1', sequence_id=1)
+        producer.send(b'hello-2', sequence_id=2)
         self.assertEqual(producer.last_sequence_id(), 2)
 
         # Repeat the messages and verify they're not received by consumer
-        producer.send('hello-1', sequence_id=1)
-        producer.send('hello-2', sequence_id=2)
+        producer.send(b'hello-1', sequence_id=1)
+        producer.send(b'hello-2', sequence_id=2)
         self.assertEqual(producer.last_sequence_id(), 2)
 
         for i in range(3):
@@ -350,8 +509,8 @@ class PulsarTest(TestCase):
         self.assertEqual(producer.last_sequence_id(), 2)
 
         # Repeat the messages and verify they're not received by consumer
-        producer.send('hello-1', sequence_id=1)
-        producer.send('hello-2', sequence_id=2)
+        producer.send(b'hello-1', sequence_id=1)
+        producer.send(b'hello-2', sequence_id=2)
         self.assertEqual(producer.last_sequence_id(), 2)
 
         try:
@@ -362,6 +521,9 @@ class PulsarTest(TestCase):
             # Exception is expected
             pass
 
+        doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
+                   'false')
+
     def test_producer_routing_mode(self):
         client = Client(self.serviceUrl)
         producer = client.create_producer('my-python-test-producer',
@@ -371,17 +533,18 @@ class PulsarTest(TestCase):
 
     def test_message_argument_errors(self):
         client = Client(self.serviceUrl)
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        topic = 'my-python-test-producer'
         producer = client.create_producer(topic)
 
         content = 'test'.encode('utf-8')
 
-        self._check_value_error(lambda: producer.send(5))
+        self._check_type_error(lambda: producer.send(5))
         self._check_value_error(lambda: producer.send(content, properties='test'))
         self._check_value_error(lambda: producer.send(content, partition_key=5))
         self._check_value_error(lambda: producer.send(content, sequence_id='test'))
         self._check_value_error(lambda: producer.send(content, replication_clusters=5))
         self._check_value_error(lambda: producer.send(content, disable_replication='test'))
+        self._check_value_error(lambda: producer.send(content, event_timestamp='test'))
         client.close()
 
     def test_client_argument_errors(self):
@@ -401,7 +564,7 @@ class PulsarTest(TestCase):
 
         self._check_value_error(lambda: client.create_producer(None))
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        topic = 'my-python-test-producer'
 
         self._check_value_error(lambda: client.create_producer(topic, producer_name=5))
         self._check_value_error(lambda: client.create_producer(topic, initial_sequence_id='test'))
@@ -418,7 +581,7 @@ class PulsarTest(TestCase):
     def test_consumer_argument_errors(self):
         client = Client(self.serviceUrl)
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        topic = 'my-python-test-producer'
         sub_name = 'my-sub-name'
 
         self._check_value_error(lambda: client.subscribe(None, sub_name))
@@ -432,7 +595,7 @@ class PulsarTest(TestCase):
 
     def test_reader_argument_errors(self):
         client = Client(self.serviceUrl)
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        topic = 'my-python-test-producer'
 
         # This should not raise exception
         client.create_reader(topic, MessageId.earliest)
@@ -445,7 +608,7 @@ class PulsarTest(TestCase):
 
     def test_publish_compact_and_consume(self):
         client = Client(self.serviceUrl)
-        topic = 'persistent://sample/standalone/ns1/my-python-test_publish_compact_and_consume'
+        topic = 'my-python-test_publish_compact_and_consume'
         producer = client.create_producer(topic, producer_name='my-producer-name', batching_enabled=False)
         self.assertEqual(producer.last_sequence_id(), -1)
         consumer = client.subscribe(topic, 'my-sub1', is_read_compacted=True)
@@ -453,17 +616,15 @@ class PulsarTest(TestCase):
         consumer2 = client.subscribe(topic, 'my-sub2', is_read_compacted=False)
 
         # producer create 2 messages with same key.
-        producer.send('hello-0', partition_key='key0')
-        producer.send('hello-1', partition_key='key0')
+        producer.send(b'hello-0', partition_key='key0')
+        producer.send(b'hello-1', partition_key='key0')
         producer.close()
 
         # issue compact command, and wait success
-        url=self.adminUrl + '/admin/persistent/sample/standalone/ns1/my-python-test_publish_compact_and_consume/compaction'
+        url=self.adminUrl + '/admin/v2/persistent/public/default/my-python-test_publish_compact_and_consume/compaction'
         doHttpPut(url, '')
         while True:
-            req = urllib2.Request(url)
-            response = urllib2.urlopen(req)
-            s=response.read()
+            s=doHttpGet(url).decode('utf-8')
             if 'RUNNING' in s:
                 print("Compact still running")
                 print(s)
@@ -494,15 +655,15 @@ class PulsarTest(TestCase):
     def test_reader_has_message_available(self):
         # create client, producer, reader
         client = Client(self.serviceUrl)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-has-message-available')
-        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-has-message-available',
+        producer = client.create_producer('my-python-topic-reader-has-message-available')
+        reader = client.create_reader('my-python-topic-reader-has-message-available',
                                       MessageId.latest)
 
         # before produce data, expected not has message available
         self.assertFalse(reader.has_message_available());
 
         for i in range(10):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         # produced data, expected has message available
         self.assertTrue(reader.has_message_available());
@@ -516,7 +677,7 @@ class PulsarTest(TestCase):
         self.assertFalse(reader.has_message_available());
 
         for i in range(10, 20):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         # produced data again, expected has message available
         self.assertTrue(reader.has_message_available());
@@ -526,13 +687,13 @@ class PulsarTest(TestCase):
 
     def test_seek(self):
         client = Client(self.serviceUrl)
-        consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-seek',
+        consumer = client.subscribe('my-python-topic-seek',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-seek')
+        producer = client.create_producer('my-python-topic-seek')
 
         for i in range(100):
-            producer.send('hello-%d' % i)
+            producer.send(b'hello-%d' % i)
 
         for i in range(100):
             msg = consumer.receive()
@@ -558,7 +719,7 @@ class PulsarTest(TestCase):
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
         producer = client.create_producer('my-v2-topic-producer-consumer')
-        producer.send('hello')
+        producer.send(b'hello')
 
         msg = consumer.receive(1000)
         self.assertTrue(msg)
@@ -573,12 +734,271 @@ class PulsarTest(TestCase):
 
         client.close()
 
+    def test_topics_consumer(self):
+        client = Client(self.serviceUrl)
+        topic1 = 'persistent://public/default/my-python-topics-consumer-1'
+        topic2 = 'persistent://public/default/my-python-topics-consumer-2'
+        topic3 = 'persistent://public/default/my-python-topics-consumer-3'
+        topics = [topic1, topic2, topic3]
+
+        url1 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-1/partitions'
+        url2 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-2/partitions'
+        url3 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-3/partitions'
+
+        doHttpPut(url1, '2')
+        doHttpPut(url2, '3')
+        doHttpPut(url3, '4')
+
+        producer1 = client.create_producer(topic1)
+        producer2 = client.create_producer(topic2)
+        producer3 = client.create_producer(topic3)
+
+        consumer = client.subscribe(topics,
+                                    'my-topics-consumer-sub',
+                                    consumer_type=ConsumerType.Shared,
+                                    receiver_queue_size=10
+                                    )
+
+        for i in range(100):
+            producer1.send(b'hello-1-%d' % i)
+
+        for i in range(100):
+            producer2.send(b'hello-2-%d' % i)
+
+        for i in range(100):
+            producer3.send(b'hello-3-%d' % i)
+
+
+        for i in range(300):
+            msg = consumer.receive()
+            consumer.acknowledge(msg)
+
+        try:
+        # No other messages should be received
+            consumer.receive(timeout_millis=500)
+            self.assertTrue(False)
+        except:
+            # Exception is expected
+            pass
+        client.close()
+
+    def test_topics_pattern_consumer(self):
+        import re
+        client = Client(self.serviceUrl)
+
+        topics_pattern = 'persistent://public/default/my-python-pattern-consumer.*'
+
+        topic1 = 'persistent://public/default/my-python-pattern-consumer-1'
+        topic2 = 'persistent://public/default/my-python-pattern-consumer-2'
+        topic3 = 'persistent://public/default/my-python-pattern-consumer-3'
+
+        url1 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-pattern-consumer-1/partitions'
+        url2 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-pattern-consumer-2/partitions'
+        url3 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-pattern-consumer-3/partitions'
+
+        doHttpPut(url1, '2')
+        doHttpPut(url2, '3')
+        doHttpPut(url3, '4')
+
+        producer1 = client.create_producer(topic1)
+        producer2 = client.create_producer(topic2)
+        producer3 = client.create_producer(topic3)
+
+        consumer = client.subscribe(re.compile(topics_pattern),
+                                    'my-pattern-consumer-sub',
+                                    consumer_type = ConsumerType.Shared,
+                                    receiver_queue_size = 10,
+                                    pattern_auto_discovery_period = 1
+                                   )
+
+        # wait enough time to trigger auto discovery
+        time.sleep(2)
+
+        for i in range(100):
+            producer1.send(b'hello-1-%d' % i)
+
+        for i in range(100):
+            producer2.send(b'hello-2-%d' % i)
+
+        for i in range(100):
+            producer3.send(b'hello-3-%d' % i)
+
+
+        for i in range(300):
+            msg = consumer.receive()
+            consumer.acknowledge(msg)
+
+        try:
+            # No other messages should be received
+            consumer.receive(timeout_millis=500)
+            self.assertTrue(False)
+        except:
+            # Exception is expected
+            pass
+        client.close()
+
+    def test_message_id(self):
+        s = MessageId.earliest.serialize()
+        self.assertEqual(MessageId.deserialize(s), MessageId.earliest)
+
+        s = MessageId.latest.serialize()
+        self.assertEqual(MessageId.deserialize(s), MessageId.latest)
+
+    def test_get_topics_partitions(self):
+        client = Client(self.serviceUrl)
+        topic_partitioned = 'persistent://public/default/test_get_topics_partitions'
+        topic_non_partitioned = 'persistent://public/default/test_get_topics_not-partitioned'
+
+        url1 = self.adminUrl + '/admin/v2/persistent/public/default/test_get_topics_partitions/partitions'
+        doHttpPut(url1, '3')
+
+        self.assertEqual(client.get_topic_partitions(topic_partitioned),
+                         ['persistent://public/default/test_get_topics_partitions-partition-0',
+                          'persistent://public/default/test_get_topics_partitions-partition-1',
+                          'persistent://public/default/test_get_topics_partitions-partition-2'])
+
+        self.assertEqual(client.get_topic_partitions(topic_non_partitioned),
+                         [topic_non_partitioned])
+        client.close()
+
+    def test_token_auth(self):
+        with open('/tmp/pulsar-test-data/tokens/token.txt') as tf:
+            token = tf.read().strip()
+
+        # Use adminUrl to test both HTTP request and binary protocol
+        client = Client(self.adminUrl,
+                        authentication=AuthenticationToken(token))
+
+        consumer = client.subscribe('persistent://private/auth/my-python-topic-token-auth',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://private/auth/my-python-topic-token-auth')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        client.close()
+
+    def test_token_auth_supplier(self):
+        def read_token():
+            with open('/tmp/pulsar-test-data/tokens/token.txt') as tf:
+                return tf.read().strip()
+
+        client = Client(self.serviceUrl,
+                        authentication=AuthenticationToken(read_token))
+        consumer = client.subscribe('persistent://private/auth/my-python-topic-token-auth',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://private/auth/my-python-topic-token-auth')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        client.close()
+
+    def test_producer_consumer_zstd(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-producer-consumer-zstd',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-producer-consumer-zstd',
+                                          compression_type=CompressionType.ZSTD)
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        consumer.unsubscribe()
+        client.close()
+
+    #####
+
+    def test_get_topic_name(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('persistent://public/default/topic_name_test',
+                                    'topic_name_test_sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://public/default/topic_name_test')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertEqual(msg.topic_name(), 'persistent://public/default/topic_name_test')
+        client.close()
+
+    def test_get_partitioned_topic_name(self):
+        client = Client(self.serviceUrl)
+        url1 = self.adminUrl + '/admin/v2/persistent/public/default/partitioned_topic_name_test/partitions'
+        doHttpPut(url1, '3')
+
+        partitions = ['persistent://public/default/partitioned_topic_name_test-partition-0',
+                      'persistent://public/default/partitioned_topic_name_test-partition-1',
+                      'persistent://public/default/partitioned_topic_name_test-partition-2']
+        self.assertEqual(client.get_topic_partitions('persistent://public/default/partitioned_topic_name_test'),
+                         partitions)
+
+        consumer = client.subscribe('persistent://public/default/partitioned_topic_name_test',
+                                    'partitioned_topic_name_test_sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://public/default/partitioned_topic_name_test')
+        producer.send(b'hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg.topic_name() in partitions)
+        client.close()
+
+    def test_negative_acks(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('test_negative_acks',
+                                    'test',
+                                    schema=pulsar.schema.StringSchema())
+        producer = client.create_producer('test_negative_acks',
+                                          schema=pulsar.schema.StringSchema())
+        for i in range(10):
+            producer.send_async('hello-%d' % i, callback=None)
+
+        producer.flush()
+
+        for i in range(10):
+            msg = consumer.receive()
+            self.assertEqual(msg.value(), "hello-%d" % i)
+            consumer.negative_acknowledge(msg)
+
+        for i in range(10):
+            msg = consumer.receive()
+            self.assertEqual(msg.value(), "hello-%d" % i)
+            consumer.acknowledge(msg)
+
+        try:
+            # No more messages expected
+            msg = consumer.receive(100)
+            self.assertTrue(False)
+        except:
+            pass  # Exception is expected
+        client.close()
+
     def _check_value_error(self, fun):
         try:
             fun()
             # Should throw exception
             self.assertTrue(False)
         except ValueError:
+            pass  # Expected
+
+    def _check_type_error(self, fun):
+        try:
+            fun()
+            # Should throw exception
+            self.assertTrue(False)
+        except TypeError:
             pass  # Expected
 
 

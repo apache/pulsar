@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -56,9 +57,9 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
 
         port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(port);
+        config.setWebServicePort(Optional.of(port));
         config.setClusterName("test");
-        config.setServiceUrl(pulsar.getWebServiceAddress());
+        config.setServiceUrl(pulsar.getSafeWebServiceAddress());
         config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();

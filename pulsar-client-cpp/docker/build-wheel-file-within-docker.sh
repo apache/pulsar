@@ -31,7 +31,7 @@ cmake . -DPYTHON_INCLUDE_DIR=/opt/python/$PYTHON_SPEC/include/python$PYTHON_VERS
         -DBUILD_TESTS=OFF
 
 make clean
-make _pulsar -j3
+make _pulsar -j3 VERBOSE=1
 
 cd python
 python setup.py bdist_wheel

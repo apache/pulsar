@@ -20,7 +20,7 @@
 
 namespace pulsar {
 
-ReaderConfiguration::ReaderConfiguration() : impl_(boost::make_shared<ReaderConfigurationImpl>()) {}
+ReaderConfiguration::ReaderConfiguration() : impl_(std::make_shared<ReaderConfigurationImpl>()) {}
 
 ReaderConfiguration::~ReaderConfiguration() {}
 
@@ -30,6 +30,13 @@ ReaderConfiguration& ReaderConfiguration::operator=(const ReaderConfiguration& x
     impl_ = x.impl_;
     return *this;
 }
+
+ReaderConfiguration& ReaderConfiguration::setSchema(const SchemaInfo& schemaInfo) {
+    impl_->schemaInfo = schemaInfo;
+    return *this;
+}
+
+const SchemaInfo& ReaderConfiguration::getSchema() const { return impl_->schemaInfo; }
 
 ReaderConfiguration& ReaderConfiguration::setReaderListener(ReaderListener readerListener) {
     impl_->readerListener = readerListener;

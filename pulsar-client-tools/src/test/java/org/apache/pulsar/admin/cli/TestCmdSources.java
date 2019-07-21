@@ -18,18 +18,29 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
-import lombok.extern.slf4j.Slf4j;
+
+import java.io.File;
+import java.nio.file.Files;
+
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Resources;
-import org.apache.pulsar.functions.utils.SourceConfig;
-import org.mockito.Mockito;
+import org.apache.pulsar.client.admin.Sources;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -39,21 +50,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-
-@Slf4j
 @PrepareForTest({CmdFunctions.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*" })
 public class TestCmdSources {
@@ -67,21 +63,19 @@ public class TestCmdSources {
     private static final String NAMESPACE = "test-namespace";
     private static final String NAME = "test";
     private static final String TOPIC_NAME = "src_topic_1";
-    private static final String SERDE_CLASS_NAME = DefaultSerDe.class.getName();
+    private static final String SERDE_CLASS_NAME = "";
     private static final FunctionConfig.ProcessingGuarantees PROCESSING_GUARANTEES
             = FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
     private static final Integer PARALLELISM = 1;
-    private static final String JAR_FILE_NAME = "pulsar-io-twitter.nar";
-    private static final String WRONG_JAR_FILE_NAME = "pulsar-io-cassandra.nar";
+    private static final String JAR_FILE_NAME = "dummy.nar";
     private String JAR_FILE_PATH;
-    private String WRONG_JAR_PATH;
     private static final Double CPU = 100.0;
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
 
     private PulsarAdmin pulsarAdmin;
-    private Functions functions;
+    private Sources source;
     private CmdSources CmdSources;
     private CmdSources.CreateSource createSource;
     private CmdSources.UpdateSource updateSource;
@@ -92,8 +86,8 @@ public class TestCmdSources {
     public void setup() throws Exception {
 
         pulsarAdmin = mock(PulsarAdmin.class);
-        functions = mock(Functions.class);
-        when(pulsarAdmin.functions()).thenReturn(functions);
+        source = mock(Sources.class);
+        when(pulsarAdmin.sources()).thenReturn(source);
 
         CmdSources = spy(new CmdSources(pulsarAdmin));
         createSource = spy(CmdSources.getCreateSource());
@@ -102,10 +96,9 @@ public class TestCmdSources {
         deleteSource = spy(CmdSources.getDeleteSource());
 
         mockStatic(CmdFunctions.class);
-        PowerMockito.doNothing().when(CmdFunctions.class, "startLocalRun", Mockito.any(), Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        PowerMockito.doNothing().when(localSourceRunner).runCmd();
         JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
-        WRONG_JAR_PATH = Thread.currentThread().getContextClassLoader().getResource(WRONG_JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
+        Thread.currentThread().setContextClassLoader(FunctionCommon.loadJar(new File(JAR_FILE_PATH)));
     }
 
     public SourceConfig getSourceConfig() {
@@ -132,84 +125,6 @@ public class TestCmdSources {
                 NAMESPACE,
                 NAME,
                 TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingTenant() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setTenant(PUBLIC_TENANT);
-        testCmdSourceCliMissingArgs(
-                null,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingNamespace() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setNamespace(DEFAULT_NAMESPACE);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                null,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
-    public void testMissingName() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setName(null);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                null,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'topicName' cannot be null!")
-    public void testMissingTopicName() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setTopicName(null);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                null,
-                SERDE_CLASS_NAME,
-                PROCESSING_GUARANTEES,
                 PARALLELISM,
                 JAR_FILE_PATH,
                 CPU,
@@ -260,64 +175,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test
-    public void testMissingParallelism() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setParallelism(1);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                null,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
-    public void testNegativeParallelism() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setParallelism(-1);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                -1,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
-    public void testZeroParallelism() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setParallelism(0);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                0,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specfied")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specified")
     public void testMissingArchive() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setArchive(null);
@@ -336,7 +194,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar does not exist")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
     public void testInvalidJar() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         String fakeJar = "/tmp/foo.jar";
@@ -351,82 +209,6 @@ public class TestCmdSources {
                 CPU,
                 RAM,
                 DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-cassandra.nar has error: The 'cassandra' connector does not provide a source implementation")
-    public void testInvalidJarWithNoSource() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setArchive(WRONG_JAR_PATH);
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                WRONG_JAR_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingCpu() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setResources(new Resources(null, RAM, DISK));
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                null,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingRam() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setResources(new Resources(CPU, null, DISK));
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                null,
-                DISK,
-                SINK_CONFIG_STRING,
-                sourceConfig
-        );
-    }
-
-    @Test
-    public void testMissingDisk() throws Exception {
-        SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setResources(new Resources(CPU, RAM, null));
-        testCmdSourceCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                TOPIC_NAME, SERDE_CLASS_NAME, PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                null,
                 SINK_CONFIG_STRING,
                 sourceConfig
         );
@@ -532,46 +314,6 @@ public class TestCmdSources {
     }
 
     @Test
-    public void testCmdSourceConfigFileMissingTenant() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setTenant(null);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setTenant(PUBLIC_TENANT);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test
-    public void testCmdSourceConfigFileMissingNamespace() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setNamespace(null);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setNamespace(DEFAULT_NAMESPACE);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
-    public void testCmdSourceConfigFileMissingName() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setName(null);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setName(null);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'topicName' cannot be null!")
-    public void testCmdSourceConfigFileMissingTopicName() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setTopicName(null);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setTopicName(null);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test
     public void testCmdSourceConfigFileMissingSerdeClassname() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setSerdeClassName(null);
@@ -591,26 +333,6 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
-    public void testCmdSourceConfigFileZeroParallelism() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setParallelism(0);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setParallelism(0);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
-    public void testCmdSourceConfigFileNegativeParallelism() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setParallelism(-1);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setParallelism(-1);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
     @Test
     public void testCmdSourceConfigFileMissingProcessingGuarantees() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
@@ -627,11 +349,11 @@ public class TestCmdSources {
         testSourceConfig.setResources(null);
 
         SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setResources(new Resources());
+        expectedSourceConfig.setResources(null);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specfied")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specified")
     public void testCmdSourceConfigFileMissingJar() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setArchive(null);
@@ -641,23 +363,13 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar does not exist")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
     public void testCmdSourceConfigFileInvalidJar() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setArchive("/tmp/foo.jar");
 
         SourceConfig expectedSourceConfig = getSourceConfig();
         expectedSourceConfig.setArchive("/tmp/foo.jar");
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-cassandra.nar has error: The 'cassandra' connector does not provide a source implementation")
-    public void testCmdSourceConfigFileInvalidJarNoSource() throws Exception {
-        SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setArchive(WRONG_JAR_PATH);
-
-        SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setArchive(WRONG_JAR_PATH);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
@@ -706,7 +418,7 @@ public class TestCmdSources {
         testSourceConfig.setParallelism(PARALLELISM + 1);
         testSourceConfig.setArchive(JAR_FILE_PATH + "-prime");
         testSourceConfig.setResources(new Resources(CPU + 1, RAM + 1, DISK + 1));
-        testSourceConfig.setConfigs(createSource.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\"}"));
+        testSourceConfig.setConfigs(createSource.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\", \"otherProperties\":{\"property1.value\":\"value1\",\"property2.value\":\"value2\"}}"));
 
 
         SourceConfig expectedSourceConfig = getSourceConfig();
@@ -821,38 +533,81 @@ public class TestCmdSources {
     public void testDeleteMissingTenant() throws Exception {
         deleteSource.tenant = null;
         deleteSource.namespace = NAMESPACE;
-        deleteSource.name = NAME;
+        deleteSource.sourceName = NAME;
 
         deleteSource.processArguments();
 
         deleteSource.runCmd();
 
-        verify(functions).deleteFunction(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
+        verify(source).deleteSource(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
     }
 
     @Test
     public void testDeleteMissingNamespace() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = null;
-        deleteSource.name = NAME;
+        deleteSource.sourceName = NAME;
 
         deleteSource.processArguments();
 
         deleteSource.runCmd();
 
-        verify(functions).deleteFunction(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
+        verify(source).deleteSource(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "You must specify a name for the source")
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "You must specify a name for the source")
     public void testDeleteMissingName() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = NAMESPACE;
-        deleteSource.name = null;
+        deleteSource.sourceName = null;
 
         deleteSource.processArguments();
 
         deleteSource.runCmd();
 
-        verify(functions).deleteFunction(eq(TENANT), eq(NAMESPACE), null);
+        verify(source).deleteSource(eq(TENANT), eq(NAMESPACE), null);
+    }
+
+    @Test
+    public void testUpdateSource() throws Exception {
+
+        updateSource.name = "my-source";
+
+        updateSource.archive = "new-archive";
+
+        updateSource.processArguments();
+
+        updateSource.runCmd();
+
+        verify(source).updateSource(eq(SourceConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSource.name)
+                .archive(updateSource.archive)
+                .build()), eq(updateSource.archive), eq(new UpdateOptions()));
+
+
+        updateSource.archive = null;
+
+        updateSource.parallelism = 2;
+
+        updateSource.processArguments();
+
+        updateSource.updateAuthData = true;
+
+        UpdateOptions updateOptions = new UpdateOptions();
+        updateOptions.setUpdateAuthData(true);
+
+        updateSource.runCmd();
+
+        verify(source).updateSource(eq(SourceConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSource.name)
+                .parallelism(2)
+                .build()), eq(null), eq(updateOptions));
+
+
+
     }
 }

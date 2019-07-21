@@ -20,6 +20,7 @@
 #define PULSAR_CPP_BROKERCONSUMERSTATSIMPLBASE_H
 
 #include <pulsar/BrokerConsumerStats.h>
+#include <boost/date_time/posix_time/ptime.hpp>
 
 namespace pulsar {
 class BrokerConsumerStatsImplBase {
@@ -63,7 +64,7 @@ class BrokerConsumerStatsImplBase {
     /** Returns the Number of messages in the subscription backlog */
     virtual uint64_t getMsgBacklog() const = 0;
 };
-typedef boost::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStatsImplBasePtr;
+typedef std::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStatsImplBasePtr;
 }  // namespace pulsar
 
 #endif  // PULSAR_CPP_BROKERCONSUMERSTATSIMPLBASE_H

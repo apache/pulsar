@@ -21,9 +21,11 @@ package org.apache.pulsar.functions.instance;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.MessageId;
+
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.api.Record;
+
+import java.util.Map;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -50,9 +52,9 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
+    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
         if (context != null) {
-            context.setCurrentMessageContext(messageId, topicName);
+            context.setCurrentMessageContext(record);
         }
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
@@ -73,7 +75,15 @@ public class JavaInstance implements AutoCloseable {
     public void close() {
     }
 
-    public InstanceCommunication.MetricsData getAndResetMetrics() {
+    public Map<String, Double> getAndResetMetrics() {
         return context.getAndResetMetrics();
+    }
+
+    public void resetMetrics() {
+        context.resetMetrics();
+    }
+
+    public Map<String, Double> getMetrics() {
+        return context.getMetrics();
     }
 }

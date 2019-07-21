@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.namespace;
 
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -115,7 +115,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             result.get();
         } catch (Exception e) {
             // make sure: no failure
-            fail("split bundle faild", e);
+            fail("split bundle failed", e);
         }
         NamespaceBundleFactory bundleFactory = this.pulsar.getNamespaceService().getNamespaceBundleFactory();
         NamespaceBundles updatedNsBundles = bundleFactory.getBundles(nsname);
@@ -151,7 +151,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
@@ -194,7 +194,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             result.get();
         } catch (Exception e) {
             // make sure: no failure
-            fail("split bundle faild", e);
+            fail("split bundle failed", e);
         }
 
         // old bundle should be removed from status-map
@@ -385,7 +385,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             result.get();
         } catch (Exception e) {
             // make sure: no failure
-            fail("split bundle faild", e);
+            fail("split bundle failed", e);
         }
         NamespaceBundleFactory bundleFactory = this.pulsar.getNamespaceService().getNamespaceBundleFactory();
         NamespaceBundles updatedNsBundles = bundleFactory.getBundles(nsname);
@@ -421,7 +421,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
@@ -429,6 +429,48 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
+    @Test
+    public void testRemoveOwnershipAndSplitBundle() throws Exception {
+        OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        doNothing().when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
+
+        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
+        ownership.setAccessible(true);
+        ownership.set(pulsar.getNamespaceService(), ownershipCache);
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+        NamespaceBundle originalBundle = bundles.findBundle(topicName);
+
+        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false);
+        try {
+            result1.get();
+        } catch (Exception e) {
+            fail("split bundle failed", e);
+        }
+
+        NamespaceBundles updatedNsBundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+        assertNotNull(updatedNsBundles);
+        NamespaceBundle splittedBundle = updatedNsBundles.findBundle(topicName);
+
+        updatedNsBundles.getBundles().stream().filter(bundle -> !bundle.equals(splittedBundle)).forEach(bundle -> {
+            try {
+                ownershipCache.removeOwnership(bundle).get();
+            } catch (Exception e) {
+                fail("failed to remove ownership", e);
+            }
+        });
+
+        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true);
+        try {
+            result2.get();
+        } catch (Exception e) {
+            // make sure: NPE does not occur
+            fail("split bundle failed", e);
+        }
+    }
 
     @SuppressWarnings("unchecked")
     private Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundleFactory utilityFactory,

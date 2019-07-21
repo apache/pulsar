@@ -51,8 +51,9 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
     private final ScheduledExecutorService scheduledExecutor;
 
     public GlobalZooKeeperCache(ZooKeeperClientFactory zkClientFactory, int zkSessionTimeoutMillis,
-            String globalZkConnect, OrderedExecutor orderedExecutor, ScheduledExecutorService scheduledExecutor) {
-        super(null, orderedExecutor);
+            int zkOperationTimeoutSeconds, String globalZkConnect, OrderedExecutor orderedExecutor,
+            ScheduledExecutorService scheduledExecutor) {
+        super(null, zkOperationTimeoutSeconds, orderedExecutor);
         this.zlClientFactory = zkClientFactory;
         this.zkSessionTimeoutMillis = zkSessionTimeoutMillis;
         this.globalZkConnect = globalZkConnect;
@@ -65,7 +66,7 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
 
         // Initial session creation with global ZK must work
         try {
-            ZooKeeper newSession = zkFuture.get(10, TimeUnit.SECONDS);
+            ZooKeeper newSession = zkFuture.get(zkSessionTimeoutMillis, TimeUnit.MILLISECONDS);
             // Register self as a watcher to receive notification when session expires and trigger a new session to be
             // created
             newSession.register(this);

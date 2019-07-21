@@ -18,29 +18,50 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import java.util.ArrayList;
-import java.util.List;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Server;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.net.BindException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.TimeZone;
+
+import javax.servlet.DispatcherType;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.WebExecutorThreadPool;
+import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
+import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 @Slf4j
-public class WorkerServer implements Runnable {
+public class WorkerServer {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
+    private static final String MATCH_ALL = "/*";
+    private static final int MAX_CONCURRENT_REQUESTS = 1024;
+    private final WebExecutorThreadPool webServerExecutor;
+    private Server server;
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
         if (ex instanceof BindException) {
@@ -54,46 +75,66 @@ public class WorkerServer implements Runnable {
     public WorkerServer(WorkerService workerService) {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
+        this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web");
+        init();
     }
 
-    @Override
-    public void run() {
-        final Server server = new Server(this.workerConfig.getWorkerPort());
+    public void start() throws Exception {
+        server.start();
+        log.info("Worker Server started at {}", server.getURI());
+    }
 
-        List<Handler> handlers = new ArrayList<>(2);
-        handlers.add(newServletContextHandler("/admin",
-                new ResourceConfig(Resources.getApiResources()), workerService));
-        handlers.add(newServletContextHandler("/admin/v2",
-                new ResourceConfig(Resources.getApiResources()), workerService));
-        handlers.add(newServletContextHandler("/",
-                new ResourceConfig(Resources.getRootResources()), workerService));
+    private void init() {
+        server = new Server(webServerExecutor);
+
+        List<ServerConnector> connectors = new ArrayList<>();
+        ServerConnector connector = new ServerConnector(server, 1, 1);
+        connector.setPort(this.workerConfig.getWorkerPort());
+        connectors.add(connector);
+
+        List<Handler> handlers = new ArrayList<>(4);
+        handlers.add(
+                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiV2Resources()), workerService));
+        handlers.add(
+                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
+        handlers.add(
+                newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
+        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
+
+        RequestLogHandler requestLogHandler = new RequestLogHandler();
+        Slf4jRequestLog requestLog = new Slf4jRequestLog();
+        requestLog.setExtended(true);
+        requestLog.setLogTimeZone(TimeZone.getDefault().getID());
+        requestLog.setLogLatency(true);
+        requestLogHandler.setRequestLog(requestLog);
+        handlers.add(0, new ContextHandlerCollection());
+        handlers.add(requestLogHandler);
 
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
         HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[] {
-            contexts, new DefaultHandler()
-        });
+        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
         server.setHandler(handlerCollection);
 
-        try {
-            server.start();
-
-            log.info("Worker Server started at {}", server.getURI());
-
-            server.join();
-        } catch (Exception ex) {
-            log.error("ex: {}", ex, ex);
-            final String message = getErrorMessage(server, this.workerConfig.getWorkerPort(), ex);
-            log.error(message);
-            System.exit(1);
-        } finally {
-            server.destroy();
+        if (this.workerConfig.getWorkerPortTls() != null) {
+            try {
+                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
+                        this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),
+                        this.workerConfig.getTlsCertificateFilePath(), this.workerConfig.getTlsKeyFilePath(),
+                        this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                        true,
+                        this.workerConfig.getTlsCertRefreshCheckDurationSec());
+                ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
+                tlsConnector.setPort(this.workerConfig.getWorkerPortTls());
+                connectors.add(tlsConnector);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
-    }
 
-    public String getThreadName() {
-        return "worker-server-thread-" + this.workerConfig.getWorkerId();
+        // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
+        connectors.forEach(c -> c.setAcceptQueueSize(MAX_CONCURRENT_REQUESTS / connectors.size()));
+        server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
     public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
@@ -101,12 +142,37 @@ public class WorkerServer implements Runnable {
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
         contextHandler.setAttribute(FunctionApiResource.ATTRIBUTE_FUNCTION_WORKER, workerService);
+        contextHandler.setAttribute(WorkerApiV2Resource.ATTRIBUTE_WORKER_SERVICE, workerService);
+        contextHandler.setAttribute(WorkerStatsApiV2Resource.ATTRIBUTE_WORKERSTATS_SERVICE, workerService);
         contextHandler.setContextPath(contextPath);
 
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, "/*");
+        if (workerService.getWorkerConfig().isAuthenticationEnabled()) {
+            FilterHolder filter = new FilterHolder(new AuthenticationFilter(workerService.getAuthenticationService()));
+            contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
 
         return contextHandler;
     }
+
+    @VisibleForTesting
+    public void stop() {
+        if (this.server != null) {
+            try {
+                this.server.destroy();
+            } catch (Exception e) {
+                log.error("Failed to stop function web-server ", e);
+            }
+        }
+        if (this.webServerExecutor != null && this.webServerExecutor.isRunning()) {
+            try {
+                this.webServerExecutor.stop();
+            } catch (Exception e) {
+                log.warn("Error stopping function web-server executor", e);
+            }
+        }
+    }
+
 }

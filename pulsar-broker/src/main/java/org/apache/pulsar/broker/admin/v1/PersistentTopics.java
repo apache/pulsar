@@ -38,27 +38,31 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import static org.apache.pulsar.common.util.Codec.decode;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import javax.ws.rs.container.AsyncResponse;
 
 /**
  */
 @Path("/persistent")
 @Produces(MediaType.APPLICATION_JSON)
-@Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic")
+@Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic", hidden = true)
 @SuppressWarnings("deprecation")
 public class PersistentTopics extends PersistentTopicsBase {
 
@@ -67,10 +71,14 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(hidden = true, value = "Get the list of topics under a namespace.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getList(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, cluster, namespace);
-        return internalGetList();
+    public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+        try {
+            validateNamespaceName(property, cluster, namespace);
+            asyncResponse.resume(internalGetList());
+        } catch (Exception e) {
+            asyncResponse.resume(e instanceof RestException ? e : new RestException(e));
+        }
     }
 
     @GET
@@ -132,9 +140,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 409, message = "Partitioned topic already exist") })
     public void createPartitionedTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            int numPartitions, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            int numPartitions) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalCreatePartitionedTopic(numPartitions, authoritative);
+        internalCreatePartitionedTopic(numPartitions);
     }
 
     /**
@@ -269,12 +277,38 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(hidden = true, value = "Get the stats for the partitioned topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PartitionedTopicStats getPartitionedStats(@PathParam("property") String property,
+    public void getPartitionedStats(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+
+    @GET
+    @Path("{property}/{cluster}/{namespace}/{topic}/partitioned-internalStats")
+    @ApiOperation(hidden = true, value = "Get the stats-internal for the partitioned topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist") })
+    public void getPartitionedStatsInternal(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetPartitionedStats(authoritative);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetPartitionedStatsInternal(asyncResponse, authoritative);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @DELETE
@@ -285,10 +319,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412, message = "Subscription has active consumers") })
     public void deleteSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName,
+            @PathParam("subName") String encodedSubName,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalDeleteSubscription(subName, authoritative);
+        internalDeleteSubscription(decode(encodedSubName), authoritative);
     }
 
     @POST
@@ -299,10 +333,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
     public void skipAllMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName,
+            @PathParam("subName") String encodedSubName,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalSkipAllMessages(subName, authoritative);
+        internalSkipAllMessages(decode(encodedSubName), authoritative);
     }
 
     @POST
@@ -312,10 +346,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
     public void skipMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName, @PathParam("numMessages") int numMessages,
+            @PathParam("subName") String encodedSubName, @PathParam("numMessages") int numMessages,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalSkipMessages(subName, numMessages, authoritative);
+        internalSkipMessages(decode(encodedSubName), numMessages, authoritative);
     }
 
     @POST
@@ -325,10 +359,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
     public void expireTopicMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName, @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
+            @PathParam("subName") String encodedSubName, @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalExpireMessages(subName, expireTimeInSeconds, authoritative);
+        internalExpireMessages(decode(encodedSubName), expireTimeInSeconds, authoritative);
     }
 
     @POST
@@ -352,10 +386,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic/Subscription does not exist") })
     public void resetCursor(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName, @PathParam("timestamp") long timestamp,
+            @PathParam("subName") String encodedSubName, @PathParam("timestamp") long timestamp,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalResetCursor(subName, timestamp, authoritative);
+        internalResetCursor(decode(encodedSubName), timestamp, authoritative);
     }
 
     @POST
@@ -366,10 +400,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
     public void resetCursorOnPosition(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName,
+            @PathParam("subName") String encodedSubName,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalResetCursorOnPosition(subName, authoritative, messageId);
+        internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId);
     }
 
     @PUT
@@ -380,10 +414,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
     public void createSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String topic,
-           @PathParam("subscriptionName") String subscriptionName,
-           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+           @PathParam("subscriptionName") String encodedSubName,
+           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId, @QueryParam("replicated") boolean replicated) {
         validateTopicName(property, cluster, namespace, topic);
-        internalCreateSubscription(subscriptionName, messageId, authoritative);
+        internalCreateSubscription(decode(encodedSubName), messageId, authoritative, replicated);
     }
 
     @GET
@@ -393,10 +427,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist") })
     public Response peekNthMessage(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName, @PathParam("messagePosition") int messagePosition,
+            @PathParam("subName") String encodedSubName, @PathParam("messagePosition") int messagePosition,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalPeekNthMessage(subName, messagePosition, authoritative);
+        return internalPeekNthMessage(decode(encodedSubName), messagePosition, authoritative);
     }
 
     @GET
@@ -433,9 +467,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
                             @ApiResponse(code = 404, message = "Topic does not exist"),
                             @ApiResponse(code = 409, message = "Compaction already running")})
-   public void compact(@PathParam("property") String property, @PathParam("cluster") String cluster,
-                       @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-                       @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+    public void compact(@PathParam("property") String property, @PathParam("cluster") String cluster,
+                        @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+                        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         internalTriggerCompaction(authoritative);
     }

@@ -21,10 +21,10 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.matches;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -36,7 +36,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -80,7 +79,6 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -100,10 +98,11 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.ArgumentCaptor;
@@ -153,14 +152,19 @@ public class PersistentTopicTest {
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
-        doReturn(createMockBookKeeper(mockZk)).when(pulsar).getBookKeeperClient();
+        doReturn(createMockBookKeeper(mockZk, pulsar.getOrderedExecutor().chooseThread(0)))
+            .when(pulsar).getBookKeeperClient();
+
+        ZooKeeperCache cache = mock(ZooKeeperCache.class);
+        doReturn(30).when(cache).getZkOperationTimeoutSeconds();
+        doReturn(cache).when(pulsar).getLocalZkCache();
 
         configCacheService = mock(ConfigurationCacheService.class);
         @SuppressWarnings("unchecked")
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
-        doReturn(Optional.empty()).when(zkDataCache).get(anyString());
+        doReturn(Optional.empty()).when(zkDataCache).get(any());
 
         LocalZooKeeperCacheService zkCache = mock(LocalZooKeeperCacheService.class);
         doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(any());
@@ -171,15 +175,15 @@ public class PersistentTopicTest {
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
-        serverCnx = spy(new ServerCnx(brokerService));
+        serverCnx = spy(new ServerCnx(pulsar));
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
-        doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
+        doReturn(true).when(nsSvc).isServiceUnitOwned(any());
+        doReturn(true).when(nsSvc).isServiceUnitActive(any());
 
         setupMLAsyncCallbackMocks();
     }
@@ -209,7 +213,7 @@ public class PersistentTopicTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(anyString(), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class),
-                anyObject());
+                any());
 
         CompletableFuture<Void> future = brokerService.getOrCreateTopic(topicName).thenAccept(topic -> {
             assertTrue(topic.toString().contains(topicName));
@@ -240,7 +244,7 @@ public class PersistentTopicTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(anyString(), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class),
-                anyObject());
+                any());
 
         CompletableFuture<Topic> future = brokerService.getOrCreateTopic(jinxedTopicName);
 
@@ -280,7 +284,7 @@ public class PersistentTopicTest {
         PersistentTopic topic = spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getName()).thenReturn("cursor");
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor);
+        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, null);
         dispatcher.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
         verify(topic, atLeast(1)).getBrokerService();
     }
@@ -291,7 +295,7 @@ public class PersistentTopicTest {
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getName()).thenReturn("cursor");
         PersistentDispatcherSingleActiveConsumer dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
-                SubType.Exclusive, 1, topic);
+                SubType.Exclusive, 1, topic, null);
         Consumer consumer = mock(Consumer.class);
         dispatcher.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), consumer);
         verify(topic, atLeast(1)).getBrokerService();
@@ -322,7 +326,7 @@ public class PersistentTopicTest {
                         new ManagedLedgerException("Managed ledger failure"), invocationOnMock.getArguments()[2]);
                 return null;
             }
-        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), anyObject());
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
 
         topic.publishMessage(payload, (exception, ledgerId, entryId) -> {
             if (exception == null) {
@@ -428,7 +432,8 @@ public class PersistentTopicTest {
                 .setSubscription("").setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                false);
         try {
             f1.get();
             fail("should fail with exception");
@@ -447,12 +452,14 @@ public class PersistentTopicTest {
 
         // 1. simple subscribe
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                false);
         f1.get();
 
         // 2. duplicate subscribe
         Future<Consumer> f2 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                false);
 
         try {
             f2.get();
@@ -472,7 +479,7 @@ public class PersistentTopicTest {
     @Test
     public void testAddRemoveConsumer() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         // 1. simple add consumer
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
@@ -503,8 +510,8 @@ public class PersistentTopicTest {
 
     public void testMaxConsumersShared() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
-        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock, false);
 
         // for count consumers on topic
         ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
@@ -594,8 +601,8 @@ public class PersistentTopicTest {
     public void testMaxConsumersFailover() throws Exception {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
-        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock, false);
 
         // for count consumers on topic
         ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
@@ -685,7 +692,7 @@ public class PersistentTopicTest {
     @Test
     public void testUbsubscribeRaceConditions() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
         Consumer consumer1 = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
                 50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest);
         sub.addConsumer(consumer1);
@@ -697,7 +704,7 @@ public class PersistentTopicTest {
                 Thread.sleep(1000);
                 return null;
             }
-        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
 
         ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -739,7 +746,8 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest,
+                false /* replicated */);
         f1.get();
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -754,7 +762,8 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -808,7 +817,8 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -871,7 +881,7 @@ public class PersistentTopicTest {
                 ((DeleteLedgerCallback) invocationOnMock.getArguments()[0]).deleteLedgerComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), anyObject());
+        }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), any());
 
         ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -895,7 +905,8 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
 
         try {
             f.get();
@@ -906,6 +917,7 @@ public class PersistentTopicTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursor.class);
@@ -947,7 +959,7 @@ public class PersistentTopicTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // call openLedgerFailed on ML factory asyncOpen
         doAnswer(new Answer<Object>() {
@@ -958,7 +970,7 @@ public class PersistentTopicTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer(new Answer<Object>() {
@@ -968,7 +980,7 @@ public class PersistentTopicTest {
                         invocationOnMock.getArguments()[2]);
                 return null;
             }
-        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), anyObject());
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
 
         // call openCursorComplete on cursor asyncOpen
         doAnswer(new Answer<Object>() {
@@ -977,7 +989,16 @@ public class PersistentTopicTest {
                 ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
                 return null;
             }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
+
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
+                return null;
+            }
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
+                any(OpenCursorCallback.class), any());
 
         // call deleteLedgerComplete on ledger asyncDelete
         doAnswer(new Answer<Object>() {
@@ -986,7 +1007,7 @@ public class PersistentTopicTest {
                 ((DeleteLedgerCallback) invocationOnMock.getArguments()[0]).deleteLedgerComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), anyObject());
+        }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -994,13 +1015,13 @@ public class PersistentTopicTest {
                 ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
 
         doAnswer((invokactionOnMock) -> {
                 ((MarkDeleteCallback) invokactionOnMock.getArguments()[2])
                     .markDeleteComplete(invokactionOnMock.getArguments()[3]);
                 return null;
-            }).when(cursorMock).asyncMarkDelete(anyObject(), anyObject(), any(MarkDeleteCallback.class), anyObject());
+            }).when(cursorMock).asyncMarkDelete(any(), any(), any(MarkDeleteCallback.class), any());
     }
 
     @Test
@@ -1013,7 +1034,8 @@ public class PersistentTopicTest {
         // 1. Subscribe with non partition topic
         Future<Consumer> f1 = topic1.subscribe(serverCnx, cmd1.getSubscription(), cmd1.getConsumerId(),
                 cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.getDurable(), null, Collections.emptyMap(),
-                cmd1.getReadCompacted(), InitialPosition.Latest);
+                cmd1.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
         f1.get();
 
         // 2. Subscribe with partition topic
@@ -1025,7 +1047,8 @@ public class PersistentTopicTest {
 
         Future<Consumer> f2 = topic2.subscribe(serverCnx, cmd2.getSubscription(), cmd2.getConsumerId(),
                 cmd2.getSubType(), 0, cmd2.getConsumerName(), cmd2.getDurable(), null, Collections.emptyMap(),
-                cmd2.getReadCompacted(), InitialPosition.Latest);
+                cmd2.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
         f2.get();
 
         // 3. Subscribe and create second consumer
@@ -1035,7 +1058,8 @@ public class PersistentTopicTest {
 
         Future<Consumer> f3 = topic2.subscribe(serverCnx, cmd3.getSubscription(), cmd3.getConsumerId(),
                 cmd3.getSubType(), 0, cmd3.getConsumerName(), cmd3.getDurable(), null, Collections.emptyMap(),
-                cmd3.getReadCompacted(), InitialPosition.Latest);
+                cmd3.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
         f3.get();
 
         assertEquals(
@@ -1056,7 +1080,8 @@ public class PersistentTopicTest {
 
         Future<Consumer> f4 = topic2.subscribe(serverCnx, cmd4.getSubscription(), cmd4.getConsumerId(),
                 cmd4.getSubType(), 0, cmd4.getConsumerName(), cmd4.getDurable(), null, Collections.emptyMap(),
-                cmd4.getReadCompacted(), InitialPosition.Latest);
+                cmd4.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
         f4.get();
 
         assertEquals(
@@ -1082,7 +1107,8 @@ public class PersistentTopicTest {
 
         Future<Consumer> f5 = topic2.subscribe(serverCnx, cmd5.getSubscription(), cmd5.getConsumerId(),
                 cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.getDurable(), null, Collections.emptyMap(),
-                cmd5.getReadCompacted(), InitialPosition.Latest);
+                cmd5.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
 
         try {
             f5.get();
@@ -1099,7 +1125,8 @@ public class PersistentTopicTest {
 
         Future<Consumer> f6 = topic2.subscribe(serverCnx, cmd6.getSubscription(), cmd6.getConsumerId(),
                 cmd6.getSubType(), 0, cmd6.getConsumerName(), cmd6.getDurable(), null, Collections.emptyMap(),
-                cmd6.getReadCompacted(), InitialPosition.Latest);
+                cmd6.getReadCompacted(), InitialPosition.Latest,
+                false /* replicated */);
         f6.get();
 
         // 7. unsubscribe exclusive sub
@@ -1157,15 +1184,15 @@ public class PersistentTopicTest {
         String localCluster = "local";
         String remoteCluster = "remote";
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
-        doNothing().when(ledgerMock).asyncDeleteCursor(anyObject(), anyObject(), anyObject());
+        doNothing().when(ledgerMock).asyncDeleteCursor(any(), any(), any());
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
 
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
-        String remoteReplicatorName = topic.replicatorPrefix + "." + remoteCluster;
+        String remoteReplicatorName = topic.getReplicatorPrefix() + "." + remoteCluster;
         ConcurrentOpenHashMap<String, Replicator> replicatorMap = topic.getReplicators();
 
         final URL brokerUrl = new URL(
-                "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
+                "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort().get());
         PulsarClient client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
@@ -1191,7 +1218,7 @@ public class PersistentTopicTest {
 
         // step-3 : complete the callback to remove replicator from the list
         ArgumentCaptor<DeleteCursorCallback> captor = ArgumentCaptor.forClass(DeleteCursorCallback.class);
-        Mockito.verify(ledgerMock).asyncDeleteCursor(anyObject(), captor.capture(), anyObject());
+        Mockito.verify(ledgerMock).asyncDeleteCursor(any(), captor.capture(), any());
         DeleteCursorCallback callback = captor.getValue();
         callback.deleteCursorComplete(null);
     }
@@ -1203,13 +1230,13 @@ public class PersistentTopicTest {
         String localCluster = "local";
         String remoteCluster = "remote";
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
-        doNothing().when(ledgerMock).asyncDeleteCursor(anyObject(), anyObject(), anyObject());
+        doNothing().when(ledgerMock).asyncDeleteCursor(any(), any(), any());
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
 
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
 
         final URL brokerUrl = new URL(
-                "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
+                "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort().get());
         PulsarClient client = spy(PulsarClient.builder().serviceUrl(brokerUrl.toString()).build());
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
         doReturn(new CompletableFuture<Producer>()).when(clientImpl)
@@ -1224,7 +1251,7 @@ public class PersistentTopicTest {
         verify(clientImpl)
             .createProducerAsync(
                 any(ProducerConfigurationData.class),
-                any(Schema.class)
+                any(), eq(null)
             );
 
         replicator.disconnect(false);
@@ -1232,11 +1259,7 @@ public class PersistentTopicTest {
 
         replicator.startProducer();
 
-        verify(clientImpl, Mockito.times(2))
-            .createProducerAsync(
-                any(ProducerConfigurationData.class),
-                any(Schema.class)
-            );
+        verify(clientImpl, Mockito.times(2)).createProducerAsync(any(), any(), any());
     }
 
     @Test

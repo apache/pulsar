@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -28,11 +29,14 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 /**
@@ -374,6 +378,24 @@ public interface Namespaces {
     void revokePermissionsOnNamespace(String namespace, String role) throws PulsarAdminException;
 
     /**
+     * Grant permission to role to access subscription's admin-api.
+     * @param namespace
+     * @param subscription
+     * @param roles
+     * @throws PulsarAdminException
+     */
+    void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles) throws PulsarAdminException;
+
+    /**
+     * Revoke permissions on a subscription's admin-api access.
+     * @param namespace
+     * @param subscription
+     * @param role
+     * @throws PulsarAdminException
+     */
+    void revokePermissionOnSubscription(String namespace, String subscription, String role) throws PulsarAdminException;
+
+    /**
      * Get the replication clusters for a namespace.
      * <p>
      * Response example:
@@ -641,7 +663,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException;
+    void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException;
 
     /**
      * Remove a backlog quota policy from a namespace.
@@ -660,7 +682,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void removeBacklogQuota(String namespace) throws PulsarAdminException;
+    void removeBacklogQuota(String namespace) throws PulsarAdminException;
 
     /**
      * Set the persistence configuration for all the topics on a namespace.
@@ -700,7 +722,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void setPersistence(String namespace, PersistencePolicies persistence) throws PulsarAdminException;
+    void setPersistence(String namespace, PersistencePolicies persistence) throws PulsarAdminException;
 
     /**
      * Get the persistence configuration for a namespace.
@@ -738,7 +760,37 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
+    PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set bookie affinity group for a namespace to isolate namespace write to bookies that are part of given affinity
+     * group.
+     * 
+     * @param namespace
+     *            namespace name
+     * @param bookieAffinityGroup
+     *            bookie affinity group
+     * @throws PulsarAdminException
+     */
+    void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup)
+            throws PulsarAdminException;
+    
+    /**
+     * Delete bookie affinity group configured for a namespace.
+     * 
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void deleteBookieAffinityGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get bookie affinity group configured for a namespace.
+     * 
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    BookieAffinityGroupData getBookieAffinityGroup(String namespace) throws PulsarAdminException;
 
     /**
      * Set the retention configuration for all the topics on a namespace.
@@ -853,7 +905,7 @@ public interface Namespaces {
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
      *
      * @param namespace
-     * @param messageRate
+     * @param dispatchRate
      *            number of messages per second
      * @throws PulsarAdminException
      *             Unexpected error
@@ -869,6 +921,26 @@ public interface Namespaces {
     *             Unexpected error
     */
     DispatchRate getDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate)
+     *
+     * @param namespace
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscribeRate(String namespace, SubscribeRate subscribeRate) throws PulsarAdminException;
+
+    /** Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period)
+     *
+     * @param namespace
+     * @returns subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SubscribeRate getSubscribeRate(String namespace) throws PulsarAdminException;
 
     /**
      * Set subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)
@@ -891,6 +963,26 @@ public interface Namespaces {
      */
     DispatchRate getSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
 
+    /**
+     * Set replicator-message-dispatch-rate (Replicators under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setReplicatorDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /** Get replicator-message-dispatch-rate (Replicators under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getReplicatorDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
      * Clear backlog for all topics on a namespace
@@ -1212,4 +1304,144 @@ public interface Namespaces {
      *             Unexpected error
      */
     void setOffloadThreshold(String namespace, long compactionThreshold) throws PulsarAdminException;
+
+    /**
+     * Get the offload deletion lag for a namespace, in milliseconds.
+     * The number of milliseconds to wait before deleting a ledger segment which has been offloaded from
+     * the Pulsar cluster's local storage (i.e. BookKeeper).
+     *
+     * If the offload deletion lag has not been set for the namespace, the method returns 'null'
+     * and the namespace will use the configured default of the pulsar broker.
+     *
+     * A negative value disables deletion of the local ledger completely, though it will still be deleted
+     * if it exceeds the topics retention policy, along with the offloaded copy.
+     *
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>3600000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the offload deletion lag for the namespace in milliseconds, or null if not set
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Long getOffloadDeleteLagMs(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set the offload deletion lag for a namespace.
+     *
+     * The offload deletion lag is the amount of time to wait after offloading a ledger segment to long term storage,
+     * before deleting its copy stored on the Pulsar cluster's local storage (i.e. BookKeeper).
+     *
+     * A negative value disables deletion of the local ledger completely, though it will still be deleted
+     * if it exceeds the topics retention policy, along with the offloaded copy.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param lag the duration to wait before deleting the local copy
+     * @param unit the timeunit of the duration
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setOffloadDeleteLag(String namespace, long lag, TimeUnit unit) throws PulsarAdminException;
+
+    /**
+     * Clear the offload deletion lag for a namespace.
+     *
+     * The namespace will fall back to using the configured default of the pulsar broker.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void clearOffloadDeleteLag(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the strategy used to check the a new schema provided by a producer is compatible with the current schema
+     * before it is installed.
+     *
+     * <p>If this is
+     * {@link org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy#AutoUpdateDisabled},
+     * then all new schemas provided via the producer are rejected, and schemas must be updated through the REST api.
+     *
+     * @param namespace The namespace in whose policy we are interested
+     * @return the strategy used to check compatibility
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SchemaAutoUpdateCompatibilityStrategy getSchemaAutoUpdateCompatibilityStrategy(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Set the strategy used to check the a new schema provided by a producer is compatible with the current schema
+     * before it is installed.
+     *
+     * <p>To disable all new schema updates through the producer, set this to
+     * {@link org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy#AutoUpdateDisabled}.
+     *
+     * @param namespace The namespace in whose policy should be set
+     * @param autoUpdate true if connecting producers can automatically update the schema, false otherwise
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSchemaAutoUpdateCompatibilityStrategy(String namespace,
+                                                  SchemaAutoUpdateCompatibilityStrategy strategy)
+            throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for namespace.
+     * @return the schema validation enforced flag
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
+    boolean getSchemaValidationEnforced(String namespace)
+            throws PulsarAdminException;
+    /**
+     * Set schema validation enforced for namespace.
+     * if a producer without a schema attempts to produce to a topic with schema in this the namespace, the
+     * producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't
+     * support schema. if you enable this setting, it will cause non-java clients failed to produce.
+     *
+     * @param namespace pulsar namespace name
+     * @param schemaValidationEnforced flag to enable or disable schema validation for the given namespace
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
+    void setSchemaValidationEnforced(String namespace, boolean schemaValidationEnforced)
+            throws PulsarAdminException;
 }

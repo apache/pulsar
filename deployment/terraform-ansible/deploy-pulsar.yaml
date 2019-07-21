@@ -17,26 +17,8 @@
 # under the License.
 #
 
-- name: Disk setup
-  hosts: pulsar
-  connection: ssh
-  become: true
-  tasks:
-    - command: >
-        tuned-adm profile latency-performance
-    - name: Create and mount disks
-      mount:
-        path: "{{ item.path }}"
-        src: "{{ item.src }}"
-        fstype: xfs
-        opts: defaults,noatime,nodiscard
-        state: present
-      with_items:
-        - { path: "/mnt/journal", src: "/dev/nvme0n1" }
-        - { path: "/mnt/storage", src: "/dev/nvme1n1" }
-
 - name: Pulsar setup
-  hosts: all
+  hosts: zookeeper, bookie, broker, proxy
   connection: ssh
   become: true
   tasks:
@@ -54,10 +36,9 @@
         - vim
     - set_fact:
         zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
-        service_url: "pulsar://{{ hostvars[groups['pulsar'][0]].public_ip }}:6650/"
-        http_url: "http://{{ hostvars[groups['pulsar'][0]].public_ip }}:8080/"
-        pulsar_version: "2.0.0-rc1-incubating"
-
+        service_url: "pulsar://{{ hostvars[groups['proxy'][0]].public_ip }}:6650/"
+        http_url: "http://{{ hostvars[groups['proxy'][0]].public_ip }}:8080/"
+        pulsar_version: "2.1.0-incubating"
     - name: Download Pulsar binary package
       unarchive:
         src: http://archive.apache.org/dist/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
@@ -65,8 +46,9 @@
         dest: /opt/pulsar
         extra_opts: ["--strip-components=1"]
     - set_fact:
-        max_heap_memory: "24g"
-        max_direct_memory: "24g"
+        max_heap_memory: "12g"
+        max_direct_memory: "12g"
+        cluster_name: "local"
     - name: Add pulsar_env.sh configuration file
       template:
         src: "../templates/pulsar_env.sh"
@@ -81,7 +63,6 @@
         zid: "{{ groups['zookeeper'].index(inventory_hostname) }}"
         max_heap_memory: "512m"
         max_direct_memory: "1g"
-        cluster_name: "local"
     - name: Create ZooKeeper data directory
       file:
         path: "/opt/pulsar/{{ item }}"
@@ -121,54 +102,79 @@
         chdir: /opt/pulsar
       when: groups['zookeeper'][0] == inventory_hostname
 
-- name: Set up Bookkeeper
-  hosts: pulsar
+- name: Set up bookies
+  hosts: bookie
   connection: ssh
   become: true
   tasks:
     - template:
         src: "../templates/bookkeeper.conf"
         dest: "/opt/pulsar/conf/bookkeeper.conf"
+    - template:
+        src: "../templates/bookkeeper.service"
+        dest: "/etc/systemd/system/bookkeeper.service"
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "bookkeeper"
 
-- name: Set up Pulsar
-  hosts: pulsar
+- name: Set up brokers
+  hosts: broker
   connection: ssh
   become: true
   tasks:
+    - name: Download Pulsar IO package
+      unarchive:
+        src: http://archive.apache.org/dist/incubator/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-io-connectors-{{ pulsar_version }}-bin.tar.gz
+        remote_src: yes
+        dest: /opt/pulsar
+        extra_opts: ["--strip-components=1"]
     - name: Set up broker
       template:
         src: "../templates/broker.conf"
         dest: "/opt/pulsar/conf/broker.conf"
+    - name: Set up function worker
+      template:
+        src: "../templates/functions_worker.yml"
+        dest: "/opt/pulsar/conf/functions_worker.yml"
     - template:
-        src: "../templates/pulsar.service"
-        dest: "/etc/systemd/system/pulsar.service"
+        src: "../templates/pulsar.broker.service"
+        dest: "/etc/systemd/system/pulsar.broker.service"
     - systemd:
         state: restarted
         daemon_reload: yes
-        name: "pulsar"
+        name: "pulsar.broker"
 
-- name: Pulsar multi-tenancy setup
-  hosts: pulsar
+- name: Set up Pulsar Proxy
+  hosts: proxy
   connection: ssh
   become: true
   tasks:
-    - name: Create default property and namespace
-      shell: |
-        bin/pulsar-admin tenants create public \
-          --allowed-clusters local \
-          --admin-roles all
-        bin/pulsar-admin namespaces create public/local/default
-      args:
-        chdir: /opt/pulsar
-      when: groups['zookeeper'][0] == inventory_hostname
+    - name: Set up proxy
+      template:
+        src: "../templates/proxy.conf"
+        dest: "/opt/pulsar/conf/proxy.conf"
+    - template:
+        src: "../templates/pulsar.proxy.service"
+        dest: "/etc/systemd/system/pulsar.proxy.service"
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "pulsar.proxy"
 
 - name:  Hosts addresses
   hosts: localhost
   become: false
   tasks:
     - debug:
-        msg: "Zookeeper servers {{ item }}"
+        msg: "Zookeeper Server {{ item }}"
       with_items: "{{ groups['zookeeper'] }}"
     - debug:
-        msg: "Pulsar/BookKeeper servers {{ item }}"
-      with_items: "{{ groups['pulsar'] }}"
+        msg: "Bookie {{ item }}"
+      with_items: "{{ groups['bookie'] }}"
+    - debug:
+        msg: "Broker {{ item }}"
+      with_items: "{{ groups['broker'] }}"
+    - debug:
+        msg: "Proxy {{ item }}"
+      with_items: "{{ groups['proxy'] }}"

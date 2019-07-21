@@ -22,14 +22,14 @@
 using namespace pulsar;
 
 TEST(TopicNameTest, testLookup) {
-    boost::shared_ptr<TopicName> topicName = TopicName::get("persistent://pulsar/bf1/TESTNS.0/curveballapps");
+    std::shared_ptr<TopicName> topicName = TopicName::get("persistent://pulsar/bf1/TESTNS.0/curveballapps");
     std::string lookup_name = topicName->getLookupName();
     ASSERT_EQ(lookup_name, "persistent/pulsar/bf1/TESTNS.0/curveballapps");
 }
 
 TEST(TopicNameTest, testTopicName) {
     // Compare getters and setters
-    boost::shared_ptr<TopicName> topicName = TopicName::get("persistent://property/cluster/namespace/topic");
+    std::shared_ptr<TopicName> topicName = TopicName::get("persistent://property/cluster/namespace/topic");
     ASSERT_EQ("property", topicName->getProperty());
     ASSERT_EQ("cluster", topicName->getCluster());
     ASSERT_EQ("namespace", topicName->getNamespacePortion());
@@ -37,14 +37,14 @@ TEST(TopicNameTest, testTopicName) {
     ASSERT_EQ(TopicName::getEncodedName("topic"), topicName->getLocalName());
 
     // Compare == operator
-    boost::shared_ptr<TopicName> topicName1 = TopicName::get("persistent://p/c/n/d");
-    boost::shared_ptr<TopicName> topicName2 = TopicName::get("persistent://p/c/n/d");
+    std::shared_ptr<TopicName> topicName1 = TopicName::get("persistent://p/c/n/d");
+    std::shared_ptr<TopicName> topicName2 = TopicName::get("persistent://p/c/n/d");
     ASSERT_TRUE(*topicName1 == *topicName2);
 }
 
 TEST(TopicNameTest, testShortTopicName) {
     // "short-topic"
-    boost::shared_ptr<TopicName> tn1 = TopicName::get("short-topic");
+    std::shared_ptr<TopicName> tn1 = TopicName::get("short-topic");
     ASSERT_EQ("public", tn1->getProperty());
     ASSERT_EQ("", tn1->getCluster());
     ASSERT_EQ("default", tn1->getNamespacePortion());
@@ -52,7 +52,7 @@ TEST(TopicNameTest, testShortTopicName) {
     ASSERT_EQ(TopicName::getEncodedName("short-topic"), tn1->getLocalName());
 
     // tenant/namespace/topic
-    boost::shared_ptr<TopicName> tn2 = TopicName::get("tenant/namespace/short-topic");
+    std::shared_ptr<TopicName> tn2 = TopicName::get("tenant/namespace/short-topic");
     ASSERT_EQ("tenant", tn2->getProperty());
     ASSERT_EQ("", tn2->getCluster());
     ASSERT_EQ("namespace", tn2->getNamespacePortion());
@@ -60,17 +60,17 @@ TEST(TopicNameTest, testShortTopicName) {
     ASSERT_EQ(TopicName::getEncodedName("short-topic"), tn2->getLocalName());
 
     // tenant/cluster/namespace/topic
-    boost::shared_ptr<TopicName> tn3 = TopicName::get("tenant/cluster/namespace/short-topic");
+    std::shared_ptr<TopicName> tn3 = TopicName::get("tenant/cluster/namespace/short-topic");
     ASSERT_FALSE(tn3);
 
     // tenant/cluster
-    boost::shared_ptr<TopicName> tn4 = TopicName::get("tenant/cluster");
+    std::shared_ptr<TopicName> tn4 = TopicName::get("tenant/cluster");
     ASSERT_FALSE(tn4);
 }
 
 TEST(TopicNameTest, testTopicNameV2) {
     // v2 topic names doesn't have "cluster"
-    boost::shared_ptr<TopicName> tn1 = TopicName::get("persistent://tenant/namespace/short-topic");
+    std::shared_ptr<TopicName> tn1 = TopicName::get("persistent://tenant/namespace/short-topic");
     ASSERT_EQ("tenant", tn1->getProperty());
     ASSERT_EQ("", tn1->getCluster());
     ASSERT_EQ("namespace", tn1->getNamespacePortion());
@@ -80,7 +80,7 @@ TEST(TopicNameTest, testTopicNameV2) {
 
 TEST(TopicNameTest, testNonPersistentTopicNameV2) {
     // v2 topic names doesn't have "cluster"
-    boost::shared_ptr<TopicName> tn1 = TopicName::get("non-persistent://tenant/namespace/short-topic");
+    std::shared_ptr<TopicName> tn1 = TopicName::get("non-persistent://tenant/namespace/short-topic");
     ASSERT_EQ("tenant", tn1->getProperty());
     ASSERT_EQ("", tn1->getCluster());
     ASSERT_EQ("namespace", tn1->getNamespacePortion());
@@ -90,7 +90,7 @@ TEST(TopicNameTest, testNonPersistentTopicNameV2) {
 
 TEST(TopicNameTest, testTopicNameWithSlashes) {
     // Compare getters and setters
-    boost::shared_ptr<TopicName> topicName =
+    std::shared_ptr<TopicName> topicName =
         TopicName::get("persistent://property/cluster/namespace/topic/name/with/slash");
     ASSERT_EQ("property", topicName->getProperty());
     ASSERT_EQ("cluster", topicName->getCluster());
@@ -121,36 +121,36 @@ TEST(TopicNameTest, testTopicNameWithSlashes) {
 }
 TEST(TopicNameTest, testEmptyClusterName) {
     // Compare getters and setters
-    boost::shared_ptr<TopicName> topicName = TopicName::get("persistent://property//namespace/topic");
+    std::shared_ptr<TopicName> topicName = TopicName::get("persistent://property//namespace/topic");
 
     ASSERT_FALSE(topicName);
 }
 
 TEST(TopicNameTest, testExtraSlashes) {
-    boost::shared_ptr<TopicName> topicName = TopicName::get("persistent://property/cluster//namespace/topic");
+    std::shared_ptr<TopicName> topicName = TopicName::get("persistent://property/cluster//namespace/topic");
     ASSERT_FALSE(topicName);
     topicName = TopicName::get("persistent://property//cluster//namespace//topic");
     ASSERT_FALSE(topicName);
 }
 
 TEST(TopicNameTest, testIllegalCharacters) {
-    boost::shared_ptr<TopicName> topicName =
+    std::shared_ptr<TopicName> topicName =
         TopicName::get("persistent://prop!!!erty/cluster&)&Name/name%%%space/topic");
     ASSERT_FALSE(topicName);
 }
 
 TEST(TopicNameTest, testIllegalUrl) {
-    boost::shared_ptr<TopicName> topicName = TopicName::get("persistent:::/property/cluster/namespace/topic");
+    std::shared_ptr<TopicName> topicName = TopicName::get("persistent:::/property/cluster/namespace/topic");
     ASSERT_FALSE(topicName);
 }
 
 TEST(TopicNameTest, testEmptyString) {
-    boost::shared_ptr<TopicName> topicName = TopicName::get("");
+    std::shared_ptr<TopicName> topicName = TopicName::get("");
     ASSERT_FALSE(topicName);
 }
 
 TEST(TopicNameTest, testExtraArguments) {
-    boost::shared_ptr<TopicName> topicName =
+    std::shared_ptr<TopicName> topicName =
         TopicName::get("persistent:::/property/cluster/namespace/topic/some/extra/args");
     ASSERT_FALSE(topicName);
 }

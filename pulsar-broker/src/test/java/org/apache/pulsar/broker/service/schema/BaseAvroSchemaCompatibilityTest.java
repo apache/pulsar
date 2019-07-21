@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 public abstract class BaseAvroSchemaCompatibilityTest {
 
@@ -69,13 +72,13 @@ public abstract class BaseAvroSchemaCompatibilityTest {
                     "\"type\":\"string\",\"default\":\"bar\"}]}";
     private static final SchemaData schemaData7 = getSchemaData(schemaJson7);
 
+    private static final String schemaJson8 =
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
+                    ".AvroSchemaCompatibilityCheckTest$\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
+                    "{\"name\":\"field2\",\"type\":\"string\"}]}";
+    private static final SchemaData schemaData8 = getSchemaData(schemaJson8);
 
-    public abstract SchemaCompatibilityCheck getBackwardsCompatibleSchemaCheck();
-
-    public abstract SchemaCompatibilityCheck getForwardCompatibleSchemaCheck();
-
-    public abstract SchemaCompatibilityCheck getFullCompatibleSchemaCheck();
-
+    public abstract SchemaCompatibilityCheck getSchemaCheck();
 
     /**
      * make sure new schema is backwards compatible with latest
@@ -83,27 +86,34 @@ public abstract class BaseAvroSchemaCompatibilityTest {
     @Test
     public void testBackwardCompatibility() {
 
-        SchemaCompatibilityCheck schemaCompatibilityCheck = getBackwardsCompatibleSchemaCheck();
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
         // adding a field with default is backwards compatible
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData2),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData2,
+                                                                SchemaCompatibilityStrategy.BACKWARD),
                 "adding a field with default is backwards compatible");
         // adding a field without default is NOT backwards compatible
-        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData3),
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData3,
+                                                                 SchemaCompatibilityStrategy.BACKWARD),
                 "adding a field without default is NOT backwards compatible");
         // Modifying a field name is not backwards compatible
-        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData4),
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData4,
+                                                                 SchemaCompatibilityStrategy.BACKWARD),
                 "Modifying a field name is not backwards compatible");
         // evolving field to a union is backwards compatible
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData5),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData5,
+                                                                SchemaCompatibilityStrategy.BACKWARD),
                 "evolving field to a union is backwards compatible");
         // removing a field from a union is NOT backwards compatible
-        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData5, schemaData1),
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData5, schemaData1,
+                                                                 SchemaCompatibilityStrategy.BACKWARD),
                 "removing a field from a union is NOT backwards compatible");
         // adding a field to a union is backwards compatible
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData5, schemaData6),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData5, schemaData6,
+                                                                SchemaCompatibilityStrategy.BACKWARD),
                 "adding a field to a union is backwards compatible");
         // removing a field a union is NOT backwards compatible
-        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData6, schemaData5),
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData6, schemaData5,
+                                                                 SchemaCompatibilityStrategy.BACKWARD),
                 "removing a field a union is NOT backwards compatible");
     }
 
@@ -113,21 +123,28 @@ public abstract class BaseAvroSchemaCompatibilityTest {
     @Test
     public void testForwardCompatibility() {
 
-        SchemaCompatibilityCheck schemaCompatibilityCheck = getForwardCompatibleSchemaCheck();
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
 
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData2),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData2,
+                                                                SchemaCompatibilityStrategy.FORWARD),
                 "adding a field is forward compatible");
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData3),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData3,
+                                                                SchemaCompatibilityStrategy.FORWARD),
                 "adding a field is forward compatible");
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData2, schemaData3),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData2, schemaData3,
+                                                                SchemaCompatibilityStrategy.FORWARD),
                 "adding a field is forward compatible");
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData3, schemaData2),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData3, schemaData2,
+                                                                SchemaCompatibilityStrategy.FORWARD),
                 "adding a field is forward compatible");
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData3, schemaData2),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData3, schemaData2,
+                                                                SchemaCompatibilityStrategy.FORWARD),
                 "adding a field is forward compatible");
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData2, schemaData7),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData2, schemaData7,
+                                                                SchemaCompatibilityStrategy.FORWARD),
                 "removing fields is forward compatible");
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData2, schemaData1),
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData2, schemaData1,
+                                                                SchemaCompatibilityStrategy.FORWARD),
                 "removing fields with defaults forward compatible");
     }
 
@@ -136,14 +153,56 @@ public abstract class BaseAvroSchemaCompatibilityTest {
      */
     @Test
     public void testFullCompatibility() {
-        SchemaCompatibilityCheck schemaCompatibilityCheck = getFullCompatibleSchemaCheck();
-        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData2),
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData2,
+                                                                SchemaCompatibilityStrategy.FULL),
                 "adding a field with default fully compatible");
-        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData3),
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData3,
+                                                                 SchemaCompatibilityStrategy.FULL),
                 "adding a field without default is not fully compatible");
-        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData3, schemaData1),
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData3, schemaData1,
+                                                                 SchemaCompatibilityStrategy.FULL),
                 "adding a field without default is not fully compatible");
 
+    }
+
+    @Test
+    public void testBackwardTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData5,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2, schemaData5),
+                schemaData6, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Collections.singletonList(schemaData2), schemaData8,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData8,
+                SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData8,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2, schemaData5),
+                schemaData8, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+    }
+
+    @Test
+    public void testForwardTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData3,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2, schemaData3),
+                schemaData7, SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData3, schemaData2), schemaData1,
+                SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData3, schemaData2), schemaData1,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+    }
+
+    @Test
+    public void testFullTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData3,
+                SchemaCompatibilityStrategy.FULL));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData3,
+                SchemaCompatibilityStrategy.FULL_TRANSITIVE));
     }
 
     private static SchemaData getSchemaData(String schemaJson) {

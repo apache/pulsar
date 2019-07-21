@@ -19,8 +19,8 @@
 package org.apache.pulsar.functions.instance;
 
 import org.apache.logging.log4j.core.*;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 
 import java.io.Serializable;
@@ -88,13 +88,14 @@ public class LogAppender implements Appender {
     public void start() {
         this.state = State.STARTING;
         try {
-            ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+            producer = pulsarClient.newProducer()
                     .topic(logTopic)
-                    .producerName(fqn)
                     .blockIfQueueFull(false)
                     .enableBatching(true)
-                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
-            producer = producerBuilder.create();
+                    .compressionType(CompressionType.LZ4)
+                    .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
+                    .property("function", fqn)
+                    .create();
         } catch (Exception e) {
             throw new RuntimeException("Error starting LogTopic Producer", e);
         }

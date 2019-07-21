@@ -20,16 +20,17 @@
 #define _PULSAR_BINARY_LOOKUP_SERVICE_HEADER_
 
 #include <iostream>
+#include <pulsar/defines.h>
 #include <pulsar/Authentication.h>
 #include "ConnectionPool.h"
 #include "Backoff.h"
 #include <lib/LookupService.h>
-#pragma GCC visibility push(default)
+#include <mutex>
 
 namespace pulsar {
 class LookupDataResult;
 
-class BinaryProtoLookupService : public LookupService {
+class PULSAR_PUBLIC BinaryProtoLookupService : public LookupService {
    public:
     /*
      * constructor
@@ -40,8 +41,10 @@ class BinaryProtoLookupService : public LookupService {
 
     Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr& topicName);
 
+    Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName);
+
    private:
-    boost::mutex mutex_;
+    std::mutex mutex_;
     uint64_t requestIdGenerator_;
 
     std::string serviceUrl_;
@@ -61,11 +64,16 @@ class BinaryProtoLookupService : public LookupService {
                                        const ClientConnectionWeakPtr& clientCnx,
                                        LookupDataResultPromisePtr promise);
 
+    void sendGetTopicsOfNamespaceRequest(const std::string& nsName, Result result,
+                                         const ClientConnectionWeakPtr& clientCnx,
+                                         NamespaceTopicsPromisePtr promise);
+
+    void getTopicsOfNamespaceListener(Result result, NamespaceTopicsPtr topicsPtr,
+                                      NamespaceTopicsPromisePtr promise);
+
     uint64_t newRequestId();
 };
-typedef boost::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
+typedef std::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif  //_PULSAR_BINARY_LOOKUP_SERVICE_HEADER_

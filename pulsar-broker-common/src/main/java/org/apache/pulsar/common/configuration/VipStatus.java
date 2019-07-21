@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.configuration;
 
 import java.io.File;
+import java.util.function.Supplier;
 
 import javax.servlet.ServletContext;
 import javax.ws.rs.GET;
@@ -34,6 +35,7 @@ import javax.ws.rs.core.Response.Status;
 public class VipStatus {
 
     public static final String ATTRIBUTE_STATUS_FILE_PATH = "statusFilePath";
+    public static final String ATTRIBUTE_IS_READY_PROBE = "isReadyProbe";
 
     @Context
     protected ServletContext servletContext;
@@ -41,11 +43,15 @@ public class VipStatus {
     @GET
     @Context
     public String checkStatus() {
-
         String statusFilePath = (String) servletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH);
+        @SuppressWarnings("unchecked")
+        Supplier<Boolean> isReadyProbe = (Supplier<Boolean>) servletContext.getAttribute(ATTRIBUTE_IS_READY_PROBE);
+
+        boolean isReady = isReadyProbe != null ? isReadyProbe.get() : true;
+
         if (statusFilePath != null) {
             File statusFile = new File(statusFilePath);
-            if (statusFile.exists() && statusFile.isFile()) {
+            if (isReady && statusFile.exists() && statusFile.isFile()) {
                 return "OK";
             }
         }

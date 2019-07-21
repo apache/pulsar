@@ -25,6 +25,8 @@
 namespace pulsar {
 class Hash {
    public:
+    virtual ~Hash() {}
+
     /**
      * Generate the hash of a given String
      *

@@ -67,7 +67,7 @@ admin.clusters().createCluster(clusterName, clusterData);
 
 * クラスタの名前
 * そのクラスタのLocal ZooKeeperをカンマで連結した文字列
-* インスタンス全体のGlobal ZooKeeperをカンマで連結した文字列
+* インスタンス全体のConfiguration Storeをカンマで連結した文字列
 * クラスタのウェブサービスのURL
 * クラスタ内の{% popover_ja Broker %}との対話を可能にするBrokerサービスのURL
 
@@ -83,7 +83,7 @@ Pulsarの他の多くの管理機能とは異なり、クラスタメタデー�
 bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2184 \
+  --configuration-store zk1.us-west.example.com:2184 \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \

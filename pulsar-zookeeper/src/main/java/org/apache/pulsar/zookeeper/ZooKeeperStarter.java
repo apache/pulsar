@@ -21,14 +21,11 @@ package org.apache.pulsar.zookeeper;
 import java.net.InetSocketAddress;
 
 import org.apache.zookeeper.server.quorum.QuorumPeerMain;
-import org.aspectj.weaver.loadtime.Agent;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.ea.agentloader.AgentLoader;
 
 import io.prometheus.client.exporter.MetricsServlet;
 import io.prometheus.client.hotspot.DefaultExports;
@@ -41,9 +38,6 @@ public class ZooKeeperStarter {
     protected static void start(String[] args, String defaultStatsPort) throws Exception {
         // Register basic JVM metrics
         DefaultExports.initialize();
-
-        // load aspectj-weaver agent for instrumentation
-        AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
         // Start Jetty to serve stats
         int port = Integer.parseInt(System.getProperties().getProperty("stats_server_port", defaultStatsPort));

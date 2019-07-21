@@ -19,18 +19,21 @@
 #ifndef LIB_COMPRESSIONCODECZLIB_H_
 #define LIB_COMPRESSIONCODECZLIB_H_
 
+#include <pulsar/defines.h>
 #include "CompressionCodec.h"
 #include <zlib.h>
-#include <boost/thread/mutex.hpp>
+
+// Make symbol visible to unit tests
 
 namespace pulsar {
 
-class CompressionCodecZLib : public CompressionCodec {
+class PULSAR_PUBLIC CompressionCodecZLib : public CompressionCodec {
    public:
     SharedBuffer encode(const SharedBuffer& raw);
 
     bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
 };
+
 }  // namespace pulsar
 
 #endif /* LIB_COMPRESSIONCODECZLIB_H_ */

@@ -33,6 +33,9 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import static org.apache.commons.lang3.StringUtils.isNoneBlank;
+import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+
 import org.apache.pulsar.common.nar.NarClassLoader;
 
 /**
@@ -58,8 +61,9 @@ public class FunctionCacheEntry implements AutoCloseable {
     FunctionCacheEntry(Collection<String> requiredJarFiles,
                        Collection<URL> requiredClasspaths,
                        URL[] libraryURLs,
-                       String initialInstanceId) {
-        this.classLoader = FunctionClassLoaders.create(libraryURLs, FunctionClassLoaders.class.getClassLoader());
+                       String initialInstanceId, ClassLoader rootClassLoader) {
+        this.classLoader = FunctionClassLoaders.create(libraryURLs, rootClassLoader);
+
         this.classpaths = requiredClasspaths.stream()
             .map(URL::toString)
             .collect(Collectors.toSet());
@@ -67,10 +71,8 @@ public class FunctionCacheEntry implements AutoCloseable {
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
     }
 
-    private static final Set<String> JAVA_INSTANCE_ADDITIONAL_JARS = Collections.singleton(System.getProperty(JAVA_INSTANCE_JAR_PROPERTY));
-
-    FunctionCacheEntry(String narArchive, String initialInstanceId) throws IOException {
-        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), JAVA_INSTANCE_ADDITIONAL_JARS);
+    FunctionCacheEntry(String narArchive, String initialInstanceId, ClassLoader rootClassLoader) throws IOException {
+        this.classLoader = NarClassLoader.getFromArchive(new File(narArchive), Collections.emptySet(), rootClassLoader);
         this.classpaths = Collections.emptySet();
         this.jarFiles = Collections.singleton(narArchive);
         this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));

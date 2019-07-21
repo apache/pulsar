@@ -41,9 +41,12 @@ public class CompactorSubscription extends PersistentSubscription {
 
     public CompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
                                  String subscriptionName, ManagedCursor cursor) {
-        super(topic, subscriptionName, cursor);
+        super(topic, subscriptionName, cursor, false);
         checkArgument(subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION));
         this.compactedTopic = compactedTopic;
+
+        // Avoid compactor cursor to cause entries to be cached
+        this.cursor.setAlwaysInactive();
 
         Map<String, Long> properties = cursor.getProperties();
         if (properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY)) {

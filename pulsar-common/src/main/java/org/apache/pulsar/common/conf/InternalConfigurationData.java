@@ -26,16 +26,19 @@ public class InternalConfigurationData {
     private String zookeeperServers;
     private String configurationStoreServers;
     private String ledgersRootPath;
+    private String stateStorageServiceUrl;
 
     public InternalConfigurationData() {
     }
 
     public InternalConfigurationData(String zookeeperServers,
                                      String configurationStoreServers,
-                                     String ledgersRootPath) {
+                                     String ledgersRootPath,
+                                     String stateStorageServiceUrl) {
         this.zookeeperServers = zookeeperServers;
         this.configurationStoreServers = configurationStoreServers;
         this.ledgersRootPath = ledgersRootPath;
+        this.stateStorageServiceUrl = stateStorageServiceUrl;
     }
 
     public String getZookeeperServers() {
@@ -50,6 +53,10 @@ public class InternalConfigurationData {
         return ledgersRootPath;
     }
 
+    public String getStateStorageServiceUrl() {
+        return stateStorageServiceUrl;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof InternalConfigurationData)) {
@@ -58,12 +65,13 @@ public class InternalConfigurationData {
         InternalConfigurationData other = (InternalConfigurationData) obj;
         return Objects.equals(zookeeperServers, other.zookeeperServers)
             && Objects.equals(configurationStoreServers, other.configurationStoreServers)
-            && Objects.equals(ledgersRootPath, other.ledgersRootPath);
+            && Objects.equals(ledgersRootPath, other.ledgersRootPath)
+            && Objects.equals(stateStorageServiceUrl, other.stateStorageServiceUrl);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(zookeeperServers, configurationStoreServers, ledgersRootPath);
+        return Objects.hash(zookeeperServers, configurationStoreServers, ledgersRootPath, stateStorageServiceUrl);
     }
 
     @Override
@@ -72,6 +80,7 @@ public class InternalConfigurationData {
             .add("zookeeperServers", zookeeperServers)
             .add("configurationStoreServers", configurationStoreServers)
             .add("ledgersRootPath", ledgersRootPath)
+            .add("stateStorageServiceUrl", stateStorageServiceUrl)
             .toString();
     }
 

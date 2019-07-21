@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include <pulsar/defines.h>
 #include <pulsar/MessageId.h>
 
 #include "PulsarApi.pb.h"
@@ -26,12 +27,12 @@
 #include <limits>
 #include <tuple>
 #include <math.h>
-#include <boost/make_shared.hpp>
+#include <memory>
 
 namespace pulsar {
 
 MessageId::MessageId() {
-    static const MessageIdImplPtr emptyMessageId = boost::make_shared<MessageIdImpl>();
+    static const MessageIdImplPtr emptyMessageId = std::make_shared<MessageIdImpl>();
     impl_ = emptyMessageId;
 }
 
@@ -41,7 +42,7 @@ MessageId& MessageId::operator=(const MessageId& m) {
 }
 
 MessageId::MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex)
-    : impl_(boost::make_shared<MessageIdImpl>(partition, ledgerId, entryId, batchIndex)) {}
+    : impl_(std::make_shared<MessageIdImpl>(partition, ledgerId, entryId, batchIndex)) {}
 
 const MessageId& MessageId::earliest() {
     static const MessageId _earliest(-1, -1, -1, -1);
@@ -89,15 +90,13 @@ int32_t MessageId::batchIndex() const { return impl_->batchIndex_; }
 
 int32_t MessageId::partition() const { return impl_->partition_; }
 
-#pragma GCC visibility push(default)
-
-std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
+PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
     s << '(' << messageId.impl_->ledgerId_ << ',' << messageId.impl_->entryId_ << ','
-      << messageId.impl_->batchIndex_ << ',' << messageId.impl_->partition_ << ')';
+      << messageId.impl_->partition_ << ',' << messageId.impl_->batchIndex_ << ')';
     return s;
 }
 
-bool MessageId::operator<(const MessageId& other) const {
+PULSAR_PUBLIC bool MessageId::operator<(const MessageId& other) const {
     if (impl_->ledgerId_ < other.impl_->ledgerId_) {
         return true;
     } else if (impl_->ledgerId_ > other.impl_->ledgerId_) {
@@ -117,18 +116,25 @@ bool MessageId::operator<(const MessageId& other) const {
     }
 }
 
-bool MessageId::operator<=(const MessageId& other) const { return *this < other || *this == other; }
+PULSAR_PUBLIC bool MessageId::operator<=(const MessageId& other) const {
+    return *this < other || *this == other;
+}
 
-bool MessageId::operator>(const MessageId& other) const { return !(*this <= other); }
+PULSAR_PUBLIC bool MessageId::operator>(const MessageId& other) const { return !(*this <= other); }
 
-bool MessageId::operator>=(const MessageId& other) const { return !(*this < other); }
+PULSAR_PUBLIC bool MessageId::operator>=(const MessageId& other) const { return !(*this < other); }
 
-bool MessageId::operator==(const MessageId& other) const {
+PULSAR_PUBLIC bool MessageId::operator==(const MessageId& other) const {
     return impl_->ledgerId_ == other.impl_->ledgerId_ && impl_->entryId_ == other.impl_->entryId_ &&
            impl_->batchIndex_ == other.impl_->batchIndex_ && impl_->partition_ == other.impl_->partition_;
 }
 
-bool MessageId::operator!=(const MessageId& other) const { return !(*this == other); }
+PULSAR_PUBLIC bool MessageId::operator!=(const MessageId& other) const { return !(*this == other); }
 
-#pragma GCC visibility pop
+PULSAR_PUBLIC const std::string& MessageId::getTopicName() const { return impl_->getTopicName(); }
+
+PULSAR_PUBLIC void MessageId::setTopicName(const std::string& topicName) {
+    return impl_->setTopicName(topicName);
+}
+
 }  // namespace pulsar

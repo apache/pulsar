@@ -17,13 +17,13 @@
 # under the License.
 #
 
-%define name        pulsar-client
+%define name        apache-pulsar-client
 %define release     1
 %define buildroot   %{_topdir}/%{name}-%{version}-root
 
 BuildRoot:      %{buildroot}
 Summary:        Apache Pulsar client library
-URL:            https://pulsar.incubator.apache.org/
+URL:            https://pulsar.apache.org/
 License:        Apache License v2
 Name:           %{name}
 Version:        %{version}
@@ -33,7 +33,8 @@ Prefix:         /usr
 
 %package devel
 Summary:        Apache Pulsar client library
-Provides:       pulsar-client-devel
+Provides:       apache-pulsar-client-devel
+Requires:       apache-pulsar-client
 
 %description
 The Apache Pulsar client contains a C++ and C APIs to interact
@@ -51,7 +52,7 @@ static library.
 
 %build
 cd pulsar-client-cpp
-cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
+cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON -DBUILD_PYTHON_WRAPPER=OFF
 make pulsarShared pulsarStatic -j 3
 
 %install
@@ -67,7 +68,6 @@ cp lib/libpulsar.a $LIB_DIR
 cp lib/libpulsar.so.%{pom_version} $LIB_DIR
 
 # Copy LICENSE files
-cp ../DISCLAIMER $DOC_DIR
 cp ../NOTICE $DOC_DIR
 cp pkg/licenses/* $DOC_DIR
 

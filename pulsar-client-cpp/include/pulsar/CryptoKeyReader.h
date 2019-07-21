@@ -19,16 +19,15 @@
 #ifndef CRYPTOKEYREADER_H_
 #define CRYPTOKEYREADER_H_
 
+#include <pulsar/defines.h>
 #include <pulsar/Result.h>
 #include <pulsar/EncryptionKeyInfo.h>
 
-#pragma GCC visibility push(default)
-
 namespace pulsar {
 
-class CryptoKeyReader {
+class PULSAR_PUBLIC CryptoKeyReader {
    public:
-    CryptoKeyReader() {}
+    virtual ~CryptoKeyReader() {}
 
     /*
      * Return the encryption key corresponding to the key name in the argument
@@ -62,9 +61,7 @@ class CryptoKeyReader {
 
 }; /* namespace pulsar */
 
-typedef boost::shared_ptr<CryptoKeyReader> CryptoKeyReaderPtr;
+typedef std::shared_ptr<CryptoKeyReader> CryptoKeyReaderPtr;
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif /* CRYPTOKEYREADER_H_ */

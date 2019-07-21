@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Request;
 import org.apache.pulsar.functions.worker.request.RequestResult;
@@ -81,13 +82,11 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     /**
      * Initializes the FunctionMetaDataManager.  Does the following:
-     * 1. Restores from snapshot if one exists
-     * 2. Sends out initialize marker to FMT and consume messages until the initialize marker is consumed
+     * 1. Consume all existing function meta data upon start to establish existing state
      */
     public void initialize() {
         log.info("/** Initializing Function Metadata Manager **/");
         try {
-
             Reader<byte[]> reader = pulsarClient.newReader()
                     .topic(this.workerConfig.getFunctionMetadataTopic())
                     .startMessageId(MessageId.earliest)
@@ -142,8 +141,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * @param namespace the namespace
      * @return a list of function names
      */
-    public synchronized Collection<String> listFunctions(String tenant, String namespace) {
-        List<String> ret = new LinkedList<>();
+    public synchronized Collection<FunctionMetaData> listFunctions(String tenant, String namespace) {
+        List<FunctionMetaData> ret = new LinkedList<>();
 
         if (!this.functionMetaDataMap.containsKey(tenant)) {
             return ret;
@@ -153,7 +152,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             return ret;
         }
         for (FunctionMetaData functionMetaData : this.functionMetaDataMap.get(tenant).get(namespace).values()) {
-            ret.add(functionMetaData.getFunctionDetails().getName());
+            ret.add(functionMetaData);
         }
         return ret;
     }
@@ -225,6 +224,42 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     /**
+     * Sends a start/stop function request to the FMT (Function Metadata Topic) for a function
+     * @param tenant the tenant the function that needs to be deregistered belongs to
+     * @param namespace the namespace the function that needs to be deregistered belongs to
+     * @param functionName the name of the function
+     * @param instanceId the instanceId of the function, -1 if for all instances
+     * @param start do we need to start or stop
+     * @return a completable future of when the start/stop has been applied
+     */
+    public synchronized CompletableFuture<RequestResult> changeFunctionInstanceStatus(String tenant, String namespace, String functionName,
+                                                                                      Integer instanceId, boolean start) {
+        FunctionMetaData functionMetaData = this.functionMetaDataMap.get(tenant).get(namespace).get(functionName);
+
+        FunctionMetaData.Builder builder = functionMetaData.toBuilder()
+                .setVersion(functionMetaData.getVersion() + 1);
+        if (builder.getInstanceStatesMap() == null || builder.getInstanceStatesMap().isEmpty()) {
+            for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
+                builder.putInstanceStates(i, Function.FunctionState.RUNNING);
+            }
+        }
+        Function.FunctionState state = start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED;
+        if (instanceId < 0) {
+            for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
+                builder.putInstanceStates(i, state);
+            }
+        } else {
+            builder.putInstanceStates(instanceId, state);
+        }
+        FunctionMetaData newFunctionMetaData = builder.build();
+
+        Request.ServiceRequest updateRequest = ServiceRequestUtils.getUpdateRequest(
+                this.workerConfig.getWorkerId(), newFunctionMetaData);
+
+        return submit(updateRequest);
+    }
+
+    /**
      * Processes a request received from the FMT (Function Metadata Topic)
      * @param messageId The message id of the request
      * @param serviceRequest The request
@@ -290,6 +325,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 completeRequest(deregisterRequest, true);
                 needsScheduling = true;
             } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("{}/{}/{} Ignoring outdated request version: {}", tenant, namespace, functionName,
+                            deregisterRequest.getFunctionMetaData().getVersion());
+                }
                 completeRequest(deregisterRequest, false,
                         "Request ignored because it is out of date. Please try again.");
             }
@@ -395,6 +434,15 @@ public class FunctionMetaDataManager implements AutoCloseable {
         serviceRequestInfo.setRequestResultCompletableFuture(requestResultCompletableFuture);
 
         this.pendingServiceRequests.put(serviceRequestInfo.getServiceRequest().getRequestId(), serviceRequestInfo);
+        
+        messageIdCompletableFuture.exceptionally(ex -> {
+            FunctionDetails metadata = serviceRequest.getFunctionMetaData().getFunctionDetails();
+            log.warn("Failed to submit function metadata for {}/{}/{}-{}", metadata.getTenant(),
+                    metadata.getNamespace(), metadata.getName(), ex.getMessage());
+            serviceRequestInfo.getRequestResultCompletableFuture()
+                    .completeExceptionally(new RuntimeException("Failed to submit function metadata"));
+            return null;
+        });
 
         return requestResultCompletableFuture;
     }
@@ -406,6 +454,29 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
         if (this.serviceRequestManager != null) {
             this.serviceRequestManager.close();
+        }
+    }
+
+    public boolean canChangeState(FunctionMetaData functionMetaData, int instanceId, Function.FunctionState newState) {
+        if (instanceId >= functionMetaData.getFunctionDetails().getParallelism()) {
+            return false;
+        }
+        if (functionMetaData.getInstanceStatesMap() == null || functionMetaData.getInstanceStatesMap().isEmpty()) {
+            // This means that all instances of the functions are running
+            return newState == Function.FunctionState.STOPPED;
+        }
+        if (instanceId >= 0) {
+            if (functionMetaData.getInstanceStatesMap().containsKey(instanceId)) {
+                return functionMetaData.getInstanceStatesMap().get(instanceId) != newState;
+            } else {
+                return false;
+            }
+        } else {
+            // want to change state for all instances
+            for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
+                if (state != newState) return true;
+            }
+            return false;
         }
     }
 

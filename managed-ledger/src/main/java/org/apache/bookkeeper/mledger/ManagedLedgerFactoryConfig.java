@@ -18,42 +18,42 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import lombok.Data;
+
 /**
  * Configuration for a {@link ManagedLedgerFactory}.
  */
+@Data
 public class ManagedLedgerFactoryConfig {
     private static final long MB = 1024 * 1024;
 
     private long maxCacheSize = 128 * MB;
-    private double cacheEvictionWatermark = 0.90;
-
-    public long getMaxCacheSize() {
-        return maxCacheSize;
-    }
-
-    /**
-     *
-     * @param maxCacheSize
-     * @return
-     */
-    public ManagedLedgerFactoryConfig setMaxCacheSize(long maxCacheSize) {
-        this.maxCacheSize = maxCacheSize;
-        return this;
-    }
-
-    public double getCacheEvictionWatermark() {
-        return cacheEvictionWatermark;
-    }
 
     /**
      * The cache eviction watermark is the percentage of the cache size to reach when removing entries from the cache.
-     *
-     * @param cacheEvictionWatermark
-     * @return
      */
-    public ManagedLedgerFactoryConfig setCacheEvictionWatermark(double cacheEvictionWatermark) {
-        this.cacheEvictionWatermark = cacheEvictionWatermark;
-        return this;
-    }
+    private double cacheEvictionWatermark = 0.90;
 
+    private int numManagedLedgerWorkerThreads = Runtime.getRuntime().availableProcessors();
+    private int numManagedLedgerSchedulerThreads = Runtime.getRuntime().availableProcessors();
+
+    /**
+     * Frequency of cache eviction triggering. Default is 100 times per second.
+     */
+    private double cacheEvictionFrequency = 100;
+
+    /**
+     * All entries that have stayed in cache for more than the configured time, will be evicted
+     */
+    private long cacheEvictionTimeThresholdMillis = 1000;
+
+    /**
+     * Threshould to consider a cursor as "backlogged"
+     */
+    private long thresholdBackloggedCursor = 1000;
+
+    /**
+     * Whether we should make a copy of the entry payloads when inserting in cache
+     */
+    private boolean copyEntriesInCache = false;
 }

@@ -18,22 +18,23 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.validation.constraints.AssertTrue;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.client.ClientConfig;
@@ -65,14 +66,15 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         super.init();
 
         // start proxy service
-        proxyConfig.setServicePort(PortManager.nextFreePort());
-        proxyConfig.setWebServicePort(PortManager.nextFreePort());
+        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
         proxyConfig.setBrokerWebServiceURL(brokerUrl.toString());
         proxyConfig.setStatusFilePath(STATUS_FILE_PATH);
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
 
-        webServer = new WebServer(proxyConfig);
+        webServer = new WebServer(proxyConfig, new AuthenticationService(
+                                          PulsarConfigurationLoader.convertFrom(proxyConfig)));
 
         discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);
@@ -99,7 +101,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUnauthenticatedProxy() throws Exception {
         PulsarAdmin admin = PulsarAdmin.builder()
-            .serviceHttpUrl("http://127.0.0.1:" + proxyConfig.getWebServicePort())
+            .serviceHttpUrl("http://127.0.0.1:" + proxyConfig.getWebServicePort().get())
             .build();
         List<String> activeBrokers = admin.brokers().getActiveBrokers(configClusterName);
         Assert.assertEquals(activeBrokers.size(), 1);
@@ -110,7 +112,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testVipStatus() throws Exception {
         Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        WebTarget webTarget = client.target("http://127.0.0.1:" + proxyConfig.getWebServicePort())
+        WebTarget webTarget = client.target("http://127.0.0.1:" + proxyConfig.getWebServicePort().get())
                 .path("/status.html");
         String response = webTarget.request().get(String.class);
         Assert.assertEquals(response, "OK");

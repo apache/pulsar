@@ -20,11 +20,22 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import java.util.HashSet;
 import java.util.Set;
 
+@ApiModel(
+    value = "FailureDomain",
+    description = "The data of a failure domain configuration in a cluster"
+)
 public class FailureDomain {
 
+    @ApiModelProperty(
+        name = "brokers",
+        value = "The collection of brokers in the same failure domain",
+        example = "[ 'broker-1', 'broker-2' ]"
+    )
     public Set<String> brokers = new HashSet<String>();
 
     public Set<String> getBrokers() {
@@ -33,6 +44,11 @@ public class FailureDomain {
 
     public void setBrokers(Set<String> brokers) {
         this.brokers = brokers;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(brokers);
     }
 
     @Override

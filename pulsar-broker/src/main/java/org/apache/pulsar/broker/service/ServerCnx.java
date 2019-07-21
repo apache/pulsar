@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
-import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
+import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import com.google.common.base.Strings;
@@ -50,21 +50,28 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.api.CommandUtils;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.PulsarHandler;
+import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.protocol.CommandUtils;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -72,6 +79,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
@@ -92,9 +100,9 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
@@ -103,12 +111,15 @@ import org.slf4j.LoggerFactory;
 
 public class ServerCnx extends PulsarHandler {
     private final BrokerService service;
+    private final SchemaRegistryService schemaService;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private State state;
     private volatile boolean isActive = true;
     String authRole = null;
     AuthenticationDataSource authenticationData;
+    AuthenticationProvider authenticationProvider;
+    AuthenticationState authState;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -122,14 +133,18 @@ public class ServerCnx extends PulsarHandler {
     private String originalPrincipal = null;
     private Set<String> proxyRoles;
     private boolean authenticateOriginalAuthData;
+    private final boolean schemaValidationEnforced;
+    private String authMethod = "none";
+    private final int maxMessageSize;
 
     enum State {
-        Start, Connected, Failed
+        Start, Connected, Failed, Connecting
     }
 
-    public ServerCnx(BrokerService service) {
-        super(service.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
-        this.service = service;
+    public ServerCnx(PulsarService pulsar) {
+        super(pulsar.getBrokerService().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
+        this.service = pulsar.getBrokerService();
+        this.schemaService = pulsar.getSchemaRegistryService();
         this.state = State.Start;
 
         // This maps are not heavily contended since most accesses are within the cnx thread
@@ -139,7 +154,9 @@ public class ServerCnx extends PulsarHandler {
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
                 .getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
-        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().authenticateOriginalAuthData();
+        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().isAuthenticateOriginalAuthData();
+        this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
+        this.maxMessageSize = pulsar.getConfiguration().getMaxMessageSize();
     }
 
     @Override
@@ -204,14 +221,14 @@ public class ServerCnx extends PulsarHandler {
     }
 
     /*
-     * If authentication and authorization is enabled and if the authRole is one of proxyRoles we want to enforce
+     * If authentication and authorization is enabled(and not sasl) and if the authRole is one of proxyRoles we want to enforce
      * - the originalPrincipal is given while connecting
      * - originalPrincipal is not blank
      * - originalPrincipal is not a proxy principal
      */
     private boolean invalidOriginalPrincipal(String originalPrincipal) {
-        return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
-                && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal)));
+        return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()
+            && proxyRoles.contains(authRole) && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal)));
     }
 
     // ////
@@ -244,7 +261,7 @@ public class ServerCnx extends PulsarHandler {
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationService().canLookupAsync(topicName, authRole,
-                        authenticationData);
+                    authenticationData);
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -301,7 +318,7 @@ public class ServerCnx extends PulsarHandler {
         if (topicName == null) {
             return;
         }
-        
+
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             if (invalidOriginalPrincipal(originalPrincipal)) {
@@ -437,52 +454,127 @@ public class ServerCnx extends PulsarHandler {
         return originalPrincipal;
     }
 
+    // complete the connect and sent newConnected command
+    private void completeConnect(int clientProtoVersion, String clientVersion) {
+        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
+        state = State.Connected;
+        remoteEndpointProtocolVersion = clientProtoVersion;
+        if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
+            this.clientVersion = clientVersion.intern();
+        }
+    }
+
+    // According to auth result, send newConnected or newAuthChallenge command.
+    private void doAuthentication(AuthData clientData,
+                                  int clientProtocolVersion,
+                                  String clientVersion) throws Exception {
+        AuthData brokerData = authState.authenticate(clientData);
+        // authentication has completed, will send newConnected command.
+        if (authState.isComplete()) {
+            authRole = authState.getAuthRole();
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
+                    remoteAddress, authMethod, authRole, originalPrincipal);
+            }
+            completeConnect(clientProtocolVersion, clientVersion);
+            return;
+        }
+
+        // auth not complete, continue auth with client side.
+        ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, clientProtocolVersion));
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Authentication in progress client by method {}.",
+                remoteAddress, authMethod);
+        }
+        state = State.Connecting;
+        return;
+    }
+
     @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Start);
-        if (service.isAuthenticationEnabled()) {
-            try {
-                String authMethod = "none";
-                if (connect.hasAuthMethodName()) {
-                    authMethod = connect.getAuthMethodName();
-                } else if (connect.hasAuthMethod()) {
-                    // Legacy client is passing enum
-                    authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
-                }
 
-                String authData = connect.getAuthData().toStringUtf8();
-                ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
-                SSLSession sslSession = null;
-                if (sslHandler != null) {
-                    sslSession = ((SslHandler) sslHandler).engine().getSession();
-                }
-                originalPrincipal = getOriginalPrincipal(
-                        connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
-                        connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
-                        connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
-                        sslSession);
-                authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
-                authRole = getBrokerService().getAuthenticationService()
-                        .authenticate(authenticationData, authMethod);
+        if (log.isDebugEnabled()) {
+            log.debug("Received CONNECT from {}, auth enabled: {}",
+                remoteAddress, service.isAuthenticationEnabled());
+        }
 
-                log.info("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}", remoteAddress, authMethod, authRole, originalPrincipal);
-            } catch (AuthenticationException e) {
-                String msg = "Unable to authenticate";
-                log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
-                ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
-                close();
+        String clientVersion = connect.getClientVersion();
+        int clientProtocolVersion = connect.getProtocolVersion();
+
+        if (!service.isAuthenticationEnabled()) {
+            completeConnect(clientProtocolVersion, clientVersion);
+            return;
+        }
+
+        try {
+            AuthData clientData = AuthData.of(connect.getAuthData().toByteArray());
+
+            // init authentication
+            if (connect.hasAuthMethodName()) {
+                authMethod = connect.getAuthMethodName();
+            } else if (connect.hasAuthMethod()) {
+                // Legacy client is passing enum
+                authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
+            } else {
+                authMethod = "none";
+            }
+
+            authenticationProvider = getBrokerService()
+                .getAuthenticationService()
+                .getAuthenticationProvider(authMethod);
+
+            // Not find provider named authMethod. Most used for tests.
+            // In AuthenticationDisabled, it will set authMethod "none".
+            if (authenticationProvider == null) {
+                authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole()
+                    .orElseThrow(() ->
+                        new AuthenticationException("No anonymous role, and no authentication provider configured"));
+                completeConnect(clientProtocolVersion, clientVersion);
                 return;
             }
+
+            // init authState and other var
+            ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
+            SSLSession sslSession = null;
+            if (sslHandler != null) {
+                sslSession = ((SslHandler) sslHandler).engine().getSession();
+            }
+            originalPrincipal = getOriginalPrincipal(
+                connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
+                connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
+                connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
+                sslSession);
+
+            authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+            doAuthentication(clientData, clientProtocolVersion, clientVersion);
+        } catch (Exception e) {
+            String msg = "Unable to authenticate";
+            log.warn("[{}] {} ", remoteAddress, msg, e);
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
+            close();
         }
+    }
+
+    @Override
+    protected void handleAuthResponse(CommandAuthResponse authResponse) {
+        checkArgument(state == State.Connecting);
+        checkArgument(authResponse.hasResponse());
+        checkArgument(authResponse.getResponse().hasAuthData() && authResponse.getResponse().hasAuthMethodName());
+
         if (log.isDebugEnabled()) {
-            log.debug("Received CONNECT from {}", remoteAddress);
+            log.debug("Received AuthResponse from {}, auth method: {}",
+                remoteAddress, authResponse.getResponse().getAuthMethodName());
         }
-        ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
-        state = State.Connected;
-        remoteEndpointProtocolVersion = connect.getProtocolVersion();
-        String version = connect.hasClientVersion() ? connect.getClientVersion() : null;
-        if (isNotBlank(version) && !version.contains(" ") /* ignore default version: pulsar client */) {
-            this.clientVersion = version.intern();
+
+        try {
+            AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData().toByteArray());
+            doAuthentication(clientData, authResponse.getProtocolVersion(), authResponse.getClientVersion());
+        } catch (Exception e) {
+            String msg = "Unable to handleAuthResponse";
+            log.warn("[{}] {} ", remoteAddress, msg, e);
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
+            close();
         }
     }
 
@@ -518,6 +610,7 @@ public class ServerCnx extends PulsarHandler {
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
+        final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -558,8 +651,8 @@ public class ServerCnx extends PulsarHandler {
                         if (existingConsumerFuture != null) {
                             if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
                                 Consumer consumer = existingConsumerFuture.getNow(null);
-                                log.info("[{}] Consumer with the same id is already created: {}", remoteAddress,
-                                        consumer);
+                                log.info("[{}] Consumer with the same id {} is already created: {}", remoteAddress,
+                                        consumerId, consumer);
                                 ctx.writeAndFlush(Commands.newSuccess(requestId));
                                 return null;
                             } else {
@@ -568,10 +661,15 @@ public class ServerCnx extends PulsarHandler {
                                 // client timeout is lower the broker timeouts. We need to wait until the previous
                                 // consumer
                                 // creation request either complete or fails.
-                                log.warn("[{}][{}][{}] Consumer is already present on the connection", remoteAddress,
-                                        topicName, subscriptionName);
-                                ServerError error = !existingConsumerFuture.isDone() ? ServerError.ServiceNotReady
-                                        : getErrorCode(existingConsumerFuture);
+                                log.warn("[{}][{}][{}] Consumer with id {} is already present on the connection", remoteAddress,
+                                        topicName, subscriptionName, consumerId);
+                                ServerError error = null;
+                                if(!existingConsumerFuture.isDone()) {
+                                    error = ServerError.ServiceNotReady;
+                                }else {
+                                    error = getErrorCode(existingConsumerFuture);
+                                    consumers.remove(consumerId);
+                                }
                                 ctx.writeAndFlush(Commands.newError(requestId, error,
                                         "Consumer is already present on the connection"));
                                 return null;
@@ -581,21 +679,25 @@ public class ServerCnx extends PulsarHandler {
                         service.getOrCreateTopic(topicName.toString())
                                 .thenCompose(topic -> {
                                     if (schema != null) {
-                                        return topic.isSchemaCompatible(schema).thenCompose(isCompatible -> {
-                                            if (isCompatible) {
-                                                return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                    subType, priorityLevel, consumerName, isDurable,
-                                                    startMessageId, metadata, readCompacted, initialPosition);
-                                            } else {
-                                                return FutureUtil.failedFuture(new BrokerServiceException(
-                                                    "Trying to subscribe with incompatible schema"
-                                                ));
-                                            }
-                                        });
+                                        return topic.addSchemaIfIdleOrCheckCompatible(schema)
+                                            .thenCompose(isCompatible -> {
+                                                    if (isCompatible) {
+                                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                                subType, priorityLevel, consumerName, isDurable,
+                                                                startMessageId, metadata,
+                                                                readCompacted, initialPosition, isReplicated);
+                                                    } else {
+                                                        return FutureUtil.failedFuture(
+                                                                new IncompatibleSchemaException(
+                                                                        "Trying to subscribe with incompatible schema"
+                                                        ));
+                                                    }
+                                                });
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
-                                            startMessageId, metadata, readCompacted, initialPosition);
+                                            startMessageId, metadata, readCompacted, initialPosition,
+                                            isReplicated);
                                     }
                                 })
                                 .thenAccept(consumer -> {
@@ -636,7 +738,7 @@ public class ServerCnx extends PulsarHandler {
                                     // back to client, only if not completed already.
                                     if (consumerFuture.completeExceptionally(exception)) {
                                         ctx.writeAndFlush(Commands.newError(requestId,
-                                                BrokerServiceException.getClientErrorCode(exception.getCause()),
+                                                BrokerServiceException.getClientErrorCode(exception),
                                                 exception.getCause().getMessage()));
                                     }
                                     consumers.remove(consumerId, consumerFuture);
@@ -674,30 +776,13 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
-    private static SchemaType getType(PulsarApi.Schema.Type protocolType) {
-        switch (protocolType) {
-        case None:
-            return SchemaType.NONE;
-        case String:
-            return SchemaType.STRING;
-        case Json:
-            return SchemaType.JSON;
-        case Protobuf:
-            return SchemaType.PROTOBUF;
-        case Avro:
-            return SchemaType.AVRO;
-        default:
-            return SchemaType.NONE;
-        }
-    }
-
     private SchemaData getSchema(PulsarApi.Schema protocolSchema) {
         return SchemaData.builder()
             .data(protocolSchema.getSchemaData().toByteArray())
             .isDeleted(false)
             .timestamp(System.currentTimeMillis())
             .user(Strings.nullToEmpty(originalPrincipal))
-            .type(getType(protocolSchema.getType()))
+            .type(Commands.getSchemaType(protocolSchema.getType()))
             .props(protocolSchema.getPropertiesList().stream().collect(
                 Collectors.toMap(
                     PulsarApi.KeyValue::getKey,
@@ -760,8 +845,8 @@ public class ServerCnx extends PulsarHandler {
                         if (existingProducerFuture != null) {
                             if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
                                 Producer producer = existingProducerFuture.getNow(null);
-                                log.info("[{}] Producer with the same id is already created: {}", remoteAddress,
-                                        producer);
+                                log.info("[{}] Producer with the same id {} is already created: {}", remoteAddress,
+                                        producerId, producer);
                                 ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producer.getProducerName(),
                                     producer.getSchemaVersion()));
                                 return null;
@@ -773,10 +858,16 @@ public class ServerCnx extends PulsarHandler {
                                 // until the previous producer creation
                                 // request
                                 // either complete or fails.
-                                ServerError error = !existingProducerFuture.isDone() ? ServerError.ServiceNotReady
-                                        : getErrorCode(existingProducerFuture);
-                                log.warn("[{}][{}] Producer is already present on the connection", remoteAddress,
-                                        topicName);
+                                ServerError error = null;
+                                if(!existingProducerFuture.isDone()) {
+                                    error = ServerError.ServiceNotReady;
+                                }else {
+                                    error = getErrorCode(existingProducerFuture);
+                                    // remove producer with producerId as it's already completed with exception
+                                    producers.remove(producerId);
+                                }
+                                log.warn("[{}][{}] Producer with id {} is already present on the connection", remoteAddress,
+                                        producerId, topicName);
                                 ctx.writeAndFlush(Commands.newError(requestId, error,
                                         "Producer is already present on the connection"));
                                 return null;
@@ -811,6 +902,7 @@ public class ServerCnx extends PulsarHandler {
                                 String msg = String.format("Encryption is required in %s", topicName);
                                 log.warn("[{}] {}", remoteAddress, msg);
                                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                                producers.remove(producerId, producerFuture);
                                 return;
                             }
 
@@ -820,11 +912,24 @@ public class ServerCnx extends PulsarHandler {
                             if (schema != null) {
                                 schemaVersionFuture = topic.addSchema(schema);
                             } else {
-                                schemaVersionFuture = CompletableFuture.completedFuture(SchemaVersion.Empty);
+                                schemaVersionFuture = topic.hasSchema().thenCompose((hasSchema) -> {
+                                        log.info("[{}]-{} {} configured with schema {}", remoteAddress, producerId,
+                                                topicName, hasSchema);
+                                        CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
+                                        if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
+                                            result.completeExceptionally(new IncompatibleSchemaException(
+                                                "Producers cannot connect without a schema to topics with a schema"));
+                                        } else {
+                                            result.complete(SchemaVersion.Empty);
+                                        }
+                                        return result;
+                                    });
                             }
 
                             schemaVersionFuture.exceptionally(exception -> {
-                                ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError, exception.getMessage()));
+                                ctx.writeAndFlush(Commands.newError(requestId,
+                                        BrokerServiceException.getClientErrorCode(exception),
+                                        exception.getMessage()));
                                 producers.remove(producerId, producerFuture);
                                 return null;
                             });
@@ -951,10 +1056,11 @@ public class ServerCnx extends PulsarHandler {
         headersAndPayload.markReaderIndex();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         headersAndPayload.resetReaderIndex();
-
-        log.debug("[{}] Received send message request. producer: {}:{} {}:{} size: {}", remoteAddress,
-                send.getProducerId(), send.getSequenceId(), msgMetadata.getProducerName(), msgMetadata.getSequenceId(),
-                headersAndPayload.readableBytes());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received send message request. producer: {}:{} {}:{} size: {}, partition key is: {}, ordering key is {}",
+                    remoteAddress, send.getProducerId(), send.getSequenceId(), msgMetadata.getProducerName(), msgMetadata.getSequenceId(),
+                    headersAndPayload.readableBytes(), msgMetadata.getPartitionKey(), msgMetadata.getOrderingKey());
+        }
         msgMetadata.recycle();
     }
 
@@ -999,7 +1105,7 @@ public class ServerCnx extends PulsarHandler {
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
-            if (redeliver.getMessageIdsCount() > 0 && consumer.subType() == SubType.Shared) {
+            if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
                 consumer.redeliverUnacknowledgedMessages();
@@ -1027,14 +1133,15 @@ public class ServerCnx extends PulsarHandler {
         final long requestId = seek.getRequestId();
         CompletableFuture<Consumer> consumerFuture = consumers.get(seek.getConsumerId());
 
-        // Currently only seeking on a message id is supported
-        if (!seek.hasMessageId()) {
+        if (!seek.hasMessageId() && !seek.hasMessagePublishTime()) {
             ctx.writeAndFlush(
-                    Commands.newError(requestId, ServerError.MetadataError, "Message id was not present"));
+                    Commands.newError(requestId, ServerError.MetadataError, "Message id and message publish time were not present"));
             return;
         }
 
-        if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
+        boolean consumerCreated = consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally();
+
+        if (consumerCreated && seek.hasMessageId()) {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
             MessageIdData msgIdData = seek.getMessageId();
@@ -1050,6 +1157,21 @@ public class ServerCnx extends PulsarHandler {
                 log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress, subscription, ex.getMessage(), ex);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
                         "Error when resetting subscription: " + ex.getCause().getMessage()));
+                return null;
+            });
+        } else if (consumerCreated && seek.hasMessagePublishTime()){
+            Consumer consumer = consumerFuture.getNow(null);
+            Subscription subscription = consumer.getSubscription();
+            long timestamp = seek.getMessagePublishTime();
+
+            subscription.resetCursor(timestamp).thenRun(() -> {
+                log.info("[{}] [{}][{}] Reset subscription to publish time {}", remoteAddress,
+                        subscription.getTopic().getName(), subscription.getName(), timestamp);
+                ctx.writeAndFlush(Commands.newSuccess(requestId));
+            }).exceptionally(ex -> {
+                log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress, subscription, ex.getMessage(), ex);
+                ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
+                        "Reset subscription to publish time error: " + ex.getCause().getMessage()));
                 return null;
             });
         } else {
@@ -1176,11 +1298,13 @@ public class ServerCnx extends PulsarHandler {
     protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
         final String namespace = commandGetTopicsOfNamespace.getNamespace();
+        final CommandGetTopicsOfNamespace.Mode mode = commandGetTopicsOfNamespace.getMode();
 
         try {
-            List<String> topics = getBrokerService().pulsar()
-                .getNamespaceService()
-                .getListOfTopics(NamespaceName.get(namespace));
+            final NamespaceName namespaceName = NamespaceName.get(namespace);
+
+            final List<String> topics = getBrokerService().pulsar().getNamespaceService()
+                .getListOfTopics(namespaceName, mode);
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
@@ -1189,7 +1313,7 @@ public class ServerCnx extends PulsarHandler {
 
             ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
         } catch (Exception e) {
-            log.warn("[{]] Error GetTopicsOfNamespace for namespace [//{}] by {}",
+            log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
                 remoteAddress, namespace, requestId);
             ctx.writeAndFlush(
                 Commands.newError(requestId,
@@ -1197,6 +1321,43 @@ public class ServerCnx extends PulsarHandler {
                     e.getMessage()));
         }
     }
+
+    @Override
+    protected void handleGetSchema(CommandGetSchema commandGetSchema) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandGetSchema call from {}", remoteAddress);
+        }
+
+        long requestId = commandGetSchema.getRequestId();
+        SchemaVersion schemaVersion = SchemaVersion.Latest;
+        if (commandGetSchema.hasSchemaVersion()) {
+            schemaVersion = schemaService.versionFromBytes(commandGetSchema.getSchemaVersion().toByteArray());
+        }
+
+        String schemaName;
+        try {
+            schemaName = TopicName.get(commandGetSchema.getTopic()).getSchemaName();
+        } catch (Throwable t) {
+            ctx.writeAndFlush(
+                    Commands.newGetSchemaResponseError(requestId, ServerError.InvalidTopicName, t.getMessage()));
+            return;
+        }
+
+        schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
+            if (schemaAndMetadata == null) {
+                ctx.writeAndFlush(Commands.newGetSchemaResponseError(requestId, ServerError.TopicNotFound,
+                        "Topic not found or no-schema"));
+            } else {
+                ctx.writeAndFlush(Commands.newGetSchemaResponse(requestId,
+                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version));
+            }
+        }).exceptionally(ex -> {
+            ctx.writeAndFlush(
+                    Commands.newGetSchemaResponseError(requestId, ServerError.UnknownError, ex.getMessage()));
+            return null;
+        });
+    }
+
 
     @Override
     protected boolean isHandshakeCompleted() {
@@ -1295,7 +1456,7 @@ public class ServerCnx extends PulsarHandler {
             future.getNow(null);
         } catch (Exception e) {
             if (e.getCause() instanceof BrokerServiceException) {
-                error = BrokerServiceException.getClientErrorCode((BrokerServiceException) e.getCause());
+                error = BrokerServiceException.getClientErrorCode(e.getCause());
             }
         }
         return error;
@@ -1347,6 +1508,10 @@ public class ServerCnx extends PulsarHandler {
      */
     public State getState() {
         return state;
+    }
+
+    public SocketAddress getRemoteAddress() {
+        return remoteAddress;
     }
 
     public BrokerService getBrokerService() {

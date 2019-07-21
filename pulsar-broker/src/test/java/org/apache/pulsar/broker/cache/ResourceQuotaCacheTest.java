@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.cache;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -54,7 +54,7 @@ public class ResourceQuotaCacheTest {
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), 30, executor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
 
         // set mock pulsar localzkcache

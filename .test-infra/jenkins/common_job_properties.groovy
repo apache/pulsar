@@ -27,12 +27,12 @@ class common_job_properties {
                                               String branch = 'master') {
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://jenkins@github.com/apache/incubator-pulsar/')
+      githubProjectUrl('https://jenkins@github.com/apache/pulsar/')
     }
 
     setTopLevelJobProperties(
             context,
-            'https://gitbox.apache.org/repos/asf/incubator-pulsar.git',
+            'https://gitbox.apache.org/repos/asf/pulsar.git',
             branch,
             'git-websites',
             30)
@@ -46,13 +46,13 @@ class common_job_properties {
                                            String jenkinsExecutorLabel = 'Hadoop') {
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/incubator-pulsar/')
+      githubProjectUrl('https://github.com/apache/pulsar/')
     }
 
 
     setTopLevelJobProperties(
             context,
-            'https://github.com/apache/incubator-pulsar.git',
+            'https://github.com/apache/pulsar.git',
             branch,
             jenkinsExecutorLabel,
             timeout)
@@ -227,7 +227,7 @@ class common_job_properties {
   static void setPostCommit(context,
                             String buildSchedule = '0 */6 * * *',
                             boolean triggerEveryPush = true,
-                            String notifyAddress = 'dev@pulsar.incubator.apache.org',
+                            String notifyAddress = 'dev@pulsar.apache.org',
                             boolean emailIndividuals = true) {
     // Set build triggers
     context.triggers {
@@ -247,7 +247,7 @@ class common_job_properties {
   // Sets common config for Website PostCommit jobs.
   static void setWebsitePostCommit(context,
                                    String buildSchedule = 'H 1 * * *',
-                                   String notifyAddress = 'dev@pulsar.incubator.apache.org',
+                                   String notifyAddress = 'dev@pulsar.apache.org',
                                    boolean emailIndividuals = true) {
     // Set build triggers
     context.triggers {

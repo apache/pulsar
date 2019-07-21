@@ -19,6 +19,15 @@
 #include "ConnectionPool.h"
 
 #include "LogUtils.h"
+#include "Url.h"
+
+#include <boost/iostreams/stream.hpp>
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+
+using boost::asio::ip::tcp;
+namespace ssl = boost::asio::ssl;
+typedef ssl::stream<tcp::socket> ssl_socket;
 
 DECLARE_LOG_OBJECT()
 
@@ -35,7 +44,7 @@ ConnectionPool::ConnectionPool(const ClientConfiguration& conf, ExecutorServiceP
 
 Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     const std::string& logicalAddress, const std::string& physicalAddress) {
-    boost::unique_lock<boost::mutex> lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
 
     if (poolConnections_) {
         PoolMap::iterator cnxIt = pool_.find(logicalAddress);
@@ -70,4 +79,5 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     cnx->tcpConnectAsync();
     return future;
 }
+
 }  // namespace pulsar

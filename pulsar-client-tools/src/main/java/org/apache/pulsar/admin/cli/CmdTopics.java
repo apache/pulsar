@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
 public class CmdTopics extends CmdBase {
@@ -81,6 +82,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("expire-messages-all-subscriptions", new ExpireMessagesForAllSubscriptions());
 
         jcommander.addCommand("create-partitioned-topic", new CreatePartitionedCmd());
+        jcommander.addCommand("create", new CreateNonPartitionedCmd());
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
 
@@ -92,6 +94,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
         jcommander.addCommand("offload", new Offload());
         jcommander.addCommand("offload-status", new OffloadStatusCmd());
+        jcommander.addCommand("last-message-id", new GetLastMessageId());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -211,6 +214,19 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Create a non-partitioned topic.")
+    private class CreateNonPartitionedCmd extends CliCommand {
+    	
+    	@Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+    	private java.util.List<String> params;
+    	
+    	@Override
+    	void run() throws Exception {
+    		String topic = validateTopicName(params);
+    		topics.createNonPartitionedTopic(topic);
+    	}
+    }
+    
     @Parameters(commandDescription = "Update existing non-global partitioned topic. \n"
             + "\t\tNew updating number of partitions must be greater than existing number of partitions.")
     private class UpdatePartitionedCmd extends CliCommand {
@@ -254,10 +270,17 @@ public class CmdTopics extends CmdBase {
                 "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
 
+        @Parameter(names = { "-d",
+                "--deleteSchema" }, description = "Delete schema while deleting topic")
+        private boolean deleteSchema = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
             topics.deletePartitionedTopic(topic, force);
+            if (deleteSchema) {
+                admin.schemas().deleteSchema(topic);
+            }
         }
     }
 
@@ -271,10 +294,17 @@ public class CmdTopics extends CmdBase {
                 "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
 
+        @Parameter(names = { "-d",
+                "--deleteSchema" }, description = "Delete schema while deleting topic")
+        private boolean deleteSchema = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             topics.delete(topic, force);
+            if (deleteSchema) {
+                admin.schemas().deleteSchema(topic);
+            }
         }
     }
 
@@ -494,8 +524,8 @@ public class CmdTopics extends CmdBase {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
                 topics.resetCursor(persistentTopic, subName, messageId);
             } else if (isNotBlank(resetTimeStr)) {
-                int resetBackTimeInMin = validateTimeString(resetTimeStr);
-                long resetTimeInMillis = TimeUnit.MILLISECONDS.convert(resetBackTimeInMin, TimeUnit.MINUTES);
+                long resetTimeInMillis = TimeUnit.SECONDS
+                        .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
                 topics.resetCursor(persistentTopic, subName, timestamp);
@@ -705,6 +735,18 @@ public class CmdTopics extends CmdBase {
             } catch (InterruptedException e) {
                 throw new PulsarAdminException(e);
             }
+        }
+    }
+
+    @Parameters(commandDescription = "get the last commit message id of topic")
+    private class GetLastMessageId extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(topics.getLastMessageId(persistentTopic));
         }
     }
 }

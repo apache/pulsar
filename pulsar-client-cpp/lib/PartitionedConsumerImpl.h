@@ -21,9 +21,9 @@
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
 #include <vector>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
-#include "boost/enable_shared_from_this.hpp"
+#include <queue>
+
+#include <mutex>
 #include "ConsumerImplBase.h"
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include <lib/Latch.h>
@@ -33,7 +33,7 @@
 namespace pulsar {
 class PartitionedConsumerImpl;
 class PartitionedConsumerImpl : public ConsumerImplBase,
-                                public boost::enable_shared_from_this<PartitionedConsumerImpl> {
+                                public std::enable_shared_from_this<PartitionedConsumerImpl> {
    public:
     enum PartitionedConsumerState
     {
@@ -52,6 +52,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     virtual const std::string& getTopic() const;
     virtual Result receive(Message& msg);
     virtual Result receive(Message& msg, int timeout);
+    virtual void receiveAsync(ReceiveCallback& callback);
     virtual void unsubscribeAsync(ResultCallback callback);
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
@@ -70,6 +71,8 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
                                 size_t, BrokerConsumerStatsCallback);
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
 
+    virtual void negativeAcknowledge(const MessageId& msgId);
+
    private:
     const ClientImplPtr client_;
     const std::string subscriptionName_;
@@ -79,7 +82,8 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     const ConsumerConfiguration conf_;
     typedef std::vector<ConsumerImplPtr> ConsumerList;
     ConsumerList consumers_;
-    boost::mutex mutex_;
+    std::mutex mutex_;
+    std::mutex pendingReceiveMutex_;
     PartitionedConsumerState state_;
     unsigned int unsubscribedSoFar_;
     BlockingQueue<Message> messages_;
@@ -99,10 +103,12 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     void messageReceived(Consumer consumer, const Message& msg);
     void internalListener(Consumer consumer);
     void receiveMessages();
+    void failPendingReceiveCallback();
     Promise<Result, ConsumerImplBaseWeakPtr> partitionedConsumerCreatedPromise_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
+    std::queue<ReceiveCallback> pendingReceives_;
 };
-typedef boost::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
-typedef boost::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
+typedef std::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
+typedef std::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
 }  // namespace pulsar
 #endif  // PULSAR_PARTITIONED_CONSUMER_HEADER

@@ -27,10 +27,18 @@ import com.google.common.collect.Maps;
 public class AuthPolicies {
     public final Map<String, Set<AuthAction>> namespace_auth;
     public final Map<String, Map<String, Set<AuthAction>>> destination_auth;
+    public final Map<String, Set<String>> subscription_auth_roles;
 
     public AuthPolicies() {
         namespace_auth = Maps.newTreeMap();
         destination_auth = Maps.newTreeMap();
+        subscription_auth_roles = Maps.newTreeMap();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(namespace_auth, destination_auth,
+                subscription_auth_roles);
     }
 
     @Override
@@ -38,7 +46,8 @@ public class AuthPolicies {
         if (obj instanceof AuthPolicies) {
             AuthPolicies other = (AuthPolicies) obj;
             return Objects.equals(namespace_auth, other.namespace_auth)
-                    && Objects.equals(destination_auth, other.destination_auth);
+                    && Objects.equals(destination_auth, other.destination_auth)
+                    && Objects.equals(subscription_auth_roles, other.subscription_auth_roles);
         }
 
         return false;

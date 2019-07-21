@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
-import static org.apache.pulsar.common.api.Commands.hasChecksum;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
+import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
+import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -32,7 +32,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
@@ -40,16 +42,17 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 
 /**
  * Represents a currently connected producer
@@ -107,7 +110,7 @@ public class Producer {
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
-        this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
+        this.remoteCluster = isRemote ? producerName.split("\\.")[2].split(REPL_PRODUCER_NAME_DELIMITER)[0] : null;
 
         this.isEncrypted = isEncrypted;
         this.schemaVersion = schemaVersion;
@@ -168,7 +171,8 @@ public class Producer {
 
         startPublishOperation();
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize));
+                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                        System.nanoTime()));
     }
 
     private boolean verifyChecksum(ByteBuf headersAndPayload) {
@@ -242,6 +246,7 @@ public class Producer {
         private Rate rateIn;
         private int msgSize;
         private long batchSize;
+        private long startTimeNs;
 
         private String originalProducerName;
         private long originalSequenceId;
@@ -302,6 +307,7 @@ public class Producer {
 
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
+                producer.topic.recordAddLatency(TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTimeNs));
                 producer.cnx.ctx().channel().eventLoop().execute(this);
             }
         }
@@ -327,7 +333,7 @@ public class Producer {
         }
 
         static MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
-                long batchSize) {
+                long batchSize, long startTimeNs) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
@@ -336,6 +342,7 @@ public class Producer {
             callback.batchSize = batchSize;
             callback.originalProducerName = null;
             callback.originalSequenceId = -1;
+            callback.startTimeNs = startTimeNs;
             return callback;
         }
 
@@ -359,6 +366,7 @@ public class Producer {
             ledgerId = -1;
             entryId = -1;
             batchSize = 0;
+            startTimeNs = -1;
             recyclerHandle.recycle(this);
         }
     }

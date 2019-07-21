@@ -19,19 +19,19 @@
 #ifndef _PULSAR_CONNECTION_POOL_HEADER_
 #define _PULSAR_CONNECTION_POOL_HEADER_
 
+#include <pulsar/defines.h>
 #include <pulsar/Result.h>
 
 #include "ClientConnection.h"
 
 #include <string>
 #include <map>
-#include <boost/thread/mutex.hpp>
-#pragma GCC visibility push(default)
+#include <mutex>
 namespace pulsar {
 
 class ExecutorService;
 
-class ConnectionPool {
+class PULSAR_PUBLIC ConnectionPool {
    public:
     ConnectionPool(const ClientConfiguration& conf, ExecutorServiceProviderPtr executorProvider,
                    const AuthenticationPtr& authentication, bool poolConnections = true);
@@ -62,10 +62,9 @@ class ConnectionPool {
     typedef std::map<std::string, ClientConnectionWeakPtr> PoolMap;
     PoolMap pool_;
     bool poolConnections_;
-    boost::mutex mutex_;
+    std::mutex mutex_;
 
     friend class ConnectionPoolTest;
 };
 }  // namespace pulsar
-#pragma GCC visibility pop
 #endif  //_PULSAR_CONNECTION_POOL_HEADER_

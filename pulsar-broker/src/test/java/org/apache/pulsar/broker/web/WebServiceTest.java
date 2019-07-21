@@ -31,6 +31,7 @@ import java.security.cert.Certificate;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -242,14 +243,15 @@ public class WebServiceTest {
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setAdvertisedAddress("localhost");
-        config.setWebServicePort(BROKER_WEBSERVICE_PORT);
-        config.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        config.setWebServicePort(Optional.ofNullable(BROKER_WEBSERVICE_PORT));
+        if (enableTls) {
+            config.setWebServicePortTls(Optional.ofNullable(BROKER_WEBSERVICE_PORT_TLS));
+        }
         config.setClientLibraryVersionCheckEnabled(enableFilter);
         config.setAuthenticationEnabled(enableAuth);
         config.setAuthenticationProviders(providers);
         config.setAuthorizationEnabled(false);
         config.setSuperUserRoles(roles);
-        config.setTlsEnabled(enableTls);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(allowInsecure);
@@ -285,7 +287,7 @@ public class WebServiceTest {
 
         try {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),
-                    new ClusterData(pulsar.getWebServiceAddress()));
+                    new ClusterData(pulsar.getSafeWebServiceAddress()));
         } catch (ConflictException ce) {
             // This is OK.
         } finally {

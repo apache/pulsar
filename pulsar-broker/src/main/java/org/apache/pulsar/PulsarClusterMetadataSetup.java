@@ -29,8 +29,10 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.bookkeeper.client.BookKeeperAdmin;
+import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
+import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
+import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
@@ -80,13 +82,23 @@ public class PulsarClusterMetadataSetup {
                 "--zookeeper" }, description = "Local ZooKeeper quorum connection string", required = true)
         private String zookeeper;
 
+        @Parameter(names = {
+            "--zookeeper-session-timeout-ms"
+        }, description = "Local zookeeper session timeout ms")
+        private int zkSessionTimeoutMillis = 30000;
+
         @Parameter(names = { "-gzk",
                 "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
         private String globalZookeeper;
 
         @Parameter(names = { "-cs",
-            "--configuration-store" }, description = "Configuration Store connection string", required = false)
+            "--configuration-store" }, description = "Configuration Store connection string", required = true)
         private String configurationStore;
+
+        @Parameter(names = {
+            "--initial-num-stream-storage-containers"
+        }, description = "Num storage containers of BookKeeper stream storage")
+        private int numStreamStorageContainers = 16;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -123,19 +135,26 @@ public class PulsarClusterMetadataSetup {
             arguments.configurationStore = arguments.globalZookeeper;
         }
 
-        log.info("Setting up cluster {} with zk={} configuration-store ={}", arguments.cluster, arguments.zookeeper,
+        log.info("Setting up cluster {} with zk={} configuration-store={}", arguments.cluster, arguments.zookeeper,
                 arguments.configurationStore);
-        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
-        ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
-        ZooKeeper configStoreZk = zkfactory.create(arguments.configurationStore, SessionType.ReadWrite, 30000).get();
 
-        // Format BookKeeper metadata
+        ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
+        ZooKeeper configStoreZk = initZk(arguments.configurationStore, arguments.zkSessionTimeoutMillis);
+
+        // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
-        bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setZkServers(arguments.zookeeper);
+        bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
         if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
             throw new IOException("Failed to initialize BookKeeper metadata");
+        }
+
+        // Format BookKeeper stream storage metadata
+        if (arguments.numStreamStorageContainers > 0) {
+            ServiceURI bkMetadataServiceUri = ServiceURI.create(bkConf.getMetadataServiceUri());
+            ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
+            initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
         }
 
         if (localZk.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) == null) {
@@ -147,7 +166,12 @@ public class PulsarClusterMetadataSetup {
             }
         }
 
-        localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        try {
+            localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        } catch (NodeExistsException e) {
+            // Ignore
+        }
+
         localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
         try {
@@ -244,6 +268,29 @@ public class PulsarClusterMetadataSetup {
         }
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
+    }
+
+    public static ZooKeeper initZk(String connection, int sessionTimeout) throws Exception {
+        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
+        int chrootIndex = connection.indexOf("/");
+        if (chrootIndex > 0) {
+            String chrootPath = connection.substring(chrootIndex);
+            String zkConnectForChrootCreation = connection.substring(0, chrootIndex);
+            ZooKeeper chrootZk = zkfactory.create(
+                zkConnectForChrootCreation, SessionType.ReadWrite, sessionTimeout).get();
+            if (chrootZk.exists(chrootPath, false) == null) {
+                try {
+                    ZkUtils.createFullPathOptimistic(chrootZk, chrootPath, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                        CreateMode.PERSISTENT);
+                } catch (NodeExistsException e) {
+                    // Ignore
+                }
+                log.info("Created zookeeper chroot path {} successfully", chrootPath);
+            }
+            chrootZk.close();
+        }
+        ZooKeeper zkConnect = zkfactory.create(connection, SessionType.ReadWrite, sessionTimeout).get();
+        return zkConnect;
     }
 
     private static BundlesData getBundles(int numBundles) {

@@ -19,14 +19,15 @@
 #ifndef _PULSAR_CLIENT_CONNECTION_HEADER_
 #define _PULSAR_CLIENT_CONNECTION_HEADER_
 
+#include <pulsar/defines.h>
 #include <pulsar/Result.h>
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/asio/strand.hpp>
 #include <boost/any.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/function.hpp>
+#include <mutex>
+#include <functional>
 #include <string>
 #include <vector>
 #include <deque>
@@ -53,24 +54,31 @@ class PulsarFriend;
 class ExecutorService;
 
 class ClientConnection;
-typedef boost::shared_ptr<ClientConnection> ClientConnectionPtr;
-typedef boost::weak_ptr<ClientConnection> ClientConnectionWeakPtr;
+typedef std::shared_ptr<ClientConnection> ClientConnectionPtr;
+typedef std::weak_ptr<ClientConnection> ClientConnectionWeakPtr;
 
 class ProducerImpl;
-typedef boost::shared_ptr<ProducerImpl> ProducerImplPtr;
-typedef boost::weak_ptr<ProducerImpl> ProducerImplWeakPtr;
+typedef std::shared_ptr<ProducerImpl> ProducerImplPtr;
+typedef std::weak_ptr<ProducerImpl> ProducerImplWeakPtr;
 
 class ConsumerImpl;
-typedef boost::shared_ptr<ConsumerImpl> ConsumerImplPtr;
-typedef boost::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
+typedef std::shared_ptr<ConsumerImpl> ConsumerImplPtr;
+typedef std::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
 
 class LookupDataResult;
 
 struct OpSendMsg;
 
-typedef std::pair<std::string, int64_t> ResponseData;
+// Data returned on the request operation. Mostly used on create-producer command
+struct ResponseData {
+    std::string producerName;
+    int64_t lastSequenceId;
+    std::string schemaVersion;
+};
 
-class ClientConnection : public boost::enable_shared_from_this<ClientConnection> {
+typedef std::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
+
+class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<ClientConnection> {
     enum State
     {
         Pending,
@@ -80,10 +88,10 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     };
 
    public:
-    typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
-    typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > TlsSocketPtr;
-    typedef boost::shared_ptr<ClientConnection> ConnectionPtr;
-    typedef boost::function<void(const boost::system::error_code&, ConnectionPtr)> ConnectionListener;
+    typedef std::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
+    typedef std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&>> TlsSocketPtr;
+    typedef std::shared_ptr<ClientConnection> ConnectionPtr;
+    typedef std::function<void(const boost::system::error_code&, ConnectionPtr)> ConnectionListener;
     typedef std::vector<ConnectionListener>::iterator ListenerIterator;
 
     /*
@@ -118,7 +126,9 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
                                       LookupDataResultPromisePtr promise);
 
     void sendCommand(const SharedBuffer& cmd);
+    void sendCommandInternal(const SharedBuffer& cmd);
     void sendMessage(const OpSendMsg& opSend);
+    void sendMessageInternal(const OpSendMsg& opSend);
 
     void registerProducer(int producerId, ProducerImplPtr producer);
     void registerConsumer(int consumerId, ConsumerImplPtr consumer);
@@ -138,15 +148,24 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     int getServerProtocolVersion() const;
 
+    int getMaxMessageSize() const;
+
     Commands::ChecksumType getChecksumType() const;
 
     Future<Result, BrokerConsumerStatsImpl> newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
     Future<Result, MessageId> newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
 
+    Future<Result, NamespaceTopicsPtr> newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId);
+
    private:
     struct PendingRequestData {
         Promise<Result, ResponseData> promise;
+        DeadlineTimerPtr timer;
+    };
+
+    struct LookupRequestData {
+        LookupDataResultPromisePtr promise;
         DeadlineTimerPtr timer;
     };
 
@@ -187,6 +206,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     void handleRequestTimeout(const boost::system::error_code& ec, PendingRequestData pendingRequestData);
 
+    void handleLookupTimeout(const boost::system::error_code&, LookupRequestData);
+
     void handleKeepAliveTimeout();
 
     template <typename Handler>
@@ -202,7 +223,11 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     template <typename ConstBufferSequence, typename WriteHandler>
     inline void asyncWrite(const ConstBufferSequence& buffers, WriteHandler handler) {
         if (tlsSocket_) {
-            boost::asio::async_write(*tlsSocket_, buffers, handler);
+#if BOOST_VERSION >= 106600
+            boost::asio::async_write(*tlsSocket_, buffers, boost::asio::bind_executor(strand_, handler));
+#else
+            boost::asio::async_write(*tlsSocket_, buffers, strand_.wrap(handler));
+#endif
         } else {
             boost::asio::async_write(*socket_, buffers, handler);
         }
@@ -211,7 +236,11 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     template <typename MutableBufferSequence, typename ReadHandler>
     inline void asyncReceive(const MutableBufferSequence& buffers, ReadHandler handler) {
         if (tlsSocket_) {
-            tlsSocket_->async_read_some(buffers, handler);
+#if BOOST_VERSION >= 106600
+            tlsSocket_->async_read_some(buffers, boost::asio::bind_executor(strand_, handler));
+#else
+            tlsSocket_->async_read_some(buffers, strand_.wrap(handler));
+#endif
         } else {
             socket_->async_receive(buffers, handler);
         }
@@ -221,6 +250,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     TimeDuration operationsTimeout_;
     AuthenticationPtr authentication_;
     int serverProtocolVersion_;
+    int maxMessageSize_;
 
     ExecutorServicePtr executor_;
 
@@ -255,7 +285,7 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::map<long, PendingRequestData> PendingRequestsMap;
     PendingRequestsMap pendingRequests_;
 
-    typedef std::map<long, LookupDataResultPromisePtr> PendingLookupRequestsMap;
+    typedef std::map<long, LookupRequestData> PendingLookupRequestsMap;
     PendingLookupRequestsMap pendingLookupRequests_;
 
     typedef std::map<long, ProducerImplWeakPtr> ProducersMap;
@@ -264,14 +294,17 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::map<long, ConsumerImplWeakPtr> ConsumersMap;
     ConsumersMap consumers_;
 
-    typedef std::map<uint64_t, Promise<Result, BrokerConsumerStatsImpl> > PendingConsumerStatsMap;
+    typedef std::map<uint64_t, Promise<Result, BrokerConsumerStatsImpl>> PendingConsumerStatsMap;
     PendingConsumerStatsMap pendingConsumerStatsMap_;
 
-    typedef std::map<long, Promise<Result, MessageId> > PendingGetLastMessageIdRequestsMap;
+    typedef std::map<long, Promise<Result, MessageId>> PendingGetLastMessageIdRequestsMap;
     PendingGetLastMessageIdRequestsMap pendingGetLastMessageIdRequests_;
 
-    boost::mutex mutex_;
-    typedef boost::unique_lock<boost::mutex> Lock;
+    typedef std::map<long, Promise<Result, NamespaceTopicsPtr>> PendingGetNamespaceTopicsMap;
+    PendingGetNamespaceTopicsMap pendingGetNamespaceTopicsRequests_;
+
+    std::mutex mutex_;
+    typedef std::unique_lock<std::mutex> Lock;
 
     // Pending buffers to write on the socket
     std::deque<boost::any> pendingWriteBuffers_;
@@ -297,6 +330,12 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     friend class PulsarFriend;
 
     bool isTlsAllowInsecureConnection_;
+
+#if BOOST_VERSION >= 106600
+    boost::asio::strand<boost::asio::io_service::executor_type> strand_;
+#else
+    boost::asio::io_service::strand strand_;
+#endif
 };
 }  // namespace pulsar
 

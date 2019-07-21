@@ -37,7 +37,6 @@ import org.apache.pulsar.broker.web.NoSwaggerDocumentation;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Path("/v2/topic")
-@NoSwaggerDocumentation
 public class TopicLookup extends TopicLookupBase {
 
     @GET

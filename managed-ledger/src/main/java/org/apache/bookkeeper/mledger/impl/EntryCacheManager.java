@@ -81,7 +81,7 @@ public class EntryCacheManager {
             return new EntryCacheDisabled(ml);
         }
 
-        EntryCache newEntryCache = new EntryCacheImpl(this, ml);
+        EntryCache newEntryCache = new EntryCacheImpl(this, ml, mlFactory.getConfig().isCopyEntriesInCache());
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
             return currentEntryCache;
@@ -190,6 +190,10 @@ public class EntryCacheManager {
         }
 
         @Override
+        public void invalidateEntriesBeforeTimestamp(long timestamp) {
+        }
+
+        @Override
         public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                 final ReadEntriesCallback callback, Object ctx) {
             lh.readAsync(firstEntry, lastEntry).whenComplete(
@@ -213,7 +217,7 @@ public class EntryCacheManager {
                         mlFactoryMBean.recordCacheMiss(entries.size(), totalSize);
                         ml.mbean.addReadEntriesSample(entries.size(), totalSize);
 
-                        callback.readEntriesComplete(entries, null);
+                        callback.readEntriesComplete(entries, ctx);
                     });
         }
 

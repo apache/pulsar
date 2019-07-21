@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
 import java.util.Map;
@@ -135,7 +133,7 @@ public class Reflections {
                                         ClassLoader classLoader, Object[] params, Class[] paramTypes) {
         if (params.length != paramTypes.length) {
             throw new RuntimeException(
-                    "Unequal number of params and paramTypes. Each param must have a correspoinding param type");
+                    "Unequal number of params and paramTypes. Each param must have a corresponding param type");
         }
         Class<?> theCls;
         try {
@@ -167,32 +165,22 @@ public class Reflections {
 
     public static Object createInstance(String userClassName, java.io.File jar) {
         try {
-            return createInstance(userClassName, loadJar(jar));
+            return createInstance(userClassName, FunctionCommon.loadJar(jar));
         } catch (Exception ex) {
             return null;
         }
     }
 
     /**
-     * Load a jar
-     * @param jar file of jar
-     * @return classloader
-     * @throws MalformedURLException
-     */
-    public static ClassLoader loadJar(java.io.File jar) throws MalformedURLException {
-        java.net.URL url = jar.toURI().toURL();
-        return new URLClassLoader(new URL[]{url});
-    }
-
-    /**
-     * Check if a class is in a jar
+     * Check if a class is in a jar.
+     *
      * @param jar location of the jar
      * @param fqcn fully qualified class name to search for in jar
      * @return true if class can be loaded from jar and false if otherwise
      */
     public static boolean classExistsInJar(java.io.File jar, String fqcn) {
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) FunctionCommon.loadJar(jar);
             Class.forName(fqcn, false, loader);
             loader.close();
             return true;
@@ -202,7 +190,8 @@ public class Reflections {
     }
 
     /**
-     * Check if class exists
+     * Check if class exists.
+     *
      * @param fqcn fully qualified class name to search for
      * @return true if class can be loaded from jar and false if otherwise
      */
@@ -216,7 +205,8 @@ public class Reflections {
     }
 
     /**
-     * check if a class implements an interface
+     * check if a class implements an interface.
+     *
      * @param fqcn fully qualified class name to search for in jar
      * @param xface interface to check if implement
      * @return true if class from jar implements interface xface and false if otherwise
@@ -224,7 +214,7 @@ public class Reflections {
     public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class xface) {
         boolean ret = false;
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) FunctionCommon.loadJar(jar);
             if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))){
                 ret = true;
             }
@@ -236,7 +226,8 @@ public class Reflections {
     }
 
     /**
-     * check if class implements interface
+     * check if class implements interface.
+     *
      * @param fqcn fully qualified class name
      * @param xface the interface the fqcn should implement
      * @return true if class implements interface xface and false if otherwise

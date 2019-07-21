@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
@@ -209,7 +210,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         InternalConfigurationData expectedData = new InternalConfigurationData(
             pulsar.getConfiguration().getZookeeperServers(),
             pulsar.getConfiguration().getConfigurationStoreServers(),
-            new ClientConfiguration().getZkLedgersRootPath());
+            new ClientConfiguration().getZkLedgersRootPath(),
+            pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
 
         assertEquals(brokers.getInternalConfigurationData(), expectedData);
     }
@@ -498,8 +500,15 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
+        // Check tenantInfo is null
+        TenantInfo nullTenantInfo = new TenantInfo();
+        properties.createTenant("tenant-config-is-null", null);
+        assertEquals(properties.getTenantAdmin("tenant-config-is-null"), nullTenantInfo);
+
+
         namespaces.deleteNamespace("my-tenant", "use", "my-namespace", false);
         properties.deleteTenant("my-tenant");
+        properties.deleteTenant("tenant-config-is-null");
     }
 
     @Test
@@ -623,11 +632,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new Policies()), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
-        List<String> list = persistentTopics.getList(property, cluster, namespace);
-        assertTrue(list.isEmpty());
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.getList(response, property, cluster, namespace);
+        verify(response, times(1)).resume(Lists.newArrayList());
         // create topic
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());
-        persistentTopics.createPartitionedTopic(property, cluster, namespace, topic, 5, false);
+        persistentTopics.createPartitionedTopic(property, cluster, namespace, topic, 5);
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists
                 .newArrayList(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, topic)));
 

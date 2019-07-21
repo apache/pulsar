@@ -22,11 +22,10 @@
 #include <map>
 #include <string>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
+#include <pulsar/defines.h>
 #include "MessageId.h"
-
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 namespace proto {
@@ -40,7 +39,7 @@ class MessageBuilder;
 class MessageImpl;
 class PulsarWrapper;
 
-class Message {
+class PULSAR_PUBLIC Message {
    public:
     typedef std::map<std::string, std::string> StringMap;
 
@@ -112,6 +111,21 @@ class Message {
     bool hasPartitionKey() const;
 
     /**
+     * Get the ordering key of the message
+     *
+     * @return the ordering key of the message
+     */
+    const std::string& getOrderingKey() const;
+
+    /**
+     * Check whether the message has a ordering key
+     *
+     * @return true if the ordering key was set while creating the message
+     *         false if the ordering key was not set while creating the message
+     */
+    bool hasOrderingKey() const;
+
+    /**
      * Get the UTC based timestamp in milliseconds referring to when the message was published by the client
      * producer
      */
@@ -122,8 +136,13 @@ class Message {
      */
     uint64_t getEventTimestamp() const;
 
+    /**
+     * Get the topic Name from which this message originated from
+     */
+    const std::string& getTopicName() const;
+
    private:
-    typedef boost::shared_ptr<MessageImpl> MessageImplPtr;
+    typedef std::shared_ptr<MessageImpl> MessageImplPtr;
     MessageImplPtr impl_;
 
     Message(MessageImplPtr& impl);
@@ -131,9 +150,10 @@ class Message {
             int32_t partition);
     /// Used for Batch Messages
     Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
-            proto::SingleMessageMetadata& singleMetadata);
+            proto::SingleMessageMetadata& singleMetadata, const std::string& topicName);
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
+    friend class MultiTopicsConsumerImpl;
     friend class MessageBuilder;
     friend class ConsumerImpl;
     friend class ProducerImpl;
@@ -142,10 +162,9 @@ class Message {
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
 
-    friend std::ostream& operator<<(std::ostream& s, const StringMap& map);
-    friend std::ostream& operator<<(std::ostream& s, const Message& msg);
+    friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const StringMap& map);
+    friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg);
 };
 }  // namespace pulsar
 
-#pragma GCC visibility pop
 #endif /* MESSAGE_HPP_ */

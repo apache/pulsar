@@ -18,336 +18,127 @@
  */
 package org.apache.pulsar.storm;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
 
-import java.lang.reflect.Method;
+import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.pulsar.storm.MessageToValuesMapper;
-import org.apache.pulsar.storm.PulsarSpout;
-import org.apache.pulsar.storm.PulsarSpoutConfiguration;
-import org.testng.Assert;
-import static org.testng.Assert.fail;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-import org.testng.collections.Maps;
-
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.TopicStats;
-
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.storm.PulsarSpout.SpoutConsumer;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Values;
+import org.testng.annotations.Test;
 
-public class PulsarSpoutTest extends ProducerConsumerBase {
+import com.google.common.collect.Maps;
 
-    public final String serviceUrl = "http://127.0.0.1:" + BROKER_WEBSERVICE_PORT;
-    public final String topic = "persistent://my-property/my-ns/my-topic1";
-    public final String subscriptionName = "my-subscriber-name";
+public class PulsarSpoutTest {
 
-    protected PulsarSpoutConfiguration pulsarSpoutConf;
-    protected ConsumerConfiguration consumerConf;
-    protected PulsarSpout spout;
-    protected MockSpoutOutputCollector mockCollector;
-    protected Producer producer;
+    @Test
+    public void testAckFailedMessage() throws Exception {
 
-    @Override
-    @BeforeMethod
-    public void beforeMethod(Method m) throws Exception {
-        super.beforeMethod(m);
-        setup();
-    }
-
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-
-        pulsarSpoutConf = new PulsarSpoutConfiguration();
-        pulsarSpoutConf.setServiceUrl(serviceUrl);
-        pulsarSpoutConf.setTopic(topic);
-        pulsarSpoutConf.setSubscriptionName(subscriptionName);
-        pulsarSpoutConf.setMessageToValuesMapper(messageToValuesMapper);
-        pulsarSpoutConf.setFailedRetriesTimeout(1, TimeUnit.SECONDS);
-        pulsarSpoutConf.setMaxFailedRetries(2);
-        pulsarSpoutConf.setSharedConsumerEnabled(true);
-        pulsarSpoutConf.setMetricsTimeIntervalInSecs(60);
-        consumerConf = new ConsumerConfiguration();
-        consumerConf.setSubscriptionType(SubscriptionType.Shared);
-        spout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
-        mockCollector = new MockSpoutOutputCollector();
-        SpoutOutputCollector collector = new SpoutOutputCollector(mockCollector);
-        TopologyContext context = mock(TopologyContext.class);
-        when(context.getThisComponentId()).thenReturn("test-spout-" + methodName);
-        when(context.getThisTaskId()).thenReturn(0);
-        spout.open(Maps.newHashMap(), context, collector);
-        producer = pulsarClient.createProducer(topic);
-    }
-
-    @AfterMethod
-    public void cleanup() throws Exception {
-        producer.close();
-        spout.close();
-        super.internalCleanup();
-    }
-
-    @SuppressWarnings("serial")
-    public static MessageToValuesMapper messageToValuesMapper = new MessageToValuesMapper() {
-
-        @Override
-        public Values toValues(Message msg) {
-            if ("message to be dropped".equals(new String(msg.getData()))) {
+        PulsarSpoutConfiguration conf = new PulsarSpoutConfiguration();
+        conf.setServiceUrl("http://localhost:8080");
+        conf.setSubscriptionName("sub1");
+        conf.setTopic("persistent://prop/ns1/topic1");
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        conf.setMessageToValuesMapper(new MessageToValuesMapper() {
+            @Override
+            public Values toValues(Message<byte[]> msg) {
                 return null;
             }
-            return new Values(new String(msg.getData()));
-        }
 
-        @Override
-        public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        }
-    };
+            @Override
+            public void declareOutputFields(OutputFieldsDeclarer declarer) {
+            }
 
-    @Test
-    public void testBasic() throws Exception {
-        String msgContent = "hello world";
-        producer.send(msgContent.getBytes());
-        spout.nextTuple();
-        Assert.assertTrue(mockCollector.emitted());
-        Assert.assertTrue(msgContent.equals(mockCollector.getTupleData()));
-        spout.ack(mockCollector.getLastMessage());
+        });
+
+        ClientBuilder builder = spy(new ClientBuilderImpl());
+        PulsarSpout spout = spy(new PulsarSpout(conf, builder));
+
+        Message<byte[]> msg = new MessageImpl<>(conf.getTopic(), "1:1", Maps.newHashMap(), new byte[0], Schema.BYTES);
+        Consumer<byte[]> consumer = mock(Consumer.class);
+        SpoutConsumer spoutConsumer = new SpoutConsumer(consumer);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        future.complete(null);
+        doReturn(future).when(consumer).acknowledgeAsync(msg.getMessageId());
+        Field consField = PulsarSpout.class.getDeclaredField("consumer");
+        consField.setAccessible(true);
+        consField.set(spout, spoutConsumer);
+
+        spout.fail(msg);
+        spout.ack(msg);
+        spout.emitNextAvailableTuple();
+        verify(consumer, atLeast(1)).receive(anyInt(), any());
     }
 
     @Test
-    public void testRedeliverOnFail() throws Exception {
-        String msgContent = "hello world";
-        producer.send(msgContent.getBytes());
-        spout.nextTuple();
-        spout.fail(mockCollector.getLastMessage());
-        mockCollector.reset();
-        Thread.sleep(150);
-        spout.nextTuple();
-        Assert.assertTrue(mockCollector.emitted());
-        Assert.assertTrue(msgContent.equals(mockCollector.getTupleData()));
-        spout.ack(mockCollector.getLastMessage());
-    }
+    public void testPulsarSpout() throws Exception {
+        PulsarSpoutConfiguration conf = new PulsarSpoutConfiguration();
+        conf.setServiceUrl("http://localhost:8080");
+        conf.setSubscriptionName("sub1");
+        conf.setTopic("persistent://prop/ns1/topic1");
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        conf.setSharedConsumerEnabled(true);
+        AtomicBoolean called = new AtomicBoolean(false);
+        conf.setMessageToValuesMapper(new MessageToValuesMapper() {
+            @Override
+            public Values toValues(Message<byte[]> msg) {
+                called.set(true);
+                return new Values("test");
+            }
 
-    @Test
-    public void testNoRedeliverOnAck() throws Exception {
-        String msgContent = "hello world";
-        producer.send(msgContent.getBytes());
-        spout.nextTuple();
-        spout.ack(mockCollector.getLastMessage());
-        mockCollector.reset();
-        spout.nextTuple();
-        Assert.assertFalse(mockCollector.emitted());
-        Assert.assertNull(mockCollector.getTupleData());
-    }
+            @Override
+            public void declareOutputFields(OutputFieldsDeclarer declarer) {
+            }
 
-    @Test
-    public void testLimitedRedeliveriesOnTimeout() throws Exception {
-        String msgContent = "chuck norris";
-        producer.send(msgContent.getBytes());
+        });
 
-        long startTime = System.currentTimeMillis();
-        while (startTime + pulsarSpoutConf.getFailedRetriesTimeout(TimeUnit.MILLISECONDS) > System
-                .currentTimeMillis()) {
-            mockCollector.reset();
-            spout.nextTuple();
-            Assert.assertTrue(mockCollector.emitted());
-            Assert.assertTrue(msgContent.equals(mockCollector.getTupleData()));
-            spout.fail(mockCollector.getLastMessage());
-            // wait to avoid backoff
-            Thread.sleep(500);
-        }
-        spout.nextTuple();
-        spout.fail(mockCollector.getLastMessage());
-        mockCollector.reset();
-        Thread.sleep(500);
-        spout.nextTuple();
-        Assert.assertFalse(mockCollector.emitted());
-        Assert.assertNull(mockCollector.getTupleData());
-    }
-
-    @Test
-    public void testLimitedRedeliveriesOnCount() throws Exception {
-        String msgContent = "hello world";
-        producer.send(msgContent.getBytes());
-
-        spout.nextTuple();
-        Assert.assertTrue(mockCollector.emitted());
-        Assert.assertTrue(msgContent.equals(mockCollector.getTupleData()));
-        spout.fail(mockCollector.getLastMessage());
-
-        mockCollector.reset();
-        Thread.sleep(150);
-
-        spout.nextTuple();
-        Assert.assertTrue(mockCollector.emitted());
-        Assert.assertTrue(msgContent.equals(mockCollector.getTupleData()));
-        spout.fail(mockCollector.getLastMessage());
-
-        mockCollector.reset();
-        Thread.sleep(300);
-
-        spout.nextTuple();
-        Assert.assertTrue(mockCollector.emitted());
-        Assert.assertTrue(msgContent.equals(mockCollector.getTupleData()));
-        spout.fail(mockCollector.getLastMessage());
-
-        mockCollector.reset();
-        Thread.sleep(500);
-        spout.nextTuple();
-        Assert.assertFalse(mockCollector.emitted());
-        Assert.assertNull(mockCollector.getTupleData());
-    }
-
-    @Test
-    public void testBackoffOnRetry() throws Exception {
-        String msgContent = "chuck norris";
-        producer.send(msgContent.getBytes());
-        spout.nextTuple();
-        spout.fail(mockCollector.getLastMessage());
-        mockCollector.reset();
-        // due to backoff we should not get the message again immediately
-        spout.nextTuple();
-        Assert.assertFalse(mockCollector.emitted());
-        Assert.assertNull(mockCollector.getTupleData());
-        Thread.sleep(100);
-        spout.nextTuple();
-        Assert.assertTrue(mockCollector.emitted());
-        Assert.assertTrue(msgContent.equals(mockCollector.getTupleData()));
-        spout.ack(mockCollector.getLastMessage());
-    }
-
-    @Test
-    public void testMessageDrop() throws Exception {
-        String msgContent = "message to be dropped";
-        producer.send(msgContent.getBytes());
-        spout.nextTuple();
-        Assert.assertFalse(mockCollector.emitted());
-        Assert.assertNull(mockCollector.getTupleData());
-    }
-
-    @SuppressWarnings({ "rawtypes" })
-    @Test
-    public void testMetrics() throws Exception {
-        spout.resetMetrics();
-        String msgContent = "hello world";
-        producer.send(msgContent.getBytes());
-        spout.nextTuple();
-        Map metrics = spout.getMetrics();
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_MESSAGES_RECEIVED)).longValue(), 1);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_MESSAGES_EMITTED)).longValue(), 1);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_PENDING_FAILED_MESSAGES)).longValue(), 0);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_PENDING_ACKS)).longValue(), 1);
-        Assert.assertEquals(((Double) metrics.get(PulsarSpout.CONSUMER_RATE)).doubleValue(),
-                1.0 / pulsarSpoutConf.getMetricsTimeIntervalInSecs());
-        Assert.assertEquals(((Double) metrics.get(PulsarSpout.CONSUMER_THROUGHPUT_BYTES)).doubleValue(),
-                ((double) msgContent.getBytes().length) / pulsarSpoutConf.getMetricsTimeIntervalInSecs());
-        spout.fail(mockCollector.getLastMessage());
-        metrics = spout.getMetrics();
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_MESSAGES_RECEIVED)).longValue(), 1);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_MESSAGES_EMITTED)).longValue(), 1);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_PENDING_FAILED_MESSAGES)).longValue(), 1);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_PENDING_ACKS)).longValue(), 0);
-        Thread.sleep(150);
-        spout.nextTuple();
-        metrics = spout.getMetrics();
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_MESSAGES_RECEIVED)).longValue(), 1);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_MESSAGES_EMITTED)).longValue(), 2);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_PENDING_FAILED_MESSAGES)).longValue(), 1);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_PENDING_ACKS)).longValue(), 1);
-        spout.ack(mockCollector.getLastMessage());
-        metrics = (Map) spout.getValueAndReset();
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_MESSAGES_RECEIVED)).longValue(), 1);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_MESSAGES_EMITTED)).longValue(), 2);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_PENDING_FAILED_MESSAGES)).longValue(), 0);
-        Assert.assertEquals(((Long) metrics.get(PulsarSpout.NO_OF_PENDING_ACKS)).longValue(), 0);
-    }
-
-    @Test
-    public void testSharedConsumer() throws Exception {
-        TopicStats topicStats = admin.topics().getStats(topic);
-        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
-        PulsarSpout otherSpout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
-        MockSpoutOutputCollector otherMockCollector = new MockSpoutOutputCollector();
-        SpoutOutputCollector collector = new SpoutOutputCollector(otherMockCollector);
+        ClientBuilder builder = spy(new ClientBuilderImpl());
+        PulsarSpout spout = spy(new PulsarSpout(conf, builder));
         TopologyContext context = mock(TopologyContext.class);
-        when(context.getThisComponentId()).thenReturn("test-spout-" + methodName);
-        when(context.getThisTaskId()).thenReturn(1);
-        otherSpout.open(Maps.newHashMap(), context, collector);
+        final String componentId = "test-component-id";
+        doReturn(componentId).when(context).getThisComponentId();
+        SpoutOutputCollector collector = mock(SpoutOutputCollector.class);
+        Map config = new HashMap<>();
+        Field field = SharedPulsarClient.class.getDeclaredField("instances");
+        field.setAccessible(true);
+        ConcurrentMap<String, SharedPulsarClient> instances = (ConcurrentMap<String, SharedPulsarClient>) field
+                .get(SharedPulsarClient.class);
 
-        topicStats = admin.topics().getStats(topic);
-        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
+        SharedPulsarClient client = mock(SharedPulsarClient.class);
+        Consumer<byte[]> consumer = mock(Consumer.class);
+        when(client.getSharedConsumer(any())).thenReturn(consumer);
+        instances.put(componentId, client);
 
-        otherSpout.close();
+        Message<byte[]> msg = new MessageImpl<>(conf.getTopic(), "1:1", Maps.newHashMap(), "test".getBytes(), Schema.BYTES);
+        when(consumer.receive(anyInt(), any())).thenReturn(msg);
 
-        topicStats = admin.topics().getStats(topic);
-        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
+        spout.open(config, context, collector);
+        spout.emitNextAvailableTuple();
+
+        assertTrue(called.get());
+        verify(consumer, atLeast(1)).receive(anyInt(), any());
     }
 
-    @Test
-    public void testNoSharedConsumer() throws Exception {
-        TopicStats topicStats = admin.topics().getStats(topic);
-        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
-        pulsarSpoutConf.setSharedConsumerEnabled(false);
-        PulsarSpout otherSpout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
-        MockSpoutOutputCollector otherMockCollector = new MockSpoutOutputCollector();
-        SpoutOutputCollector collector = new SpoutOutputCollector(otherMockCollector);
-        TopologyContext context = mock(TopologyContext.class);
-        when(context.getThisComponentId()).thenReturn("test-spout-" + methodName);
-        when(context.getThisTaskId()).thenReturn(1);
-        otherSpout.open(Maps.newHashMap(), context, collector);
-
-        topicStats = admin.topics().getStats(topic);
-        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 2);
-
-        otherSpout.close();
-
-        topicStats = admin.topics().getStats(topic);
-        Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
-    }
-
-    @Test
-    public void testSerializability() throws Exception {
-        // test serializability with no auth
-        PulsarSpout spoutWithNoAuth = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration());
-        TestUtil.testSerializability(spoutWithNoAuth);
-    }
-
-    @Test
-    public void testFailedConsumer() throws Exception {
-        PulsarSpoutConfiguration pulsarSpoutConf = new PulsarSpoutConfiguration();
-        pulsarSpoutConf.setServiceUrl(serviceUrl);
-        pulsarSpoutConf.setTopic("persistent://invalidTopic");
-        pulsarSpoutConf.setSubscriptionName(subscriptionName);
-        pulsarSpoutConf.setMessageToValuesMapper(messageToValuesMapper);
-        pulsarSpoutConf.setFailedRetriesTimeout(1, TimeUnit.SECONDS);
-        pulsarSpoutConf.setMaxFailedRetries(2);
-        pulsarSpoutConf.setSharedConsumerEnabled(false);
-        pulsarSpoutConf.setMetricsTimeIntervalInSecs(60);
-        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
-        consumerConf.setSubscriptionType(SubscriptionType.Shared);
-        PulsarSpout spout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
-        MockSpoutOutputCollector mockCollector = new MockSpoutOutputCollector();
-        SpoutOutputCollector collector = new SpoutOutputCollector(mockCollector);
-        TopologyContext context = mock(TopologyContext.class);
-        when(context.getThisComponentId()).thenReturn("new-test" + methodName);
-        when(context.getThisTaskId()).thenReturn(0);
-        try {
-            spout.open(Maps.newHashMap(), context, collector);
-            fail("should have failed as consumer creation failed");
-        } catch (IllegalStateException e) {
-            // Ok
-        }
-    }
 }

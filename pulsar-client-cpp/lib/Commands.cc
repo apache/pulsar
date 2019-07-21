@@ -20,18 +20,67 @@
 #include "MessageImpl.h"
 #include "Version.h"
 #include "pulsar/MessageBuilder.h"
+#include "PulsarApi.pb.h"
 #include "LogUtils.h"
+#include "PulsarApi.pb.h"
 #include "Utils.h"
 #include "Url.h"
+#include <pulsar/Schema.h>
 #include "checksum/ChecksumProvider.h"
 #include <algorithm>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 
+using namespace pulsar;
 namespace pulsar {
 
 using namespace pulsar::proto;
 
 DECLARE_LOG_OBJECT();
+
+static inline bool isBuiltInSchema(SchemaType schemaType) {
+    switch (schemaType) {
+        case STRING:
+        case JSON:
+        case AVRO:
+        case PROTOBUF:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+static inline proto::Schema_Type getSchemaType(SchemaType type) {
+    switch (type) {
+        case SchemaType::NONE:
+            return Schema_Type_None;
+        case STRING:
+            return Schema_Type_String;
+        case JSON:
+            return Schema_Type_Json;
+        case PROTOBUF:
+            return Schema_Type_Protobuf;
+        case AVRO:
+            return Schema_Type_Avro;
+        default:
+            return Schema_Type_None;
+    }
+}
+
+static proto::Schema* getSchema(const SchemaInfo& schemaInfo) {
+    proto::Schema* schema = proto::Schema().New();
+    schema->set_name(schemaInfo.getName());
+    schema->set_schema_data(schemaInfo.getSchema());
+    schema->set_type(getSchemaType(schemaInfo.getSchemaType()));
+    for (const auto& kv : schemaInfo.getProperties()) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
+        keyValue->set_key(kv.first);
+        keyValue->set_value(kv.second);
+        schema->mutable_properties()->AddAllocated(keyValue);
+    }
+
+    return schema;
+}
 
 SharedBuffer Commands::writeMessageWithSize(const BaseCommand& cmd) {
     size_t cmdSize = cmd.ByteSize();
@@ -49,22 +98,21 @@ SharedBuffer Commands::writeMessageWithSize(const BaseCommand& cmd) {
 
 SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uint64_t requestId) {
     static BaseCommand cmd;
-    static boost::mutex mutex;
-    mutex.lock();
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
     cmd.set_type(BaseCommand::PARTITIONED_METADATA);
     CommandPartitionedTopicMetadata* partitionMetadata = cmd.mutable_partitionmetadata();
     partitionMetadata->set_topic(topic);
     partitionMetadata->set_request_id(requestId);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_partitionmetadata();
-    mutex.unlock();
     return buffer;
 }
 
 SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
     static BaseCommand cmd;
-    static boost::mutex mutex;
-    mutex.lock();
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
     cmd.set_type(BaseCommand::LOOKUP);
     CommandLookupTopic* lookup = cmd.mutable_lookuptopic();
     lookup->set_topic(topic);
@@ -72,21 +120,19 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
     lookup->set_request_id(requestId);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_lookuptopic();
-    mutex.unlock();
     return buffer;
 }
 
 SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId) {
     static BaseCommand cmd;
-    static boost::mutex mutex;
-    mutex.lock();
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
     cmd.set_type(BaseCommand::CONSUMER_STATS);
     CommandConsumerStats* consumerStats = cmd.mutable_consumerstats();
     consumerStats->set_consumer_id(consumerId);
     consumerStats->set_request_id(requestId);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_consumerstats();
-    mutex.unlock();
     return buffer;
 }
 
@@ -185,7 +231,10 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
 SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string& subscription,
                                     uint64_t consumerId, uint64_t requestId, CommandSubscribe_SubType subType,
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
-                                    Optional<MessageId> startMessageId, bool readCompacted) {
+                                    Optional<MessageId> startMessageId, bool readCompacted,
+                                    const std::map<std::string, std::string>& metadata,
+                                    const SchemaInfo& schemaInfo,
+                                    CommandSubscribe_InitialPosition subscriptionInitialPosition) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -197,6 +246,12 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_consumer_name(consumerName);
     subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
     subscribe->set_read_compacted(readCompacted);
+    subscribe->set_initialposition(subscriptionInitialPosition);
+
+    if (isBuiltInSchema(schemaInfo.getSchemaType())) {
+        subscribe->set_allocated_schema(getSchema(schemaInfo));
+    }
+
     if (startMessageId.is_present()) {
         MessageIdData& messageIdData = *subscribe->mutable_start_message_id();
         messageIdData.set_ledgerid(startMessageId.value().ledgerId());
@@ -205,6 +260,13 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         if (startMessageId.value().batchIndex() != -1) {
             messageIdData.set_batch_index(startMessageId.value().batchIndex());
         }
+    }
+    for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
+         it++) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
+        keyValue->set_key(it->first);
+        keyValue->set_value(it->second);
+        subscribe->mutable_metadata()->AddAllocated(keyValue);
     }
 
     return writeMessageWithSize(cmd);
@@ -221,13 +283,26 @@ SharedBuffer Commands::newUnsubscribe(uint64_t consumerId, uint64_t requestId) {
 }
 
 SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId,
-                                   const std::string& producerName, uint64_t requestId) {
+                                   const std::string& producerName, uint64_t requestId,
+                                   const std::map<std::string, std::string>& metadata,
+                                   const SchemaInfo& schemaInfo) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
     producer->set_topic(topic);
     producer->set_producer_id(producerId);
     producer->set_request_id(requestId);
+    for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
+         it++) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
+        keyValue->set_key(it->first);
+        keyValue->set_value(it->second);
+        producer->mutable_metadata()->AddAllocated(keyValue);
+    }
+
+    if (isBuiltInSchema(schemaInfo.getSchemaType())) {
+        producer->set_allocated_schema(getSchema(schemaInfo));
+    }
 
     if (!producerName.empty()) {
         producer->set_producer_name(producerName);
@@ -291,11 +366,17 @@ SharedBuffer Commands::newPong() {
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newRedeliverUnacknowledgedMessages(uint64_t consumerId) {
+SharedBuffer Commands::newRedeliverUnacknowledgedMessages(uint64_t consumerId,
+                                                          const std::set<MessageId>& messageIds) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES);
     CommandRedeliverUnacknowledgedMessages* command = cmd.mutable_redeliverunacknowledgedmessages();
     command->set_consumer_id(consumerId);
+    for (const auto& msgId : messageIds) {
+        MessageIdData* msgIdData = command->add_message_ids();
+        msgIdData->set_ledgerid(msgId.ledgerId());
+        msgIdData->set_entryid(msgId.entryId());
+    }
     return writeMessageWithSize(cmd);
 }
 
@@ -321,6 +402,18 @@ SharedBuffer Commands::newGetLastMessageId(uint64_t consumerId, uint64_t request
     getLastMessageId->set_request_id(requestId);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_getlastmessageid();
+    return buffer;
+}
+
+SharedBuffer Commands::newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::GET_TOPICS_OF_NAMESPACE);
+    CommandGetTopicsOfNamespace* getTopics = cmd.mutable_gettopicsofnamespace();
+    getTopics->set_request_id(requestId);
+    getTopics->set_namespace_(nsName);
+
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
+    cmd.clear_gettopicsofnamespace();
     return buffer;
 }
 
@@ -416,6 +509,24 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE:
             return "GET_LAST_MESSAGE_ID_RESPONSE";
             break;
+        case BaseCommand::GET_TOPICS_OF_NAMESPACE:
+            return "GET_TOPICS_OF_NAMESPACE";
+            break;
+        case BaseCommand::GET_TOPICS_OF_NAMESPACE_RESPONSE:
+            return "GET_TOPICS_OF_NAMESPACE_RESPONSE";
+            break;
+        case BaseCommand::GET_SCHEMA:
+            return "GET_SCHEMA";
+            break;
+        case BaseCommand::GET_SCHEMA_RESPONSE:
+            return "GET_SCHEMA_RESPONSE";
+            break;
+        case BaseCommand::AUTH_CHALLENGE:
+            return "AUTH_CHALLENGE";
+            break;
+        case BaseCommand::AUTH_RESPONSE:
+            return "AUTH_RESPONSE";
+            break;
     };
 }
 
@@ -497,7 +608,8 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32
 
     const MessageId& m = batchedMessage.impl_->messageId;
     MessageId singleMessageId(m.partition(), m.ledgerId(), m.entryId(), batchIndex);
-    Message singleMessage(singleMessageId, batchedMessage.impl_->metadata, payload, metadata);
+    Message singleMessage(singleMessageId, batchedMessage.impl_->metadata, payload, metadata,
+                          batchedMessage.impl_->getTopicName());
     singleMessage.impl_->cnx_ = batchedMessage.impl_->cnx_;
 
     return singleMessage;

@@ -57,12 +57,12 @@ exec_cmd() {
 }
 
 if [ "$3" = "all" -o "$3" = "dep" ]; then
+  sudo find / -name cmake
+  sudo add-apt-repository ppa:george-edison55/cmake-3.x -y
   # Install dependant packages
-  exec_cmd "apt-get update && apt-get install -y cmake libssl-dev libcurl4-openssl-dev liblog4cxx10-dev protobuf-compiler libprotobuf-dev libboost1.55-all-dev libgtest-dev libxml2-utils libjsoncpp-dev";
-  if [ ! -f "$1/libgtest.a" ]; then
-    echo "Not Found: $1/libgtest.a"
-    exec_cmd "pushd /usr/src/gtest && cmake . && make && cp libgtest.a $1/ && popd";
-  fi
+  exec_cmd "apt-get update && apt-get install -y libssl-dev libcurl4-openssl-dev liblog4cxx10-dev protobuf-compiler libprotobuf-dev libboost1.55-all-dev libxml2-utils libjsoncpp-dev";
+  exec_cmd "apt-get remove -y cmake cmake-data && apt-get install -y cmake cmake-data"
+  exec_cmd "pushd $1/ && git clone https://github.com/google/googletest.git && pushd googletest && cmake . && make && sudo make install && popd && popd";
   if [ ! -d "$1/gtest-parallel/" ]; then
     echo "Not Found: $1/gtest-parallel/"
     exec_cmd "pushd $1/ && git clone https://github.com/google/gtest-parallel.git && popd";
@@ -73,7 +73,7 @@ if [ "$3" = "all" -o "$3" = "compile" ]; then
   export PATH=$PATH:$1/
   # Compile and run unit tests
   pushd $2/pulsar-client-cpp
-  cmake . && make
+  cmake -DBUILD_PYTHON_WRAPPER=OFF . && make VERBOSE=1
   if [ $? -ne 0 ]; then
     echo "Failed to compile CPP client library"
     exit 1
@@ -88,7 +88,7 @@ if [ "$3" = "all" -o "$3" = "compile" ]; then
               data2/standalone/zookeeper > broker-tls.log &
   auth_pid=$!;
   sleep 10
-  PULSAR_CLIENT_CONF=$2/pulsar-client-cpp/tests/client.conf $2/bin/pulsar-admin clusters create --url http://localhost:9765/ --url-secure https://localhost:9766/ --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ cluster
+  PULSAR_CLIENT_CONF=$2/pulsar-client-cpp/tests/client.conf $2/bin/pulsar-admin clusters create --url http://localhost:4080/ --url-secure https://localhost:8443/ --broker-url pulsar://localhost:6650/ --broker-url-secure pulsar+ssl://localhost:6651/ cluster
   sleep 5
   pushd $2/pulsar-client-cpp/tests
   $1/gtest-parallel/gtest-parallel ./main --workers=10

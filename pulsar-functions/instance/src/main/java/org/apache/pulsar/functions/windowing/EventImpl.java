@@ -21,17 +21,19 @@ package org.apache.pulsar.functions.windowing;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import org.apache.pulsar.functions.api.Record;
+
 @ToString
 @EqualsAndHashCode
 public class EventImpl<T> implements Event<T> {
+    private final Record<?> record;
     private final T event;
     private final long ts;
-    private final byte[] messageId;
 
-    EventImpl(T event, long ts, byte[] messageId) {
+    EventImpl(T event, long ts, Record<?> record) {
         this.event = event;
         this.ts = ts;
-        this.messageId = messageId;
+        this.record = record;
     }
 
     @Override
@@ -50,7 +52,7 @@ public class EventImpl<T> implements Event<T> {
     }
 
     @Override
-    public byte[] getMessageId() {
-        return messageId;
+    public Record<?> getRecord() {
+        return record;
     }
 }

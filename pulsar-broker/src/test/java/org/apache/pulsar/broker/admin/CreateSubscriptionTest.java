@@ -103,4 +103,30 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
                     Lists.newArrayList("sub-1"));
         }
     }
+    
+    @Test
+    public void createSubscriptionOnPartitionedTopicWithPartialFailure() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, 10);
+        
+        // create subscription for one partition
+        final String partitionedTopic0 = topic+"-partition-0";
+        admin.topics().createSubscription(partitionedTopic0, "sub-1", MessageId.latest);
+
+        admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
+
+        // Create should fail if the subscription already exists
+        try {
+            admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
+            fail("Should have failed");
+        } catch (Exception e) {
+            // Expected
+        }
+
+        for (int i = 0; i < 10; i++) {
+            assertEquals(
+                    admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
+                    Lists.newArrayList("sub-1"));
+        }
+    }
 }

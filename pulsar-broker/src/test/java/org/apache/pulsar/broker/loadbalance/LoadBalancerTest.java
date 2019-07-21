@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -36,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -85,12 +91,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
 /**
  * Start two brokers in the same cluster and have them connect to the same zookeeper. When the PulsarService starts, it
  * will do the leader election and one of the brokers will become the leader. Then kill that broker and check if the
@@ -101,7 +101,7 @@ import com.google.common.collect.Sets;
 public class LoadBalancerTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
-    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     private static final Logger log = LoggerFactory.getLogger(LoadBalancerTest.class);
 
@@ -120,26 +120,27 @@ public class LoadBalancerTest {
     @BeforeMethod
     void setup() throws Exception {
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
         ZkUtils.createFullPathOptimistic(bkEnsemble.getZkClient(),
                 SimpleLoadManagerImpl.LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH,
                 "{\"loadBalancerStrategy\":\"leastLoadedServer\"}".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
-        final String localhost = InetAddress.getLocalHost().getHostName();
+        final String localhost = "localhost";
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
             brokerWebServicePorts[i] = PortManager.nextFreePort();
             brokerNativeBrokerPorts[i] = PortManager.nextFreePort();
 
             ServiceConfiguration config = new ServiceConfiguration();
-            config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
+            config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
             config.setClusterName("use");
+            config.setAdvertisedAddress(localhost);
             config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(brokerWebServicePorts[i]);
+            config.setWebServicePort(Optional.ofNullable(brokerWebServicePorts[i]));
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-            config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
+            config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
             config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
             config.setAdvertisedAddress(localhost+i);
             config.setLoadBalancerEnabled(false);
@@ -148,7 +149,7 @@ public class LoadBalancerTest {
             pulsarServices[i].start();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
-            lookupAddresses[i] = pulsarServices[i].getAdvertisedAddress() + ":" + config.getWebServicePort();
+            lookupAddresses[i] = pulsarServices[i].getAdvertisedAddress() + ":" + config.getWebServicePort().get();
             pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
         }
 
@@ -984,7 +985,7 @@ public class LoadBalancerTest {
         zkCacheField.set(pulsarServices[0], mockCache);
 
         int totalAvailabilityWeight = 0;
-        TreeMap<Long, Set<ResourceUnit>> sortedRankingsInstance = new TreeMap<Long, Set<ResourceUnit>>();
+        TreeMap<Long, Set<ResourceUnit>> sortedRankingsInstance = new TreeMap<>();
         for (int i = 1; i <= 3; i++) {
             PulsarResourceDescription rd = createResourceDescription(memoryMB * i, cpuPercent * i, bInMbps * i,
                     bOutMbps * 2, threads * i);

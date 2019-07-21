@@ -18,14 +18,34 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import java.util.List;
 
 import com.google.common.base.Objects;
 
+@ApiModel(
+    value = "BrokerNamespaceIsolationData",
+    description = "The namespace isolation data for a given broker"
+)
 public class BrokerNamespaceIsolationData {
 
+    @ApiModelProperty(
+        name = "brokerName",
+        value = "The broker name",
+        example = "broker1:8080"
+    )
     public String brokerName;
+    @ApiModelProperty(
+        name = "namespaceRegex",
+        value = "The namespace-isolation policies attached to this broker"
+    )
     public List<String> namespaceRegex; //isolated namespace regex
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(brokerName, namespaceRegex);
+    }
 
     @Override
     public boolean equals(Object obj) {

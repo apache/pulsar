@@ -19,31 +19,38 @@
 #include <pulsar/Client.h>
 
 #include <gtest/gtest.h>
-#include <boost/lexical_cast.hpp>
 
 #include "HttpHelper.h"
 
 #include <string>
+#include <thread>
 
 using namespace pulsar;
 
-static std::string serviceUrl = "pulsar://localhost:8885";
-static std::string adminUrl = "http://localhost:8765/";
+static std::string serviceUrl = "pulsar://localhost:6650";
+static std::string adminUrl = "http://localhost:8080/";
 
 TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://sample/standalone/ns-dedup-1/testProducerSequenceAfterReconnect-" +
-                            boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName =
+        "persistent://public/dedup-1/testProducerSequenceAfterReconnect-" + std::to_string(time(NULL));
 
     // call admin api to create namespace and enable deduplication
-    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1";
-    int res = makePutRequest(url, "");
+    std::string url = adminUrl + "admin/v2/namespaces/public/dedup-1";
+    int res = makePutRequest(url, R"({"replication_clusters": ["standalone"]})");
     ASSERT_TRUE(res == 204 || res == 409);
 
-    url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1/deduplication";
+    url = adminUrl + "admin/v2/namespaces/public/dedup-1/permissions/anonymous";
+    res = makePostRequest(url, R"(["produce","consume"])");
+    ASSERT_TRUE(res == 204 || res == 409);
+
+    url = adminUrl + "admin/v2/namespaces/public/dedup-1/deduplication";
     res = makePostRequest(url, "true");
     ASSERT_TRUE(res == 204 || res == 409);
+
+    // Ensure dedup status was refreshed
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     ReaderConfiguration readerConf;
     Reader reader;
@@ -57,7 +64,7 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     ASSERT_EQ(producer.getLastSequenceId(), -1L);
 
     for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(producer.send(msg), ResultOk);
         ASSERT_EQ(producer.getLastSequenceId(), i);
@@ -69,7 +76,7 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     ASSERT_EQ(producer.getLastSequenceId(), 9);
 
     for (int i = 10; i < 20; i++) {
-        std::string content = "my-message-" + boost::lexical_cast<std::string>(i);
+        std::string content = "my-message-" + std::to_string(i);
         Message msg = MessageBuilder().setContent(content).build();
         ASSERT_EQ(producer.send(msg), ResultOk);
         ASSERT_EQ(producer.getLastSequenceId(), i);
@@ -79,17 +86,20 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
 }
 
 TEST(ClientDeduplicationTest, testProducerDeduplication) {
-    Client client(serviceUrl);
+    Client client(adminUrl);
 
-    std::string topicName = "persistent://sample/standalone/ns-dedup-2/testProducerDeduplication-" +
-                            boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName =
+        "persistent://public/dedup-2/testProducerDeduplication-" + std::to_string(time(NULL));
 
-    // call admin api to create namespace and enable deduplication
-    std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2";
-    int res = makePutRequest(url, "");
+    std::string url = adminUrl + "admin/v2/namespaces/public/dedup-2";
+    int res = makePutRequest(url, R"({"replication_clusters": ["standalone"]})");
     ASSERT_TRUE(res == 204 || res == 409);
 
-    url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2/deduplication";
+    url = adminUrl + "admin/v2/namespaces/public/dedup-2/permissions/anonymous";
+    res = makePostRequest(url, R"(["produce","consume"])");
+    ASSERT_TRUE(res == 204 || res == 409);
+
+    url = adminUrl + "admin/v2/namespaces/public/dedup-2/deduplication";
     res = makePostRequest(url, "true");
     ASSERT_TRUE(res == 204 || res == 409);
 
@@ -121,7 +131,7 @@ TEST(ClientDeduplicationTest, testProducerDeduplication) {
     for (int i = 0; i < 3; i++) {
         consumer.receive(msg);
 
-        ASSERT_EQ(msg.getDataAsString(), "my-message-" + boost::lexical_cast<std::string>(i));
+        ASSERT_EQ(msg.getDataAsString(), "my-message-" + std::to_string(i));
         consumer.acknowledge(msg);
     }
 

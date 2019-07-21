@@ -37,8 +37,3 @@ message ServiceRequest {
     FunctionMetaData functionMetaData = 3;
     string workerId = 4;
 }
-
-message AssignmentsUpdate {
-    repeated Assignment assignments = 1;
-    uint64 version = 2;
-}

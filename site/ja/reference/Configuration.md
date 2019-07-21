@@ -29,7 +29,7 @@ Pulsarの設定は[インストール](../../getting-started/LocalCluster)され
 * [Broker](#broker)
 * [クライアント](#クライアント)
 * [サービスディスカバリ](#サービスディスカバリ)
-* [Global ZooKeeper](#global-zookeeper)
+* [Configuration Store](#configuration-store)
 * [Log4j](#log4j)
 * [Log4j shell](#log4j-shell)
 * [スタンドアローン](#スタンドアローン)
@@ -58,9 +58,9 @@ CLIツール[`pulsar-client`](../CliTools#pulsar-client)は、Pulsarへのメッ
 
 {% include config.html id="discovery" %}
 
-## Global ZooKeeper
+## Configuration Store
 
-{% include config.html id="global-zookeeper" %}
+{% include config.html id="configuration-store" %}
 
 ## Log4j
 

@@ -82,9 +82,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
         } else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
@@ -111,7 +111,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             producer.send(new byte[80]);
         }
 
-        // consumer should not have received all publihsed message due to message-rate throttling
+        // consumer should not have received all published message due to message-rate throttling
         Assert.assertTrue(totalReceived.get() < messageRate * 2);
 
         consumer.close();
@@ -165,9 +165,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
         } else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
@@ -251,9 +251,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
         } else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
@@ -334,9 +334,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
         } else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
@@ -488,9 +488,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName1).getDispatcher();
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
         } else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
@@ -502,6 +502,15 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         int nsMessageRate = 500;
         DispatchRate dispatchRate = new DispatchRate(nsMessageRate, 0, 1);
         admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
+
+        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
+        } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
+            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
+        } else {
+            Assert.fail("Should only have PersistentDispatcher in this test");
+        }
+
         for (int i = 0; i < 5; i++) {
             if (subRateLimiter.getDispatchRateOnMsg() != nsMessageRate) {
                 Thread.sleep(50 + (i * 10));
@@ -527,9 +536,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         subDispatcher = topic2.getSubscription(subName2).getDispatcher();
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getDispatchRateLimiter();
+            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
         } else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }

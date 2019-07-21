@@ -36,6 +36,11 @@ public class AggregatedNamespaceStats {
 
     public long storageSize;
     public long msgBacklog;
+    public long msgDelayed;
+
+    long backlogSize;
+    long offloadedStorageUsed;
+    long backlogQuotaLimit;
 
     public StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(
             ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
@@ -45,6 +50,8 @@ public class AggregatedNamespaceStats {
     public double storageReadRate;
 
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
+
+    public Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
 
     void updateStats(TopicStats stats) {
         topicsCount++;
@@ -59,11 +66,13 @@ public class AggregatedNamespaceStats {
         throughputOut += stats.throughputOut;
 
         storageSize += stats.storageSize;
+        backlogSize += stats.backlogSize;
+        offloadedStorageUsed += stats.offloadedStorageUsed;
 
         storageWriteRate += stats.storageWriteRate;
-        storageReadRate += stats.storageWriteRate;
+        storageReadRate += stats.storageReadRate;
 
-        msgBacklog += msgBacklog;
+        msgBacklog += stats.msgBacklog;
 
         storageWriteLatencyBuckets.addAll(stats.storageWriteLatencyBuckets);
         entrySizeBuckets.addAll(stats.entrySizeBuckets);
@@ -76,6 +85,24 @@ public class AggregatedNamespaceStats {
             replStats.msgThroughputIn += as.msgThroughputIn;
             replStats.msgThroughputOut += as.msgThroughputOut;
             replStats.replicationBacklog += as.replicationBacklog;
+        });
+
+        stats.subscriptionStats.forEach((n, as) -> {
+            AggregatedSubscriptionStats subsStats =
+                    subscriptionStats.computeIfAbsent(n, k -> new AggregatedSubscriptionStats());
+            msgDelayed += as.msgDelayed;
+            subsStats.blockedSubscriptionOnUnackedMsgs = as.blockedSubscriptionOnUnackedMsgs;
+            subsStats.msgBacklog += as.msgBacklog;
+            subsStats.msgDelayed += as.msgDelayed;
+            subsStats.msgRateRedeliver += as.msgRateRedeliver;
+            subsStats.unackedMessages += as.unackedMessages;
+            as.consumerStat.forEach((c, v) -> {
+                AggregatedConsumerStats consumerStats =
+                        subsStats.consumerStat.computeIfAbsent(c, k -> new AggregatedConsumerStats());
+                consumerStats.blockedSubscriptionOnUnackedMsgs = v.blockedSubscriptionOnUnackedMsgs;
+                consumerStats.msgRateRedeliver += v.msgRateRedeliver;
+                consumerStats.unackedMessages += v.unackedMessages;
+            });
         });
     }
 
@@ -91,10 +118,13 @@ public class AggregatedNamespaceStats {
 
         storageSize = 0;
         msgBacklog = 0;
+        msgDelayed = 0;
         storageWriteRate = 0;
         storageReadRate = 0;
 
         replicationStats.clear();
+        subscriptionStats.clear();
+
         storageWriteLatencyBuckets.reset();
         entrySizeBuckets.reset();
     }

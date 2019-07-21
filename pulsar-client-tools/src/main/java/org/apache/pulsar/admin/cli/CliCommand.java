@@ -102,31 +102,6 @@ abstract class CliCommand {
         }
     }
 
-    static int validateTimeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'm':
-        case 'M':
-            return Integer.parseInt(subStr);
-
-        case 'h':
-        case 'H':
-            return Integer.parseInt(subStr) * 60;
-
-        case 'd':
-        case 'D':
-            return Integer.parseInt(subStr) * 24 * 60;
-
-        case 'w':
-        case 'W':
-            return Integer.parseInt(subStr) * 7 * 24 * 60;
-
-        default:
-            return Integer.parseInt(s);
-        }
-    }
-
     static MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
         String[] messageId = resetMessageIdStr.split(":");
         try {
@@ -197,6 +172,14 @@ abstract class CliCommand {
     <T> void print(List<T> items) {
         for (T item : items) {
             System.out.println(item);
+        }
+    }
+
+    <T> void printList(T item) {
+        try {
+            System.out.println(writer.writeValueAsString(item));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

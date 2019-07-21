@@ -18,50 +18,22 @@
 # under the License.
 #
 
-# Start 2 Pulsar standalone instances (one with TLS and one without)
-# and execute the unit tests
+set -e
 
-rm -rf ./pulsar-dist
-mkdir pulsar-dist
-tar xfz ../distribution/server/target/apache-pulsar*bin.tar.gz  -C pulsar-dist --strip-components 1
+ROOT_DIR=$(git rev-parse --show-toplevel)
+cd $ROOT_DIR/pulsar-client-cpp
 
-PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone.conf pulsar-dist/bin/pulsar standalone --no-functions-worker --no-stream-storage > broker.log &
-standalone_pid=$!;
-
-PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone-ssl.conf pulsar-dist/bin/pulsar standalone \
-              --no-functions-worker \
-              --no-stream-storage \
-              --zookeeper-port 2191 --bookkeeper-port 3191 \
-              --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir \
-              data2/standalone/bookkeeper > broker-tls.log &
-auth_pid=$!;
-
-echo "Wait for non-tls standalone up"
-until grep "Created tenant public" broker.log; do sleep 5; done
-
-# create property for test
-PULSAR_CLIENT_CONF=$PWD/test-conf/client.conf pulsar-dist/bin/pulsar-admin tenants create prop -r "" -c "unit"
-echo "Created tenant 'prop' - $?"
-
-PULSAR_CLIENT_CONF=$PWD/test-conf/client.conf pulsar-dist/bin/pulsar-admin tenants create property -r "" -c "cluster"
-echo "Created tenant 'property' - $?"
-
-PULSAR_CLIENT_CONF=$PWD/test-conf/client-ssl.conf pulsar-dist/bin/pulsar-admin clusters create \
-        --url http://localhost:9765/ --url-secure https://localhost:9766/ \
-        --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ \
-        cluster
-PULSAR_CLIENT_CONF=$PWD/test-conf/client-ssl.conf pulsar-dist/bin/pulsar-admin clusters create \
-        --url http://localhost:9765/ --url-secure https://localhost:9766/ \
-        --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ \
-        unit
-
-sleep 5
-
+./pulsar-test-service-start.sh
 pushd tests
 
 if [ -f /gtest-parallel/gtest-parallel ]; then
     echo "---- Run unit tests in parallel"
-    /gtest-parallel/gtest-parallel ./main --workers=10
+    tests=""
+    if [ $# -eq 1 ]; then
+        tests="--gtest_filter=$1"
+        echo "Running tests: $1"
+    fi
+    /gtest-parallel/gtest-parallel ./main $tests --workers=10
     RES=$?
 else
     ./main
@@ -82,19 +54,20 @@ if [ $RES -eq 0 ]; then
 
     # Running tests from a different directory to avoid importing directly
     # from the current dir, but rather using the installed wheel file
-    cp pulsar_test.py /tmp
+    cp *_test.py /tmp
     pushd /tmp
 
     python pulsar_test.py
     RES=$?
 
-    popd
-    popd
+    echo "---- Running Python Function Instance unit tests"
+    bash /pulsar/pulsar-functions/instance/src/scripts/run_python_instance_tests.sh
+    RES=$?
 
+    popd
+    popd
 fi
 
-kill -9 $standalone_pid $auth_pid
-
-rm -rf pulsar-dist
+./pulsar-test-service-stop.sh
 
 exit $RES

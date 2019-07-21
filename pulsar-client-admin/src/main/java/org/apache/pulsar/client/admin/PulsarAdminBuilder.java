@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -169,4 +170,29 @@ public interface PulsarAdminBuilder {
      * @param enableTlsHostnameVerification
      */
     PulsarAdminBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification);
+
+    /**
+     * This sets the connection time out for the pulsar admin client
+     *
+     * @param connectionTimeout
+     * @param connectionTimeoutUnit
+     */
+    PulsarAdminBuilder connectionTimeout(int connectionTimeout, TimeUnit connectionTimeoutUnit);
+
+    /**
+     * This sets the server response read time out for the pulsar admin client for any request.
+     *
+     * @param readTimeout
+     * @param readTimeoutUnit
+     */
+    PulsarAdminBuilder readTimeout(int readTimeout, TimeUnit readTimeoutUnit);
+
+    /**
+     * This sets the server request time out for the pulsar admin client for any request.
+     *
+     * @param requestTimeout
+     * @param requestTimeoutUnit
+     */
+    PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit);
+
 }

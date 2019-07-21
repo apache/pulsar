@@ -23,10 +23,13 @@ import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 
 @SuppressWarnings("serial")
+@Slf4j
 public class PulsarAdminException extends Exception {
     private static final int DEFAULT_STATUS_CODE = 500;
 
@@ -34,38 +37,43 @@ public class PulsarAdminException extends Exception {
     private final int statusCode;
 
     private static String getReasonFromServer(WebApplicationException e) {
-        if (MediaType.APPLICATION_JSON.equals(e.getResponse().getHeaderString("Content-Type"))) {
+        try {
+            return e.getResponse().readEntity(ErrorData.class).reason;
+        } catch (Exception ex) {
             try {
-                return e.getResponse().readEntity(ErrorData.class).reason;
-            } catch (Exception ex) {
-                // could not parse output to ErrorData class
-                return e.getMessage();
+                return ObjectMapperFactory.getThreadLocal().readValue(e.getResponse().getEntity().toString(), ErrorData.class).reason;
+            } catch (Exception ex1) {
+                try {
+                    return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
+                } catch (Exception ex2) {
+                    // could not parse output to ErrorData class
+                    return e.getMessage();
+                }
             }
         }
-        return e.getMessage();
     }
 
     public PulsarAdminException(ClientErrorException e) {
         super(getReasonFromServer(e), e);
-        this.httpError = e.getMessage();
+        this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(ClientErrorException e, String message) {
         super(message, e);
-        this.httpError = e.getMessage();
+        this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(ServerErrorException e) {
         super(getReasonFromServer(e), e);
-        this.httpError = e.getMessage();
+        this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(ServerErrorException e, String message) {
         super(message, e);
-        this.httpError = e.getMessage();
+        this.httpError = getReasonFromServer(e);
         this.statusCode = e.getResponse().getStatus();
     }
 
@@ -73,6 +81,12 @@ public class PulsarAdminException extends Exception {
         super(t);
         httpError = null;
         statusCode = DEFAULT_STATUS_CODE;
+    }
+
+    public PulsarAdminException(WebApplicationException e) {
+        super(getReasonFromServer(e), e);
+        this.httpError = getReasonFromServer(e);
+        this.statusCode = e.getResponse().getStatus();
     }
 
     public PulsarAdminException(String message, Throwable t) {
@@ -122,8 +136,17 @@ public class PulsarAdminException extends Exception {
             super(e);
         }
     }
+    public static class TimeoutException extends PulsarAdminException {
+        public TimeoutException(Throwable t) {
+            super(t);
+        }
+    }
 
     public static class ServerSideErrorException extends PulsarAdminException {
+        public ServerSideErrorException(ServerErrorException e, String msg) {
+            super(e, msg);
+        }
+
         public ServerSideErrorException(ServerErrorException e) {
             super(e, "Some error occourred on the server");
         }

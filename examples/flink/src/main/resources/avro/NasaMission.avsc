@@ -1,0 +1,20 @@
+[
+{"namespace": "org.apache.flink.avro.generated",
+ "type": "record",
+ "name": "NasaMission",
+ "fields": [
+     {"name": "id", "type": "int"},
+     {"name": "name", "type": "string"},
+     {"name": "start_year",  "type": ["int", "null"]},
+     {"name": "end_year", "type": ["int", "null"]}
+ ]
+},
+{"namespace": "org.apache.flink.avro.generated",
+ "type": "record",
+ "name": "WordWithCount",
+ "fields": [
+     {"name": "word", "type": "string"},
+     {"name": "count", "type": "long"}
+ ]
+}
+]

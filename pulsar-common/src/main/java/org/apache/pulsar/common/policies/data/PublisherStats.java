@@ -25,6 +25,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  */
 public class PublisherStats {
+    private int count;
+
     /** Total rate of messages published by this publisher. msg/s */
     public double msgRateIn;
 
@@ -64,9 +66,11 @@ public class PublisherStats {
 
     public PublisherStats add(PublisherStats stats) {
         checkNotNull(stats);
+        this.count++;
         this.msgRateIn += stats.msgRateIn;
         this.msgThroughputIn += stats.msgThroughputIn;
-        this.averageMsgSize += stats.averageMsgSize;
+        double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
+        this.averageMsgSize = newAverageMsgSize;
         return this;
     }
 

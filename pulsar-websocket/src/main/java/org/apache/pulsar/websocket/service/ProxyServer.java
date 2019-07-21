@@ -18,24 +18,23 @@
  */
 package org.apache.pulsar.websocket.service;
 
+import com.google.common.collect.Lists;
+
 import java.net.MalformedURLException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import javax.net.ssl.SSLContext;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.web.JsonMapperProvider;
+import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.websocket.WebSocketService;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -47,52 +46,46 @@ import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
-import com.google.common.collect.Lists;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 public class ProxyServer {
     private final Server server;
     private final List<Handler> handlers = Lists.newArrayList();
     private final WebSocketProxyConfiguration conf;
-    private final ExecutorService executorService;
+    private final WebExecutorThreadPool executorService;
 
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
-        executorService = Executors.newFixedThreadPool(WebSocketProxyConfiguration.PROXY_SERVER_EXECUTOR_THREADS,
-                new DefaultThreadFactory("pulsar-websocket-web"));
-        this.server = new Server(new ExecutorThreadPool(executorService));
+        executorService = new WebExecutorThreadPool(config.getNumHttpServerThreads(), "pulsar-websocket-web");
+        this.server = new Server(executorService);
         List<ServerConnector> connectors = new ArrayList<>();
 
-        ServerConnector connector = new ServerConnector(server);
-
-        connector.setPort(config.getWebServicePort());
-        connectors.add(connector);
-
+        if (config.getWebServicePort().isPresent()) {
+			ServerConnector connector = new ServerConnector(server);
+			connector.setPort(config.getWebServicePort().get());
+			connectors.add(connector);
+        }
         // TLS enabled connector
-        if (config.isTlsEnabled()) {
+        if (config.getWebServicePortTls().isPresent()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         config.isTlsAllowInsecureConnection(),
                         config.getTlsTrustCertsFilePath(),
                         config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath(),
-                        config.getTlsRequireTrustedClientCertOnConnect());
+                        config.getTlsRequireTrustedClientCertOnConnect(),
+                        true,
+                        config.getTlsCertRefreshCheckDurationSec());
                 ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls());
+                tlsConnector.setPort(config.getWebServicePortTls().get());
                 connectors.add(tlsConnector);
-            } catch (GeneralSecurityException e) {
+            } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
-
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of
@@ -111,11 +104,9 @@ public class ProxyServer {
     }
 
     public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {
-        JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-        provider.setMapper(ObjectMapperFactory.create());
         ResourceConfig config = new ResourceConfig();
         config.packages("jersey.config.server.provider.packages", javaPackages);
-        config.register(provider);
+        config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
@@ -126,7 +117,7 @@ public class ProxyServer {
     }
 
     public void start() throws PulsarServerException {
-        log.info("Starting web socket proxy at port {}", conf.getWebServicePort());
+        log.info("Starting web socket proxy at port {}", conf.getWebServicePort().get());
         try {
             RequestLogHandler requestLogHandler = new RequestLogHandler();
             Slf4jRequestLog requestLog = new Slf4jRequestLog();
@@ -152,7 +143,7 @@ public class ProxyServer {
 
     public void stop() throws Exception {
         server.stop();
-        executorService.shutdown();
+        executorService.stop();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyServer.class);

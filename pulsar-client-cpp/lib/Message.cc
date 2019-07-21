@@ -16,11 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <pulsar/defines.h>
 #include <pulsar/Message.h>
 #include <pulsar/MessageBuilder.h>
-
-#include <boost/make_shared.hpp>
-#include <boost/smart_ptr.hpp>
 
 #include "PulsarApi.pb.h"
 
@@ -64,7 +62,7 @@ Message::Message(MessageImplPtr& impl) : impl_(impl) {}
 
 Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metadata, SharedBuffer& payload,
                  int32_t partition)
-    : impl_(boost::make_shared<MessageImpl>()) {
+    : impl_(std::make_shared<MessageImpl>()) {
     impl_->messageId =
         MessageId(partition, msg.message_id().ledgerid(), msg.message_id().entryid(), /* batchId */
                   -1);
@@ -73,12 +71,13 @@ Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metad
 }
 
 Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
-                 proto::SingleMessageMetadata& singleMetadata)
-    : impl_(boost::make_shared<MessageImpl>()) {
+                 proto::SingleMessageMetadata& singleMetadata, const std::string& topicName)
+    : impl_(std::make_shared<MessageImpl>()) {
     impl_->messageId = messageID;
     impl_->metadata = metadata;
     impl_->payload = payload;
     impl_->metadata.mutable_properties()->CopyFrom(singleMetadata.properties());
+    impl_->topicName_ = &topicName;
 
     if (singleMetadata.has_partition_key()) {
         impl_->metadata.set_partition_key(singleMetadata.partition_key());
@@ -111,13 +110,32 @@ const std::string& Message::getPartitionKey() const {
     return impl_->getPartitionKey();
 }
 
+bool Message::hasOrderingKey() const {
+    if (impl_) {
+        return impl_->hasOrderingKey();
+    }
+    return false;
+}
+
+const std::string& Message::getOrderingKey() const {
+    if (!impl_) {
+        return emptyString;
+    }
+    return impl_->getOrderingKey();
+}
+
+const std::string& Message::getTopicName() const {
+    if (!impl_) {
+        return emptyString;
+    }
+    return impl_->getTopicName();
+}
+
 uint64_t Message::getPublishTimestamp() const { return impl_ ? impl_->getPublishTimestamp() : 0ull; }
 
 uint64_t Message::getEventTimestamp() const { return impl_ ? impl_->getEventTimestamp() : 0ull; }
 
-#pragma GCC visibility push(default)
-
-std::ostream& operator<<(std::ostream& s, const Message::StringMap& map) {
+PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message::StringMap& map) {
     // Output at most 10 elements -- appropriate if used for logging.
     s << '{';
 
@@ -139,7 +157,7 @@ std::ostream& operator<<(std::ostream& s, const Message::StringMap& map) {
     return s;
 }
 
-std::ostream& operator<<(std::ostream& s, const Message& msg) {
+PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg) {
     assert(msg.impl_.get());
     assert(msg.impl_->metadata.has_sequence_id());
     assert(msg.impl_->metadata.has_publish_time());
@@ -150,5 +168,4 @@ std::ostream& operator<<(std::ostream& s, const Message& msg) {
     return s;
 }
 
-#pragma GCC visibility pop
 }  // namespace pulsar

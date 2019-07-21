@@ -24,6 +24,7 @@
 #include "ProducerImpl.h"
 
 namespace pulsar {
+DECLARE_LOG_OBJECT()
 
 static const std::string EMPTY_STRING;
 
@@ -36,6 +37,10 @@ const std::string& Producer::getTopic() const { return impl_ != NULL ? impl_->ge
 Result Producer::send(const Message& msg) {
     Promise<Result, Message> promise;
     sendAsync(msg, WaitForCallbackValue<Message>(promise));
+
+    if (!promise.isComplete()) {
+        impl_->triggerFlush();
+    }
 
     Message m;
     Result result = promise.getFuture().get(m);
@@ -55,6 +60,8 @@ const std::string& Producer::getProducerName() const { return impl_->getProducer
 
 int64_t Producer::getLastSequenceId() const { return impl_->getLastSequenceId(); }
 
+const std::string& Producer::getSchemaVersion() const { return impl_->getSchemaVersion(); }
+
 Result Producer::close() {
     Promise<bool, Result> promise;
     closeAsync(WaitForCallback(promise));
@@ -71,5 +78,23 @@ void Producer::closeAsync(CloseCallback callback) {
     }
 
     impl_->closeAsync(callback);
+}
+
+Result Producer::flush() {
+    Promise<bool, Result> promise;
+    flushAsync(WaitForCallback(promise));
+
+    Result result;
+    promise.getFuture().get(result);
+    return result;
+}
+
+void Producer::flushAsync(FlushCallback callback) {
+    if (!impl_) {
+        callback(ResultProducerNotInitialized);
+        return;
+    }
+
+    impl_->flushAsync(callback);
 }
 }  // namespace pulsar

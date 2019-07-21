@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.broker.authorization;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
-
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -35,6 +29,11 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * Authorization service that manages pluggable authorization provider and authorize requests accordingly.
@@ -70,6 +69,13 @@ public class AuthorizationService {
         }
     }
 
+    public CompletableFuture<Boolean> isSuperUser(String user) {
+        if (provider != null) {
+           return provider.isSuperUser(user, conf);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
     /**
      *
      * Grant authorization-action permission on a namespace to the given client
@@ -94,6 +100,41 @@ public class AuthorizationService {
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 
+    /**
+     * Grant permission to roles that can access subscription-admin api
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param roles
+     * @param authDataJson
+     *            additional authdata in json for targeted authorization provider
+     * @return
+     */
+    public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            Set<String> roles, String authDataJson) {
+
+        if (provider != null) {
+            return provider.grantSubscriptionPermissionAsync(namespace, subscriptionName, roles, authDataJson);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+
+    /**
+     * Revoke subscription admin-api access for a role
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param role
+     * @return
+     */
+    public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            String role, String authDataJson) {
+        if (provider != null) {
+            return provider.revokeSubscriptionPermissionAsync(namespace, subscriptionName, role, authDataJson);
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+    }
+    
     /**
      * Grant authorization-action permission on a topic to the given client
      *
@@ -129,9 +170,14 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-
         if (provider != null) {
-            return provider.canProduceAsync(topicName, role, authenticationData);
+            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.canProduceAsync(topicName, role, authenticationData);
+                }
+            });
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -152,7 +198,13 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         if (provider != null) {
-            return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
+            return provider.isSuperUser(role, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
+                } else {
+                    return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
+                }
+            });
         }
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
@@ -160,9 +212,11 @@ public class AuthorizationService {
     public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
             throws Exception {
         try {
-            return canProduceAsync(topicName, role, authenticationData).get(cacheTimeOutInSec, SECONDS);
+            return canProduceAsync(topicName, role, authenticationData).get(conf.getZooKeeperOperationTimeoutSeconds(),
+                    SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
+                    topicName);
             throw e;
         } catch (Exception e) {
             log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
@@ -174,13 +228,15 @@ public class AuthorizationService {
     public boolean canConsume(TopicName topicName, String role, AuthenticationDataSource authenticationData,
             String subscription) throws Exception {
         try {
-            return canConsumeAsync(topicName, role, authenticationData, subscription).get(cacheTimeOutInSec, SECONDS);
+            return canConsumeAsync(topicName, role, authenticationData, subscription)
+                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
+                    topicName);
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", role,
-                    topicName, e.getMessage());
+            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
+                    e.getMessage());
             throw e;
         }
     }
@@ -249,4 +305,8 @@ public class AuthorizationService {
         return finalResult;
     }
 
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
+                                                       AuthenticationDataSource authenticationData) {
+        return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+    }
 }

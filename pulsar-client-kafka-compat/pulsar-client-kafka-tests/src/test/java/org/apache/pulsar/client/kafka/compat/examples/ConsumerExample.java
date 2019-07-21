@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 public class ConsumerExample {
 
     public static void main(String[] args) {
-        String topic = "persistent://prop/ns-abc/my-topic";
+        String topic = "persistent://public/default/test";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", "pulsar://localhost:6650");

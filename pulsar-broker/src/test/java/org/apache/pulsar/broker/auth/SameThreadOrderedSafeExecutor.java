@@ -27,7 +27,16 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 public class SameThreadOrderedSafeExecutor extends OrderedExecutor {
 
     public SameThreadOrderedSafeExecutor() {
-        super("same-thread-executor", 1, new DefaultThreadFactory("test"), NullStatsLogger.INSTANCE, false, 100000, 10);
+        super(
+            "same-thread-executor",
+            1,
+            new DefaultThreadFactory("test"),
+            NullStatsLogger.INSTANCE,
+            false,
+            false,
+            100000,
+            -1,
+            false);
     }
 
     @Override

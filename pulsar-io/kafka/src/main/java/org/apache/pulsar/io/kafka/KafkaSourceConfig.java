@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
 @Setter
@@ -39,15 +40,69 @@ public class KafkaSourceConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help =
+            "A comma-separated list of host and port pairs that are the addresses of "
+          + "the Kafka brokers that a Kafka client connects to initially bootstrap itself")
     private String bootstrapServers;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help =
+            "A string that uniquely identifies the group of consumer processes to which this consumer belongs.")
     private String groupId;
-    private Long fetchMinBytes;
-    private Long autoCommitIntervalMs;
-    private Long sessionTimeoutMs;
+    @FieldDoc(
+        defaultValue = "1",
+        help =
+            "The minimum amount of data the server should return for a fetch request.")
+    private long fetchMinBytes = 1L;
+    @FieldDoc(
+        defaultValue = "5000",
+        help =
+            "The frequency in milliseconds that the consumer offsets are auto-committed to Kafka "
+          + "if autoCommitEnabled is set to true.")
+    private long autoCommitIntervalMs = 5000L;
+    @FieldDoc(
+        defaultValue = "30000",
+        help =
+            "The timeout used to detect failures when using Kafka's group management facilities.")
+    private long sessionTimeoutMs = 30000L;
+    @FieldDoc(
+        defaultValue = "3000",
+        help =
+            "The interval between heartbeats to the consumer when using Kafka's group management facilities. "
+                + "The value must be lower than session timeout.")
+    private long heartbeatIntervalMs = 3000L;
+    @FieldDoc(
+        defaultValue = "true",
+        help =
+            "If true the consumer's offset will be periodically committed in the background.")
     private boolean autoCommitEnabled = true;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help =
+            "The Kafka topic that is used for Pulsar moving messages to.")
     private String topic;
+    @FieldDoc(
+        defaultValue = "org.apache.kafka.common.serialization.StringDeserializer",
+        help =
+            "The deserializer class for Kafka consumer to deserialize keys.")
     private String keyDeserializationClass = "org.apache.kafka.common.serialization.StringDeserializer";
-    private String valueDeserializationClass = "org.apache.kafka.common.serialization.StringDeserializer";
+    @FieldDoc(
+        defaultValue = "org.apache.kafka.common.serialization.ByteArrayDeserializer",
+        help =
+            "The deserializer class for Kafka consumer to deserialize values. You typically shouldn't care this. "
+                + "Since the deserializer will be set by a specific implementation of `KafkaAbstractSource`.")
+    private String valueDeserializationClass = "org.apache.kafka.common.serialization.ByteArrayDeserializer";
+    @FieldDoc(
+        defaultValue = "",
+        help =
+            "The consumer config properties to be passed to Consumer. Note that other properties specified "
+                + "in the connector config file take precedence over this config.")
+    private Map<String, Object> consumerConfigProperties;
 
     public static KafkaSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

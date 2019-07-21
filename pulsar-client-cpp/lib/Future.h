@@ -19,35 +19,32 @@
 #ifndef LIB_FUTURE_H_
 #define LIB_FUTURE_H_
 
-#include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/condition_variable.hpp>
-#include <boost/make_shared.hpp>
+#include <functional>
+#include <mutex>
+#include <memory>
+#include <condition_variable>
 
 #include <list>
 
-#pragma GCC visibility push(default)
-
-typedef boost::unique_lock<boost::mutex> Lock;
+typedef std::unique_lock<std::mutex> Lock;
 
 namespace pulsar {
 
 template <typename Result, typename Type>
 struct InternalState {
-    boost::mutex mutex;
-    boost::condition_variable condition;
+    std::mutex mutex;
+    std::condition_variable condition;
     Result result;
     Type value;
     bool complete;
 
-    std::list<typename boost::function<void(Result, const Type&)> > listeners;
+    std::list<typename std::function<void(Result, const Type&)> > listeners;
 };
 
 template <typename Result, typename Type>
 class Future {
    public:
-    typedef boost::function<void(Result, const Type&)> ListenerCallback;
+    typedef std::function<void(Result, const Type&)> ListenerCallback;
 
     Future& addListener(ListenerCallback callback) {
         InternalState<Result, Type>* state = state_.get();
@@ -79,10 +76,10 @@ class Future {
     }
 
    private:
-    typedef boost::shared_ptr<InternalState<Result, Type> > InternalStatePtr;
+    typedef std::shared_ptr<InternalState<Result, Type> > InternalStatePtr;
     Future(InternalStatePtr state) : state_(state) {}
 
-    boost::shared_ptr<InternalState<Result, Type> > state_;
+    std::shared_ptr<InternalState<Result, Type> > state_;
 
     template <typename U, typename V>
     friend class Promise;
@@ -91,7 +88,7 @@ class Future {
 template <typename Result, typename Type>
 class Promise {
    public:
-    Promise() : state_(boost::make_shared<InternalState<Result, Type> >()) {}
+    Promise() : state_(std::make_shared<InternalState<Result, Type> >()) {}
 
     bool setValue(const Type& value) {
         InternalState<Result, Type>* state = state_.get();
@@ -147,14 +144,12 @@ class Promise {
     Future<Result, Type> getFuture() const { return Future<Result, Type>(state_); }
 
    private:
-    typedef boost::function<void(Result, const Type&)> ListenerCallback;
-    boost::shared_ptr<InternalState<Result, Type> > state_;
+    typedef std::function<void(Result, const Type&)> ListenerCallback;
+    std::shared_ptr<InternalState<Result, Type> > state_;
 };
 
 class Void {};
 
 } /* namespace pulsar */
-
-#pragma GCC visibility pop
 
 #endif /* LIB_FUTURE_H_ */

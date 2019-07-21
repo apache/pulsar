@@ -20,13 +20,13 @@ package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
@@ -79,6 +79,12 @@ public class ZookeeperClientFactoryImplTest {
         ZooKeeperClientFactory zkf = new ZookeeperClientFactoryImpl();
         CompletableFuture<ZooKeeper> zkFuture = zkf.create("invalid", SessionType.ReadWrite,
                 (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
-        assertTrue(zkFuture.isCompletedExceptionally());
+
+        try {
+            zkFuture.get(3, TimeUnit.SECONDS);
+            fail("Should have thrown exception");
+        } catch (TimeoutException e) {
+            // Expected
+        }
     }
 }

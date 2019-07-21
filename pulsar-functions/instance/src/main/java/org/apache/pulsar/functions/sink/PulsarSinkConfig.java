@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.sink;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
 
 @Getter
 @Setter
@@ -29,6 +29,7 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 public class PulsarSinkConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private String topic;
-    private String serDeClassName;
+    private String serdeClassName;
+    private String schemaType;
     private String typeClassName;
 }

@@ -43,7 +43,7 @@ public class BrokerStats extends BrokerStatsBase {
     @GET
     @Path("/topics")
     @ApiOperation(
-            value = "Get all the topic stats by namesapce",
+            value = "Get all the topic stats by namespace",
             response = OutputStream.class,
             responseContainer = "OutputStream")
     // https://github.com/swagger-api/swagger-ui/issues/558

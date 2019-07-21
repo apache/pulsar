@@ -19,8 +19,7 @@
 #ifndef LIB_COMPRESSIONCODEC_H_
 #define LIB_COMPRESSIONCODEC_H_
 
-#include <boost/smart_ptr.hpp>
-
+#include <pulsar/defines.h>
 #include <pulsar/Producer.h>
 
 #include "SharedBuffer.h"
@@ -35,8 +34,10 @@ class CompressionCodec;
 class CompressionCodecNone;
 class CompressionCodecLZ4;
 class CompressionCodecZLib;
+class CompressionCodecZstd;
+class CompressionCodecSnappy;
 
-class CompressionCodecProvider {
+class PULSAR_PUBLIC CompressionCodecProvider {
    public:
     static CompressionType convertType(proto::CompressionType type);
     static proto::CompressionType convertType(CompressionType type);
@@ -47,9 +48,11 @@ class CompressionCodecProvider {
     static CompressionCodecNone compressionCodecNone_;
     static CompressionCodecLZ4 compressionCodecLZ4_;
     static CompressionCodecZLib compressionCodecZLib_;
+    static CompressionCodecZstd compressionCodecZstd_;
+    static CompressionCodecSnappy compressionCodecSnappy_;
 };
 
-class CompressionCodec {
+class PULSAR_PUBLIC CompressionCodec {
    public:
     virtual ~CompressionCodec() {}
 
@@ -78,7 +81,7 @@ class CompressionCodec {
     virtual bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded) = 0;
 };
 
-class CompressionCodecNone : public CompressionCodec {
+class PULSAR_PUBLIC CompressionCodecNone : public CompressionCodec {
    public:
     SharedBuffer encode(const SharedBuffer& raw);
 

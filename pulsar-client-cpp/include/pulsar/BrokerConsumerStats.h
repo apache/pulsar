@@ -19,25 +19,25 @@
 #ifndef PULSAR_CPP_BROKERCONSUMERSTATS_H
 #define PULSAR_CPP_BROKERCONSUMERSTATS_H
 
-#include <boost/date_time/posix_time/ptime.hpp>
+#include <pulsar/defines.h>
 #include <string.h>
 #include <iostream>
 #include <pulsar/Result.h>
-#include <boost/function.hpp>
+#include <functional>
+#include <memory>
 #include <pulsar/ConsumerType.h>
 
-#pragma GCC visibility push(default)
 namespace pulsar {
 class BrokerConsumerStatsImplBase;
 class PulsarWrapper;
 
 /* @note: isValid() or getXXX() methods are not allowed on an invalid BrokerConsumerStats */
-class BrokerConsumerStats {
+class PULSAR_PUBLIC BrokerConsumerStats {
    private:
-    boost::shared_ptr<BrokerConsumerStatsImplBase> impl_;
+    std::shared_ptr<BrokerConsumerStatsImplBase> impl_;
 
    public:
-    explicit BrokerConsumerStats(boost::shared_ptr<BrokerConsumerStatsImplBase> impl);
+    explicit BrokerConsumerStats(std::shared_ptr<BrokerConsumerStatsImplBase> impl);
 
     BrokerConsumerStats();
 
@@ -81,15 +81,13 @@ class BrokerConsumerStats {
     virtual uint64_t getMsgBacklog() const;
 
     /** @deprecated */
-    boost::shared_ptr<BrokerConsumerStatsImplBase> getImpl() const;
+    std::shared_ptr<BrokerConsumerStatsImplBase> getImpl() const;
 
     friend class PulsarWrapper;
-    friend std::ostream &operator<<(std::ostream &os, const BrokerConsumerStats &obj);
+    friend PULSAR_PUBLIC std::ostream &operator<<(std::ostream &os, const BrokerConsumerStats &obj);
 };
-typedef boost::function<void(Result result, BrokerConsumerStats brokerConsumerStats)>
+typedef std::function<void(Result result, BrokerConsumerStats brokerConsumerStats)>
     BrokerConsumerStatsCallback;
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif  // PULSAR_CPP_BROKERCONSUMERSTATS_H

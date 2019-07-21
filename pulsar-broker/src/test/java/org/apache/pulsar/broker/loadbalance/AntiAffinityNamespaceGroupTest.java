@@ -26,6 +26,7 @@ import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -112,16 +113,16 @@ public class AntiAffinityNamespaceGroupTest {
     void setup() throws Exception {
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
 
         // Start broker 1
         ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config1.setClusterName("use");
-        config1.setWebServicePort(PRIMARY_BROKER_WEBSERVICE_PORT);
+        config1.setWebServicePort(Optional.ofNullable(PRIMARY_BROKER_WEBSERVICE_PORT));
         config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config1.setBrokerServicePort(PRIMARY_BROKER_PORT);
+        config1.setBrokerServicePort(Optional.ofNullable(PRIMARY_BROKER_PORT));
         config1.setFailureDomainsEnabled(true);
         config1.setLoadBalancerEnabled(true);
         config1.setAdvertisedAddress("localhost");
@@ -138,9 +139,9 @@ public class AntiAffinityNamespaceGroupTest {
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config2.setClusterName("use");
-        config2.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
+        config2.setWebServicePort(Optional.ofNullable(SECONDARY_BROKER_WEBSERVICE_PORT));
         config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config2.setBrokerServicePort(SECONDARY_BROKER_PORT);
+        config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
         config2.setFailureDomainsEnabled(true);
         pulsar2 = new PulsarService(config2);
         secondaryHost = String.format("%s:%d", "localhost",
@@ -174,7 +175,7 @@ public class AntiAffinityNamespaceGroupTest {
     private void createCluster(ZooKeeper zk, ServiceConfiguration config) throws Exception {
         ZkUtils.createFullPathOptimistic(zk, "/admin/clusters/" + config.getClusterName(),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                        new ClusterData("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort())),
+                        new ClusterData("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort().get())),
                 Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
@@ -510,7 +511,7 @@ public class AntiAffinityNamespaceGroupTest {
             admin1.namespaces().setNamespaceAntiAffinityGroup(ns, namespaceAntiAffinityGroup);
         }
 
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getWebServiceAddress()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getSafeWebServiceAddress()).build();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://" + namespace + "0/my-topic1")
                 .create();
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar1

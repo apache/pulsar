@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+
 import org.testng.annotations.Test;
 import org.testng.annotations.BeforeClass;
 
@@ -28,6 +29,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderAthenz;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -61,6 +63,46 @@ public class AuthenticationProviderAthenzTest {
 
         // Specify Athenz configuration file for AuthZpeClient which is used in AuthenticationProviderAthenz
         System.setProperty(ZpeConsts.ZPE_PROP_ATHENZ_CONF, "./src/test/resources/athenz.conf.test");
+    }
+
+    @Test
+    public void testInitilizeFromSystemPropeties() {
+        System.setProperty("pulsar.athenz.domain.names", "test_provider");
+        ServiceConfiguration emptyConf = new ServiceConfiguration();
+        Properties emptyProp = new Properties();
+        emptyConf.setProperties(emptyProp);
+        AuthenticationProviderAthenz sysPropProvider1 = new AuthenticationProviderAthenz();
+        try {
+            sysPropProvider1.initialize(emptyConf);
+            assertEquals(sysPropProvider1.getAllowedOffset(), 30); // default allowed offset is 30 sec
+        } catch (Exception e) {
+            fail("Fail to Read pulsar.athenz.domain.names from System Properties");
+        }
+
+        System.setProperty("pulsar.athenz.role.token_allowed_offset", "0");
+        AuthenticationProviderAthenz sysPropProvider2 = new AuthenticationProviderAthenz();
+        try {
+            sysPropProvider2.initialize(config);
+            assertEquals(sysPropProvider2.getAllowedOffset(), 0);
+        } catch (Exception e) {
+            fail("Failed to get allowd offset from system property");
+        }
+
+        System.setProperty("pulsar.athenz.role.token_allowed_offset", "invalid");
+        AuthenticationProviderAthenz sysPropProvider3 = new AuthenticationProviderAthenz();
+        try {
+            sysPropProvider3.initialize(config);
+            fail("Invalid allowed offset should not be specified");
+        } catch (IOException e) {
+        }
+
+        System.setProperty("pulsar.athenz.role.token_allowed_offset", "-1");
+        AuthenticationProviderAthenz sysPropProvider4 = new AuthenticationProviderAthenz();
+        try {
+            sysPropProvider4.initialize(config);
+            fail("Negative allowed offset should not be specified");
+        } catch (IOException e) {
+        }
     }
 
     @Test

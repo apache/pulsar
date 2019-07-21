@@ -263,10 +263,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        lastData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        localData = new LocalBrokerData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData.setBrokerVersionString(pulsar.getBrokerVersion());
         // configure broker-topic mode
         lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
@@ -561,6 +561,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         if (StringUtils.isNotEmpty(brokerZnodePath)) {
             try {
                 pulsar.getZkClient().delete(brokerZnodePath, -1);
+            } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
+                throw new PulsarServerException.NotFoundException(e);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
@@ -658,7 +660,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                             .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
                         continue;
                     }
-                    log.info("Load-manager splitting budnle {} and unloading {}", bundleName, unloadSplitBundles);
+                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
                             unloadSplitBundles);
                     // Make sure the same bundle is not selected again.
@@ -781,7 +783,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             // Register the brokers in zk list
             createZPathIfNotExists(zkClient, LoadManager.LOADBALANCE_BROKERS_ROOT);
 
-            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + conf.getWebServicePort();
+            String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
+                    + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
+                            : conf.getWebServicePortTls().get());
             brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
             updateLocalBrokerData();
@@ -793,7 +797,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 if (ownerZkSessionId != 0 && ownerZkSessionId != zkClient.getSessionId()) {
                     log.error("Broker znode - [{}] is own by different zookeeper-ssession {} ", brokerZnodePath,
                             ownerZkSessionId);
-                    throw new PulsarServerException("Broker-znode owned by different zk-session " + ownerZkSessionId);
+                    throw new PulsarServerException(
+                            "Broker-znode owned by different zk-session " + ownerZkSessionId);
                 }
                 // Node may already be created by another load manager: in this case update the data.
                 zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
@@ -957,6 +962,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             log.info("Cluster domain refreshed {}", brokerToFailureDomainMap);
         } catch (Exception e) {
             log.warn("Failed to get domain-list for cluster {}", e.getMessage());
+        }
+    }
+    
+    @Override
+    public LocalBrokerData getBrokerLocalData(String broker) {
+        String key = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker);
+        try {
+            return brokerDataCache.get(key).orElse(null);
+        } catch (Exception e) {
+            log.warn("Failed to get local-broker data for {}",broker, e);
+            return null;
         }
     }
 }

@@ -19,20 +19,20 @@
 #ifndef CONSUMER_HPP_
 #define CONSUMER_HPP_
 
-#include <boost/date_time/posix_time/ptime.hpp>
 #include <iostream>
+#include <pulsar/defines.h>
 #include <pulsar/BrokerConsumerStats.h>
 #include <pulsar/ConsumerConfiguration.h>
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 class PulsarWrapper;
 class ConsumerImplBase;
 class PulsarFriend;
+typedef std::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
 /**
  *
  */
-class Consumer {
+class PULSAR_PUBLIC Consumer {
    public:
     /**
      * Construct an uninitialized consumer object
@@ -100,6 +100,19 @@ class Consumer {
     Result receive(Message& msg, int timeoutMs);
 
     /**
+     * Receive a single message
+     * <p>
+     * Retrieves a message when it will be available and completes callback with received message.
+     * </p>
+     * <p>
+     * receiveAsync() should be called subsequently once callback gets completed with received message.
+     * Else it creates <i> backlog of receive requests </i> in the application.
+     * </p>
+     * @param ReceiveCallback will be completed when message is available
+     */
+    void receiveAsync(ReceiveCallback callback);
+
+    /**
      * Acknowledge the reception of a single message.
      *
      * This method will block until an acknowledgement is sent to the broker. After
@@ -157,6 +170,70 @@ class Consumer {
      */
     void acknowledgeCumulativeAsync(const Message& message, ResultCallback callback);
     void acknowledgeCumulativeAsync(const MessageId& messageId, ResultCallback callback);
+
+    /**
+     * Acknowledge the failure to process a single message.
+     * <p>
+     * When a message is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
+     * <p>
+     * This call is not blocking.
+     *
+     * <p>
+     * Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message msg;
+     *     consumer.receive(msg);
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.negativeAcknowledge(msg);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param message
+     *            The {@code Message} to be acknowledged
+     */
+    void negativeAcknowledge(const Message& message);
+
+    /**
+     * Acknowledge the failure to process a single message.
+     * <p>
+     * When a message is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
+     * <p>
+     * This call is not blocking.
+     *
+     * <p>
+     * Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message msg;
+     *     consumer.receive(msg);
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.negativeAcknowledge(msg);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param messageId
+     *            The {@code MessageId} to be acknowledged
+     */
+    void negativeAcknowledge(const MessageId& messageId);
 
     Result close();
 
@@ -236,19 +313,17 @@ class Consumer {
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
 
    private:
-    typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
     ConsumerImplBasePtr impl_;
     explicit Consumer(ConsumerImplBasePtr);
 
     friend class PulsarFriend;
     friend class PulsarWrapper;
     friend class PartitionedConsumerImpl;
+    friend class MultiTopicsConsumerImpl;
     friend class ConsumerImpl;
     friend class ClientImpl;
     friend class ConsumerTest;
 };
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif /* CONSUMER_HPP_ */

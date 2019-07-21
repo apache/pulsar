@@ -18,21 +18,29 @@
  */
 package org.apache.pulsar.functions.windowing;
 
+import org.apache.pulsar.functions.api.Record;
+
 /**
  * An event is a wrapper object that gets stored in the window.
  *
  * @param <T> the type of the object thats wrapped
  */
 public interface Event<T> {
+
     /**
-     * The event timestamp in millis
+     * @return the record associated with the event
+     */
+    Record<?> getRecord();
+
+    /**
+     * The event timestamp in millis.
      *
      * @return the event timestamp in milliseconds.
      */
     long getTimestamp();
 
     /**
-     * Returns the wrapped object
+     * Returns the wrapped object.
      *
      * @return the wrapped object.
      */
@@ -46,11 +54,4 @@ public interface Event<T> {
      */
     boolean isWatermark();
 
-
-    /**
-     * Get the message id of this event
-     *
-     * @return byte array of the message id
-     */
-    byte[] getMessageId();
 }

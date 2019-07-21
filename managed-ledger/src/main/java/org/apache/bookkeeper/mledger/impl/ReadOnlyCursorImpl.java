@@ -27,12 +27,13 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 
 @Slf4j
 public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCursor {
 
     public ReadOnlyCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger,
-            PositionImpl startPosition, String cursorName) {
+                              PositionImpl startPosition, String cursorName) {
         super(bookkeeper, config, ledger, cursorName);
 
         if (startPosition.equals(PositionImpl.earliest)) {
@@ -47,7 +48,7 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
             messagesConsumedCounter = -getNumberOfEntries(Range.closed(readPosition, ledger.getLastPosition()));
         }
 
-        state = State.NoLedger;
+        this.state = State.NoLedger;
     }
 
     @Override
@@ -62,4 +63,11 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
         callback.closeComplete(ctx);
     }
 
+    public MLDataFormats.ManagedLedgerInfo.LedgerInfo getCurrentLedgerInfo() {
+        return this.ledger.getLedgersInfo().get(this.readPosition.getLedgerId());
+    }
+
+    public long getNumberOfEntries(Range<PositionImpl> range) {
+        return this.ledger.getNumberOfEntries(range);
+    }
 }

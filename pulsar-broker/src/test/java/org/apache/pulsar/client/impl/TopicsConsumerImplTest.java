@@ -19,12 +19,19 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import io.netty.util.Timeout;
+
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -32,6 +39,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
+
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -40,6 +50,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,6 +129,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .receiverQueueSize(4)
             .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+        assertTrue(consumer.getTopic().startsWith(MultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
         List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
@@ -380,8 +392,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(received, totalMessages);
 
         // 8. Simulate ackTimeout
-        ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
-        ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
+        Thread.sleep(ackTimeOutMillis);
 
         // 9. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -615,4 +626,187 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
+    /**
+     * Test Listener for github issue #2547
+     */
+    @Test(timeOut = 30000)
+    public void testMultiTopicsMessageListener() throws Exception {
+        String key = "MultiTopicsMessageListenerTest";
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final String messagePredicate = "my-message-" + key + "-";
+        final int totalMessages = 6;
+
+        // set latch larger than totalMessages, so timeout message get resend
+        CountDownLatch latch = new CountDownLatch(totalMessages * 3);
+
+        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
+        List<String> topicNames = Lists.newArrayList(topicName1);
+
+        admin.tenants().createTenant("prop", new TenantInfo());
+        admin.topics().createPartitionedTopic(topicName1, 2);
+
+        // 1. producer connect
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+        // 2. Create consumer, set not ack in message listener, so time-out message will resend
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            .topics(topicNames)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(1000, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(100)
+            .messageListener((c1, msg) -> {
+                assertNotNull(msg, "Message cannot be null");
+                String receivedMessage = new String(msg.getData());
+                latch.countDown();
+
+                log.info("Received message [{}] in the listener, latch: {}",
+                    receivedMessage, latch.getCount());
+                // since not acked, it should retry another time
+                //c1.acknowledgeAsync(msg);
+            })
+            .subscribe();
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+
+        MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
+
+        // 3. producer publish messages
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.send((messagePredicate + "producer1-" + i).getBytes());
+        }
+
+        // verify should not time out, because of message redelivered several times.
+        latch.await();
+
+        consumer.close();
+    }
+
+
+    /**
+     * Test topic partitions auto subscribed.
+     *
+     * Steps:
+     * 1. Create a consumer with 2 topics, and each topic has 2 partitions: xx-partition-0, xx-partition-1.
+     * 2. produce message to xx-partition-2, and verify consumer could not receive message.
+     * 3. update topics to have 3 partitions.
+     * 4. trigger partitionsAutoUpdate. this should be done automatically, this is to save time to manually trigger.
+     * 5. produce message to xx-partition-2 again,  and verify consumer could receive message.
+     *
+     */
+    @Test(timeOut = 30000)
+    public void testTopicAutoUpdatePartitions() throws Exception {
+        String key = "TestTopicAutoUpdatePartitions";
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final String messagePredicate = "my-message-" + key + "-";
+        final int totalMessages = 6;
+
+        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
+        List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
+
+        admin.tenants().createTenant("prop", new TenantInfo());
+        admin.topics().createPartitionedTopic(topicName1, 2);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+
+        // 1. Create a  consumer
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            .topics(topicNames)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
+            .autoUpdatePartitions(true)
+            .subscribe();
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+
+        MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
+
+        // 2. use partition-2 producer,
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1 + "-partition-2")
+            .enableBatching(false)
+            .create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2 + "-partition-2")
+            .enableBatching(false)
+            .create();
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.send((messagePredicate + "topic1-partition-2 index:" + i).getBytes());
+            producer2.send((messagePredicate + "topic2-partition-2 index:" + i).getBytes());
+            log.info("produce message to partition-2. message index: {}", i);
+        }
+        // since partition-2 not subscribed,  could not receive any message.
+        Message<byte[]> message = consumer.receive(200, TimeUnit.MILLISECONDS);
+        assertNull(message);
+
+        // 3. update to 3 partitions
+        admin.topics().updatePartitionedTopic(topicName1, 3);
+        admin.topics().updatePartitionedTopic(topicName2, 3);
+
+        // 4. trigger partitionsAutoUpdate. this should be done automatically in 1 minutes,
+        // this is to save time to manually trigger.
+        log.info("trigger partitionsAutoUpdateTimerTask");
+        Timeout timeout = topicsConsumer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Thread.sleep(200);
+
+        // 5. produce message to xx-partition-2 again,  and verify consumer could receive message.
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.send((messagePredicate + "topic1-partition-2 index:" + i).getBytes());
+            producer2.send((messagePredicate + "topic2-partition-2 index:" + i).getBytes());
+            log.info("produce message to partition-2 again. messageindex: {}", i);
+        }
+        int messageSet = 0;
+        message = consumer.receive();
+        do {
+            messageSet ++;
+            consumer.acknowledge(message);
+            log.info("4 Consumer acknowledged : " + new String(message.getData()));
+            message = consumer.receive(200, TimeUnit.MILLISECONDS);
+        } while (message != null);
+        assertEquals(messageSet, 2 * totalMessages);
+
+        consumer.close();
+    }
+    
+    @Test(timeOut = testTimeout)
+    public void testDefaultBacklogTTL() throws Exception {
+
+        int defaultTTLSec = 1;
+        int totalMessages = 10;
+        this.conf.setTtlDurationDefaultInSeconds(defaultTTLSec);
+
+        final String namespace = "prop/use/expiry";
+        final String topicName = "persistent://" + namespace + "/expiry";
+        final String subName = "expiredSub";
+
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+
+        admin.tenants().createTenant("prop", new TenantInfo(null, Sets.newHashSet("use")));
+        admin.namespaces().createNamespace(namespace);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+        consumer.close();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+        for (int i = 0; i < totalMessages; i++) {
+            producer.send(("" + i).getBytes());
+        }
+
+        Optional<Topic> topic = pulsar.getBrokerService().getTopic(topicName, false).get();
+        assertTrue(topic.isPresent());
+        PersistentSubscription subscription = (PersistentSubscription) topic.get().getSubscription(subName);
+
+        Thread.sleep((defaultTTLSec + 5) * 1000);
+
+        topic.get().checkMessageExpiry();
+
+        retryStrategically((test) -> subscription.getNumberOfEntriesInBacklog() == 0, 5, 200);
+
+        assertEquals(subscription.getNumberOfEntriesInBacklog(), 0);
+    }
+    
 }

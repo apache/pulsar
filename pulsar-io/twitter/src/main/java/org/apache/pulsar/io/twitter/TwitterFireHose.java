@@ -19,10 +19,12 @@
 
 package org.apache.pulsar.io.twitter;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twitter.hbc.ClientBuilder;
 import com.twitter.hbc.common.DelimitedStreamReader;
 import com.twitter.hbc.core.Constants;
-import com.twitter.hbc.core.endpoint.StatusesSampleEndpoint;
+import com.twitter.hbc.core.endpoint.StatusesFilterEndpoint;
 import com.twitter.hbc.core.endpoint.StreamingEndpoint;
 import com.twitter.hbc.core.processor.HosebirdMessageProcessor;
 import com.twitter.hbc.httpclient.BasicClient;
@@ -31,36 +33,47 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.PushSource;
-import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.SourceContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
+import org.apache.pulsar.io.twitter.data.TweetData;
+import org.apache.pulsar.io.twitter.data.TwitterRecord;
+import org.apache.pulsar.io.twitter.endpoint.SampleStatusesEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Simple Push based Twitter FireHose Source
+ * Simple Push based Twitter FireHose Source.
  */
-public class TwitterFireHose extends PushSource<String> {
+@Connector(
+    name = "twitter",
+    type = IOType.SOURCE,
+    help = "A simple connector moving tweets from Twitter FireHose to Pulsar",
+    configClass = TwitterFireHoseConfig.class
+)
+@Slf4j
+public class TwitterFireHose extends PushSource<TweetData> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TwitterFireHose.class);
-
-    // ----- Fields set by the constructor
 
     // ----- Runtime fields
     private Object waitObject;
 
+    private final ObjectMapper mapper = new ObjectMapper().configure(
+            DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
-        TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
-        if (hoseConfig.getConsumerKey() == null
-                || hoseConfig.getConsumerSecret() == null
-                || hoseConfig.getToken() == null
-                || hoseConfig.getTokenSecret() == null) {
-            throw new IllegalArgumentException("Required property not set.");
-        }
+        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(config, TwitterFireHoseConfig.class, sourceContext);
+        hoseConfig.validate();
         waitObject = new Object();
         startThread(hoseConfig);
     }
@@ -70,40 +83,13 @@ public class TwitterFireHose extends PushSource<String> {
         stopThread();
     }
 
-    // ------ Custom endpoints
-
-    /**
-     * Implementing this interface allows users of this source to set a custom endpoint.
-     */
-    public interface EndpointInitializer {
-        StreamingEndpoint createEndpoint();
-    }
-
-    /**
-     * Required for Twitter Client
-     */
-    private static class SampleStatusesEndpoint implements EndpointInitializer, Serializable {
-        @Override
-        public StreamingEndpoint createEndpoint() {
-            // this default endpoint initializer returns the sample endpoint: Returning a sample from the firehose (all tweets)
-            StatusesSampleEndpoint endpoint = new StatusesSampleEndpoint();
-            endpoint.stallWarnings(false);
-            endpoint.delimited(false);
-            return endpoint;
-        }
-    }
-
     private void startThread(TwitterFireHoseConfig config) {
-        Authentication auth = new OAuth1(config.getConsumerKey(),
-                config.getConsumerSecret(),
-                config.getToken(),
-                config.getTokenSecret());
 
         BasicClient client = new ClientBuilder()
                 .name(config.getClientName())
                 .hosts(config.getClientHosts())
-                .endpoint(new SampleStatusesEndpoint().createEndpoint())
-                .authentication(auth)
+                .endpoint(getEndpoint(config))
+                .authentication(getAuthentication(config))
                 .processor(new HosebirdMessageProcessor() {
                     public DelimitedStreamReader reader;
 
@@ -115,14 +101,15 @@ public class TwitterFireHose extends PushSource<String> {
 
                     @Override
                     public boolean process() throws IOException, InterruptedException {
-                        String line = reader.readLine();
+                        String tweetStr = reader.readLine();
                         try {
+                            TweetData tweet = mapper.readValue(tweetStr, TweetData.class);
                             // We don't really care if the record succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
-                            consume(new TwitterRecord(line));
+                            consume(new TwitterRecord(tweet, config.getGuestimateTweetTime()));
                         } catch (Exception e) {
-                            LOG.error("Exception thrown");
+                            LOG.error("Exception thrown: {}", e);
                         }
                         return true;
                     }
@@ -158,17 +145,31 @@ public class TwitterFireHose extends PushSource<String> {
         }
     }
 
-    static private class TwitterRecord implements Record<String> {
-        private String tweet;
-
-        public TwitterRecord(String tweet) {
-            this.tweet = tweet;
-        }
-
-        @Override
-        public String getValue() {
-            return tweet;
-        }
+    private Authentication getAuthentication(TwitterFireHoseConfig config) {
+        return new OAuth1(config.getConsumerKey(),
+                config.getConsumerSecret(),
+                config.getToken(),
+                config.getTokenSecret());
     }
 
+    private StreamingEndpoint getEndpoint(TwitterFireHoseConfig config) {
+        List<Long> followings = config.getFollowings();
+        List<String> terms = config.getTrackTerms();
+
+        if (CollectionUtils.isEmpty(followings) && CollectionUtils.isEmpty(terms)) {
+            return new SampleStatusesEndpoint().createEndpoint();
+        } else {
+            StatusesFilterEndpoint hosebirdEndpoint = new StatusesFilterEndpoint();
+
+            if (CollectionUtils.isNotEmpty(followings)) {
+               hosebirdEndpoint.followings(followings);
+            }
+
+            if (CollectionUtils.isNotEmpty(terms)) {
+               hosebirdEndpoint.trackTerms(terms);
+            }
+
+            return hosebirdEndpoint;
+        }
+    }
 }

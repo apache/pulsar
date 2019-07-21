@@ -21,16 +21,19 @@
 
 #include <pulsar/Authentication.h>
 #include <pulsar/Message.h>
+#include <pulsar/Schema.h>
 
 #include "PulsarApi.pb.h"
 #include "SharedBuffer.h"
 #include "Utils.h"
 
+#include <set>
+
 using namespace pulsar;
 
 namespace pulsar {
 
-typedef boost::shared_ptr<proto::MessageMetadata> MessageMetadataPtr;
+typedef std::shared_ptr<proto::MessageMetadata> MessageMetadataPtr;
 
 /**
  * Construct buffers ready to send for Pulsar client commands.
@@ -46,7 +49,7 @@ class Commands {
     };
     enum WireFormatConstant
     {
-        MaxMessageSize = (5 * 1024 * 1024 - (10 * 1024)),
+        DefaultMaxMessageSize = (5 * 1024 * 1024 - (10 * 1024)),
         MaxFrameSize = (5 * 1024 * 1024)
     };
 
@@ -78,12 +81,16 @@ class Commands {
                                      uint64_t consumerId, uint64_t requestId,
                                      proto::CommandSubscribe_SubType subType, const std::string& consumerName,
                                      SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
-                                     bool readCompacted);
+                                     bool readCompacted, const std::map<std::string, std::string>& metadata,
+                                     const SchemaInfo& schemaInfo,
+                                     proto::CommandSubscribe_InitialPosition subscriptionInitialPosition);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 
     static SharedBuffer newProducer(const std::string& topic, uint64_t producerId,
-                                    const std::string& producerName, uint64_t requestId);
+                                    const std::string& producerName, uint64_t requestId,
+                                    const std::map<std::string, std::string>& metadata,
+                                    const SchemaInfo& schemaInfo);
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);
@@ -97,7 +104,8 @@ class Commands {
     static SharedBuffer newPing();
     static SharedBuffer newPong();
 
-    static SharedBuffer newRedeliverUnacknowledgedMessages(uint64_t consumerId);
+    static SharedBuffer newRedeliverUnacknowledgedMessages(uint64_t consumerId,
+                                                           const std::set<MessageId>& messageIds);
 
     static std::string messageType(proto::BaseCommand::Type type);
 
@@ -112,6 +120,7 @@ class Commands {
 
     static SharedBuffer newSeek(uint64_t consumerId, uint64_t requestId, const MessageId& messageId);
     static SharedBuffer newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
+    static SharedBuffer newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId);
 
    private:
     Commands();

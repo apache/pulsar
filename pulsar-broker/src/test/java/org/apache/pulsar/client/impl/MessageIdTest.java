@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -44,16 +43,16 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
 import org.slf4j.Logger;
@@ -62,8 +61,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import io.netty.buffer.ByteBuf;
 
 public class MessageIdTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(MessageIdTest.class);
@@ -316,14 +313,15 @@ public class MessageIdTest extends BrokerTestBase {
         doReturn(producer.brokerChecksumSupportedVersion() - 1).when(mockClientCnx).getRemoteEndpointProtocolVersion();
         prod.setClientCnx(mockClientCnx);
 
-        Message<byte[]> msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
-        CompletableFuture<MessageId> future1 = producer.sendAsync(msg1);
+        CompletableFuture<MessageId> future1 = producer.sendAsync("message-1".getBytes());
 
-        Message<byte[]> msg2 = MessageBuilder.create().setContent("message-2".getBytes()).build();
-        CompletableFuture<MessageId> future2 = producer.sendAsync(msg2);
+        byte[] a2 = "message-2".getBytes();
+        TypedMessageBuilder<byte[]> msg2 = producer.newMessage().value(a2);
 
-        // corrupt the message
-        msg2.getData()[msg2.getData().length - 1] = '3'; // new content would be 'message-3'
+        CompletableFuture<MessageId> future2 = msg2.sendAsync();
+
+        // corrupt the message, new content would be 'message-3'
+        ((TypedMessageBuilderImpl<byte[]>) msg2).getContent().put(a2.length - 1, (byte) '3');
 
         prod.setClientCnx(null);
 
@@ -384,15 +382,16 @@ public class MessageIdTest extends BrokerTestBase {
         doReturn(producer.brokerChecksumSupportedVersion() - 1).when(mockClientCnx).getRemoteEndpointProtocolVersion();
         prod.setClientCnx(mockClientCnx);
 
-        Message<byte[]> msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
-        CompletableFuture<MessageId> future1 = producer.sendAsync(msg1);
+        CompletableFuture<MessageId> future1 = producer.sendAsync("message-1".getBytes());
 
-        Message<byte[]> msg2 = MessageBuilder.create().setContent("message-2".getBytes()).build();
-        CompletableFuture<MessageId> future2 = producer.sendAsync(msg2);
+        byte[] a2 = "message-2".getBytes();
+        TypedMessageBuilder<byte[]> msg2 = producer.newMessage().value(a2);
 
-        // corrupt the message
-        msg2.getData()[msg2.getData().length - 1] = '3'; // new content would be
-                                                         // 'message-3'
+        CompletableFuture<MessageId> future2 = msg2.sendAsync();
+
+        // corrupt the message, new content would be 'message-3'
+        ((TypedMessageBuilderImpl<byte[]>) msg2).getContent().put(a2.length - 1, (byte) '3');
+
         // unset mock
         prod.setClientCnx(null);
 
@@ -456,11 +455,13 @@ public class MessageIdTest extends BrokerTestBase {
         // enable checksum at producer
         stopBroker();
 
-        Message<byte[]> msg = MessageBuilder.create().setContent("message-1".getBytes()).build();
-        CompletableFuture<MessageId> future = producer.sendAsync(msg);
+        byte[] a = "message-1".getBytes();
+        TypedMessageBuilder<byte[]> msg = producer.newMessage().value(a);
 
-        // 3. corrupt the message
-        msg.getData()[msg.getData().length - 1] = '2'; // new content would be 'message-3'
+        CompletableFuture<MessageId> future = msg.sendAsync();
+
+        // corrupt the message, new content would be 'message-2'
+        ((TypedMessageBuilderImpl<byte[]>) msg).getContent().put(a.length - 1, (byte) '2');
 
         // 4. Restart the broker to have the messages published
         startBroker();
@@ -480,19 +481,21 @@ public class MessageIdTest extends BrokerTestBase {
         /**
          * verify: ProducerImpl.verifyLocalBufferIsNotCorrupted() => validates if message is corrupt
          */
-        MessageImpl<byte[]> msg2 = (MessageImpl<byte[]>) MessageBuilder.create().setContent("message-1".getBytes())
-                .build();
-        ByteBuf payload = msg2.getDataBuffer();
-        Builder metadataBuilder = ((MessageImpl<byte[]>) msg).getMessageBuilder();
+        byte[] a2 = "message-2".getBytes();
+
+        TypedMessageBuilderImpl<byte[]> msg2 = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
+        ByteBuf payload = Unpooled.wrappedBuffer(msg2.getContent());
+        Builder metadataBuilder = ((TypedMessageBuilderImpl<byte[]>) msg).getMetadataBuilder();
         MessageMetadata msgMetadata = metadataBuilder.setProducerName("test").setSequenceId(1).setPublishTime(10L)
                 .build();
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         // (a) create OpSendMsg with message-data : "message-1"
-        OpSendMsg op = OpSendMsg.create(((MessageImpl<byte[]>) msg), cmd, 1, null);
+        OpSendMsg op = OpSendMsg.create(((MessageImpl<byte[]>) msg2.getMessage()), cmd, 1, null);
         // a.verify: as message is not corrupt: no need to update checksum
         assertTrue(producer.verifyLocalBufferIsNotCorrupted(op));
+
         // (b) corrupt message
-        msg2.getData()[msg2.getData().length - 1] = '2'; // new content would be 'message-2'
+        msg2.getContent().put(a2.length - 1, (byte) '2'); // new content would be 'message-2'
         // b. verify: as message is corrupt: update checksum
         assertFalse(producer.verifyLocalBufferIsNotCorrupted(op));
 
@@ -500,9 +503,9 @@ public class MessageIdTest extends BrokerTestBase {
 
         // [2] test-recoverChecksumError functionality
         stopBroker();
-        MessageImpl<byte[]> msg1 = (MessageImpl<byte[]>) MessageBuilder.create().setContent("message-1".getBytes())
-                .build();
-        future = producer.sendAsync(msg1);
+
+        TypedMessageBuilderImpl<byte[]> msg1 = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
+        future = msg1.sendAsync();
         ClientCnx cnx = spy(
                 new ClientCnx(new ClientConfigurationData(), ((PulsarClientImpl) pulsarClient).eventLoopGroup()));
         String exc = "broker is already stopped";

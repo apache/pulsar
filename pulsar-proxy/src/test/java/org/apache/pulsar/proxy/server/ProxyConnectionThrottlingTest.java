@@ -20,11 +20,14 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 
+import java.util.Optional;
+
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -47,7 +50,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
-        proxyConfig.setServicePort(PortManager.nextFreePort());
+        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
@@ -69,23 +72,23 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testInboundConnection() throws Exception {
         LOG.info("Creating producer 1");
-        PulsarClient client1 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+        PulsarClient client1 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
                 .build();
-        Producer<byte[]> producer1 = client1.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
+        Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
 
         LOG.info("Creating producer 2");
-        PulsarClient client2 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+        PulsarClient client2 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
                 .build();
         Producer<byte[]> producer2;
-        Assert.assertEquals(ProxyConnection.rejectedConnections.get(), 0.0d);
+        Assert.assertEquals(ProxyService.rejectedConnections.get(), 0.0d);
         try {
-            producer2 = client2.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
+            producer2 = client2.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
             producer2.send("Message 1".getBytes());
             Assert.fail("Should have failed since max num of connections is 2 and the first producer used them all up - one for discovery and other for producing.");
         } catch (Exception ex) {
             // OK
         }
-        Assert.assertEquals(ProxyConnection.rejectedConnections.get(), 1.0d);
+        Assert.assertEquals(ProxyService.rejectedConnections.get(), 1.0d);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);

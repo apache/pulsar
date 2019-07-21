@@ -59,6 +59,9 @@ public class PerformanceConsumer {
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
+    private static final LongAdder totalMessagesReceived = new LongAdder();
+    private static final LongAdder totalBytesReceived = new LongAdder();
+
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
@@ -92,6 +95,9 @@ public class PerformanceConsumer {
         @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
+        @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
+        public boolean replicatedSubscription = false;
+
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowlegments grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
@@ -109,13 +115,12 @@ public class PerformanceConsumer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
-        @Parameter(names = {
-                "--auth_params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\"")
+        @Parameter(
+            names = { "--auth-params" },
+            description = "Authentication parameters, whose format is determined by the implementation " +
+                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
-
-        @Parameter(names = {
-                "--use-tls" }, description = "Use TLS encryption on the connection")
-        public boolean useTls;
 
         @Parameter(names = {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
@@ -132,7 +137,7 @@ public class PerformanceConsumer {
     public static void main(String[] args) throws Exception {
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-consumer");
+        jc.setProgramName("pulsar-perf consume");
 
         try {
             jc.parse(args);
@@ -178,10 +183,6 @@ public class PerformanceConsumer {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
 
-            if (arguments.useTls == false) {
-                arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
-            }
-
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                 arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
             }
@@ -199,6 +200,9 @@ public class PerformanceConsumer {
         MessageListener<byte[]> listener = (consumer, msg) -> {
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
+
+            totalMessagesReceived.increment();
+            totalBytesReceived.add(msg.getData().length);
 
             if (limiter != null) {
                 limiter.acquire();
@@ -218,7 +222,6 @@ public class PerformanceConsumer {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                 .ioThreads(Runtime.getRuntime().availableProcessors()) //
-                .enableTls(arguments.useTls) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -253,7 +256,8 @@ public class PerformanceConsumer {
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
                 .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
-                .subscriptionType(arguments.subscriptionType);
+                .subscriptionType(arguments.subscriptionType)
+                .replicateSubscriptionState(arguments.replicatedSubscription);
 
         if (arguments.encKeyName != null) {
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
@@ -286,8 +290,11 @@ public class PerformanceConsumer {
         log.info("Start receiving from {} consumers on {} topics", arguments.numConsumers,
                 arguments.numTopics);
 
+        long start = System.nanoTime();
+
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
+                printAggregatedThroughput(start);
                 printAggregatedStats();
             }
         });
@@ -324,6 +331,17 @@ public class PerformanceConsumer {
         }
 
         pulsarClient.close();
+    }
+
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;;
+        double rate = totalMessagesReceived.sum() / elapsed;
+        double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
+        log.info(
+            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
+            totalMessagesReceived,
+            dec.format(rate),
+            dec.format(throughput));
     }
 
     private static void printAggregatedStats() {

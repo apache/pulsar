@@ -42,7 +42,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -221,7 +221,10 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         for (Future<RawMessage> f : futures) {
             try (RawMessage m = f.get(1, TimeUnit.SECONDS)) {
                 // Assert each key is unique
-                Assert.assertTrue(keys.add(extractKey(m)));
+                String key = extractKey(m);
+                Assert.assertTrue(
+                    keys.add(key),
+                    "Received duplicated key '" + key + "' : already received keys = " + keys);
             } catch (TimeoutException te) {
                 timeouts++;
             }

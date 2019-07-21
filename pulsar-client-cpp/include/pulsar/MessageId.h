@@ -21,15 +21,15 @@
 
 #include <iosfwd>
 #include <stdint.h>
-#include <boost/shared_ptr.hpp>
-
-#pragma GCC visibility push(default)
+#include <memory>
+#include <string>
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
 class MessageIdImpl;
 
-class MessageId {
+class PULSAR_PUBLIC MessageId {
    public:
     MessageId& operator=(const MessageId&);
     MessageId();
@@ -49,6 +49,16 @@ class MessageId {
      * Serialize the message id into a binary string for storing
      */
     void serialize(std::string& result) const;
+
+    /**
+     * Get the topic Name from which this message originated from
+     */
+    const std::string& getTopicName() const;
+
+    /**
+     * Set the topicName
+     */
+    void setTopicName(const std::string& topicName);
 
     /**
      * Deserialize a message id from a binary string
@@ -71,23 +81,23 @@ class MessageId {
     friend class Commands;
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
+    friend class MultiTopicsConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
     friend class PulsarFriend;
+    friend class NegativeAcksTracker;
 
-    friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
+    friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
 
     int64_t ledgerId() const;
     int64_t entryId() const;
     int32_t batchIndex() const;
     int32_t partition() const;
 
-    typedef boost::shared_ptr<MessageIdImpl> MessageIdImplPtr;
+    typedef std::shared_ptr<MessageIdImpl> MessageIdImplPtr;
     MessageIdImplPtr impl_;
 };
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif  // MESSAGE_ID_H

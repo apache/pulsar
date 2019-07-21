@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.api.utils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
@@ -41,21 +40,13 @@ public class JavaSerDe implements SerDe<Object> {
 
     @Override
     public byte[] serialize(Object resultValue) {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutput out = null;
-        try {
-            out = new ObjectOutputStream(bos);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutput out = new ObjectOutputStream(bos)) {
             out.writeObject(resultValue);
             out.flush();
             return bos.toByteArray();
         } catch (Exception ex) {
             log.info("Exception during serialization", ex);
-        } finally {
-            try {
-                bos.close();
-            } catch (IOException ex) {
-                // ignore close exception
-            }
         }
         return null;
     }
@@ -63,25 +54,11 @@ public class JavaSerDe implements SerDe<Object> {
     @Override
     public Object deserialize(byte[] data) {
         Object obj = null;
-        ByteArrayInputStream bis = null;
-        ObjectInputStream ois = null;
-        try {
-            bis = new ByteArrayInputStream(data);
-            ois = new ObjectInputStream(bis);
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
+             ObjectInputStream ois = new ObjectInputStream(bis)) {
             obj = ois.readObject();
         } catch (Exception ex) {
             log.info("Exception during deserialization", ex);
-        } finally {
-            try {
-                if (bis != null) {
-                    bis.close();
-                }
-                if (ois != null) {
-                    ois.close();
-                }
-            } catch (IOException ex) {
-                // Ignore them
-            }
         }
         return obj;
     }

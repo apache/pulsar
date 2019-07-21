@@ -23,11 +23,19 @@ import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONF
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -35,8 +43,15 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -59,9 +74,16 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}")
-    @ApiOperation(value = "Get the list of active brokers (web service addresses) in the cluster.", response = String.class, responseContainer = "Set")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist") })
+    @ApiOperation(
+        value = "Get the list of active brokers (web service addresses) in the cluster."
+                + "If authorization is not enabled, any cluster name is valid.",
+        response = String.class,
+        responseContainer = "Set")
+    @ApiResponses(
+        value = {
+            @ApiResponse(code = 401, message = "Authentication required"),
+            @ApiResponse(code = 403, message = "This operation requires super-user access"),
+            @ApiResponse(code = 404, message = "Cluster does not exist: cluster={clustername}") })
     public Set<String> getActiveBrokers(@PathParam("cluster") String cluster) throws Exception {
         validateSuperUserAccess();
         validateClusterOwnership(cluster);
@@ -76,12 +98,13 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
-    @Path("/{cluster}/{broker}/ownedNamespaces")
+    @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
     @ApiOperation(value = "Get the list of namespaces served by the specific broker", response = NamespaceOwnershipStatus.class, responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist") })
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaes(@PathParam("cluster") String cluster,
-            @PathParam("broker") String broker) throws Exception {
+    @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Cluster doesn't exist") })
+    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaes(@PathParam("clusterName") String cluster,
+            @PathParam("broker-webserviceurl") String broker) throws Exception {
         validateSuperUserAccess();
         validateClusterOwnership(cluster);
         validateBrokerName(broker);
@@ -99,19 +122,35 @@ public class BrokersBase extends AdminResource {
     @POST
     @Path("/configuration/{configName}/{configValue}")
     @ApiOperation(value = "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
-            @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
-            @ApiResponse(code = 404, message = "Configuration not found"),
-            @ApiResponse(code = 412, message = "Configuration can't be updated dynamically") })
-    public void updateDynamicConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception{
+    @ApiResponses(value = {
+        @ApiResponse(code = 204, message = "Service configuration updated successfully"),
+        @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
+        @ApiResponse(code = 404, message = "Configuration not found"),
+        @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
+        @ApiResponse(code = 500, message = "Internal server error")})
+    public void updateDynamicConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception {
         validateSuperUserAccess();
         updateDynamicConfigurationOnZk(configName, configValue);
     }
 
+    @DELETE
+    @Path("/configuration/{configName}")
+    @ApiOperation(value = "Delete dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
+            @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
+            @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void deleteDynamicConfiguration(@PathParam("configName") String configName) throws Exception {
+        validateSuperUserAccess();
+        deleteDynamicConfigurationOnZk(configName);
+    }
+    
     @GET
     @Path("/configuration/values")
     @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
-    @ApiResponses(value = { @ApiResponse(code = 404, message = "Configuration not found") })
+    @ApiResponses(value = {
+        @ApiResponse(code = 404, message = "Configuration not found"),
+        @ApiResponse(code = 500, message = "Internal server error")})
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
         ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
                 .getDynamicConfigurationCache();
@@ -134,6 +173,15 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value = "Get all updatable dynamic configurations's name")
     public List<String> getDynamicConfigurationName() {
         return BrokerService.getDynamicConfiguration();
+    }
+
+    @GET
+    @Path("/configuration/runtime")
+    @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public Map<String, String> getRuntimeConfiguration() {
+        validateSuperUserAccess();
+        return pulsar().getBrokerService().getRuntimeConfiguration();
     }
 
     /**
@@ -193,7 +241,126 @@ public class BrokersBase extends AdminResource {
         return new InternalConfigurationData(
             pulsar().getConfiguration().getZookeeperServers(),
             pulsar().getConfiguration().getConfigurationStoreServers(),
-            conf.getZkLedgersRootPath());
+            conf.getZkLedgersRootPath(),
+            pulsar().getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
     }
 
+    @GET
+    @Path("/health")
+    @ApiOperation(value = "Run a healthcheck against the broker")
+    @ApiResponses(value = {
+        @ApiResponse(code = 200, message = "Everything is OK"),
+        @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Cluster doesn't exist"),
+        @ApiResponse(code = 500, message = "Internal server error")})
+    public void healthcheck(@Suspended AsyncResponse asyncResponse) throws Exception {
+        validateSuperUserAccess();
+        String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(
+                pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
+        String topic = String.format("persistent://%s/healthcheck", heartbeatNamespace);
+
+        PulsarClient client = pulsar().getClient();
+
+        String messageStr = UUID.randomUUID().toString();
+        CompletableFuture<Producer<String>> producerFuture =
+            client.newProducer(Schema.STRING).topic(topic).createAsync();
+        CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)
+            .topic(topic).startMessageId(MessageId.latest).createAsync();
+
+        CompletableFuture<Void> completePromise = new CompletableFuture<>();
+
+        CompletableFuture.allOf(producerFuture, readerFuture).whenComplete(
+                (ignore, exception) -> {
+                    if (exception != null) {
+                        completePromise.completeExceptionally(exception);
+                    } else {
+                        producerFuture.thenCompose((producer) -> producer.sendAsync(messageStr))
+                            .whenComplete((ignore2, exception2) -> {
+                                    if (exception2 != null) {
+                                        completePromise.completeExceptionally(exception2);
+                                    }
+                                });
+
+                        healthcheckReadLoop(readerFuture, completePromise, messageStr);
+
+                        // timeout read loop after 10 seconds
+                        ScheduledFuture<?> timeout = pulsar().getExecutor().schedule(() -> {
+                                completePromise.completeExceptionally(new TimeoutException("Timed out reading"));
+                            }, 10, TimeUnit.SECONDS);
+                        // don't leave timeout dangling
+                        completePromise.whenComplete((ignore2, exception2) -> {
+                                timeout.cancel(false);
+                            });
+                    }
+                });
+
+        completePromise.whenComplete((ignore, exception) -> {
+                producerFuture.thenAccept((producer) -> {
+                        producer.closeAsync().whenComplete((ignore2, exception2) -> {
+                                if (exception2 != null) {
+                                    LOG.warn("Error closing producer for healthcheck", exception2);
+                                }
+                            });
+                    });
+                readerFuture.thenAccept((reader) -> {
+                        reader.closeAsync().whenComplete((ignore2, exception2) -> {
+                                if (exception2 != null) {
+                                    LOG.warn("Error closing reader for healthcheck", exception2);
+                                }
+                            });
+                    });
+                if (exception != null) {
+                    asyncResponse.resume(new RestException(exception));
+                } else {
+                    asyncResponse.resume("ok");
+                }
+            });
+    }
+
+    private void healthcheckReadLoop(CompletableFuture<Reader<String>> readerFuture,
+                                     CompletableFuture<?> completablePromise,
+                                     String messageStr) {
+        readerFuture.thenAccept((reader) -> {
+                CompletableFuture<Message<String>> readFuture = reader.readNextAsync()
+                    .whenComplete((m, exception) -> {
+                            if (exception != null) {
+                                completablePromise.completeExceptionally(exception);
+                            } else if (m.getValue().equals(messageStr)) {
+                                completablePromise.complete(null);
+                            } else {
+                                healthcheckReadLoop(readerFuture, completablePromise, messageStr);
+                            }
+                        });
+            });
+    }
+    
+    private synchronized void deleteDynamicConfigurationOnZk(String configName) {
+        try {
+            if (BrokerService.isDynamicConfiguration(configName)) {
+                ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
+                        .getDynamicConfigurationCache();
+                Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
+                        .orElse(null);
+                if (configurationMap != null && configurationMap.containsKey(configName)) {
+                    configurationMap.remove(configName);
+                    byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
+                    dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
+                    serviceConfigZkVersion = localZk()
+                            .setData(BROKER_SERVICE_CONFIGURATION_PATH, content, serviceConfigZkVersion).getVersion();
+                }
+                LOG.info("[{}] Deleted Service configuration {}", clientAppId(), configName);
+            } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName);
+                }
+                throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
+            }
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception ie) {
+            LOG.error("[{}] Failed to update configuration {}, {}", clientAppId(), configName, ie.getMessage(), ie);
+            throw new RestException(ie);
+        }
+    }
 }
+

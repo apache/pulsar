@@ -23,7 +23,7 @@
 
 using namespace pulsar;
 
-static std::string lookupUrl = "pulsar://localhost:8885";
+static std::string lookupUrl = "pulsar://localhost:6650";
 
 TEST(ClientTest, testChecksumComputation) {
     std::string data = "test";

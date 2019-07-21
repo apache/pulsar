@@ -27,12 +27,13 @@
 - [Compilation](#compilation)
 	- [Compile on Ubuntu Server 16.04](#compile-on-ubuntu-server-1604)
 	- [Compile on Mac OS X](#compile-on-mac-os-x)
+	- [Compile on Windows (Visual Studio)](#compile-on-windows)
 - [Tests](#tests)
 - [Requirements for Contributors](#requirements-for-contributors)
 
 <!-- /TOC -->
 Examples for using the API to publish and consume messages can be found on
-https://github.com/apache/incubator-pulsar/tree/master/pulsar-client-cpp/examples
+https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples
 
 ## Requirements
 
@@ -73,8 +74,8 @@ Run unit tests:
 #### Install all dependencies:
 
 ```shell
-apt-get install g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
-                libprotobuf-dev libboost-all-dev  libgtest-dev \
+apt-get install -y g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
+                libprotobuf-dev libboost-all-dev  libgtest-dev google-mock \
                 libjsoncpp-dev libxml2-utils protobuf-compiler python-setuptools
 ```
 
@@ -82,6 +83,16 @@ apt-get install g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
 
 ```shell
 cd /usr/src/gtest
+sudo cmake .
+sudo make
+sudo cp *.a /usr/lib
+```
+
+
+#### Compile and install Google Mock:
+
+```shell
+cd /usr/src/gmock
 sudo cmake .
 sudo make
 sudo cp *.a /usr/lib
@@ -120,8 +131,7 @@ export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
 export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # For Protobuf
-brew tap homebrew/versions
-brew install protobuf260 boost boost-python log4cxx jsoncpp
+brew install protobuf boost boost-python log4cxx jsoncpp
 
 # For gtest
 cd $HOME
@@ -134,7 +144,7 @@ make install
 
 #### Compile Pulsar client library:
 ```shell
-export $PULSAR_PATH=<Path where you cloned pulsar repo>
+export PULSAR_PATH=<Path where you cloned pulsar repo>
 cd ${PULSAR_PATH}/pulsar-client-cpp/
 cmake .
 make
@@ -153,6 +163,36 @@ ${PULSAR_PATH}/pulsar-client-cpp/lib/libpulsar.a
 ${PULSAR_PATH}/pulsar-client-cpp/perf/perfProducer
 ${PULSAR_PATH}/pulsar-client-cpp/perf/perfConsumer
 ```
+
+### Compile on Windows
+
+#### Install all dependencies:
+
+Clone and build all dependencies from source if a binary distro can't be found.
+
+- [Boost](https://github.com/boostorg/boost)
+- [LibCurl](https://github.com/curl/curl)
+- [zlib](https://github.com/madler/zlib)
+- [OpenSSL](https://github.com/openssl/openssl)
+- [ProtoBuf](https://github.com/protocolbuffers/protobuf)
+- [dlfcn-win32](https://github.com/dlfcn-win32/dlfcn-win32)
+- [LLVM](https://llvm.org/builds/) (for clang-tidy and clang-format)
+
+If you want to build and run the tests, then also install
+- [GTest and GMock](https://github.com/google/googletest)
+
+#### Compile Pulsar client library:
+
+```shell
+#If all dependencies are in your path, all that is necessary is
+${PULSAR_PATH}/pulsar-client-cpp/cmake .
+
+#if all dependencies are not in your path, then passing in a PROTOC_PATH and CMAKE_PREFIX_PATH is necessary
+${PULSAR_PATH}/pulsar-client-cpp/cmake -DPROTOC_PATH=C:/protobuf/bin/protoc -DCMAKE_PREFIX_PATH="C:/boost;C:/openssl;C:/zlib;C:/curl;C:/protobuf;C:/googletest;C:/dlfcn-win32" .
+
+#This will generate pulsar-cpp.sln. Open this in Visual Studio and build the desired configurations.
+```
+
 
 ## Tests
 ```shell

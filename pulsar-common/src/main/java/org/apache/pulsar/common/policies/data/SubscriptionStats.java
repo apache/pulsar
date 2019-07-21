@@ -43,18 +43,27 @@ public class SubscriptionStats {
 
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages */
     public boolean blockedSubscriptionOnUnackedMsgs;
-    
+
+    /** Number of delayed messages currently being tracked */
+    public long msgDelayed;
+
     /** Number of unacknowledged messages for the subscription */
     public long unackedMessages;
 
-    /** whether this subscription is Exclusive or Shared or Failover */
+    /** Whether this subscription is Exclusive or Shared or Failover */
     public SubType type;
+
+    /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive */
+    public String activeConsumerName;
 
     /** Total rate of messages expired on this subscription. msg/s */
     public double msgRateExpired;
 
     /** List of connected consumers on this subscription w/ their stats */
     public List<ConsumerStats> consumers;
+
+    /** Mark that the subscription state is kept in sync across different regions */
+    public boolean isReplicated;
 
     public SubscriptionStats() {
         this.consumers = Lists.newArrayList();
@@ -80,6 +89,7 @@ public class SubscriptionStats {
         this.msgBacklog += stats.msgBacklog;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
+        this.isReplicated |= stats.isReplicated;
         if (this.consumers.size() != stats.consumers.size()) {
             for (int i = 0; i < stats.consumers.size(); i++) {
                 ConsumerStats consumerStats = new ConsumerStats();

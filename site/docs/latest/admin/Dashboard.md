@@ -36,7 +36,7 @@ The easiest way to use the dashboard is to run it inside a [Docker](https://www.
 To generate the Docker image:
 
 ```shell
-$ docker build -t pulsar-dashboard dashboard
+$ docker build -t apachepulsar/pulsar-dashboard dashboard
 ```
 
 To run the dashboard:
@@ -51,6 +51,18 @@ $ docker run -p 80:80 \
 You need to specify only one service URL for a Pulsar cluster. Internally, the collector will figure out all the existing clusters and the brokers from where it needs to pull the metrics. If you're connecting the dashboard to Pulsar running in {% popover standalone %} mode, the URL will be `http://localhost:8080` by default.
 
 Once the Docker container is running, the web dashboard will be accessible via `localhost` or whichever host is being used by Docker.
+
+{% include admonition.html type="warning" content="The `SERVICE_URL` that the dashboard uses needs to be reachable from inside the Docker container" %}
+
+If the Pulsar service is running in standalone mode in `localhost`, the `SERVICE_URL` would have to
+be the IP of the machine.
+
+Similarly, given the Pulsar standalone advertises itself with localhost by default, we need to
+explicitely set the advertise address to the host IP. For example:
+
+```shell
+$ bin/pulsar standalone --advertised-address 1.2.3.4
+```
 
 ### Known issues
 

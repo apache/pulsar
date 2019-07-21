@@ -82,6 +82,16 @@ public interface Brokers {
 	 * @throws PulsarAdminException
 	 */
     void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException;
+    
+    /**
+     * It deletes dynamic configuration value in to Zk. It will not impact current value in broker but next time when
+     * broker restarts, it applies value from configuration file only.
+     * 
+     * @param key
+     * @param value
+     * @throws PulsarAdminException
+     */
+    void deleteDynamicConfiguration(String configName) throws PulsarAdminException;
 
     /**
      * Get list of updatable configuration name
@@ -90,6 +100,14 @@ public interface Brokers {
      * @throws PulsarAdminException
      */
     List<String> getDynamicConfigurationNames() throws PulsarAdminException;
+
+    /**
+     * Get values of runtime configuration
+     *
+     * @return
+     * @throws PulsarAdminException
+     */
+    Map<String, String> getRuntimeConfigurations() throws PulsarAdminException;
 
     /**
      * Get values of all overridden dynamic-configs
@@ -105,4 +123,11 @@ public interface Brokers {
      * @return internal configuration data.
      */
     InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException;
+
+    /**
+     * Run a healthcheck on the broker.
+     *
+     * @throws an exception if the healthcheck fails.
+     */
+    void healthcheck() throws PulsarAdminException;
 }

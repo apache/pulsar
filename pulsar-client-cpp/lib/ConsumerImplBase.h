@@ -21,11 +21,12 @@
 #include <pulsar/Message.h>
 #include <pulsar/Consumer.h>
 
+#include <set>
+
 namespace pulsar {
 class ConsumerImplBase;
 
-typedef boost::weak_ptr<ConsumerImplBase> ConsumerImplBaseWeakPtr;
-typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
+typedef std::weak_ptr<ConsumerImplBase> ConsumerImplBaseWeakPtr;
 
 class ConsumerImplBase {
    public:
@@ -35,6 +36,7 @@ class ConsumerImplBase {
     virtual const std::string& getTopic() const = 0;
     virtual Result receive(Message& msg) = 0;
     virtual Result receive(Message& msg, int timeout) = 0;
+    virtual void receiveAsync(ReceiveCallback& callback) = 0;
     virtual void unsubscribeAsync(ResultCallback callback) = 0;
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback) = 0;
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) = 0;
@@ -50,6 +52,7 @@ class ConsumerImplBase {
     virtual int getNumOfPrefetchedMessages() const = 0;
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) = 0;
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback) = 0;
+    virtual void negativeAcknowledge(const MessageId& msgId) = 0;
 };
 }  // namespace pulsar
 #endif  // PULSAR_CONSUMER_IMPL_BASE_HEADER

@@ -31,7 +31,7 @@ job('pulsar-seed') {
       delegate,
       'H 6 * * *',
       false,
-      'dev@pulsar.incubator.apache.org')
+      'dev@pulsar.apache.org')
 
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(

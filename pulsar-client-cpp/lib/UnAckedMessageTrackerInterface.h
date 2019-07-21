@@ -19,20 +19,16 @@
 #ifndef LIB_UNACKEDMESSAGETRACKERINTERFACE_H_
 #define LIB_UNACKEDMESSAGETRACKERINTERFACE_H_
 #include <string>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <set>
 #include <algorithm>
 #include <utility>
 #include "pulsar/MessageId.h"
-#include <boost/thread/locks.hpp>
-#include <boost/thread/shared_mutex.hpp>
 #include "lib/ClientImpl.h"
 #include "lib/ConsumerImplBase.h"
-#include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <lib/LogUtils.h>
 #include "lib/PulsarApi.pb.h"
-#include <boost/thread/recursive_mutex.hpp>
 #include <boost/asio/error.hpp>
 namespace pulsar {
 
@@ -44,8 +40,11 @@ class UnAckedMessageTrackerInterface {
     virtual bool remove(const MessageId& m) = 0;
     virtual void removeMessagesTill(const MessageId& msgId) = 0;
     virtual void clear() = 0;
+    // this is only for MultiTopicsConsumerImpl, when un-subscribe a single topic, should remove all it's
+    // message.
+    virtual void removeTopicMessage(const std::string& topic) = 0;
 };
 
-typedef boost::scoped_ptr<UnAckedMessageTrackerInterface> UnAckedMessageTrackerScopedPtr;
+typedef std::unique_ptr<UnAckedMessageTrackerInterface> UnAckedMessageTrackerScopedPtr;
 }  // namespace pulsar
 #endif /* LIB_UNACKEDMESSAGETRACKERINTERFACE_H_ */

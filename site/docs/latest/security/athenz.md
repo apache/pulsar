@@ -97,7 +97,6 @@ authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
 authParams={"tenantDomain":"shopping","tenantService":"some_app","providerDomain":"pulsar","privateKey":"file:///path/to/private.pem","keyId":"v1"}
 
 # Enable TLS
-useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/cacert.pem
 ```

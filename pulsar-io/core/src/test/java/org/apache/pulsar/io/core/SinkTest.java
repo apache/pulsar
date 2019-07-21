@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.core;
 
+import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -38,7 +39,7 @@ public class SinkTest {
         }
 
         @Override
-        public void write(RecordContext inputRecordContext, String value) throws Exception {
+        public void write(Record<String> record) throws Exception {
 
         }
 

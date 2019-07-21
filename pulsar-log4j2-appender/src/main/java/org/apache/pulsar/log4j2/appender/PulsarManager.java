@@ -20,31 +20,21 @@ package org.apache.pulsar.log4j2.appender;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
+
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.AbstractManager;
 import org.apache.logging.log4j.core.config.Property;
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 
 public class PulsarManager extends AbstractManager {
 
-    static Supplier<ClientBuilder> PULSAR_CLIENT_BUILDER = () -> PulsarClient.builder();
-
-    static BiFunction<String, byte[], Message<byte[]>> MESSAGE_BUILDER = (key, data) -> {
-        MessageBuilder<byte[]> messageBuilder = MessageBuilder.create()
-            .setContent(data);
-        if (null != key) {
-            messageBuilder = messageBuilder.setKey(key);
-        }
-        return messageBuilder.build();
-    };
+    static Supplier<ClientBuilder> PULSAR_CLIENT_BUILDER = PulsarClient::builder;
 
     private PulsarClient client;
     private Producer<byte[]> producer;
@@ -92,15 +82,22 @@ public class PulsarManager extends AbstractManager {
                 newKey = key;
             }
 
-            Message<byte[]> message = MESSAGE_BUILDER.apply(newKey, msg);
+
+            TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage()
+                    .value(msg);
+
+            if (newKey != null) {
+                messageBuilder.key(newKey);
+            }
+
             if (syncSend) {
                 try {
-                    producer.send(message);
+                    messageBuilder.send();
                 } catch (PulsarClientException e) {
                     LOGGER.error("Unable to write to Pulsar in appender [" + getName() + "]", e);
                 }
             } else {
-                producer.sendAsync(message)
+                messageBuilder.sendAsync()
                     .exceptionally(cause -> {
                         LOGGER.error("Unable to write to Pulsar in appender [" + getName() + "]", cause);
                         return null;
@@ -129,7 +126,7 @@ public class PulsarManager extends AbstractManager {
             }
             producer = producerBuilder.create();
         } catch (Exception t) {
-            LOGGER.error("Failed to start pulsar manager {}", t);
+            LOGGER.error("Failed to start pulsar manager", t);
             throw t;
         }
     }

@@ -31,5 +31,7 @@ set(PERF_CONSUMER_SOURCES
 add_executable(perfProducer ${PERF_PRODUCER_SOURCES})
 add_executable(perfConsumer ${PERF_CONSUMER_SOURCES})
 
-target_link_libraries(perfProducer pulsarShared ${CLIENT_LIBS})
-target_link_libraries(perfConsumer pulsarShared ${CLIENT_LIBS})
+set(TOOL_LIBS ${CLIENT_LIBS} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY})
+
+target_link_libraries(perfProducer pulsarShared ${TOOL_LIBS})
+target_link_libraries(perfConsumer pulsarShared ${TOOL_LIBS})

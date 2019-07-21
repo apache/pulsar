@@ -28,6 +28,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -48,10 +52,12 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaEx
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.stats.StatsBuckets;
+import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,6 +169,10 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             String msg = format("Invalid Base64 message-payload error=%s", e.getMessage());
             sendAckResponse(new ProducerAck(PayloadEncodingError, msg, null, requestContext));
             return;
+        } catch (NullPointerException e) {
+            // Null payload
+            sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
+            return;
         }
 
         final long msgSize = rawPayload.length;
@@ -183,6 +193,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
         if (sendRequest.replicationClusters != null) {
             builder.replicationClusters(sendRequest.replicationClusters);
+        }
+        if (sendRequest.eventTime != null) {
+            try {
+                builder.eventTime(DateFormatter.parse(sendRequest.eventTime));
+            } catch (DateTimeParseException e) {
+                sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
+                return;
+            }
         }
 
         final long now = System.nanoTime();
@@ -239,7 +257,20 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private void sendAckResponse(ProducerAck response) {
         try {
             String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(response);
-            getSession().getRemote().sendString(msg);
+            getSession().getRemote().sendString(msg, new WriteCallback() {
+                @Override
+                public void writeFailed(Throwable th) {
+                    log.warn("[{}] Failed to send ack {}", producer.getTopic(), th.getMessage(), th);
+                }
+
+                @Override
+                public void writeSuccess() {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ack was sent successfully to {}", producer.getTopic(),
+                                getRemote().getInetSocketAddress().toString());
+                    }
+                }
+            });
         } catch (JsonProcessingException e) {
             log.warn("[{}] Failed to generate ack json-response {}", producer.getTopic(), e.getMessage(), e);
         } catch (Exception e) {

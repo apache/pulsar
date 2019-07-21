@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.log4j2.appender;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
-import static org.testng.AssertJUnit.assertNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -40,6 +40,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LogEvent;
@@ -52,14 +53,15 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class PulsarAppenderTest {
 
     private static final String LOG_MESSAGE = "Hello, world!";
-    private static final String TOPIC_NAME = "pulsar-topic";
 
     private static Log4jLogEvent createLogEvent() {
         return Log4jLogEvent.newBuilder()
@@ -77,6 +79,31 @@ public class PulsarAppenderTest {
 
     private LoggerContext ctx;
 
+    private class MockedMessageBuilder extends TypedMessageBuilderImpl<byte[]> {
+
+        MockedMessageBuilder() {
+            super(null, Schema.BYTES);
+        }
+
+        @Override
+        public MessageId send() {
+            synchronized (history) {
+                history.add(getMessage());
+            }
+
+            return mock(MessageId.class);
+        }
+
+        @Override
+        public CompletableFuture<MessageId> sendAsync() {
+            synchronized (history) {
+                history.add(getMessage());
+            }
+
+            return CompletableFuture.completedFuture(mock(MessageId.class));
+        }
+    }
+
     @BeforeMethod
     public void setUp() throws Exception {
         history = new LinkedList<>();
@@ -93,22 +120,23 @@ public class PulsarAppenderTest {
         doReturn(producerBuilder).when(producerBuilder).topic(anyString());
         doReturn(producerBuilder).when(producerBuilder).producerName(anyString());
         doReturn(producerBuilder).when(producerBuilder).enableBatching(anyBoolean());
-        doReturn(producerBuilder).when(producerBuilder).batchingMaxPublishDelay(anyInt(), any(TimeUnit.class));
+        doReturn(producerBuilder).when(producerBuilder).batchingMaxPublishDelay(anyLong(), any(TimeUnit.class));
         doReturn(producerBuilder).when(producerBuilder).blockIfQueueFull(anyBoolean());
         doReturn(producer).when(producerBuilder).create();
 
-        when(producer.send(any(Message.class)))
+        when(producer.newMessage()).then(invocation -> new MockedMessageBuilder());
+        when(producer.send(any(byte[].class)))
             .thenAnswer(invocationOnMock -> {
-                Message<byte[]> msg = invocationOnMock.getArgumentAt(0, Message.class);
+                Message<byte[]> msg = invocationOnMock.getArgument(0);
                 synchronized (history) {
                     history.add(msg);
                 }
                 return null;
             });
 
-        when(producer.sendAsync(any(Message.class)))
+        when(producer.sendAsync(any(byte[].class)))
             .thenAnswer(invocationOnMock -> {
-                Message<byte[]> msg = invocationOnMock.getArgumentAt(0, Message.class);
+                Message<byte[]> msg = invocationOnMock.getArgument(0);
                 synchronized (history) {
                     history.add(msg);
                 }
@@ -118,12 +146,6 @@ public class PulsarAppenderTest {
             });
 
         PulsarManager.PULSAR_CLIENT_BUILDER = () -> clientBuilder;
-        PulsarManager.MESSAGE_BUILDER = (key, data) -> {
-            Message<byte[]> msg = mock(Message.class);
-            when(msg.getKey()).thenReturn(key);
-            when(msg.getData()).thenReturn(data);
-            return msg;
-        };
 
         ctx = Configurator.initialize(
             "PulsarAppenderTest",
@@ -141,7 +163,7 @@ public class PulsarAppenderTest {
             item = history.get(0);
         }
         assertNotNull(item);
-        assertNull(item.getKey());
+        assertFalse(item.hasKey());
         assertEquals("[" + LOG_MESSAGE + "]", new String(item.getData(), StandardCharsets.UTF_8));
     }
 
@@ -156,12 +178,12 @@ public class PulsarAppenderTest {
             item = history.get(0);
         }
         assertNotNull(item);
-        assertNull(item.getKey());
+        assertFalse(item.hasKey());
         assertEquals(LOG_MESSAGE, deserializeLogEvent(item.getData()).getMessage().getFormattedMessage());
     }
 
     @Test
-    public void testAsyncAppend() throws Exception {
+    public void testAsyncAppend() {
         final Appender appender = ctx.getConfiguration().getAppender("AsyncPulsarAppender");
         appender.append(createLogEvent());
         final Message<byte[]> item;
@@ -170,12 +192,12 @@ public class PulsarAppenderTest {
             item = history.get(0);
         }
         assertNotNull(item);
-        assertNull(item.getKey());
+        assertFalse(item.hasKey());
         assertEquals(LOG_MESSAGE, new String(item.getData(), StandardCharsets.UTF_8));
     }
 
     @Test
-    public void testAppendWithKey() throws Exception {
+    public void testAppendWithKey() {
         final Appender appender = ctx.getConfiguration().getAppender("PulsarAppenderWithKey");
         final LogEvent logEvent = createLogEvent();
         appender.append(logEvent);
@@ -191,7 +213,7 @@ public class PulsarAppenderTest {
     }
 
     @Test
-    public void testAppendWithKeyLookup() throws Exception {
+    public void testAppendWithKeyLookup() {
         final Appender appender = ctx.getConfiguration().getAppender("PulsarAppenderWithKeyLookup");
         final LogEvent logEvent = createLogEvent();
         Date date = new Date();

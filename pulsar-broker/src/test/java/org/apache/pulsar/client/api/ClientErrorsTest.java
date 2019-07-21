@@ -30,13 +30,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ProducerBase;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -189,7 +188,7 @@ public class ClientErrorsTest {
             fail("Should have failed");
         } catch (Exception e) {
             // we fail even on the retriable error
-            assertTrue(e instanceof PulsarClientException.LookupException);
+            assertTrue(e instanceof PulsarClientException);
         }
 
         mockBrokerService.resetHandleProducer();
@@ -417,7 +416,7 @@ public class ClientErrorsTest {
             fail("Should have failed");
         } catch (Exception e) {
             // we fail even on the retriable error
-            assertEquals(e.getClass(), LookupException.class);
+            assertTrue(e instanceof PulsarClientException);
         }
 
         mockBrokerService.resetHandleSubscribe();

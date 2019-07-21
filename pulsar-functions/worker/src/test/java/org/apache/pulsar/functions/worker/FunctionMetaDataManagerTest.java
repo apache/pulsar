@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.argThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 import java.util.HashMap;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -43,7 +42,6 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
 public class FunctionMetaDataManagerTest {
 
     private static PulsarClient mockPulsarClient() throws PulsarClientException {
@@ -66,15 +64,16 @@ public class FunctionMetaDataManagerTest {
                         mockPulsarClient()));
 
         Map<String, Function.FunctionMetaData> functionMetaDataMap1 = new HashMap<>();
-        functionMetaDataMap1.put("func-1", Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                        Function.FunctionDetails.newBuilder().setName("func-1")).build());
-        functionMetaDataMap1.put("func-2",
-                Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                        Function.FunctionDetails.newBuilder().setName("func-2")).build());
+        Function.FunctionMetaData f1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setName("func-1")).build();
+        functionMetaDataMap1.put("func-1", f1);
+        Function.FunctionMetaData f2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setName("func-2")).build();
+        functionMetaDataMap1.put("func-2", f2);
+        Function.FunctionMetaData f3 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setName("func-3")).build();
         Map<String, Function.FunctionMetaData> functionMetaDataInfoMap2 = new HashMap<>();
-        functionMetaDataInfoMap2.put("func-3",
-                Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                        Function.FunctionDetails.newBuilder().setName("func-3")).build());
+        functionMetaDataInfoMap2.put("func-3", f3);
 
 
         functionMetaDataManager.functionMetaDataMap.put("tenant-1", new HashMap<>());
@@ -86,13 +85,13 @@ public class FunctionMetaDataManagerTest {
         Assert.assertEquals(2, functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-1").size());
         Assert.assertTrue(functionMetaDataManager.listFunctions(
-                "tenant-1", "namespace-1").contains("func-1"));
+                "tenant-1", "namespace-1").contains(f1));
         Assert.assertTrue(functionMetaDataManager.listFunctions(
-                "tenant-1", "namespace-1").contains("func-2"));
+                "tenant-1", "namespace-1").contains(f2));
         Assert.assertEquals(1, functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-2").size());
         Assert.assertTrue(functionMetaDataManager.listFunctions(
-                "tenant-1", "namespace-2").contains("func-3"));
+                "tenant-1", "namespace-2").contains(f3));
     }
 
     @Test
@@ -112,25 +111,20 @@ public class FunctionMetaDataManagerTest {
         verify(functionMetaDataManager, times(1)).submit(any(Request.ServiceRequest.class));
         verify(functionMetaDataManager).submit(argThat(new ArgumentMatcher<Request.ServiceRequest>() {
             @Override
-            public boolean matches(Object o) {
-                if (o instanceof Request.ServiceRequest) {
-                    Request.ServiceRequest serviceRequest = (Request.ServiceRequest) o;
-                    if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId())) {
-                        return false;
-                    }
-                    if (!serviceRequest.getServiceRequestType().equals(Request.ServiceRequest.ServiceRequestType
-                            .UPDATE)) {
-                        return false;
-                    }
-                    if (!serviceRequest.getFunctionMetaData().equals(m1)) {
-                        return false;
-                    }
-                    if (serviceRequest.getFunctionMetaData().getVersion() != 0) {
-                        return false;
-                    }
-                    return true;
+            public boolean matches(Request.ServiceRequest serviceRequest) {
+                if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId())) {
+                    return false;
                 }
-                return false;
+                if (!serviceRequest.getServiceRequestType().equals(Request.ServiceRequest.ServiceRequestType.UPDATE)) {
+                    return false;
+                }
+                if (!serviceRequest.getFunctionMetaData().equals(m1)) {
+                    return false;
+                }
+                if (serviceRequest.getFunctionMetaData().getVersion() != 0) {
+                    return false;
+                }
+                return true;
             }
         }));
 
@@ -153,26 +147,79 @@ public class FunctionMetaDataManagerTest {
         verify(functionMetaDataManager, times(1)).submit(any(Request.ServiceRequest.class));
         verify(functionMetaDataManager).submit(argThat(new ArgumentMatcher<Request.ServiceRequest>() {
             @Override
-            public boolean matches(Object o) {
-                if (o instanceof Request.ServiceRequest) {
-                    Request.ServiceRequest serviceRequest = (Request.ServiceRequest) o;
-                    if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId())) return false;
-                    if (!serviceRequest.getServiceRequestType().equals(
-                            Request.ServiceRequest.ServiceRequestType.UPDATE)) {
-                        return false;
-                    }
-                    if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(m2.getFunctionDetails())) {
-                        return false;
-                    }
-                    if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
-                        return false;
-                    }
-                    return true;
+            public boolean matches(Request.ServiceRequest serviceRequest) {
+                if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId()))
+                    return false;
+                if (!serviceRequest.getServiceRequestType().equals(
+                        Request.ServiceRequest.ServiceRequestType.UPDATE)) {
+                    return false;
                 }
-                return false;
+                if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(m2.getFunctionDetails())) {
+                    return false;
+                }
+                if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
+                    return false;
+                }
+                return true;
             }
         }));
 
+    }
+
+    @Test
+    public void testStopFunction() throws PulsarClientException {
+
+        long version = 5;
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        FunctionMetaDataManager functionMetaDataManager = spy(
+                new FunctionMetaDataManager(workerConfig,
+                        mock(SchedulerManager.class),
+                        mockPulsarClient()));
+
+        Map<String, Function.FunctionMetaData> functionMetaDataMap1 = new HashMap<>();
+        Function.FunctionMetaData f1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(2)).setVersion(version).build();
+        functionMetaDataMap1.put("func-1", f1);
+
+        Assert.assertTrue(functionMetaDataManager.canChangeState(f1, 0, Function.FunctionState.STOPPED));
+        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 0, Function.FunctionState.RUNNING));
+        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 2, Function.FunctionState.STOPPED));
+        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 2, Function.FunctionState.RUNNING));
+
+        functionMetaDataManager.functionMetaDataMap.put("tenant-1", new HashMap<>());
+        functionMetaDataManager.functionMetaDataMap.get("tenant-1").put("namespace-1", functionMetaDataMap1);
+
+        Mockito.doReturn(null).when(functionMetaDataManager).submit(any(Request.ServiceRequest.class));
+
+        functionMetaDataManager.changeFunctionInstanceStatus("tenant-1", "namespace-1", "func-1", 0, false);
+
+        verify(functionMetaDataManager, times(1)).submit(any(Request.ServiceRequest.class));
+        verify(functionMetaDataManager).submit(argThat(serviceRequest -> {
+            if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId()))
+                return false;
+            if (!serviceRequest.getServiceRequestType().equals(
+                    Request.ServiceRequest.ServiceRequestType.UPDATE)) {
+                return false;
+            }
+            if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(f1.getFunctionDetails())) {
+                return false;
+            }
+            if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
+                return false;
+            }
+            Map<Integer, Function.FunctionState> stateMap = serviceRequest.getFunctionMetaData().getInstanceStatesMap();
+            if (stateMap == null || stateMap.isEmpty()) {
+                return false;
+            }
+            if (stateMap.get(1) != Function.FunctionState.RUNNING) {
+                return false;
+            }
+            if (stateMap.get(0) != Function.FunctionState.STOPPED) {
+                return false;
+            }
+            return true;
+        }));
     }
 
     @Test
@@ -198,23 +245,20 @@ public class FunctionMetaDataManagerTest {
         verify(functionMetaDataManager, times(1)).submit(any(Request.ServiceRequest.class));
         verify(functionMetaDataManager).submit(argThat(new ArgumentMatcher<Request.ServiceRequest>() {
             @Override
-            public boolean matches(Object o) {
-                if (o instanceof Request.ServiceRequest) {
-                    Request.ServiceRequest serviceRequest = (Request.ServiceRequest) o;
-                    if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId())) return false;
-                    if (!serviceRequest.getServiceRequestType().equals(
-                            Request.ServiceRequest.ServiceRequestType.DELETE)) {
-                        return false;
-                    }
-                    if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(m1.getFunctionDetails())) {
-                        return false;
-                    }
-                    if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
-                        return false;
-                    }
-                    return true;
+            public boolean matches(Request.ServiceRequest serviceRequest) {
+                if (!serviceRequest.getWorkerId().equals(workerConfig.getWorkerId()))
+                    return false;
+                if (!serviceRequest.getServiceRequestType().equals(
+                        Request.ServiceRequest.ServiceRequestType.DELETE)) {
+                    return false;
                 }
-                return false;
+                if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(m1.getFunctionDetails())) {
+                    return false;
+                }
+                if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
+                    return false;
+                }
+                return true;
             }
         }));
     }

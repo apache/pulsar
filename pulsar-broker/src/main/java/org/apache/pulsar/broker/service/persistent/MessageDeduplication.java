@@ -40,7 +40,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -166,26 +166,6 @@ public class MessageDeduplication {
         }, null);
     }
 
-    public CompletableFuture<Void> initialize() {
-        // Check whether the dedup cursor was already present
-        for (ManagedCursor cursor : managedLedger.getCursors()) {
-            if (cursor.getName().equals(PersistentTopic.DEDUPLICATION_CURSOR_NAME)) {
-                // Deduplication was enabled before
-                this.status = Status.Recovering;
-                this.managedCursor = cursor;
-                break;
-            }
-        }
-
-        if (status == Status.Recovering) {
-            // Recover the current cursor and then check the configuration
-            return recoverSequenceIdsMap().thenCompose(v -> checkStatus());
-        } else {
-            // No-op
-            return CompletableFuture.completedFuture(null);
-        }
-    }
-
     public Status getStatus() {
         return status;
     }
@@ -238,7 +218,7 @@ public class MessageDeduplication {
                         @Override
                         public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                             // We don't want to retain cache for this cursor
-                            cursor.setInactive();
+                            cursor.setAlwaysInactive();
                             managedCursor = cursor;
                             recoverSequenceIdsMap().thenRun(() -> {
                                 status = Status.Enabled;

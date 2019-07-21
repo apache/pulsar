@@ -33,6 +33,7 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     consumerConf.setConsumerType(ConsumerExclusive);
     consumerConf.setReceiverQueueSize(readerConf_.getReceiverQueueSize());
     consumerConf.setReadCompacted(readerConf_.isReadCompacted());
+    consumerConf.setSchema(readerConf_.getSchema());
 
     if (readerConf_.getReaderName().length() > 0) {
         consumerConf.setConsumerName(readerConf_.getReaderName());
@@ -41,8 +42,8 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     if (readerConf_.hasReaderListener()) {
         // Adapt the message listener to be a reader-listener
         readerListener_ = readerConf_.getReaderListener();
-        consumerConf.setMessageListener(
-            boost::bind(&ReaderImpl::messageListener, shared_from_this(), _1, _2));
+        consumerConf.setMessageListener(std::bind(&ReaderImpl::messageListener, shared_from_this(),
+                                                  std::placeholders::_1, std::placeholders::_2));
     }
 
     std::string subscription = "reader-" + generateRandomName();
@@ -50,11 +51,12 @@ void ReaderImpl::start(const MessageId& startMessageId) {
         subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
     }
 
-    consumer_ = boost::make_shared<ConsumerImpl>(
+    consumer_ = std::make_shared<ConsumerImpl>(
         client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,
         Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
-    consumer_->getConsumerCreatedFuture().addListener(
-        boost::bind(&ReaderImpl::handleConsumerCreated, shared_from_this(), _1, _2));
+    consumer_->getConsumerCreatedFuture().addListener(std::bind(&ReaderImpl::handleConsumerCreated,
+                                                                shared_from_this(), std::placeholders::_1,
+                                                                std::placeholders::_2));
     consumer_->start();
 }
 

@@ -20,8 +20,23 @@ package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
+/**
+ * A schema for bytes array.
+ */
 public class BytesSchema implements Schema<byte[]> {
+
+    public static BytesSchema of() {
+        return INSTANCE;
+    }
+
+    private static final BytesSchema INSTANCE = new BytesSchema();
+    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
+        .setName("Bytes")
+        .setType(SchemaType.BYTES)
+        .setSchema(new byte[0]);
+
     @Override
     public byte[] encode(byte[] message) {
         return message;
@@ -34,6 +49,6 @@ public class BytesSchema implements Schema<byte[]> {
 
     @Override
     public SchemaInfo getSchemaInfo() {
-        return null;
+        return SCHEMA_INFO;
     }
 }

@@ -19,21 +19,28 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.client.util.TypeCheckUtil.checkType;
 
 import com.google.common.base.Preconditions;
 
 import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
@@ -51,28 +58,69 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public MessageId send() throws PulsarClientException {
-        return producer.send((Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema));
+        return producer.send(getMessage());
     }
 
     @Override
     public CompletableFuture<MessageId> sendAsync() {
-        return producer.internalSendAsync((Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema));
+        return producer.internalSendAsync(getMessage());
     }
 
     @Override
     public TypedMessageBuilder<T> key(String key) {
+        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
+                    "This method is not allowed to set keys when in encoding type is SEPARATED");
+        }
         msgMetadataBuilder.setPartitionKey(key);
+        msgMetadataBuilder.setPartitionKeyB64Encoded(false);
+        return this;
+    }
+
+    @Override
+    public TypedMessageBuilder<T> keyBytes(byte[] key) {
+        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
+                    "This method is not allowed to set keys when in encoding type is SEPARATED");
+        }
+        msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
+        msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+        return this;
+    }
+
+    @Override
+    public TypedMessageBuilder<T> orderingKey(byte[] orderingKey) {
+        msgMetadataBuilder.setOrderingKey(ByteString.copyFrom(orderingKey));
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
+
+        checkArgument(value != null, "Need Non-Null content value");
+        if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) schema;
+            org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
+            if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+                // set key as the message key
+                msgMetadataBuilder.setPartitionKey(
+                        Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
+                msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                // set value as the payload
+                this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
+                return this;
+            }
+        }
         this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> property(String name, String value) {
+        checkArgument(name != null, "Need Non-Null name");
+        checkArgument(value != null, "Need Non-Null value for name: " + name);
         msgMetadataBuilder.addProperties(KeyValue.newBuilder().setKey(name).setValue(value).build());
         return this;
     }
@@ -80,6 +128,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> properties(Map<String, String> properties) {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
+            checkArgument(entry.getKey() != null, "Need Non-Null key");
+            checkArgument(entry.getValue() != null, "Need Non-Null value for key: " + entry.getKey());
             msgMetadataBuilder
                     .addProperties(KeyValue.newBuilder().setKey(entry.getKey()).setValue(entry.getValue()).build());
         }
@@ -114,6 +164,55 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         msgMetadataBuilder.clearReplicateTo();
         msgMetadataBuilder.addReplicateTo("__local__");
         return this;
+    }
+
+    @Override
+    public TypedMessageBuilder<T> deliverAfter(long delay, TimeUnit unit) {
+        return deliverAt(System.currentTimeMillis() + unit.toMillis(delay));
+    }
+
+    @Override
+    public TypedMessageBuilder<T> deliverAt(long timestamp) {
+        msgMetadataBuilder.setDeliverAtTime(timestamp);
+        return this;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public TypedMessageBuilder<T> loadConf(Map<String, Object> config) {
+        config.forEach((key, value) -> {
+            if (key.equals(CONF_KEY)) {
+                this.key(checkType(value, String.class));
+            } else if (key.equals(CONF_PROPERTIES)) {
+                this.properties(checkType(value, Map.class));
+            } else if (key.equals(CONF_EVENT_TIME)) {
+                this.eventTime(checkType(value, Long.class));
+            } else if (key.equals(CONF_SEQUENCE_ID)) {
+                this.sequenceId(checkType(value, Long.class));
+            } else if (key.equals(CONF_REPLICATION_CLUSTERS)) {
+                this.replicationClusters(checkType(value, List.class));
+            } else if (key.equals(CONF_DISABLE_REPLICATION)) {
+                boolean disableReplication = checkType(value, Boolean.class);
+                if (disableReplication) {
+                    this.disableReplication();
+                }
+            } else if (key.equals(CONF_DELIVERY_AFTER_SECONDS)) {
+                this.deliverAfter(checkType(value, Long.class), TimeUnit.SECONDS);
+            } else if (key.equals(CONF_DELIVERY_AT)) {
+                this.deliverAt(checkType(value, Long.class));
+            } else {
+                throw new RuntimeException("Invalid message config key '" + key + "'");
+            }
+        });
+        return this;
+    }
+
+    public MessageMetadata.Builder getMetadataBuilder() {
+        return msgMetadataBuilder;
+    }
+
+    public Message<T> getMessage() {
+        return (Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema);
     }
 
     public long getPublishTime() {

@@ -79,11 +79,11 @@ public class ZkBookieRackAffinityMappingTest {
         // Case1: ZKCache is given
         ZkBookieRackAffinityMapping mapping1 = new ZkBookieRackAffinityMapping();
         ClientConfiguration bkClientConf1 = new ClientConfiguration();
-        bkClientConf1.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc) {
+        bkClientConf1.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, 30) {
         });
         mapping1.setConf(bkClientConf1);
         List<String> racks1 = mapping1
-                .resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks1.get(0), "/rack0");
         assertEquals(racks1.get(1), "/rack1");
         assertEquals(racks1.get(2), NetworkTopology.DEFAULT_RACK);
@@ -96,7 +96,7 @@ public class ZkBookieRackAffinityMappingTest {
         bkClientConf2.setZkTimeout(1000);
         mapping2.setConf(bkClientConf2);
         List<String> racks2 = mapping2
-                .resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks2.get(0), "/rack0");
         assertEquals(racks2.get(1), "/rack1");
         assertEquals(racks2.get(2), NetworkTopology.DEFAULT_RACK);
@@ -108,7 +108,7 @@ public class ZkBookieRackAffinityMappingTest {
     public void testNoBookieInfo() throws Exception {
         ZkBookieRackAffinityMapping mapping = new ZkBookieRackAffinityMapping();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc) {
+        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, 30) {
         });
         mapping.setConf(bkClientConf);
         List<String> racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
@@ -152,11 +152,11 @@ public class ZkBookieRackAffinityMappingTest {
 
         ZkBookieRackAffinityMapping mapping = new ZkBookieRackAffinityMapping();
         ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc) {
+        bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc, 30) {
         });
         mapping.setConf(bkClientConf);
         List<String> racks = mapping
-                .resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
         assertEquals(racks.get(2), NetworkTopology.DEFAULT_RACK);

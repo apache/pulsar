@@ -31,14 +31,14 @@ Pulsar {% popover_ja Broker %}と接続する[クライアント](../../getting-
 
 Pulsarに含まれるサービスディスカバリ機構は、{% popover_ja ZooKeeper %}に格納されているアクティブなBrokerのリストを保持し、HTTPとPulsarの[バイナリプロトコル](../../project/BinaryProtocol)を使用したルックアップをサポートします。
 
-Pulsarの組み込みサービスディスカバリを設定するには、設定ファイルである[`conf/discovery.conf`](../../reference/Configuration#サービスディスカバリ)のいくつかのパラメータを変更する必要があります。Zookeeperクォーラムに接続するための文字列である[`zookeeperServers`](../../reference/Configuration#サービスディスカバリ)とGlobal ZooKeeperクォーラムに接続するための文字列である[`globalZookeeperServers`](../../reference/Configuration#サービスディスカバリ)をセットしてください。
+Pulsarの組み込みサービスディスカバリを設定するには、設定ファイルである[`conf/discovery.conf`](../../reference/Configuration#サービスディスカバリ)のいくつかのパラメータを変更する必要があります。Zookeeperクォーラムに接続するための文字列である[`zookeeperServers`](../../reference/Configuration#サービスディスカバリ)とConfiguration Storeクォーラムに接続するための文字列である[`configurationStoreServers`](../../reference/Configuration#サービスディスカバリ)をセットしてください。
 
 ```properties
 # Zookeeperクォーラムに接続するための文字列
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
-# Global Zookeeperクォーラムに接続するための文字列
-globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+# Configuration Storeクォーラムに接続するための文字列
+configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 ```
 
 サービスディスカバリを起動する:

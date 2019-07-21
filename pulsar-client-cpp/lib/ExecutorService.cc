@@ -18,18 +18,14 @@
  */
 #include "ExecutorService.h"
 
-#include <boost/ref.hpp>
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/function.hpp>
+#include <functional>
+#include <memory>
 
 namespace pulsar {
 
 ExecutorService::ExecutorService()
-    : io_service_(),
-      work_(new BackgroundWork(io_service_)),
-      worker_(boost::bind(&boost::asio::io_service::run, &io_service_)) {}
+    : io_service_(), work_(new BackgroundWork(io_service_)), worker_([&]() { io_service_.run(); }) {}
 
 ExecutorService::~ExecutorService() { close(); }
 
@@ -37,12 +33,10 @@ ExecutorService::~ExecutorService() { close(); }
  *  factory method of boost::asio::ip::tcp::socket associated with io_service_ instance
  *  @ returns shared_ptr to this socket
  */
-SocketPtr ExecutorService::createSocket() {
-    return boost::make_shared<boost::asio::ip::tcp::socket>(boost::ref(io_service_));
-}
+SocketPtr ExecutorService::createSocket() { return SocketPtr(new boost::asio::ip::tcp::socket(io_service_)); }
 
 TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx) {
-    return boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> >(
+    return std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> >(
         new boost::asio::ssl::stream<boost::asio::ip::tcp::socket &>(*socket, ctx));
 }
 
@@ -51,20 +45,24 @@ TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ss
  *  @returns shraed_ptr to resolver object
  */
 TcpResolverPtr ExecutorService::createTcpResolver() {
-    return boost::make_shared<boost::asio::ip::tcp::resolver>(boost::ref(io_service_));
+    return TcpResolverPtr(new boost::asio::ip::tcp::resolver(io_service_));
 }
 
 DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
-    return boost::make_shared<boost::asio::deadline_timer>(boost::ref(io_service_));
+    return DeadlineTimerPtr(new boost::asio::deadline_timer(io_service_));
 }
 
 void ExecutorService::close() {
-    io_service_.stop();
-    work_.reset();
-    worker_.join();
+    // Ensure this service has not already been closed. This is
+    // because worker_.join() is not re-entrant on Windows
+    if (work_) {
+        io_service_.stop();
+        work_.reset();
+        worker_.join();
+    }
 }
 
-void ExecutorService::postWork(boost::function<void(void)> task) { io_service_.post(task); }
+void ExecutorService::postWork(std::function<void(void)> task) { io_service_.post(task); }
 
 /////////////////////
 
@@ -76,7 +74,7 @@ ExecutorServicePtr ExecutorServiceProvider::get() {
 
     int idx = executorIdx_++ % executors_.size();
     if (!executors_[idx]) {
-        executors_[idx] = boost::make_shared<ExecutorService>();
+        executors_[idx] = std::make_shared<ExecutorService>();
     }
 
     return executors_[idx];

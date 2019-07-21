@@ -21,15 +21,17 @@ package org.apache.pulsar.storm;
 import static java.lang.String.format;
 
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.storm.metric.api.IMetric;
@@ -41,11 +43,8 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.utils.TupleUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
-
-@SuppressWarnings("deprecation")
 public class PulsarBolt extends BaseRichBolt implements IMetric {
     /**
      *
@@ -60,7 +59,7 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
     private final ClientConfigurationData clientConf;
     private final ProducerConfigurationData producerConf;
     private final PulsarBoltConfiguration pulsarBoltConf;
-    private final ConcurrentMap<String, Object> metricsMap = Maps.newConcurrentMap();
+    private final ConcurrentMap<String, Object> metricsMap = new ConcurrentHashMap<>();
 
     private SharedPulsarClient sharedPulsarClient;
     private String componentId;
@@ -70,42 +69,31 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
     private volatile long messagesSent = 0;
     private volatile long messageSizeSent = 0;
 
+    public PulsarBolt(PulsarBoltConfiguration pulsarBoltConf) {
+        this(pulsarBoltConf, PulsarClient.builder());
+    }
+
     public PulsarBolt(PulsarBoltConfiguration pulsarBoltConf, ClientBuilder clientBuilder) {
-        this.clientConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData().clone();
-        this.producerConf = new ProducerConfigurationData();
-        Preconditions.checkNotNull(pulsarBoltConf.getServiceUrl());
-        Preconditions.checkNotNull(pulsarBoltConf.getTopic());
-        Preconditions.checkNotNull(pulsarBoltConf.getTupleToMessageMapper());
+        this(pulsarBoltConf, ((ClientBuilderImpl) clientBuilder).getClientConfigurationData().clone(),
+                new ProducerConfigurationData());
+    }
 
+    public PulsarBolt(PulsarBoltConfiguration pulsarBoltConf, ClientConfigurationData clientConf,
+            ProducerConfigurationData producerConf) {
+        checkNotNull(pulsarBoltConf, "bolt configuration can't be null");
+        checkNotNull(clientConf, "client configuration can't be null");
+        checkNotNull(producerConf, "producer configuration can't be null");
+        Objects.requireNonNull(pulsarBoltConf.getServiceUrl());
+        Objects.requireNonNull(pulsarBoltConf.getTopic());
+        Objects.requireNonNull(pulsarBoltConf.getTupleToMessageMapper());
+        this.pulsarBoltConf = pulsarBoltConf;
+        this.clientConf = clientConf;
+        this.producerConf = producerConf;
         this.clientConf.setServiceUrl(pulsarBoltConf.getServiceUrl());
         this.producerConf.setTopicName(pulsarBoltConf.getTopic());
-        this.pulsarBoltConf = pulsarBoltConf;
+        this.producerConf.setBatcherBuilder(null);
     }
-
-    /**
-     * @deprecated Use {@link #PulsarBolt(PulsarBoltConfiguration, ClientBuilder)}
-     */
-    @Deprecated
-    public PulsarBolt(PulsarBoltConfiguration pulsarBoltConf, ClientConfiguration clientConf) {
-        this(pulsarBoltConf, clientConf, new ProducerConfiguration());
-    }
-
-    /**
-     * @deprecated Use {@link #PulsarBolt(PulsarBoltConfiguration, ClientBuilder)}
-     */
-    @Deprecated
-    public PulsarBolt(PulsarBoltConfiguration pulsarBoltConf, ClientConfiguration clientConf,
-            ProducerConfiguration producerConf) {
-        this.clientConf = clientConf.getConfigurationData().clone();
-        this.producerConf = producerConf.getProducerConfigurationData().clone();
-        Preconditions.checkNotNull(pulsarBoltConf.getServiceUrl());
-        Preconditions.checkNotNull(pulsarBoltConf.getTopic());
-        Preconditions.checkNotNull(pulsarBoltConf.getTupleToMessageMapper());
-        this.clientConf.setServiceUrl(pulsarBoltConf.getServiceUrl());
-        this.producerConf.setTopicName(pulsarBoltConf.getTopic());
-        this.pulsarBoltConf = pulsarBoltConf;
-    }
-
+    
     @SuppressWarnings({ "rawtypes" })
     @Override
     public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
@@ -134,15 +122,17 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
         try {
             if (producer != null) {
                 // a message key can be provided in the mapper
-                Message<byte[]> msg = pulsarBoltConf.getTupleToMessageMapper().toMessage(input);
-                if (msg == null) {
+                TypedMessageBuilder<byte[]> msgBuilder = pulsarBoltConf.getTupleToMessageMapper()
+                        .toMessage(producer.newMessage(), input);
+                if (msgBuilder == null) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("[{}] Cannot send null message, acking the collector", boltId);
                     }
                     collector.ack(input);
                 } else {
-                    final long messageSizeToBeSent = msg.getData().length;
-                    producer.sendAsync(msg).handle((r, ex) -> {
+                    final long messageSizeToBeSent = ((TypedMessageBuilderImpl<byte[]>) msgBuilder).getContent()
+                            .remaining();
+                    msgBuilder.sendAsync().handle((msgId, ex) -> {
                         synchronized (collector) {
                             if (ex != null) {
                                 collector.reportError(ex);
@@ -154,7 +144,7 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
                                 ++messagesSent;
                                 messageSizeSent += messageSizeToBeSent;
                                 if (LOG.isDebugEnabled()) {
-                                    LOG.debug("[{}] Message sent with id {}", boltId, msg.getMessageId());
+                                    LOG.debug("[{}] Message sent with id {}", boltId, msgId);
                                 }
                             }
                         }

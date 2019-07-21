@@ -20,22 +20,25 @@ package org.apache.pulsar.functions.worker.rest;
 
 import java.util.function.Supplier;
 import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.UriInfo;
+
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 
 public class FunctionApiResource implements Supplier<WorkerService> {
 
     public static final String ATTRIBUTE_FUNCTION_WORKER = "function-worker";
 
-    protected final FunctionsImpl functions;
     private WorkerService workerService;
     @Context
     protected ServletContext servletContext;
-
-    public FunctionApiResource() {
-        this.functions = new FunctionsImpl(this);
-    }
+    @Context
+    protected HttpServletRequest httpRequest;
+    @Context
+    protected UriInfo uri;
 
     @Override
     public synchronized WorkerService get() {
@@ -43,5 +46,15 @@ public class FunctionApiResource implements Supplier<WorkerService> {
             this.workerService = (WorkerService) servletContext.getAttribute(ATTRIBUTE_FUNCTION_WORKER);
         }
         return this.workerService;
+    }
+
+    public String clientAppId() {
+        return httpRequest != null
+                ? (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName)
+                : null;
+    }
+
+    public AuthenticationDataHttps clientAuthData() {
+        return (AuthenticationDataHttps) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
     }
 }

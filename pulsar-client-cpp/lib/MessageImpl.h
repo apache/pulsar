@@ -24,8 +24,6 @@
 #include "SharedBuffer.h"
 #include "PulsarApi.pb.h"
 
-#include <boost/scoped_ptr.hpp>
-
 using namespace pulsar;
 namespace pulsar {
 
@@ -43,12 +41,26 @@ class MessageImpl {
     SharedBuffer payload;
     MessageId messageId;
     ClientConnection* cnx_;
+    const std::string* topicName_;
 
     const std::string& getPartitionKey() const;
     bool hasPartitionKey() const;
 
+    const std::string& getOrderingKey() const;
+    bool hasOrderingKey() const;
+
     uint64_t getPublishTimestamp() const;
     uint64_t getEventTimestamp() const;
+
+    /**
+     * Get the topic Name from which this message originated from
+     */
+    const std::string& getTopicName();
+
+    /**
+     * Set a valid topicName
+     */
+    void setTopicName(const std::string& topicName);
 
     friend class PulsarWrapper;
     friend class MessageBuilder;
@@ -58,6 +70,7 @@ class MessageImpl {
     void setProperty(const std::string& name, const std::string& value);
     void disableReplication(bool flag);
     void setPartitionKey(const std::string& partitionKey);
+    void setOrderingKey(const std::string& orderingKey);
     void setEventTimestamp(uint64_t eventTimestamp);
     Message::StringMap properties_;
 };

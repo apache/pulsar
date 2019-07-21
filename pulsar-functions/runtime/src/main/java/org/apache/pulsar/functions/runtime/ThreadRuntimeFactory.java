@@ -20,19 +20,24 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
-
+import io.prometheus.client.CollectorRegistry;
 import lombok.extern.slf4j.Slf4j;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
+
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Thread based function container factory implementation.
@@ -44,19 +49,39 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private final FunctionCacheManager fnCache;
     private final PulsarClient pulsarClient;
     private final String storageServiceUrl;
+    private final SecretsProvider secretsProvider;
+    private final CollectorRegistry collectorRegistry;
     private volatile boolean closed;
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
-            AuthenticationConfig authConfig) throws Exception {
-        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig), storageServiceUrl);
+                                AuthenticationConfig authConfig, SecretsProvider secretsProvider,
+                                CollectorRegistry collectorRegistry, ClassLoader rootClassLoader) throws Exception {
+        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
+                storageServiceUrl, secretsProvider, collectorRegistry, rootClassLoader);
     }
 
     @VisibleForTesting
-    ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl) {
-        this.fnCache = new FunctionCacheManagerImpl();
+    public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
+                                SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
+                                ClassLoader rootClassLoader) {
+        if (rootClassLoader == null) {
+            rootClassLoader = Thread.currentThread().getContextClassLoader();
+        }
+
+        this.secretsProvider = secretsProvider;
+        this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;
+        this.collectorRegistry = collectorRegistry;
+    }
+
+    public static ClassLoader loadJar(ClassLoader parent, File[] jars) throws MalformedURLException {
+        URL[] urls = new URL[jars.length];
+        for (int i = 0; i < jars.length; i++) {
+            urls[i] = jars[i].toURI().toURL();
+        }
+        return new URLClassLoader(urls, parent);
     }
 
     private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
@@ -81,14 +106,18 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     }
     
     @Override
-    public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile) {
+    public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile,
+                                         String originalCodeFileName,
+                                         Long expectedHealthCheckInterval) {
         return new ThreadRuntime(
             instanceConfig,
             fnCache,
             threadGroup,
             jarFile,
             pulsarClient,
-            storageServiceUrl);
+            storageServiceUrl,
+            secretsProvider,
+            collectorRegistry);
     }
 
     @Override
@@ -105,5 +134,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         } catch (PulsarClientException e) {
             log.warn("Failed to close pulsar client when closing function container factory", e);
         }
+
+        // Shutdown instance cache
+        InstanceCache.shutdown();
     }
 }

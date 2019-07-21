@@ -35,11 +35,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 /**
- * Group the acknowledgments for a certain time and then sends them out in a single protobuf command.
+ * Group the acknowledgements for a certain time and then sends them out in a single protobuf command.
  */
 @Slf4j
 public class PersistentAcknowledgmentsGroupingTracker implements AcknowledgmentsGroupingTracker {
@@ -57,6 +57,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * Latest cumulative ack sent to broker
      */
     private volatile MessageIdImpl lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+    private volatile boolean cumulativeAckFlushRequired = false;
 
     private static final AtomicReferenceFieldUpdater<PersistentAcknowledgmentsGroupingTracker, MessageIdImpl> LAST_CUMULATIVE_ACK_UPDATER = AtomicReferenceFieldUpdater
             .newUpdater(PersistentAcknowledgmentsGroupingTracker.class, MessageIdImpl.class, "lastCumulativeAck");
@@ -85,7 +86,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     /**
      * Since the ack are delayed, we need to do some best-effort duplicate check to discard messages that are being
-     * resent after a disconnection and for which the user has already sent an acknowlowdgement.
+     * resent after a disconnection and for which the user has already sent an acknowledgement.
      */
     public boolean isDuplicate(MessageId messageId) {
         if (messageId.compareTo(lastCumulativeAck) <= 0) {
@@ -118,7 +119,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             MessageIdImpl lastCumlativeAck = this.lastCumulativeAck;
             if (msgId.compareTo(lastCumlativeAck) > 0) {
                 if (LAST_CUMULATIVE_ACK_UPDATER.compareAndSet(this, lastCumlativeAck, msgId)) {
-                    // Successfully updated the last cumlative ack. Next flush iteration will send this to broker.
+                    // Successfully updated the last cumulative ack. Next flush iteration will send this to broker.
+                    cumulativeAckFlushRequired = true;
                     return;
                 }
             } else {
@@ -146,11 +148,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * Flush all the pending acks and send them to the broker
      */
     public void flush() {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {}", consumer,
-                    lastCumulativeAck, pendingIndividualAcks);
-        }
-
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
@@ -160,10 +157,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return;
         }
 
-        if (!lastCumulativeAck.equals(MessageId.earliest)) {
+        boolean shouldFlush = false;
+        if (cumulativeAckFlushRequired) {
             ByteBuf cmd = Commands.newAck(consumer.consumerId, lastCumulativeAck.ledgerId, lastCumulativeAck.entryId,
                     AckType.Cumulative, null, Collections.emptyMap());
             cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+            shouldFlush=true;
+            cumulativeAckFlushRequired = false;
         }
 
         // Flush all individual acks
@@ -182,8 +182,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
                 cnx.ctx().write(Commands.newMultiMessageAck(consumer.consumerId, entriesToAck),
                         cnx.ctx().voidPromise());
+                shouldFlush = true;
             } else {
-                // When talking to older brokers, send the acknowledgments individually
+                // When talking to older brokers, send the acknowledgements individually
                 while (true) {
                     MessageIdImpl msgId = pendingIndividualAcks.pollFirst();
                     if (msgId == null) {
@@ -192,11 +193,25 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
                     cnx.ctx().write(Commands.newAck(consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(),
                             AckType.Individual, null, Collections.emptyMap()), cnx.ctx().voidPromise());
+                    shouldFlush = true;
                 }
             }
         }
 
-        cnx.ctx().flush();
+        if (shouldFlush) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {}",
+                        consumer, lastCumulativeAck, pendingIndividualAcks);
+            }
+            cnx.ctx().flush();
+        }
+    }
+
+    @Override
+    public void flushAndClean() {
+        flush();
+        lastCumulativeAck = (MessageIdImpl) MessageId.earliest;
+        pendingIndividualAcks.clear();
     }
 
     @Override

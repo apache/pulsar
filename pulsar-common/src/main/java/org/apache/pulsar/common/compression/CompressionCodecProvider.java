@@ -22,20 +22,63 @@ import java.util.EnumMap;
 
 import lombok.experimental.UtilityClass;
 
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 
 @UtilityClass
 public class CompressionCodecProvider {
-    private static final EnumMap<CompressionType, CompressionCodec> codecs;
+    private static final EnumMap<PulsarApi.CompressionType, CompressionCodec> codecs;
 
     static {
-        codecs = new EnumMap<>(CompressionType.class);
-        codecs.put(CompressionType.NONE, new CompressionCodecNone());
-        codecs.put(CompressionType.LZ4, new CompressionCodecLZ4());
-        codecs.put(CompressionType.ZLIB, new CompressionCodecZLib());
+        codecs = new EnumMap<>(PulsarApi.CompressionType.class);
+        codecs.put(PulsarApi.CompressionType.NONE, new CompressionCodecNone());
+        codecs.put(PulsarApi.CompressionType.LZ4, new CompressionCodecLZ4());
+        codecs.put(PulsarApi.CompressionType.ZLIB, new CompressionCodecZLib());
+        codecs.put(PulsarApi.CompressionType.ZSTD, new CompressionCodecZstd());
+        codecs.put(PulsarApi.CompressionType.SNAPPY, new CompressionCodecSnappy());
+    }
+
+    public static CompressionCodec getCompressionCodec(PulsarApi.CompressionType type) {
+        return codecs.get(type);
     }
 
     public static CompressionCodec getCompressionCodec(CompressionType type) {
-        return codecs.get(type);
+        return codecs.get(convertToWireProtocol(type));
+    }
+
+    public static PulsarApi.CompressionType convertToWireProtocol(CompressionType compressionType) {
+        switch (compressionType) {
+        case NONE:
+            return PulsarApi.CompressionType.NONE;
+        case LZ4:
+            return PulsarApi.CompressionType.LZ4;
+        case ZLIB:
+            return PulsarApi.CompressionType.ZLIB;
+        case ZSTD:
+            return PulsarApi.CompressionType.ZSTD;
+        case SNAPPY:
+            return PulsarApi.CompressionType.SNAPPY;
+
+        default:
+            throw new RuntimeException("Invalid compression type");
+        }
+    }
+
+    public static CompressionType convertFromWireProtocol(PulsarApi.CompressionType compressionType) {
+        switch (compressionType) {
+        case NONE:
+            return CompressionType.NONE;
+        case LZ4:
+            return CompressionType.LZ4;
+        case ZLIB:
+            return CompressionType.ZLIB;
+        case ZSTD:
+            return CompressionType.ZSTD;
+        case SNAPPY:
+            return CompressionType.SNAPPY;
+
+        default:
+            throw new RuntimeException("Invalid compression type");
+        }
     }
 }

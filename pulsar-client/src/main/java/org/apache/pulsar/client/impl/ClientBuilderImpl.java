@@ -18,20 +18,22 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 public class ClientBuilderImpl implements ClientBuilder {
-
     ClientConfigurationData conf;
 
     public ClientBuilderImpl() {
@@ -44,11 +46,24 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public PulsarClient build() throws PulsarClientException {
-        if (conf.getServiceUrl() == null) {
-            throw new IllegalArgumentException("service URL needs to be specified on the ClientBuilder object");
+        if (StringUtils.isBlank(conf.getServiceUrl()) && conf.getServiceUrlProvider() == null) {
+            throw new IllegalArgumentException("service URL or service URL provider needs to be specified on the ClientBuilder object.");
         }
-
-        return new PulsarClientImpl(conf);
+        if (StringUtils.isNotBlank(conf.getServiceUrl()) && conf.getServiceUrlProvider() != null) {
+            throw new IllegalArgumentException("Can only chose one way service URL or service URL provider.");
+        }
+        if (conf.getServiceUrlProvider() != null) {
+            if (StringUtils.isBlank(conf.getServiceUrlProvider().getServiceUrl())) {
+                throw new IllegalArgumentException("Cannot get service url from service url provider.");
+            } else {
+                conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
+            }
+        }
+        PulsarClient client = new PulsarClientImpl(conf);
+        if (conf.getServiceUrlProvider() != null) {
+            conf.getServiceUrlProvider().initialize(client);
+        }
+        return client;
     }
 
     @Override
@@ -65,7 +80,22 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder serviceUrl(String serviceUrl) {
+        if (StringUtils.isBlank(serviceUrl)) {
+            throw new IllegalArgumentException("Param serviceUrl must not be blank.");
+        }
         conf.setServiceUrl(serviceUrl);
+        if (!conf.isUseTls()) {
+            enableTls(serviceUrl.startsWith("pulsar+ssl") || serviceUrl.startsWith("https"));
+        }
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider) {
+        if (serviceUrlProvider == null) {
+            throw new IllegalArgumentException("Param serviceUrlProvider must not be null.");
+        }
+        conf.setServiceUrlProvider(serviceUrlProvider);
         return this;
     }
 
@@ -168,12 +198,36 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder keepAliveInterval(int keepAliveIntervalSeconds, TimeUnit unit) {
-        conf.setKeepAliveIntervalSeconds((int)unit.toSeconds(keepAliveIntervalSeconds));
+    public ClientBuilder keepAliveInterval(int keepAliveInterval, TimeUnit unit) {
+        conf.setKeepAliveIntervalSeconds((int)unit.toSeconds(keepAliveInterval));
         return this;
     }
 
+    @Override
+    public ClientBuilder connectionTimeout(int duration, TimeUnit unit) {
+        conf.setConnectionTimeoutMs((int)unit.toMillis(duration));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder startingBackoffInterval(long duration, TimeUnit unit) {
+    	conf.setDefaultBackoffIntervalNanos(unit.toNanos(duration));
+    	return this;
+    }
+    
+    @Override
+    public ClientBuilder maxBackoffInterval(long duration, TimeUnit unit) {
+    	conf.setMaxBackoffIntervalNanos(unit.toNanos(duration));
+    	return this;
+    }
+    
     public ClientConfigurationData getClientConfigurationData() {
         return conf;
+    }
+
+    @Override
+    public ClientBuilder clock(Clock clock) {
+        conf.setClock(clock);
+        return this;
     }
 }

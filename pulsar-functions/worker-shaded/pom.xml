@@ -121,7 +121,6 @@
                   <!-- dependencies use protobuf -->
                   <include>org.apache.pulsar:pulsar-functions-proto</include>
                   <include>org.apache.pulsar:pulsar-functions-utils</include>
-                  <include>org.apache.pulsar:pulsar-functions-metrics</include>
                   <include>org.apache.pulsar:pulsar-functions-instance</include>
                   <include>org.apache.pulsar:pulsar-functions-runtime</include>
                   <include>org.apache.pulsar:pulsar-functions-worker</include>

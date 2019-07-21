@@ -19,8 +19,8 @@
 #ifndef LIB_BLOCKINGQUEUE_H_
 #define LIB_BLOCKINGQUEUE_H_
 
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/condition.hpp>
+#include <mutex>
+#include <condition_variable>
 #include <boost/circular_buffer.hpp>
 
 /**
@@ -199,9 +199,10 @@ class BlockingQueue {
         }
     }
 
-    bool pop(T& value, const boost::posix_time::time_duration& timeout) {
+    template <typename Duration>
+    bool pop(T& value, const Duration& timeout) {
         Lock lock(mutex_);
-        if (!queueEmptyCondition.timed_wait(lock, timeout, QueueNotEmpty<BlockingQueue<T> >(*this))) {
+        if (!queueEmptyCondition.wait_for(lock, timeout, QueueNotEmpty<BlockingQueue<T> >(*this))) {
             return false;
         }
 
@@ -279,13 +280,13 @@ class BlockingQueue {
     bool isFullNoMutex() const { return (queue_.size() + reservedSpots_) == maxSize_; }
 
     const size_t maxSize_;
-    mutable boost::mutex mutex_;
-    boost::condition_variable queueFullCondition;
-    boost::condition_variable queueEmptyCondition;
+    mutable std::mutex mutex_;
+    std::condition_variable queueFullCondition;
+    std::condition_variable queueEmptyCondition;
     Container queue_;
     int reservedSpots_;
 
-    typedef boost::unique_lock<boost::mutex> Lock;
+    typedef std::unique_lock<std::mutex> Lock;
     friend class QueueReservedSpot;
     friend struct QueueNotEmpty<BlockingQueue<T> >;
     friend struct QueueNotFull<BlockingQueue<T> >;

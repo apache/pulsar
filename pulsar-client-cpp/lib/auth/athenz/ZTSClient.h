@@ -18,9 +18,8 @@
  */
 #include <string>
 #include <map>
+#include <pulsar/defines.h>
 #include <lib/LogUtils.h>
-#include <boost/thread.hpp>
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 
@@ -36,7 +35,7 @@ struct PrivateKeyUri {
     std::string path;
 };
 
-class ZTSClient {
+class PULSAR_PUBLIC ZTSClient {
    public:
     ZTSClient(std::map<std::string, std::string>& params);
     const std::string getRoleToken() const;
@@ -63,4 +62,3 @@ class ZTSClient {
     friend class ZTSClientWrapper;
 };
 }  // namespace pulsar
-#pragma GCC visibility pop

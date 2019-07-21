@@ -20,14 +20,25 @@ package org.apache.pulsar.discovery.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Preconditions;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.AdaptiveRecvByteBufAllocator;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
+
+import lombok.Getter;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
@@ -35,13 +46,6 @@ import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.AdaptiveRecvByteBufAllocator;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Main discovery-service which starts component to serve incoming discovery-request over binary-proto channel and
@@ -59,6 +63,7 @@ public class DiscoveryService implements Closeable {
     private ZooKeeperClientFactory zkClientFactory = null;
     private BrokerDiscoveryProvider discoveryProvider;
     private final EventLoopGroup acceptorGroup;
+    @Getter
     private final EventLoopGroup workerGroup;
     private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
     private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
@@ -75,6 +80,7 @@ public class DiscoveryService implements Closeable {
 
     /**
      * Starts discovery service by initializing zookkeeper and server
+     *
      * @throws Exception
      */
     public void start() throws Exception {
@@ -94,7 +100,7 @@ public class DiscoveryService implements Closeable {
     public void startServer() throws Exception {
 
         ServerBootstrap bootstrap = new ServerBootstrap();
-        bootstrap.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+        bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
@@ -104,15 +110,23 @@ public class DiscoveryService implements Closeable {
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, config, false));
         // Bind and start to accept incoming connections.
-        bootstrap.bind(config.getServicePort()).sync();
-        LOG.info("Started Pulsar Discovery service on port {}", config.getServicePort());
 
-        if (config.isTlsEnabled()) {
+        Preconditions.checkArgument(config.getServicePort().isPresent() || config.getServicePortTls().isPresent(),
+                "Either ServicePort or ServicePortTls should be configured.");
+
+        if (config.getServicePort().isPresent()) {
+            // Bind and start to accept incoming connections.
+            bootstrap.bind(config.getServicePort().get()).sync();
+            LOG.info("Started Pulsar Discovery service on port {}", config.getServicePort());
+        }
+
+        if (config.getServicePortTls().isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, config, true));
-            tlsBootstrap.bind(config.getServicePortTls()).sync();
-            LOG.info("Started Pulsar Discovery TLS service on port {}", config.getServicePortTls());
+            tlsBootstrap.bind(config.getServicePortTls().get()).sync();
+            LOG.info("Started Pulsar Discovery TLS service on port {}", config.getServicePortTls().get());
         }
+
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
@@ -153,15 +167,20 @@ public class DiscoveryService implements Closeable {
     }
 
     public String serviceUrl() {
-        return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePort()).toString();
+        if (config.getServicePort().isPresent()) {
+            return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePort().get())
+                    .toString();
+        } else {
+            return null;
+        }
     }
 
     public String serviceUrlTls() {
-        if (config.isTlsEnabled()) {
-            return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePortTls())
-                    .toString();
+        if (config.getServicePortTls().isPresent()) {
+            return new StringBuilder("pulsar+ssl://").append(host()).append(":")
+                    .append(config.getServicePortTls().get()).toString();
         } else {
-            return "";
+            return null;
         }
     }
 

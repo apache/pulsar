@@ -103,7 +103,7 @@ spec:
         - name: ZOOKEEPER_SERVERS
           value:
             {{- $global := . }}
-            {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ printf "%s-%s-%s-%d" $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component $i }}{{ end }}
+            {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}-{{ printf "%d" $i }}{{ end }}
         envFrom:
         - configMapRef:
             name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}"

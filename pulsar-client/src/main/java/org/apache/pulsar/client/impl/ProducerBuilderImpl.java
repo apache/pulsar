@@ -18,11 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -31,6 +37,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
+import org.apache.pulsar.client.api.ProducerInterceptor;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -39,13 +46,17 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 import lombok.NonNull;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     private final PulsarClientImpl client;
     private ProducerConfigurationData conf;
-    private final Schema<T> schema;
+    private Schema<T> schema;
+    private List<ProducerInterceptor<T>> interceptorList;
 
-    ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+    @VisibleForTesting
+    public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
     }
 
@@ -53,6 +64,15 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         this.client = client;
         this.conf = conf;
         this.schema = schema;
+    }
+
+    /**
+     * Allow to override schema in builder implementation
+     * @return
+     */
+    public ProducerBuilder<T> schema(Schema<T> schema) {
+        this.schema = schema;
+        return this;
     }
 
     @Override
@@ -64,16 +84,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     public Producer<T> create() throws PulsarClientException {
         try {
             return createAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -84,7 +96,15 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
         }
 
-        return client.createProducerAsync(conf, schema);
+        try {
+            setMessageRoutingMode();
+        } catch(PulsarClientException pce) {
+            return FutureUtil.failedFuture(pce);
+        }
+
+        return interceptorList == null || interceptorList.size() == 0 ?
+                client.createProducerAsync(conf, schema, null) :
+                client.createProducerAsync(conf, schema, new ProducerInterceptors<>(interceptorList));
     }
 
     @Override
@@ -96,30 +116,28 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> topic(String topicName) {
+        checkArgument(StringUtils.isNotBlank(topicName), "topicName cannot be blank");
         conf.setTopicName(topicName);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> producerName(@NonNull String producerName) {
+    public ProducerBuilder<T> producerName(String producerName) {
+        checkArgument(StringUtils.isNotBlank(producerName), "producerName cannot be blank");
         conf.setProducerName(producerName);
         return this;
     }
 
     @Override
     public ProducerBuilder<T> sendTimeout(int sendTimeout, @NonNull TimeUnit unit) {
-        if (sendTimeout < 0) {
-            throw new IllegalArgumentException("sendTimeout needs to be >= 0");
-        }
+        checkArgument(sendTimeout >= 0, "sendTimeout needs to be >= 0");
         conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
         return this;
     }
 
     @Override
     public ProducerBuilder<T> maxPendingMessages(int maxPendingMessages) {
-        if (maxPendingMessages <= 0) {
-            throw new IllegalArgumentException("maxPendingMessages needs to be > 0");
-        }
+        checkArgument(maxPendingMessages > 0, "maxPendingMessages needs to be > 0");
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
@@ -173,7 +191,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> addEncryptionKey(@NonNull String key) {
+    public ProducerBuilder<T> addEncryptionKey(String key) {
+        checkArgument(StringUtils.isNotBlank(key), "Encryption key cannot be blank");
         conf.getEncryptionKeys().add(key);
         return this;
     }
@@ -197,20 +216,61 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder) {
+        conf.setBatcherBuilder(batcherBuilder);
+        return this;
+    }
+
+
+    @Override
     public ProducerBuilder<T> initialSequenceId(long initialSequenceId) {
         conf.setInitialSequenceId(initialSequenceId);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> property(@NonNull String key, @NonNull String value) {
+    public ProducerBuilder<T> property(String key, String value) {
+        checkArgument(StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value),
+                "property key/value cannot be blank");
         conf.getProperties().put(key, value);
         return this;
     }
 
     @Override
     public ProducerBuilder<T> properties(@NonNull Map<String, String> properties) {
+        checkArgument(!properties.isEmpty(), "properties cannot be empty");
+        properties.entrySet().forEach(entry ->
+            checkArgument(StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(entry.getValue()),
+                    "properties' key/value cannot be blank"));
         conf.getProperties().putAll(properties);
         return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> intercept(ProducerInterceptor<T>... interceptors) {
+        if (interceptorList == null) {
+            interceptorList = new ArrayList<>();
+        }
+        interceptorList.addAll(Arrays.asList(interceptors));
+        return this;
+    }
+    @Override
+    public ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
+        conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
+
+    private void setMessageRoutingMode() throws PulsarClientException {
+        if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
+            messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        } else if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
+            messageRoutingMode(MessageRoutingMode.CustomPartition);
+        } else if((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() == null)
+                || (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() != null)) {
+            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " +
+                    "should be set as " + MessageRoutingMode.CustomPartition);
+        }
     }
 }

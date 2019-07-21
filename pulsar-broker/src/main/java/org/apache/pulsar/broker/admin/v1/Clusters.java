@@ -26,7 +26,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 @Path("/clusters")
-@Api(value = "/clusters", description = "Cluster admin apis", tags = "clusters")
+@Api(value = "/clusters", description = "Cluster admin apis", tags = "clusters", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 public class Clusters extends ClustersBase {
 }

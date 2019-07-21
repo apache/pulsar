@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -36,13 +35,15 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected final CompletableFuture<Producer<T>> producerCreatedFuture;
     protected final ProducerConfigurationData conf;
     protected final Schema<T> schema;
+    protected final ProducerInterceptors<T> interceptors;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema) {
+            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors<T> interceptors) {
         super(client, topic);
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
         this.schema = schema;
+        this.interceptors = interceptors;
     }
 
     @Override
@@ -59,7 +60,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    @Override
     public CompletableFuture<MessageId> sendAsync(Message<T> message) {
         return internalSendAsync(message);
     }
@@ -71,47 +71,39 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
 
     abstract CompletableFuture<MessageId> internalSendAsync(Message<T> message);
 
-    @Override
     public MessageId send(Message<T> message) throws PulsarClientException {
         try {
             // enqueue the message to the buffer
             CompletableFuture<MessageId> sendFuture = internalSendAsync(message);
 
             if (!sendFuture.isDone()) {
-                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to flush it out
-                flush();
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush it out
+                triggerFlush();
             }
 
             return sendFuture.get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
-    abstract void flush();
+    @Override
+    public void flush() throws PulsarClientException {
+        try {
+            flushAsync().get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    abstract void triggerFlush();
 
     @Override
     public void close() throws PulsarClientException {
         try {
             closeAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -129,6 +121,20 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
 
     public CompletableFuture<Producer<T>> producerCreatedFuture() {
         return producerCreatedFuture;
+    }
+
+    protected Message<T> beforeSend(Message<T> message) {
+        if (interceptors != null) {
+            return interceptors.beforeSend(this, message);
+        } else {
+            return message;
+        }
+    }
+
+    protected void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable exception) {
+        if (interceptors != null) {
+            interceptors.onSendAcknowledgement(this, message, msgId, exception);
+        }
     }
 
     @Override

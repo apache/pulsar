@@ -78,7 +78,7 @@ class PulsarCLogger : public pulsar::Logger {
     PulsarCLogger(const std::string &file, pulsar_logger logger, void *ctx)
         : file_(file), logger_(logger), ctx_(ctx) {}
 
-    bool isEnabled(Level level) { return level >= pulsar::Logger::INFO; }
+    bool isEnabled(Level level) { return level >= pulsar::Logger::LEVEL_INFO; }
 
     void log(Level level, int line, const std::string &message) {
         logger_((pulsar_logger_level_t)level, file_.c_str(), line, message.c_str(), ctx_);
@@ -108,6 +108,15 @@ void pulsar_client_configuration_set_use_tls(pulsar_client_configuration_t *conf
 
 int pulsar_client_configuration_is_use_tls(pulsar_client_configuration_t *conf) {
     return conf->conf.isUseTls();
+}
+
+void pulsar_client_configuration_set_validate_hostname(pulsar_client_configuration_t *conf,
+                                                       int validateHostName) {
+    conf->conf.setValidateHostName(validateHostName);
+}
+
+int pulsar_client_configuration_is_validate_hostname(pulsar_client_configuration_t *conf) {
+    return conf->conf.isValidateHostName();
 }
 
 void pulsar_client_configuration_set_tls_trust_certs_file_path(pulsar_client_configuration_t *conf,

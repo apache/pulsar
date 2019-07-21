@@ -55,7 +55,9 @@ spec:
       tolerations:
 {{ toYaml .Values.prometheus.tolerations | indent 8 }}
     {{- end }}
+    {{- if .Values.prometheus_rbac }}
       serviceAccount: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}"
+    {{- end }}
       terminationGracePeriodSeconds: {{ .Values.prometheus.gracePeriod }}
       containers:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}"
@@ -76,7 +78,13 @@ spec:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-config"
         configMap:
           name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}"
+    {{- if not .Values.prometheus_persistence }}
+      - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"
+        emptyDir: {}
+    {{- end }}
+    {{- if .Values.prometheus_persistence }}
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"
         persistentVolumeClaim:
           claimName: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"
+    {{- end }}
 {{- end }}

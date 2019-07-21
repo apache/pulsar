@@ -26,6 +26,7 @@ class UnAckedMessageTrackerDisabled : public UnAckedMessageTrackerInterface {
     bool add(const MessageId& m) { return false; }
     bool remove(const MessageId& m) { return false; }
     void removeMessagesTill(const MessageId& msgId) {}
+    void removeTopicMessage(const std::string& topic) {}
 
     void clear() {}
 };

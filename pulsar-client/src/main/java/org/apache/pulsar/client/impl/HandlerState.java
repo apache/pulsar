@@ -66,4 +66,8 @@ abstract class HandlerState {
     protected State getAndUpdateState(final UnaryOperator<State> updater) {
         return STATE_UPDATER.getAndUpdate(this, updater);
     }
+
+    public PulsarClientImpl getClient() {
+        return client;
+    }
 }

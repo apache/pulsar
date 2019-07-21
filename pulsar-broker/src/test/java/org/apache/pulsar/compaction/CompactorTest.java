@@ -20,11 +20,18 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.pulsar.client.impl.RawReaderTest.extractKey;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import io.netty.buffer.ByteBuf;
+
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -34,24 +41,17 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import io.netty.buffer.ByteBuf;
 
 public class CompactorTest extends MockedPulsarServiceBaseTest {
 
@@ -82,7 +82,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     private List<String> compactAndVerify(String topic, Map<String, byte[]> expected) throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null);
+                this.conf, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         long compactedLedgerId = compactor.compact(topic).get();
 
@@ -130,9 +130,10 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             int keyIndex = r.nextInt(maxKeys);
             String key = "key"+keyIndex;
             byte[] data = ("my-message-" + key + "-" + j).getBytes();
-            producer.send(MessageBuilder.create()
-                          .setKey(key)
-                          .setContent(data).build());
+            producer.newMessage()
+                    .key(key)
+                    .value(data)
+                    .send();
             expected.put(key, data);
         }
         compactAndVerify(topic, expected);
@@ -149,23 +150,27 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
         Map<String, byte[]> expected = new HashMap<>();
 
-        producer.send(MessageBuilder.create()
-                      .setKey("a")
-                      .setContent("A_1".getBytes()).build());
-        producer.send(MessageBuilder.create()
-                      .setKey("b")
-                      .setContent("B_1".getBytes()).build());
-        producer.send(MessageBuilder.create()
-                      .setKey("a")
-                      .setContent("A_2".getBytes()).build());
+        producer.newMessage()
+                .key("a")
+                .value("A_1".getBytes())
+                .send();
+        producer.newMessage()
+                .key("b")
+                .value("B_1".getBytes())
+                .send();
+        producer.newMessage()
+                .key("a")
+                .value("A_2".getBytes())
+                .send();
         expected.put("a", "A_2".getBytes());
         expected.put("b", "B_1".getBytes());
 
         compactAndVerify(topic, new HashMap<>(expected));
 
-        producer.send(MessageBuilder.create()
-                      .setKey("b")
-                      .setContent("B_2".getBytes()).build());
+        producer.newMessage()
+                .key("b")
+                .value("B_2".getBytes())
+                .send();
         expected.put("b", "B_2".getBytes());
 
         compactAndVerify(topic, expected);
@@ -180,18 +185,18 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
-        producer.send(MessageBuilder.create()
-                      .setKey("c")
-                      .setContent("C_1".getBytes()).build());
-        producer.send(MessageBuilder.create()
-                      .setKey("a")
-                      .setContent("A_1".getBytes()).build());
-        producer.send(MessageBuilder.create()
-                      .setKey("b")
-                      .setContent("B_1".getBytes()).build());
-        producer.send(MessageBuilder.create()
-                      .setKey("a")
-                      .setContent("A_2".getBytes()).build());
+        producer.newMessage()
+                .key("c")
+                .value("C_1".getBytes()).send();
+        producer.newMessage()
+                .key("a")
+                .value("A_1".getBytes()).send();
+        producer.newMessage()
+                .key("b")
+                .value("B_1".getBytes()).send();
+        producer.newMessage()
+                .key("a")
+                .value("A_2".getBytes()).send();
         Map<String, byte[]> expected = new HashMap<>();
         expected.put("a", "A_2".getBytes());
         expected.put("b", "B_1".getBytes());
@@ -210,7 +215,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null);
+                this.conf, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
     }

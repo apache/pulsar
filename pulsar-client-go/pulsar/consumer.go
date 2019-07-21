@@ -20,8 +20,8 @@
 package pulsar
 
 import (
-	"time"
 	"context"
+	"time"
 )
 
 // Pair of a Consumer and Message
@@ -35,35 +35,69 @@ type SubscriptionType int
 
 const (
 	// There can be only 1 consumer on the same topic with the same subscription name
-	Exclusive SubscriptionType = 0
+	Exclusive SubscriptionType = iota
 
 	// Multiple consumer will be able to use the same subscription name and the messages will be dispatched according to
 	// a round-robin rotation between the connected consumers
-	Shared SubscriptionType = 1
+	Shared
 
 	// Multiple consumer will be able to use the same subscription name but only 1 consumer will receive the messages.
 	// If that consumer disconnects, one of the other connected consumers will start receiving messages.
-	Failover SubscriptionType = 2
+	Failover
+
+	// Multiple consumer will be able to use the same subscription and all messages with the same key
+	// will be dispatched to only one consumer
+	KeyShared
+)
+
+type InitialPosition int
+
+const (
+	// Latest position which means the start consuming position will be the last message
+	Latest InitialPosition = iota
+
+	// Earliest position which means the start consuming position will be the first message
+	Earliest
 )
 
 // ConsumerBuilder is used to configure and create instances of Consumer
 type ConsumerOptions struct {
 	// Specify the topic this consumer will subscribe on.
-	// This argument is required when subscribing
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
 	Topic string
+
+	// Specify a list of topics this consumer will subscribe on.
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
+	Topics []string
+
+	// Specify a regular expression to subscribe to multiple topics under the same namespace.
+	// Either a topic, a list of topics or a topics pattern are required when subscribing
+	TopicsPattern string
 
 	// Specify the subscription name for this consumer
 	// This argument is required when subscribing
 	SubscriptionName string
+
+	// Attach a set of application defined properties to the consumer
+	// This properties will be visible in the topic stats
+	Properties map[string]string
 
 	// Set the timeout for unacked messages
 	// Message not acknowledged within the give time, will be replayed by the broker to the same or a different consumer
 	// Default is 0, which means message are not being replayed based on ack time
 	AckTimeout time.Duration
 
+	// The delay after which to redeliver the messages that failed to be
+	// processed. Default is 1min. (See `Consumer.Nack()`)
+	NackRedeliveryDelay *time.Duration
+
 	// Select the subscription type to be used when subscribing to the topic.
 	// Default is `Exclusive`
 	Type SubscriptionType
+
+	// InitialPosition at which the cursor will be set when subscribe
+	// Default is `Latest`
+	SubscriptionInitPos InitialPosition
 
 	// Sets a `MessageChannel` for the consumer
 	// When a message is received, it will be pushed to the channel for consumption
@@ -84,6 +118,18 @@ type ConsumerOptions struct {
 
 	// Set the consumer name.
 	Name string
+
+	// If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
+	// of the topic. This means that, if the topic has been compacted, the consumer will only see the latest value for
+	// each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
+	// point, the messages will be sent as normal.
+	//
+	// ReadCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer (i.e.
+	//  failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics or on a
+	//  shared subscription, will lead to the subscription call throwing a PulsarClientException.
+	ReadCompacted bool
+
+	Schema
 }
 
 // An interface that abstracts behavior of Pulsar's consumer
@@ -125,12 +171,39 @@ type Consumer interface {
 	// It's equivalent to calling asyncAcknowledgeCumulative(MessageID) and waiting for the callback to be triggered.
 	AckCumulativeID(MessageID) error
 
+	// Acknowledge the failure to process a single message.
+	//
+	// When a message is "negatively acked" it will be marked for redelivery after
+	// some fixed delay. The delay is configurable when constructing the consumer
+	// with ConsumerOptions.NAckRedeliveryDelay .
+	//
+	// This call is not blocking.
+	Nack(Message) error
+
+	// Acknowledge the failure to process a single message.
+	//
+	// When a message is "negatively acked" it will be marked for redelivery after
+	// some fixed delay. The delay is configurable when constructing the consumer
+	// with ConsumerOptions.NackRedeliveryDelay .
+	//
+	// This call is not blocking.
+	NackID(MessageID) error
+
 	// Close the consumer and stop the broker to push more messages
 	Close() error
+
+	// Reset the subscription associated with this consumer to a specific message id.
+	// The message id can either be a specific message or represent the first or last messages in the topic.
+	//
+	// Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+	//       seek() on the individual partitions.
+	Seek(msgID MessageID) error
 
 	// Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
 	// active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
 	// the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
 	// breaks, the messages are redelivered after reconnect.
 	RedeliverUnackedMessages()
+
+	Schema() Schema
 }

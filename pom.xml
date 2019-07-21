@@ -33,12 +33,12 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.2.0-incubating-SNAPSHOT</version>
+  <version>2.5.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.</description>
-  <url>https://github.com/apache/incubator-pulsar</url>
+  <url>https://github.com/apache/pulsar</url>
 
   <organization>
     <name>Apache Software Foundation</name>
@@ -49,7 +49,7 @@ flexible messaging model and an intuitive client API.</description>
   <developers>
     <developer>
       <organization>Apache Pulsar developers</organization>
-      <organizationUrl>http://pulsar.incubator.apache.org/</organizationUrl>
+      <organizationUrl>http://pulsar.apache.org/</organizationUrl>
     </developer>
   </developers>
 
@@ -62,34 +62,39 @@ flexible messaging model and an intuitive client API.</description>
   </licenses>
 
   <scm>
-    <url>https://github.com/apache/incubator-pulsar</url>
-    <connection>scm:git:https://github.com/apache/incubator-pulsar.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com:apache/incubator-pulsar.git</developerConnection>
+    <url>https://github.com/apache/pulsar</url>
+    <connection>scm:git:https://github.com/apache/pulsar.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com:apache/pulsar.git</developerConnection>
   </scm>
 
   <ciManagement>
     <system>Travis</system>
-    <url>https://travis-ci.org/apache/incubator-pulsar</url>
+    <url>https://travis-ci.org/apache/pulsar</url>
   </ciManagement>
 
   <modules>
     <module>buildtools</module>
     <module>managed-ledger</module>
     <module>managed-ledger-shaded</module>
+    <module>tiered-storage</module>
     <module>pulsar-common</module>
     <module>pulsar-broker-common</module>
     <module>pulsar-broker</module>
     <module>pulsar-broker-shaded</module>
+    <module>pulsar-client-api</module>
     <module>pulsar-client</module>
     <module>pulsar-client-shaded</module>
+    <module>pulsar-client-1x-base</module>
     <module>pulsar-client-admin</module>
     <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
     <module>pulsar-client-tools-test</module>
+    <module>pulsar-client-all</module>
     <module>pulsar-websocket</module>
     <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>
     <module>pulsar-storm</module>
+    <module>pulsar-flink</module>
     <module>pulsar-spark</module>
     <module>pulsar-zookeeper-utils</module>
     <module>pulsar-testclient</module>
@@ -97,10 +102,17 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-auth-athenz</module>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
-    <module>docker</module>
-    <module>tests</module>
     <module>pulsar-log4j2-appender</module>
-    <module>protobuf-shaded</module>
+    <module>pulsar-sql</module>
+    <module>dashboard</module>
+    <module>pulsar-broker-auth-sasl</module>
+    <module>pulsar-client-auth-sasl</module>
+
+    <!-- transaction related modules -->
+    <module>pulsar-transaction</module>
+
+    <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
+    <module>jclouds-shaded</module>
 
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
@@ -108,12 +120,18 @@ flexible messaging model and an intuitive client API.</description>
     <!-- connector-related modules -->
     <module>pulsar-io</module>
 
+    <!-- examples -->
+    <module>examples</module>
+
+    <!-- all these 3 modules should be put at the end in this exact sequence -->
     <module>distribution</module>
+    <module>docker</module>
+    <module>tests</module>
   </modules>
 
   <issueManagement>
     <system>Github</system>
-    <url>https://github.com/apache/incubator-pulsar/issues</url>
+    <url>https://github.com/apache/pulsar/issues</url>
   </issueManagement>
 
   <properties>
@@ -122,51 +140,83 @@ flexible messaging model and an intuitive client API.</description>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
+    <docker.organization>apachepulsar</docker.organization>
+
+    <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
+    <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
 
     <!-- apache commons -->
     <commons-compress.version>1.15</commons-compress.version>
 
-    <bookkeeper.version>4.7.1</bookkeeper.version>
-    <zookeeper.version>3.5.4-beta</zookeeper.version>
-    <netty.version>4.1.22.Final</netty.version>
-    <storm.version>1.0.5</storm.version>
-    <jetty.version>9.3.11.v20160721</jetty.version>
-    <jersey.version>2.25</jersey.version>
-    <athenz.version>1.7.17</athenz.version>
-    <prometheus.version>0.0.23</prometheus.version>
-    <aspectj.version>1.9.1</aspectj.version>
+    <bookkeeper.version>4.9.2</bookkeeper.version>
+    <zookeeper.version>3.4.13</zookeeper.version>
+    <netty.version>4.1.32.Final</netty.version>
+    <storm.version>2.0.0</storm.version>
+    <jetty.version>9.4.12.v20180830</jetty.version>
+    <jersey.version>2.27</jersey.version>
+    <athenz.version>1.8.17</athenz.version>
+    <prometheus.version>0.5.0</prometheus.version>
+    <aspectj.version>1.9.2</aspectj.version>
     <rocksdb.version>5.13.3</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
+    <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
-    <bouncycastle.version>1.55</bouncycastle.version>
-    <jackson.version>2.8.4</jackson.version>
+    <bouncycastle.version>1.60</bouncycastle.version>
+    <jackson.version>2.9.8</jackson.version>
+    <reflections.version>0.9.11</reflections.version>
+    <swagger.version>1.5.21</swagger.version>
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
-    <dockerfile-maven.version>1.3.7</dockerfile-maven.version>
+    <dockerfile-maven.version>1.4.9</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
     <protobuf2.version>2.4.1</protobuf2.version>
     <protobuf3.version>3.5.1</protobuf3.version>
     <protoc3.version>3.5.1-1</protoc3.version>
-    <grpc.version>1.12.0</grpc.version>
-    <protoc-gen-grpc-java.version>1.0.0</protoc-gen-grpc-java.version>
+    <grpc.version>1.18.0</grpc.version>
+    <protoc-gen-grpc-java.version>1.12.0</protoc-gen-grpc-java.version>
     <gson.version>2.8.2</gson.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
-    <cassandra-driver-core.version>3.4.0</cassandra-driver-core.version>
-    <aerospike-client.version>4.1.5</aerospike-client.version>
-    <kafka-client.version>0.10.2.1</kafka-client.version>
+    <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
+    <aerospike-client.version>4.1.11</aerospike-client.version>
+    <kafka-client.version>2.3.0</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.297</aws-sdk.version>
     <avro.version>1.8.2</avro.version>
+    <joda.version>2.10.1</joda.version>
+    <jclouds.version>2.1.1</jclouds.version>
+    <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
+    <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
+    <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
+    <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
+    <elasticsearch.version>6.3.2</elasticsearch.version>
+    <presto.version>0.206</presto.version>
+    <flink.version>1.6.0</flink.version>
+    <scala.binary.version>2.11</scala.binary.version>
+    <debezium.version>0.9.5.Final</debezium.version>
+    <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
+    <opencensus.version>0.18.0</opencensus.version>
+    <zstd.version>1.3.7-3</zstd.version>
+    <snappy.version>1.1.1.3</snappy.version>
+    <hbase.version>1.4.9</hbase.version>
 
     <!-- test dependencies -->
-    <arquillian-cube.version>1.15.1</arquillian-cube.version>
-    <arquillian-junit.version>1.1.14.Final</arquillian-junit.version>
+    <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.8.0</testcontainers.version>
+    <testcontainers.version>1.11.2</testcontainers.version>
+    <kerby.version>1.1.1</kerby.version>
+    <testng.version>6.14.3</testng.version>
+    <mockito.version>2.28.2</mockito.version>
+    <powermock.version>2.0.2</powermock.version>
+    <javassist.version>3.25.0-GA</javassist.version>
 
     <!-- Plugin dependencies -->
-    <protobuf-maven-plugin.version>0.5.0</protobuf-maven-plugin.version>
+    <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
+    <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
+
+    <!-- Used to configure rename.netty.native. Libs -->
+    <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
   </properties>
 
   <dependencyManagement>
@@ -175,7 +225,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
-        <version>2.1.0-alpha26</version>
+        <version>2.7.0</version>
         <exclusions>
           <exclusion>
             <groupId>io.netty</groupId>
@@ -193,31 +243,25 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
-        <version>6.13.1</version>
+        <version>${testng.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>1.10.19</version>
+        <version>${mockito.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito</artifactId>
-        <version>1.7.3</version>
+        <artifactId>powermock-api-mockito2</artifactId>
+        <version>${powermock.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-module-testng</artifactId>
-        <version>1.7.3</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.googlecode.jmockit</groupId>
-        <artifactId>jmockit</artifactId>
-        <version>1.7</version>
+        <version>${powermock.version}</version>
       </dependency>
 
       <dependency>
@@ -280,14 +324,41 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>stream-storage-java-client</artifactId>
+        <artifactId>bookkeeper-common-allocator</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
 
+      <!-- reflection libs -->
+      <dependency>
+        <groupId>org.reflections</groupId>
+        <artifactId>reflections</artifactId>
+        <version>${reflections.version}</version>
+      </dependency>
+
+      <!-- exclude the grpc version from bookkeeper and use the one defined here -->
+      <dependency>
+        <groupId>org.apache.bookkeeper</groupId>
+        <artifactId>stream-storage-java-client</artifactId>
+        <version>${bookkeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-all</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <!-- exclude the grpc version from bookkeeper and use the one defined here -->
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
         <artifactId>stream-storage-server</artifactId>
         <version>${bookkeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-all</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -362,10 +433,18 @@ flexible messaging model and an intuitive client API.</description>
         <version>${netty.version}</version>
       </dependency>
 
+      <!-- `netty-codec-http2` is a dependency of grpc, set the version to
+           be aligned with the netty version defined here -->
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-codec-http2</artifactId>
+        <version>${netty.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>2.0.7.Final</version>
+        <version>2.0.20.Final</version>
       </dependency>
 
       <dependency>
@@ -401,7 +480,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>commons-configuration</groupId>
         <artifactId>commons-configuration</artifactId>
-        <version>1.6</version>
+        <version>1.10</version>
       </dependency>
 
       <dependency>
@@ -411,9 +490,21 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>net.jpountz.lz4</groupId>
-        <artifactId>lz4</artifactId>
-        <version>1.3.0</version>
+        <groupId>org.lz4</groupId>
+        <artifactId>lz4-java</artifactId>
+        <version>1.5.0</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.luben</groupId>
+        <artifactId>zstd-jni</artifactId>
+        <version>${zstd.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
       </dependency>
 
       <dependency>
@@ -479,12 +570,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>2.5</version>
-      </dependency>
-
-      <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
         <version>1.10</version>
@@ -499,6 +584,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-client</artifactId>
+        <version>${jersey.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.glassfish.jersey.inject</groupId>
+        <artifactId>jersey-hk2</artifactId>
         <version>${jersey.version}</version>
       </dependency>
 
@@ -557,6 +648,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-jaxb-annotations</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
         <version>${jackson.version}</version>
@@ -607,13 +704,13 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>io.swagger</groupId>
         <artifactId>swagger-core</artifactId>
-        <version>1.5.3</version>
+        <version>${swagger.version}</version>
       </dependency>
 
       <dependency>
-        <groupId>com.wordnik</groupId>
+        <groupId>io.swagger</groupId>
         <artifactId>swagger-annotations</artifactId>
-        <version>1.5.3-M1</version>
+        <version>${swagger.version}</version>
       </dependency>
 
       <dependency>
@@ -625,7 +722,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
-        <version>2.3.3</version>
+        <version>2.6.2</version>
       </dependency>
 
       <dependency>
@@ -660,7 +757,19 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_log4j2</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.prometheus</groupId>
         <artifactId>simpleclient_servlet</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_jetty</artifactId>
         <version>${prometheus.version}</version>
       </dependency>
 
@@ -699,6 +808,22 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>${jsonwebtoken.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>${jsonwebtoken.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId>
+        <version>${jsonwebtoken.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.aspectj</groupId>
         <artifactId>aspectjrt</artifactId>
         <version>${aspectj.version}</version>
@@ -711,14 +836,14 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>com.ea.agentloader</groupId>
-        <artifactId>ea-agent-loader</artifactId>
-        <version>1.0.2</version>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk15on</artifactId>
+        <version>${bouncycastle.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
+        <artifactId>bcprov-ext-jdk15on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
 
@@ -785,6 +910,18 @@ flexible messaging model and an intuitive client API.</description>
         </exclusions>
       </dependency>
 
+      <dependency>
+        <groupId>commons-collections</groupId>
+        <artifactId>commons-collections</artifactId>
+        <version>${commons.collections.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jclouds</groupId>
+        <artifactId>jclouds-allblobstore</artifactId>
+        <version>${jclouds.version}</version>
+      </dependency>
+
       <!-- test dependencies -->
       <dependency>
         <groupId>com.lmax</groupId>
@@ -797,6 +934,16 @@ flexible messaging model and an intuitive client API.</description>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>kafka</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>mysql</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.arquillian.cube</groupId>
         <artifactId>arquillian-cube-docker</artifactId>
         <version>${arquillian-cube.version}</version>
@@ -805,6 +952,66 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.jboss.arquillian.junit</groupId>
         <artifactId>arquillian-junit-standalone</artifactId>
         <version>${arquillian-junit.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.datastax.cassandra</groupId>
+        <artifactId>cassandra-driver-core</artifactId>
+        <version>${cassandra.version}</version>
+      </dependency>
+      <dependency>
+    	<groupId>org.assertj</groupId>
+    	<artifactId>assertj-core</artifactId>
+    	<version>3.11.1</version>
+	  </dependency>
+
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.4</version>
+      </dependency>
+
+      <dependency>
+        <groupId>javax.annotation</groupId>
+        <artifactId>javax.annotation-api</artifactId>
+        <version>1.2</version>
+      </dependency>
+
+      <dependency>
+        <groupId>javax.xml.bind</groupId>
+        <artifactId>jaxb-api</artifactId>
+        <version>2.3.1</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.sun.activation</groupId>
+        <artifactId>javax.activation</artifactId>
+        <version>1.2.0</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.opencensus</groupId>
+        <artifactId>opencensus-api</artifactId>
+        <version>${opencensus.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opencensus</groupId>
+        <artifactId>opencensus-contrib-grpc-metrics</artifactId>
+        <version>${opencensus.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.client</groupId>
+        <artifactId>elasticsearch-rest-high-level-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>joda-time</groupId>
+        <artifactId>joda-time</artifactId>
+        <version>${joda.version}</version>
+      </dependency>      
+      <dependency>
+        <groupId>org.javassist</groupId>
+        <artifactId>javassist</artifactId>
+        <version>${javassist.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -832,7 +1039,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <dependency>
       <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
+      <artifactId>powermock-api-mockito2</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -843,9 +1050,14 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
 
     <dependency>
+    	<groupId>org.assertj</groupId>
+    	<artifactId>assertj-core</artifactId>
+    	<scope>test</scope>
+	 </dependency>
+
+    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.0</version>
       <scope>provided</scope>
     </dependency>
 
@@ -863,11 +1075,35 @@ flexible messaging model and an intuitive client API.</description>
         </exclusion>
         <exclusion>
           <artifactId>log4j</artifactId>
-            <groupId>log4j</groupId>
+          <groupId>log4j</groupId>
         </exclusion>
-          <exclusion>
-            <groupId>org.jboss.netty</groupId>
-            <artifactId>netty</artifactId>
+        <exclusion>
+          <groupId>org.jboss.netty</groupId>
+          <artifactId>netty</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-buffer</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-handler</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-transport-native-epoll</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-tcnative-boringssl-static</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -902,8 +1138,9 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
-            -Dio.netty.leakDetectionLevel=advanced
+          <argLine> -Xmx2G
+            -Dpulsar.allocator.pooled=false
+            -Dpulsar.allocator.leak_detection=Advanced
             -Dlog4j.configurationFile=log4j2.xml
           </argLine>
           <reuseForks>false</reuseForks>
@@ -930,30 +1167,40 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0.rc1</version>
+        <version>3.0</version>
         <configuration>
           <header>src/license-header.txt</header>
 
           <excludes>
             <exclude>LICENSE</exclude>
             <exclude>NOTICE</exclude>
-            <exclude>DISCLAIMER</exclude>
             <exclude>**/*.txt</exclude>
             <exclude>**/*.pem</exclude>
             <exclude>**/*.crt</exclude>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
+            <exclude>**/*.log</exclude>
+            <exclude>**/*.patch</exclude>
+            <exclude>**/*.avsc</exclude>
+            <exclude>**/*.versionsBackup</exclude>
+            <exclude>**/*.pyc</exclude>
+            <exclude>**/*.graffle</exclude>
+            <exclude>**/*.hgrm</exclude>
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/api/proto/*.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
+            <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
             <exclude>**/ByteBufCodedInputStream.java</exclude>
             <exclude>**/ByteBufCodedOutputStream.java</exclude>
             <exclude>bin/proto/*</exclude>
-            <exclude>**/*.patch</exclude>
             <exclude>conf/schema_example.conf</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
-            <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
             <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
@@ -962,16 +1209,12 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-            <exclude>pulsar-client-cpp/.idea/*</exclude>
             <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
             <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
             <exclude>pulsar-client-cpp/**/Makefile</exclude>
             <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
-            <exclude>**/*.pyc</exclude>
-            <exclude>**/*.graffle</exclude>
-            <exclude>**/*.hgrm</exclude>
             <exclude>**/CMakeFiles/**</exclude>
-            <exclude>dashboard/django/stats/migrations/*.py</exclude>
+            <exclude>**/django/stats/migrations/*.py</exclude>
             <exclude>site/vendor/**</exclude>
             <exclude>site/scripts/doxygen/**</exclude>
             <exclude>site/api/**</exclude>
@@ -985,9 +1228,12 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>site/_sass/font-awesome/**</exclude>
             <exclude>site/fonts/**</exclude>
             <exclude>site/img/**</exclude>
+            <exclude>site2/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
-            <exclude>**/.idea/*</exclude>
+            <exclude>**/.idea/**</exclude>
+            <exclude>**/generated/**</exclude>
+            <exclude>**/zk-3.5-test-data/*</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
@@ -1016,23 +1262,6 @@ flexible messaging model and an intuitive client API.</description>
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-classpath</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>build-classpath</goal>
-            </goals>
-            <configuration>
-              <outputFile>target/classpath.txt</outputFile>
-              <includeScope>runtime</includeScope>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
         <configuration>
@@ -1048,12 +1277,30 @@ flexible messaging model and an intuitive client API.</description>
                  and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarMarkers.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
+
+            <!-- These files are generated automatically by the Avro compiler
+                 and are included in source tree for convenience -->
+            <exclude>**/avro/generated/*.java</exclude>
+
+            <!-- Avro schema definitions - JSON format -->
+            <exclude>**/*.avsc</exclude>
+
+            <!-- pulasr-io-connector kinesis : auto generated files from flatbuffer schema -->
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
 
             <!-- These files are BSD licensed files -->
             <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedInputStream.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedOutputStream.java</exclude>
+
+            <!-- Imported from Netty - Apache License v2 -->
+            <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
 
             <!-- This is generated during maven build -->
             <exclude>dependency-reduced-pom.xml</exclude>
@@ -1061,15 +1308,22 @@ flexible messaging model and an intuitive client API.</description>
             <!-- LZ4 code is under BSD 2-clause  -->
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
 
+            <!-- These files is go module configs -->
+            <exclude>pulsar-client-go/go.mod</exclude>
+            <exclude>pulsar-client-go/go.sum</exclude>
+            <exclude>pulsar-function-go/go.mod</exclude>
+            <exclude>pulsar-function-go/go.sum</exclude>
+
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
 
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
+            <exclude>**/META-INF/services/com.facebook.presto.spi.Plugin</exclude>
 
             <!-- Django generated code -->
-            <exclude>dashboard/django/stats/migrations/*.py</exclude>
-            <exclude>dashboard/conf/uwsgi_params</exclude>
+            <exclude>**/django/stats/migrations/*.py</exclude>
+            <exclude>**/conf/uwsgi_params</exclude>
 
             <!-- Exclude certificates used for tests -->
             <exclude>**/*.crt</exclude>
@@ -1083,11 +1337,18 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>certificate-authority/index.txt</exclude>
             <exclude>certificate-authority/README.md</exclude>
 
+            <!-- Exclude ZK test data file -->
+            <exclude>**/zk-3.5-test-data/*</exclude>
+
             <!-- Python requirements files -->
             <exclude>**/requirements.txt</exclude>
 
             <!-- Configuration Templates -->
             <exclude>conf/schema_example.conf</exclude>
+
+            <!-- helm files -->
+            <exclude>**/.helmignore</exclude>
+            <exclude>**/_helpers.tpl</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -1106,8 +1367,7 @@ flexible messaging model and an intuitive client API.</description>
           <useNativeGit>true</useNativeGit>
           <prefix>git</prefix>
           <verbose>false</verbose>
-          <generateGitPropertiesFile>true</generateGitPropertiesFile>
-          <generateGitPropertiesFilename>${project.build.outputDirectory}/${project.artifactId}-git.properties</generateGitPropertiesFilename>
+          <failOnNoGitDirectory>false</failOnNoGitDirectory>
           <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
           <format>properties</format>
           <gitDescribe>
@@ -1122,7 +1382,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.21.0</version>
+          <version>3.0.0-M3</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -1135,7 +1395,7 @@ flexible messaging model and an intuitive client API.</description>
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.7.0</version>
+          <version>3.8.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -1152,6 +1412,11 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <additionalparam>-Xdoclint:none</additionalparam>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>1.6.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven</groupId>
@@ -1182,30 +1447,6 @@ flexible messaging model and an intuitive client API.</description>
           <version>3.0.0</version>
       </plugin>
         <plugin>
-          <groupId>org.eclipse.m2e</groupId>
-          <artifactId>lifecycle-mapping</artifactId>
-          <version>1.0.0</version>
-          <configuration>
-            <lifecycleMappingMetadata>
-              <pluginExecutions>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-dependency-plugin</artifactId>
-                    <versionRange>[1.0,)</versionRange>
-                    <goals>
-                      <goal>build-classpath</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
-                </pluginExecution>
-              </pluginExecutions>
-            </lifecycleMappingMetadata>
-          </configuration>
-        </plugin>
-        <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
           <version>2.2.4</version>
@@ -1218,6 +1459,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>wagon-ssh-external</artifactId>
         <version>2.10</version>
       </extension>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.4.1.Final</version>
+      </extension>
     </extensions>
   </build>
 
@@ -1229,7 +1475,7 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>0.7.7.201606060606</version>
+            <version>0.8.3</version>
             <executions>
               <execution>
                 <id>pre-unit-test</id>
@@ -1284,6 +1530,62 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
     <profile>
       <id>docker</id>
+    </profile>
+
+    <profile>
+      <!-- Checks style and licensing requirements. This is a good
+           idea to run for contributions and for the release process. While it would
+           be nice to run always these plugins can considerably slow the build and have
+           proven to create unstable builds in our multi-module project and when building
+           using multiple threads. The stability issues seen with Checkstyle in multi-module
+           builds include false-positives and false negatives. -->
+      <id>contrib-check</id>
+         <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.rat</groupId>
+                    <artifactId>apache-rat-plugin</artifactId>
+                    <executions>
+                      <execution>
+                          <goals>
+                              <goal>check</goal>
+                          </goals>
+                          <phase>verify</phase>
+                      </execution>
+                   </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <executions>
+                       <execution>
+                          <id>check-style</id>
+                          <phase>verify</phase>
+                          <configuration>
+         					  <configLocation>./buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+         					  <suppressionsLocation>/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+                              <encoding>UTF-8</encoding>
+                          </configuration>
+                          <goals>
+                             <goal>check</goal>
+                          </goals>
+                       </execution>
+                    </executions>
+                </plugin>
+             </plugins>
+         </build>
+    </profile>
+
+    <profile>
+      <id>windows</id>
+      <activation>
+        <os>
+          <family>Windows</family>
+        </os>
+      </activation>
+      <properties>
+        <rename.netty.native.libs>rename-netty-native-libs.cmd</rename.netty.native.libs>
+      </properties>
     </profile>
   </profiles>
 

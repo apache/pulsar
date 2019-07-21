@@ -24,9 +24,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
+import java.util.Optional;
+
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
 /**
  * Thread based function container factory implementation.
@@ -36,10 +40,13 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
     private final String pulsarServiceUrl;
     private final String stateStorageServiceUrl;
+    private final boolean authenticationEnabled;
     private AuthenticationConfig authConfig;
+    private SecretsProviderConfigurator secretsProviderConfigurator;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
+    private String extraDependenciesDir;
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
@@ -47,13 +54,19 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
-                                 String logDirectory) {
+                                 String logDirectory,
+                                 String extraDependenciesDir,
+                                 SecretsProviderConfigurator secretsProviderConfigurator,
+                                 boolean authenticationEnabled) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
+        this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
+        this.extraDependenciesDir = extraDependenciesDir;
         this.logDirectory = logDirectory;
+        this.authenticationEnabled = authenticationEnabled;
 
         // if things are not specified, try to figure out by env properties
         if (this.javaInstanceJarFile == null) {
@@ -88,11 +101,26 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             }
         }
         this.logDirectory = this.logDirectory + "/functions";
+
+        if (this.extraDependenciesDir == null) {
+            String envProcessContainerExtraDependenciesDir =
+                System.getProperty("pulsar.functions.extra.dependencies.dir");
+            if (null != envProcessContainerExtraDependenciesDir) {
+                log.info("Extra dependencies location is not defined using"
+                    + " the location defined in system environment : {}", envProcessContainerExtraDependenciesDir);
+                this.extraDependenciesDir = envProcessContainerExtraDependenciesDir;
+            } else {
+                log.info("No extra dependencies location is defined in either"
+                    + " function worker config or system environment");
+            }
+        }
     }
 
     @Override
-    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile) {
-        String instanceFile;
+    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
+                                          String originalCodeFileName,
+                                          Long expectedHealthCheckInterval) throws Exception {
+        String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 instanceFile = javaInstanceJarFile;
@@ -100,17 +128,29 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             case PYTHON:
                 instanceFile = pythonInstanceFile;
                 break;
+            case GO:
+                break;
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
+
+        // configure auth if necessary
+        if (authenticationEnabled) {
+            getAuthProvider().configureAuthenticationConfig(authConfig,
+                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
+        }
+
         return new ProcessRuntime(
             instanceConfig,
             instanceFile,
+            extraDependenciesDir,
             logDirectory,
             codeFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
-            authConfig);
+            authConfig,
+            secretsProviderConfigurator,
+            expectedHealthCheckInterval);
     }
 
     @Override

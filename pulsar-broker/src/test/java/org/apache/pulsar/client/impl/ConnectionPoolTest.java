@@ -63,7 +63,9 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         result.add(InetAddress.getByName("127.0.0.1"));
         Mockito.when(pool.resolveName("non-existing-dns-name")).thenReturn(CompletableFuture.completedFuture(result));
 
-        client.createProducer("persistent://sample/standalone/ns/my-topic");
+        client.newProducer()
+                .topic("persistent://sample/standalone/ns/my-topic")
+                .create();
 
         client.close();
     }
@@ -86,7 +88,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         Mockito.when(pool.resolveName("non-existing-dns-name")).thenReturn(CompletableFuture.completedFuture(result));
 
         // Create producer should succeed by trying the 2nd IP
-        client.createProducer("persistent://sample/standalone/ns/my-topic");
+        client.newProducer().topic("persistent://sample/standalone/ns/my-topic").create();
         client.close();
     }
 }

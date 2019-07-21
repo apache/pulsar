@@ -19,6 +19,7 @@
 package org.apache.pulsar.storm;
 
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,24 +27,25 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Maps;
-
 public class SharedPulsarClient {
     private static final Logger LOG = LoggerFactory.getLogger(SharedPulsarClient.class);
-    private static final ConcurrentMap<String, SharedPulsarClient> instances = Maps.newConcurrentMap();
+    private static final ConcurrentMap<String, SharedPulsarClient> instances = new ConcurrentHashMap<>();
 
     private final String componentId;
     private final PulsarClientImpl client;
     private final AtomicInteger counter = new AtomicInteger();
 
     private Consumer<byte[]> consumer;
+    private Reader<byte[]> reader;
     private Producer<byte[]> producer;
 
     private SharedPulsarClient(String componentId, ClientConfigurationData clientConf)
@@ -105,6 +107,23 @@ public class SharedPulsarClient {
         return consumer;
     }
 
+    public Reader<byte[]> getSharedReader(ReaderConfigurationData<byte[]> readerConf) throws PulsarClientException {
+        counter.incrementAndGet();
+        synchronized (this) {
+            if (reader == null) {
+                try {
+                    reader = client.createReaderAsync(readerConf).join();
+                } catch (CompletionException e) {
+                    throw (PulsarClientException) e.getCause();
+                }
+                LOG.info("[{}] Created a new Pulsar reader on {}", componentId, readerConf.getTopicName());
+            } else {
+                LOG.info("[{}] Using a shared reader on {}", componentId, readerConf.getTopicName());
+            }
+        }
+        return reader;
+    }
+
     public Producer<byte[]> getSharedProducer(ProducerConfigurationData producerConf) throws PulsarClientException {
         counter.incrementAndGet();
         synchronized (this) {
@@ -131,4 +150,5 @@ public class SharedPulsarClient {
             }
         }
     }
+
 }

@@ -49,8 +49,16 @@ variable "num_zookeeper_nodes" {
   description = "The number of EC2 instances running ZooKeeper"
 }
 
-variable "num_pulsar_brokers" {
-  description = "The number of EC2 instances running a Pulsar broker plus a BookKeeper bookie"
+variable "num_bookie_nodes" {
+  description = "The number of EC2 instances running BookKeeper"
+}
+
+variable "num_broker_nodes" {
+  description = "The number of EC2 instances running Pulsar brokers"
+}
+
+variable "num_proxy_nodes" {
+  description = "The number of EC2 instances running Pulsar proxies"
 }
 
 variable "instance_types" {

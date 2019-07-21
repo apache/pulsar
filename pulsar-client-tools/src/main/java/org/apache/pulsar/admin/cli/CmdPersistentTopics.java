@@ -24,14 +24,14 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
-import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -44,14 +44,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
-@SuppressWarnings("deprecation")
-@Parameters(commandDescription = "Operations on persistent topics", hidden = true)
+@Parameters(commandDescription = "Operations on persistent topics. The persistent-topics " +
+        "has been deprecated in favor of topics", hidden = true)
 public class CmdPersistentTopics extends CmdBase {
-    private final PersistentTopics persistentTopics;
+    private final Topics persistentTopics;
 
     public CmdPersistentTopics(PulsarAdmin admin) {
         super("persistent", admin);
-        persistentTopics = admin.persistentTopics();
+        persistentTopics = admin.topics();
 
         jcommander.addCommand("list", new ListCmd());
         jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
@@ -69,6 +69,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("stats-internal", new GetInternalStats());
         jcommander.addCommand("info-internal", new GetInternalInfo());
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
+        jcommander.addCommand("partitioned-stats-internal", new GetPartitionedStatsInternal());
         jcommander.addCommand("skip", new Skip());
         jcommander.addCommand("skip-all", new SkipAll());
         jcommander.addCommand("expire-messages", new ExpireMessages());
@@ -239,7 +240,7 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
-        
+
         @Parameter(names = "--force", description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
 
@@ -258,7 +259,7 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Parameter(names = "--force", description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
-        
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
@@ -358,6 +359,19 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
             print(persistentTopics.getPartitionedStats(persistentTopic, perPartition));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the stats-internal for the partitioned topic and its connected producers and consumers. \n"
+            + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
+    private class GetPartitionedStatsInternal extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String persistentTopic = validatePersistentTopic(params);
+            print(persistentTopics.getPartitionedInternalStats(persistentTopic));
         }
     }
 
@@ -482,8 +496,8 @@ public class CmdPersistentTopics extends CmdBase {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
                 persistentTopics.resetCursor(persistentTopic, subName, messageId);
             } else if (isNotBlank(resetTimeStr)) {
-                int resetBackTimeInMin = validateTimeString(resetTimeStr);
-                long resetTimeInMillis = TimeUnit.MILLISECONDS.convert(resetBackTimeInMin, TimeUnit.MINUTES);
+                long resetTimeInMillis = TimeUnit.SECONDS
+                        .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
                 persistentTopics.resetCursor(persistentTopic, subName, timestamp);

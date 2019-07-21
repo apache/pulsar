@@ -19,9 +19,6 @@
 #ifndef _PULSAR_SERVICE_UNIT_ID_HEADER_
 #define _PULSAR_SERVICE_UNIT_ID_HEADER_
 
-#include <string>
-#include <boost/shared_ptr.hpp>
-
 class ServiceUnitId {
    public:
     virtual ~ServiceUnitId() {}

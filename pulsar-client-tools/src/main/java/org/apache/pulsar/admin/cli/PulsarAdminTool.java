@@ -44,13 +44,19 @@ public class PulsarAdminTool {
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
 
-    @Parameter(names = { "--auth-params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\".")
+    @Parameter(
+        names = { "--auth-params" },
+        description = "Authentication parameters, whose format is determined by the implementation " +
+            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
     Boolean tlsAllowInsecureConnection;
-
-
+    
+    @Parameter(names = { "--tls-trust-cert-path" }, description = "Allow TLS trust cert file path")
+    String tlsTrustCertsFilePath;
+    
     @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
 
@@ -70,7 +76,9 @@ public class PulsarAdminTool {
         boolean tlsEnableHostnameVerification = this.tlsEnableHostnameVerification != null
                 ? this.tlsEnableHostnameVerification
                 : Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+        final String tlsTrustCertsFilePath = StringUtils.isNotBlank(this.tlsTrustCertsFilePath)
+                ? this.tlsTrustCertsFilePath
+                : properties.getProperty("tlsTrustCertsFilePath");
 
         adminBuilder = PulsarAdmin.builder().allowTlsInsecureConnection(tlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(tlsEnableHostnameVerification)
@@ -99,6 +107,12 @@ public class PulsarAdminTool {
 
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
         commandMap.put("functions", CmdFunctions.class);
+        commandMap.put("functions-worker", CmdFunctionWorker.class);
+        commandMap.put("sources", CmdSources.class);
+        commandMap.put("sinks", CmdSinks.class);
+
+        // To remain backwards compatibility for "source" and "sink" commands
+        // TODO eventually remove this
         commandMap.put("source", CmdSources.class);
         commandMap.put("sink", CmdSinks.class);
     }
@@ -109,7 +123,7 @@ public class PulsarAdminTool {
             adminBuilder.authentication(authPluginClassName, authParams);
             PulsarAdmin admin = adminFactory.apply(adminBuilder);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
-                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+                addCommand(c, admin);
             }
         } catch (Exception e) {
             Throwable cause;
@@ -120,6 +134,23 @@ public class PulsarAdminTool {
             }
             System.err.println(cause.getClass() + ": " + cause.getMessage());
             System.exit(1);
+        }
+    }
+
+    private void addCommand(Map.Entry<String, Class<?>> c, PulsarAdmin admin) throws Exception {
+        // To remain backwards compatibility for "source" and "sink" commands
+        // TODO eventually remove this
+        if (c.getKey().equals("sources") || c.getKey().equals("source")) {
+            jcommander.addCommand("sources", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "source");
+        } else if (c.getKey().equals("sinks") || c.getKey().equals("sink")) {
+            jcommander.addCommand("sinks", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "sink");
+        } else if (c.getKey().equals("functions")) {
+            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+        } else {
+            if (admin != null) {
+                // Other mode, all components are initialized.
+                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+            }
         }
     }
 
@@ -172,6 +203,15 @@ public class PulsarAdminTool {
         } else {
             setupCommands(adminFactory);
             String cmd = args[cmdPos];
+
+            // To remain backwards compatibility for "source" and "sink" commands
+            // TODO eventually remove this
+            if (cmd.equals("source")) {
+                cmd = "sources";
+            } else if (cmd.equals("sink")) {
+                cmd = "sinks";
+            }
+
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
 
@@ -184,13 +224,8 @@ public class PulsarAdminTool {
         Properties properties = new Properties();
 
         if (configFile != null) {
-            FileInputStream fis = null;
-            try {
-                fis = new FileInputStream(configFile);
+            try (FileInputStream fis = new FileInputStream(configFile)) {
                 properties.load(fis);
-            } finally {
-                if (fis != null)
-                    fis.close();
             }
         }
 
@@ -204,10 +239,7 @@ public class PulsarAdminTool {
         }
 
         ++cmdPos;
-        boolean isLocalRun = false;
-        if (cmdPos < args.length) {
-            isLocalRun = "localrun" == args[cmdPos].toLowerCase();
-        }
+        boolean isLocalRun = cmdPos < args.length && "localrun".equals(args[cmdPos].toLowerCase());
 
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         if (isLocalRun) {

@@ -22,7 +22,7 @@
 #include <iostream>
 #include <map>
 #include <set>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <boost/scoped_array.hpp>
 
 #include <openssl/ssl.h>
@@ -96,8 +96,8 @@ class MessageCrypto {
                  const CryptoKeyReaderPtr keyReader, SharedBuffer& decryptedPayload);
 
    private:
-    typedef boost::unique_lock<boost::mutex> Lock;
-    boost::mutex mutex_;
+    typedef std::unique_lock<std::mutex> Lock;
+    std::mutex mutex_;
 
     int dataKeyLen_;
     boost::scoped_array<unsigned char> dataKey_;

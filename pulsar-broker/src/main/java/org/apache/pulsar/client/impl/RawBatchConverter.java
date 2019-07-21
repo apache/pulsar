@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
@@ -33,19 +32,15 @@ import java.util.function.BiPredicate;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class RawBatchConverter {
-    private static final Logger log = LoggerFactory.getLogger(RawBatchConverter.class);
 
     public static boolean isReadableBatch(RawMessage msg) {
         ByteBuf payload = msg.getHeadersAndPayload();
@@ -93,7 +88,7 @@ public class RawBatchConverter {
     }
 
     /**
-     * Take a batched message and a filter, and returns a message with the only the submessages
+     * Take a batched message and a filter, and returns a message with the only the sub-messages
      * which match the filter. Returns an empty optional if no messages match.
      *
      * This takes ownership of the passes in message, and if the returned optional is not empty,
@@ -106,7 +101,7 @@ public class RawBatchConverter {
 
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
-        ByteBuf batchBuffer = PooledByteBufAllocator.DEFAULT.buffer(payload.capacity());
+        ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity());
 
         CompressionType compressionType = metadata.getCompression();
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);

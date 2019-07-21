@@ -74,7 +74,7 @@ serve: clean_local
 
 .PHONY: javadoc
 javadoc:
-	rm -rf api/{admin,client}
+	rm -rf api/{admin,client,pulsar-functions}
 	scripts/javadoc-gen.sh
 
 python_doc_gen:

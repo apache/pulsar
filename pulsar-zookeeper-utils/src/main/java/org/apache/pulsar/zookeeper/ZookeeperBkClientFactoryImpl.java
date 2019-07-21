@@ -23,17 +23,18 @@ import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class ZookeeperBkClientFactoryImpl implements ZooKeeperClientFactory {
+
+    private static final Logger log = LoggerFactory.getLogger(ZookeeperBkClientFactoryImpl.class);
 
     private final OrderedExecutor executor;
 

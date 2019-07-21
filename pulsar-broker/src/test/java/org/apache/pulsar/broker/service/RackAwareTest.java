@@ -130,5 +130,10 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
         // Ignore test
     }
 
+    @Test(enabled = false)
+    public void testTopicWithWildCardChar() throws Exception {
+        // Ignore test
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(RackAwareTest.class);
 }

@@ -66,6 +66,13 @@ pulsar_compression_type pulsar_producer_configuration_get_compression_type(
     return (pulsar_compression_type)conf->conf.getCompressionType();
 }
 
+void pulsar_producer_configuration_set_schema_info(pulsar_producer_configuration_t *conf,
+                                                   pulsar_schema_type schemaType, const char *name,
+                                                   const char *schema, pulsar_string_map_t *properties) {
+    auto schemaInfo = pulsar::SchemaInfo((pulsar::SchemaType)schemaType, name, schema, properties->map);
+    conf->conf.setSchema(schemaInfo);
+}
+
 void pulsar_producer_configuration_set_max_pending_messages(pulsar_producer_configuration_t *conf,
                                                             int maxPendingMessages) {
     conf->conf.setMaxPendingMessages(maxPendingMessages);
@@ -125,7 +132,7 @@ class MessageRoutingPolicy : public pulsar::MessageRoutingPolicy {
 
 void pulsar_producer_configuration_set_message_router(pulsar_producer_configuration_t *conf,
                                                       pulsar_message_router router, void *ctx) {
-    conf->conf.setMessageRouter(boost::make_shared<MessageRoutingPolicy>(router, ctx));
+    conf->conf.setMessageRouter(std::make_shared<MessageRoutingPolicy>(router, ctx));
 }
 
 void pulsar_producer_configuration_set_block_if_queue_full(pulsar_producer_configuration_t *conf,
@@ -173,4 +180,9 @@ void pulsar_producer_configuration_set_batching_max_publish_delay_ms(
 unsigned long pulsar_producer_configuration_get_batching_max_publish_delay_ms(
     pulsar_producer_configuration_t *conf) {
     return conf->conf.getBatchingMaxPublishDelayMs();
+}
+
+void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t *conf, const char *name,
+                                                const char *value) {
+    conf->conf.setProperty(name, value);
 }

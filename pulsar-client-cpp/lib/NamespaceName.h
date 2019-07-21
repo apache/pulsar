@@ -19,22 +19,26 @@
 #ifndef _PULSAR_NAMESPACE_NAME_HEADER_
 #define _PULSAR_NAMESPACE_NAME_HEADER_
 
+#include <pulsar/defines.h>
 #include "ServiceUnitId.h"
 
+#include <memory>
 #include <string>
-#include <boost/shared_ptr.hpp>
 
-#pragma GCC visibility push(default)
+namespace pulsar {
 
-class NamespaceName : public ServiceUnitId {
+class PULSAR_PUBLIC NamespaceName : public ServiceUnitId {
    public:
-    boost::shared_ptr<NamespaceName> getNamespaceObject();
+    std::shared_ptr<NamespaceName> getNamespaceObject();
     std::string getProperty();
     std::string getCluster();
     std::string getLocalName();
-    static boost::shared_ptr<NamespaceName> get(const std::string& property, const std::string& cluster,
-                                                const std::string& namespaceName);
+    static std::shared_ptr<NamespaceName> get(const std::string& property, const std::string& cluster,
+                                              const std::string& namespaceName);
+    static std::shared_ptr<NamespaceName> get(const std::string& property, const std::string& namespaceName);
     bool operator==(const NamespaceName& namespaceName);
+    bool isV2();
+    std::string toString();
 
    private:
     std::string namespace_;
@@ -43,9 +47,13 @@ class NamespaceName : public ServiceUnitId {
     std::string localName_;
     static bool validateNamespace(const std::string& property, const std::string& cluster,
                                   const std::string& namespace_);
+    static bool validateNamespace(const std::string& property, const std::string& namespace_);
     NamespaceName(const std::string& property, const std::string& cluster, const std::string& namespace_);
+    NamespaceName(const std::string& property, const std::string& namespace_);
 };
 
-#pragma GCC visibility pop
+typedef std::shared_ptr<NamespaceName> NamespaceNamePtr;
+
+}  // namespace pulsar
 
 #endif

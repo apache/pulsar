@@ -46,7 +46,19 @@ $ docker run -it \
   bin/pulsar standalone
 ```
 
+Under Windows, you should use something like the following docker command:
+
+```shell
+$ docker run -it \
+  -p 6650:6650 \
+  -p 8080:8080 \
+  -v "$PWD/data:/pulsar/data".ToLower() \
+  apachepulsar/pulsar:{{site.current_version}} \
+  bin/pulsar standalone
+```
+
 A few things to note about this command:
+ * `$PWD/data` : The docker host directory under the Windows operating system must be lowercase.`$PWD/data` can provide you with the specified directory, for example: `E:/data`.
  * `-v $PWD/data:/pulsar/data`: This will make the process inside the container to store the
    data and metadata in the filesystem outside the container, in order to not start "fresh" every
    time the container is restarted.
@@ -123,7 +135,7 @@ You can find detailed documentation of all the APIs in the [Admin API Overview](
 In the simplest example, you can use curl to probe the stats for a particular topic:
 
 ```shell
-$ curl http://localhost:8080/admin/persistent/public/default/my-topic/stats | python -m json.tool
+$ curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
 ```
 
 The output will be something like this:

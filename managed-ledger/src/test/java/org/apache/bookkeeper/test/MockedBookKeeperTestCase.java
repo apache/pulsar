@@ -22,13 +22,15 @@ import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.bookkeeper.client.MockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
+import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -47,7 +49,7 @@ public abstract class MockedBookKeeperTestCase {
     protected MockZooKeeper zkc;
 
     // BookKeeper related variables
-    protected MockBookKeeper bkc;
+    protected PulsarMockBookKeeper bkc;
     protected int numBookies;
 
     protected ManagedLedgerFactoryImpl factory;
@@ -79,6 +81,8 @@ public abstract class MockedBookKeeperTestCase {
 
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
         factory = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
+
+        zkc.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
     @AfterMethod
@@ -117,7 +121,7 @@ public abstract class MockedBookKeeperTestCase {
 
         zkc.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(), null, null);
 
-        bkc = new MockBookKeeper(zkc);
+        bkc = new PulsarMockBookKeeper(zkc, executor.chooseThread(this));
     }
 
     protected void stopBookKeeper() throws Exception {

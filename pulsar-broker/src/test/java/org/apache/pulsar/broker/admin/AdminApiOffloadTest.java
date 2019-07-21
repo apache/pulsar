@@ -18,42 +18,33 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Sets;
 
 import java.util.concurrent.CompletableFuture;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
 public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AdminApiOffloadTest.class);
 
     @BeforeMethod
     @Override
@@ -78,13 +69,15 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     private void testOffload(String topicName, String mlName) throws Exception {
         LedgerOffloader offloader = mock(LedgerOffloader.class);
+        when(offloader.getOffloadDriverName()).thenReturn("mock");
+
         doReturn(offloader).when(pulsar).getManagedLedgerOffloader();
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        doReturn(promise).when(offloader).offload(anyObject(), anyObject(), anyObject());
+        doReturn(promise).when(offloader).offload(any(), any(), any());
 
         MessageId currentId = MessageId.latest;
-        try (Producer p = pulsarClient.newProducer().topic(topicName).enableBatching(false).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).enableBatching(false).create()) {
             for (int i = 0; i < 15; i++) {
                 currentId = p.send("Foobar".getBytes());
             }
@@ -93,16 +86,16 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerInfo info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(mlName);
         Assert.assertEquals(info.ledgers.size(), 2);
 
-        Assert.assertEquals(admin.persistentTopics().offloadStatus(topicName).status,
+        Assert.assertEquals(admin.topics().offloadStatus(topicName).status,
                             LongRunningProcessStatus.Status.NOT_RUN);
 
-        admin.persistentTopics().triggerOffload(topicName, currentId);
+        admin.topics().triggerOffload(topicName, currentId);
 
-        Assert.assertEquals(admin.persistentTopics().offloadStatus(topicName).status,
+        Assert.assertEquals(admin.topics().offloadStatus(topicName).status,
                             LongRunningProcessStatus.Status.RUNNING);
 
         try {
-            admin.persistentTopics().triggerOffload(topicName, currentId);
+            admin.topics().triggerOffload(topicName, currentId);
             Assert.fail("Should have failed");
         } catch (ConflictException e) {
             // expected
@@ -111,24 +104,24 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         // fail first time
         promise.completeExceptionally(new Exception("Some random failure"));
 
-        Assert.assertEquals(admin.persistentTopics().offloadStatus(topicName).status,
+        Assert.assertEquals(admin.topics().offloadStatus(topicName).status,
                             LongRunningProcessStatus.Status.ERROR);
-        Assert.assertTrue(admin.persistentTopics().offloadStatus(topicName).lastError.contains("Some random failure"));
+        Assert.assertTrue(admin.topics().offloadStatus(topicName).lastError.contains("Some random failure"));
 
         // Try again
         doReturn(CompletableFuture.completedFuture(null))
-            .when(offloader).offload(anyObject(), anyObject(), anyObject());
+            .when(offloader).offload(any(), any(), any());
 
-        admin.persistentTopics().triggerOffload(topicName, currentId);
+        admin.topics().triggerOffload(topicName, currentId);
 
-        Assert.assertEquals(admin.persistentTopics().offloadStatus(topicName).status,
+        Assert.assertEquals(admin.topics().offloadStatus(topicName).status,
                             LongRunningProcessStatus.Status.SUCCESS);
-        MessageIdImpl firstUnoffloaded = admin.persistentTopics().offloadStatus(topicName).firstUnoffloadedMessage;
+        MessageIdImpl firstUnoffloaded = admin.topics().offloadStatus(topicName).firstUnoffloadedMessage;
         // First unoffloaded is the first entry of current ledger
         Assert.assertEquals(firstUnoffloaded.getLedgerId(), info.ledgers.get(1).ledgerId);
         Assert.assertEquals(firstUnoffloaded.getEntryId(), 0);
 
-        verify(offloader, times(2)).offload(anyObject(), anyObject(), anyObject());
+        verify(offloader, times(2)).offload(any(), any(), any());
     }
 
 

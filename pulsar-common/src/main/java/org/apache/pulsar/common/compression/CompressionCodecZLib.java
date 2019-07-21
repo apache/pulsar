@@ -20,14 +20,15 @@ package org.apache.pulsar.common.compression;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
+
 import java.io.IOException;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.util.concurrent.FastThreadLocal;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
  * ZLib Compression
@@ -39,12 +40,22 @@ public class CompressionCodecZLib implements CompressionCodec {
         protected Deflater initialValue() throws Exception {
             return new Deflater();
         }
+
+        @Override
+        protected void onRemoval(Deflater deflater) throws Exception {
+            deflater.end();
+        }
     };
 
     private final FastThreadLocal<Inflater> inflater = new FastThreadLocal<Inflater>() {
         @Override
         protected Inflater initialValue() throws Exception {
             return new Inflater();
+        }
+
+        @Override
+        protected void onRemoval(Inflater inflater) throws Exception {
+            inflater.end();
         }
     };
 
@@ -54,7 +65,7 @@ public class CompressionCodecZLib implements CompressionCodec {
         int length = source.readableBytes();
 
         int sizeEstimate = (int) Math.ceil(source.readableBytes() * 1.001) + 14;
-        ByteBuf compressed = PooledByteBufAllocator.DEFAULT.heapBuffer(sizeEstimate);
+        ByteBuf compressed = PulsarByteBufAllocator.DEFAULT.heapBuffer(sizeEstimate);
 
         int offset = 0;
         if (source.hasArray()) {
@@ -88,7 +99,7 @@ public class CompressionCodecZLib implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PooledByteBufAllocator.DEFAULT.heapBuffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedLength, uncompressedLength);
 
         int len = encoded.readableBytes();
 

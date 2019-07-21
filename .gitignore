@@ -8,7 +8,9 @@ logs
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
 pulsar-functions/worker/test-tenant/
+pulsar-broker/src/test/resources/pulsar-functions-api-examples.jar
 *.log
+*.nar
 
 *.versionsBackup
 */bin
@@ -18,6 +20,7 @@ pulsar-functions/worker/test-tenant/
 .project
 .settings/
 .recommenders/
+.factorypath
 
 # Intellij
 .idea/
@@ -57,9 +60,24 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 **/.vagrant
 
 
-pulsar-client-cpp/python/pkg/osx/**/*.bak
-pulsar-client-cpp/python/pkg/osx/**/build.sh
-pulsar-client-cpp/python/pkg/osx/**/*.whl
-pulsar-client-cpp/python/pkg/osx/**/*.template2
+pulsar-client-cpp/python/pkg/osx/*/*.bak
+pulsar-client-cpp/python/pkg/osx/*/*.whl
+pulsar-client-cpp/python/wheelhouse
 
+# CI generated files
+.repository
+docker.debug-info
 
+# Yarn
+
+**/yarn.lock
+
+# docusaurus
+
+**/website/i18n/*
+**/website/translated_docs*
+
+# Avro
+examples/flink/src/main/java/org/apache/flink/avro/generated
+pulsar-flink/src/test/java/org/apache/flink/avro/generated
+pulsar-client/src/test/java/org/apache/pulsar/client/avro/generated

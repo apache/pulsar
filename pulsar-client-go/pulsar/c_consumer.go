@@ -25,13 +25,15 @@ package pulsar
 import "C"
 
 import (
+	"context"
 	"runtime"
 	"time"
 	"unsafe"
-	"context"
 )
 
 type consumer struct {
+	schema         Schema
+	client         *client
 	ptr            *C.pulsar_consumer_t
 	defaultChannel chan ConsumerMessage
 }
@@ -52,19 +54,21 @@ func pulsarSubscribeCallbackProxy(res C.pulsar_result, ptr *C.pulsar_consumer_t,
 		cc.callback(nil, newError(res, "Failed to subscribe to topic"))
 	} else {
 		cc.consumer.ptr = ptr
+		cc.consumer.schema = cc.schema
 		runtime.SetFinalizer(cc.consumer, consumerFinalizer)
 		cc.callback(cc.consumer, nil)
 	}
 }
 
 type subscribeContext struct {
+	schema   Schema
 	conf     *C.pulsar_consumer_configuration_t
 	consumer *consumer
 	callback func(Consumer, error)
 }
 
-func subscribeAsync(client *client, options ConsumerOptions, callback func(Consumer, error)) {
-	if options.Topic == "" {
+func subscribeAsync(client *client, options ConsumerOptions, schema Schema, callback func(Consumer, error)) {
+	if options.Topic == "" && options.Topics == nil && options.TopicsPattern == "" {
 		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
 		return
 	}
@@ -76,7 +80,7 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 
 	conf := C.pulsar_consumer_configuration_create()
 
-	consumer := &consumer{}
+	consumer := &consumer{client: client}
 
 	if options.MessageChannel == nil {
 		// If there is no message listener, set a default channel so that we can have receive to
@@ -95,8 +99,59 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		C.pulsar_consumer_set_unacked_messages_timeout_ms(conf, C.uint64_t(timeoutMillis))
 	}
 
+	if options.NackRedeliveryDelay != nil {
+		delayMillis := options.NackRedeliveryDelay.Nanoseconds() / int64(time.Millisecond)
+		C.pulsar_configure_set_negative_ack_redelivery_delay_ms(conf, C.long(delayMillis))
+	}
+
 	if options.Type != Exclusive {
 		C.pulsar_consumer_configuration_set_consumer_type(conf, C.pulsar_consumer_type(options.Type))
+	}
+
+	if options.SubscriptionInitPos != Latest {
+		C.pulsar_consumer_set_subscription_initial_position(conf, C.initial_position(options.SubscriptionInitPos))
+	}
+
+	if schema != nil && schema.GetSchemaInfo() != nil {
+		if schema.GetSchemaInfo().Type != NONE {
+			cName := C.CString(schema.GetSchemaInfo().Name)
+			cSchema := C.CString(schema.GetSchemaInfo().Schema)
+			properties := C.pulsar_string_map_create()
+			defer C.free(unsafe.Pointer(cName))
+			defer C.free(unsafe.Pointer(cSchema))
+			defer C.pulsar_string_map_free(properties)
+
+			for key, value := range schema.GetSchemaInfo().Properties {
+				cKey := C.CString(key)
+				cValue := C.CString(value)
+
+				C.pulsar_string_map_put(properties, cKey, cValue)
+
+				C.free(unsafe.Pointer(cKey))
+				C.free(unsafe.Pointer(cValue))
+			}
+			C.pulsar_consumer_configuration_set_schema_info(conf, C.pulsar_schema_type(schema.GetSchemaInfo().Type),
+				cName, cSchema, properties)
+		} else {
+			cName := C.CString("BYTES")
+			cSchema := C.CString("")
+			properties := C.pulsar_string_map_create()
+			defer C.free(unsafe.Pointer(cName))
+			defer C.free(unsafe.Pointer(cSchema))
+			defer C.pulsar_string_map_free(properties)
+
+			for key, value := range schema.GetSchemaInfo().Properties {
+				cKey := C.CString(key)
+				cValue := C.CString(value)
+
+				C.pulsar_string_map_put(properties, cKey, cValue)
+
+				C.free(unsafe.Pointer(cKey))
+				C.free(unsafe.Pointer(cValue))
+			}
+			C.pulsar_consumer_configuration_set_schema_info(conf, C.pulsar_schema_type(BYTES),
+				cName, cSchema, properties)
+		}
 	}
 
 	// ReceiverQueueSize==0 means to use the default queue size
@@ -120,12 +175,52 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		C.pulsar_consumer_set_consumer_name(conf, name)
 	}
 
-	topic := C.CString(options.Topic)
+	if options.Properties != nil {
+		for key, value := range options.Properties {
+			cKey := C.CString(key)
+			cValue := C.CString(value)
+
+			C.pulsar_consumer_configuration_set_property(conf, cKey, cValue)
+
+			C.free(unsafe.Pointer(cKey))
+			C.free(unsafe.Pointer(cValue))
+		}
+	}
+
+	C.pulsar_consumer_set_read_compacted(conf, cBool(options.ReadCompacted))
+
 	subName := C.CString(options.SubscriptionName)
-	defer C.free(unsafe.Pointer(topic))
 	defer C.free(unsafe.Pointer(subName))
-	C._pulsar_client_subscribe_async(client.ptr, topic, subName,
-		conf, savePointer(&subscribeContext{conf: conf, consumer: consumer, callback: callback}))
+
+	callbackPtr := savePointer(&subscribeContext{schema: schema, conf: conf, consumer: consumer, callback: callback})
+
+	if options.Topic != "" {
+		topic := C.CString(options.Topic)
+		defer C.free(unsafe.Pointer(topic))
+		C._pulsar_client_subscribe_async(client.ptr, topic, subName, conf, callbackPtr)
+	} else if options.Topics != nil {
+		cArray := C.malloc(C.size_t(len(options.Topics)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+
+		// convert the C array to a Go Array so we can index it
+		a := (*[1<<30 - 1]*C.char)(cArray)
+
+		for idx, topic := range options.Topics {
+			a[idx] = C.CString(topic)
+		}
+
+		C._pulsar_client_subscribe_multi_topics_async(client.ptr, (**C.char)(cArray), C.int(len(options.Topics)),
+			subName, conf, callbackPtr)
+
+		for idx := range options.Topics {
+			C.free(unsafe.Pointer(a[idx]))
+		}
+
+		C.free(cArray)
+	} else if options.TopicsPattern != "" {
+		topicsPattern := C.CString(options.TopicsPattern)
+		defer C.free(unsafe.Pointer(topicsPattern))
+		C._pulsar_client_subscribe_pattern_async(client.ptr, topicsPattern, subName, conf, callbackPtr)
+	}
 }
 
 type consumerCallback struct {
@@ -143,11 +238,14 @@ func pulsarMessageListenerProxy(cConsumer *C.pulsar_consumer_t, message *C.pulsa
 			// There was an error when sending channel (eg: already closed)
 		}
 	}()
-
-	cc.channel <- ConsumerMessage{cc.consumer, newMessageWrapper(message)}
+	cc.channel <- ConsumerMessage{cc.consumer, newMessageWrapper(cc.consumer.Schema(), message)}
 }
 
 //// Consumer
+
+func (c *consumer) Schema() Schema {
+	return c.schema
+}
 
 func (c *consumer) Topic() string {
 	return C.GoString(C.pulsar_consumer_get_topic(c.ptr))
@@ -160,7 +258,9 @@ func (c *consumer) Subscription() string {
 func (c *consumer) Unsubscribe() error {
 	channel := make(chan error)
 	c.UnsubscribeAsync(func(err error) {
-		channel <- err; close(channel) })
+		channel <- err
+		close(channel)
+	})
 	return <-channel
 }
 
@@ -209,6 +309,16 @@ func (c *consumer) AckCumulativeID(msgId MessageID) error {
 	return nil
 }
 
+func (c *consumer) Nack(msg Message) error {
+	C.pulsar_consumer_negative_acknowledge(c.ptr, msg.(*message).ptr)
+	return nil
+}
+
+func (c *consumer) NackID(msgId MessageID) error {
+	C.pulsar_consumer_negative_acknowledge_id(c.ptr, msgId.(*messageID).ptr)
+	return nil
+}
+
 func (c *consumer) Close() error {
 	channel := make(chan error)
 	c.CloseAsync(func(err error) { channel <- err; close(channel) })
@@ -236,4 +346,28 @@ func pulsarConsumerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 
 func (c *consumer) RedeliverUnackedMessages() {
 	C.pulsar_consumer_redeliver_unacknowledged_messages(c.ptr)
+}
+
+func (c *consumer) Seek(msgID MessageID) error {
+	channel := make(chan error)
+	c.SeekAsync(msgID, func(err error) {
+		channel <- err
+		close(channel)
+	})
+	return <-channel
+}
+
+func (c *consumer) SeekAsync(msgID MessageID, callback func(error)) {
+	C._pulsar_consumer_seek_async(c.ptr, msgID.(*messageID).ptr, savePointer(callback))
+}
+
+//export pulsarConsumerSeekCallbackProxy
+func pulsarConsumerSeekCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
+	callback := restorePointer(ctx).(func(err error))
+
+	if res != C.pulsar_result_Ok {
+		go callback(newError(res, "Failed to seek Consumer"))
+	} else {
+		go callback(nil)
+	}
 }

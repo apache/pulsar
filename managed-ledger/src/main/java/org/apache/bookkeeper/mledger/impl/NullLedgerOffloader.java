@@ -32,6 +32,11 @@ public class NullLedgerOffloader implements LedgerOffloader {
     public static NullLedgerOffloader INSTANCE = new NullLedgerOffloader();
 
     @Override
+    public String getOffloadDriverName() {
+        return "NullLedgerOffloader";
+    }
+
+    @Override
     public CompletableFuture<Void> offload(ReadHandle ledger,
                                            UUID uid,
                                            Map<String, String> extraMetadata) {
@@ -41,14 +46,16 @@ public class NullLedgerOffloader implements LedgerOffloader {
     }
 
     @Override
-    public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid) {
+    public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid,
+                                                       Map<String, String> offloadDriverMetadata) {
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException());
         return promise;
     }
 
     @Override
-    public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid) {
+    public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
+                                                   Map<String, String> offloadDriverMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException());
         return promise;

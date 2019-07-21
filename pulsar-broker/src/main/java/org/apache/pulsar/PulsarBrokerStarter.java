@@ -27,26 +27,32 @@ import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.i
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.ea.agentloader.AgentLoader;
 import com.google.common.annotations.VisibleForTesting;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
+import java.util.Date;
 import java.util.Arrays;
 import java.util.Optional;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.bookkeeper.util.ReflectionUtils;
+import org.apache.bookkeeper.common.util.ReflectionUtils;
+import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -99,6 +105,11 @@ public class PulsarBrokerStarter {
             log.error("Malformed configuration file: {}", bookieConfigFile, e);
             throw new IllegalArgumentException("Malformed configuration file");
         }
+
+        if (bookieConf.getMaxPendingReadRequestPerThread() < bookieConf.getRereplicationEntryBatchSize()) {
+            throw new IllegalArgumentException(
+                "rereplicationEntryBatchSize should be smaller than " + "maxPendingReadRequestPerThread");
+        }
         return bookieConf;
     }
 
@@ -135,6 +146,11 @@ public class PulsarBrokerStarter {
                 brokerConfig = loadConfig(starterArguments.brokerConfigFile);
             }
 
+            int maxFrameSize = brokerConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING;
+            if (maxFrameSize >= DirectMemoryUtils.maxDirectMemory()) {
+                throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
+            }
+
             // init functions worker
             if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {
                 WorkerConfig workerConfig;
@@ -145,10 +161,10 @@ public class PulsarBrokerStarter {
                 }
                 // worker talks to local broker
                 boolean useTls = workerConfig.isUseTls();
-                String pulsarServiceUrl = useTls && isNotBlank(PulsarService.brokerUrlTls(brokerConfig))
+                String pulsarServiceUrl = useTls
                         ? PulsarService.brokerUrlTls(brokerConfig)
                         : PulsarService.brokerUrl(brokerConfig);
-                String webServiceUrl = useTls && isNotBlank(PulsarService.webAddressTls(brokerConfig))
+                String webServiceUrl = useTls
                         ? PulsarService.webAddressTls(brokerConfig)
                         : PulsarService.webAddress(brokerConfig);
                 workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
@@ -156,10 +172,34 @@ public class PulsarBrokerStarter {
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                     brokerConfig.getAdvertisedAddress());
                 workerConfig.setWorkerHostname(hostname);
+                workerConfig.setWorkerPort(brokerConfig.getWebServicePort().get());
                 workerConfig.setWorkerId(
                     "c-" + brokerConfig.getClusterName()
                         + "-fw-" + hostname
                         + "-" + workerConfig.getWorkerPort());
+                // inherit broker authorization setting
+                workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
+                workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
+
+                workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
+                workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
+                workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
+                workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
+                workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
+
+                workerConfig.setUseTls(brokerConfig.isTlsEnabled());
+                workerConfig.setTlsHostnameVerificationEnable(false);
+
+                workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+                workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+
+                // client in worker will use this config to authenticate with broker
+                workerConfig.setClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
+                workerConfig.setClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
+
+                // inherit super users
+                workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
+
                 functionsWorkerService = new WorkerService(workerConfig);
             } else {
                 functionsWorkerService = null;
@@ -271,12 +311,10 @@ public class PulsarBrokerStarter {
 
 
     public static void main(String[] args) throws Exception {
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
         Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
-            log.error("Uncaught exception in thread {}: {}", thread.getName(), exception.getMessage(), exception);
+            System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
         });
-
-        // load aspectj-weaver agent for instrumentation
-        AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
         BrokerStarter starter = new BrokerStarter(args);
         Runtime.getRuntime().addShutdownHook(
@@ -284,6 +322,11 @@ public class PulsarBrokerStarter {
                 starter.shutdown();
             })
         );
+
+        PulsarByteBufAllocator.registerOOMListener(oomException -> {
+            log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
+            starter.shutdown();
+        });
 
         try {
             starter.start();

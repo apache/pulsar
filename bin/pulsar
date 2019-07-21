@@ -19,7 +19,7 @@
 #
 
 BINDIR=$(dirname "$0")
-PULSAR_HOME=`cd $BINDIR/..;pwd`
+export PULSAR_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf
@@ -30,6 +30,7 @@ DEFAULT_PROXY_CONF=$PULSAR_HOME/conf/proxy.conf
 DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
 DEFAULT_WEBSOCKET_CONF=$PULSAR_HOME/conf/websocket.conf
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
+DEFAULT_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
 
 # functions related variables
 FUNCTIONS_HOME=$PULSAR_HOME/pulsar-functions
@@ -38,6 +39,11 @@ DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
 JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
 DEFAULT_PY_INSTANCE_FILE=$PULSAR_HOME/instances/python-instance/python_instance_main.py
 PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
+DEFAULT_FUNCTIONS_EXTRA_DEPS_DIR=$PULSAR_HOME/instances/deps
+FUNCTIONS_EXTRA_DEPS_DIR=${PULSAR_FUNCTIONS_EXTRA_DEPS_DIR:-"${DEFAULT_FUNCTIONS_EXTRA_DEPS_DIR}"}
+SQL_HOME=$PULSAR_HOME/pulsar-sql
+PRESTO_HOME=${PULSAR_HOME}/lib/presto
+
 
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
@@ -90,13 +96,25 @@ fi
 # find the python instance location
 if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     # didn't find a released python instance, then search the built python instance
-    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/runtime/target/python-instance/python_instance_main.py"
+    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/instance/target/python-instance/python_instance_main.py"
     if [ -z "${BUILT_PY_INSTANCE_FILE}" ]; then
         echo "\nCouldn't find pulsar-functions python instance.";
         echo "Make sure you've run 'mvn package'\n";
         exit 1;
     fi
     PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
+fi
+
+# find pulsar sql presto distribution location
+if [ ! -d "${PRESTO_HOME}" ]; then
+
+  BUILT_PRESTO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
+  if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
+        echo "\nCouldn't find presto distribution.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
+    PRESTO_HOME=${BUILT_PRESTO_HOME}
 fi
 
 pulsar_help() {
@@ -112,11 +130,14 @@ where command is one of:
     proxy               Run a pulsar proxy
     websocket           Run a web socket proxy server
     functions-worker    Run a functions worker server
+    sql-worker          Run a sql worker server
+    sql                 Run sql CLI
     standalone          Run a broker server with local bookies and local zookeeper
 
     initialize-cluster-metadata     One-time metadata initialization
     compact-topic       Run compaction against a topic
     zookeeper-shell     Open a ZK shell client
+    tokens              Utility to create authentication tokens
 
     help                This help message
 
@@ -133,6 +154,7 @@ Environment variables:
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
    PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
+   PULSAR_PRESTO_CONF            Configuration directory for Pulsar Presto (default: $DEFAULT_PULSAR_PRESTO_CONF)
    PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
@@ -161,9 +183,15 @@ add_maven_deps_to_classpath() {
 
 if [ -d "$PULSAR_HOME/lib" ]; then
 	PULSAR_CLASSPATH=$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*
+    ASPECTJ_AGENT_PATH=`ls -1 $PULSAR_HOME/lib/org.aspectj-aspectjweaver-*.jar`
 else
     add_maven_deps_to_classpath
+
+    ASPECTJ_VERSION=`grep '<aspectj.version>' $PULSAR_HOME/pom.xml | awk -F'>' '{print $2}' | awk -F'<' '{print $1}'`
+    ASPECTJ_AGENT_PATH="$HOME/.m2/repository/org/aspectj/aspectjweaver/$ASPECTJ_VERSION/aspectjweaver-$ASPECTJ_VERSION.jar"
 fi
+
+ASPECTJ_AGENT="-javaagent:$ASPECTJ_AGENT_PATH"
 
 # if no args specified, show usage
 if [ $# = 0 ]; then
@@ -193,7 +221,6 @@ fi
 
 if [ -z "$PULSAR_GLOBAL_ZK_CONF" ]; then
     PULSAR_GLOBAL_ZK_CONF=$DEFAULT_GLOBAL_ZK_CONF
-    PULSAR_CONFIGURATION_STORE_CONF=$DEFAULT_GLOBAL_ZK_CONF
 fi
 
 if [ -z "$PULSAR_CONFIGURATION_STORE_CONF" ]; then
@@ -220,6 +247,10 @@ if [ -z "$PULSAR_LOG_CONF" ]; then
     PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
 fi
 
+if [ -z "$PULSAR_PRESTO_CONF" ]; then
+    PULSAR_PRESTO_CONF=$DEFAULT_PULSAR_PRESTO_CONF
+fi
+
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
@@ -231,11 +262,12 @@ OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
-OPTS="$OPTS $PULSAR_EXTRA_OPTS"
+OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC"
 
 # log directory & file
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
+PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"debug"}
 PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
 
@@ -250,6 +282,9 @@ OPTS="$OPTS -Dpulsar.functions.process.container.log.dir=$PULSAR_LOG_DIR"
 # instance
 OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
 OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
+OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR}"
+OPTS="$OPTS -Dpulsar.functions.instance.classpath=${PULSAR_CLASSPATH}"
+
 
 ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=*"
 
@@ -257,23 +292,25 @@ ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=*"
 cd "$PULSAR_HOME"
 if [ $COMMAND == "broker" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-broker.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF $@
+    exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "bookie" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"bookkeeper.log"}
+    # Pass BOOKIE_EXTRA_OPTS option defined in pulsar_env.sh
+    OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.proto.BookieServer --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
-    exec $JAVA ${ZK_OPTS} $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
+    exec $JAVA ${ZK_OPTS} $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
 elif [ $COMMAND == "global-zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"global-zookeeper.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_GLOBAL_ZK_CONF $@
+    exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_GLOBAL_ZK_CONF $@
 elif [ $COMMAND == "configuration-store" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"configuration-store.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_CONFIGURATION_STORE_CONF $@
+    exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_CONFIGURATION_STORE_CONF $@
 elif [ $COMMAND == "discovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@
@@ -288,14 +325,20 @@ elif [ $COMMAND == "functions-worker" ]; then
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.worker.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
-    exec $JAVA $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
+    exec $JAVA $OPTS $ASPECTJ_AGENT ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "zookeeper-shell" ]; then
     exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
 elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
-elif [ $COMMAND == "help" ]; then
+elif [ $COMMAND == "sql" ]; then
+    exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto --server localhost:8081 "${@}"
+elif [ $COMMAND == "sql-worker" ]; then
+    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
+elif [ $COMMAND == "tokens" ]; then
+      exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
+elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     pulsar_help;
 else
     echo ""

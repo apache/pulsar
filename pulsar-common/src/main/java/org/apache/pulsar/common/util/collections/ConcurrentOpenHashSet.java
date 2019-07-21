@@ -32,7 +32,7 @@ import com.google.common.collect.Lists;
 
 /**
  * Concurrent hash set
- * 
+ *
  * Provides similar methods as a ConcurrentMap<K,V> but since it's an open hash map with linear probing, no node
  * allocations are required to store the values
  *
@@ -175,9 +175,9 @@ public class ConcurrentOpenHashSet<V> {
     // A section is a portion of the hash map that is covered by a single
     @SuppressWarnings("serial")
     private static final class Section<V> extends StampedLock {
-        private V[] values;
+        private volatile V[] values;
 
-        private int capacity;
+        private volatile int capacity;
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;

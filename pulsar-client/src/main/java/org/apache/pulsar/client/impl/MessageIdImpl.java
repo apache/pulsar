@@ -30,6 +30,7 @@ import java.io.IOException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.UninitializedMessageException;
@@ -70,12 +71,12 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof MessageIdImpl) {
-            MessageIdImpl other = (MessageIdImpl) obj;
-            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex;
-        } else if (obj instanceof BatchMessageIdImpl){
+        if (obj instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl other = (BatchMessageIdImpl) obj;
             return other.equals(this);
+        } else if (obj instanceof MessageIdImpl) {
+            MessageIdImpl other = (MessageIdImpl) obj;
+            return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex;
         }
         return false;
     }
@@ -105,6 +106,40 @@ public class MessageIdImpl implements MessageId {
                     idData.getBatchIndex());
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
+        }
+
+        inputStream.recycle();
+        builder.recycle();
+        idData.recycle();
+        return messageId;
+    }
+
+    public static MessageId fromByteArrayWithTopic(byte[] data, String topicName) throws IOException {
+        return fromByteArrayWithTopic(data, TopicName.get(topicName));
+    }
+
+    public static MessageId fromByteArrayWithTopic(byte[] data, TopicName topicName) throws IOException {
+        checkNotNull(data);
+        ByteBufCodedInputStream inputStream = ByteBufCodedInputStream.get(Unpooled.wrappedBuffer(data, 0, data.length));
+        PulsarApi.MessageIdData.Builder builder = PulsarApi.MessageIdData.newBuilder();
+
+        PulsarApi.MessageIdData idData;
+        try {
+            idData = builder.mergeFrom(inputStream, null).build();
+        } catch (UninitializedMessageException e) {
+            throw new IOException(e);
+        }
+
+        MessageId messageId;
+        if (idData.hasBatchIndex()) {
+            messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+                    idData.getBatchIndex());
+        } else {
+            messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
+        }
+        if (idData.getPartition() > -1 && topicName != null) {
+            messageId = new TopicMessageIdImpl(
+                    topicName.getPartition(idData.getPartition()).toString(), topicName.toString(), messageId);
         }
 
         inputStream.recycle();

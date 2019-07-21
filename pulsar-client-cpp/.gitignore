@@ -70,3 +70,6 @@ CMakeFiles
 CMakeCache.txt
 
 pulsar-dist
+install_manifest.txt
+merged-library
+python/venv

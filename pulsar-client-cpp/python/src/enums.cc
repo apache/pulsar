@@ -32,6 +32,8 @@ void export_enums() {
             .value("NONE", CompressionNone) // Don't use 'None' since it's a keyword in py3
             .value("LZ4", CompressionLZ4)
             .value("ZLib", CompressionZLib)
+            .value("ZSTD", CompressionZSTD)
+            .value("SNAPPY", CompressionSNAPPY)
             ;
 
     enum_<ConsumerType>("ConsumerType")
@@ -75,4 +77,26 @@ void export_enums() {
             .value("UnsupportedVersionError", ResultUnsupportedVersionError)
             ;
 
+    enum_<SchemaType>("SchemaType", "Supported schema types")
+            .value("NONE", pulsar::NONE)
+            .value("STRING", pulsar::STRING)
+            .value("INT8", pulsar::INT8)
+            .value("INT16", pulsar::INT16)
+            .value("INT32", pulsar::INT32)
+            .value("INT64", pulsar::INT64)
+            .value("FLOAT", pulsar::FLOAT)
+            .value("DOUBLE", pulsar::DOUBLE)
+            .value("BYTES", pulsar::BYTES)
+            .value("JSON", pulsar::JSON)
+            .value("PROTOBUF", pulsar::PROTOBUF)
+            .value("AVRO", pulsar::AVRO)
+            .value("AUTO_CONSUME", pulsar::AUTO_CONSUME)
+            .value("AUTO_PUBLISH", pulsar::AUTO_PUBLISH)
+            .value("KEY_VALUE", pulsar::KEY_VALUE)
+            ;
+
+    enum_<InitialPosition>("InitialPosition", "Supported initial position")
+            .value("Latest", InitialPositionLatest)
+            .value("Earliest", InitialPositionEarliest)
+            ;
 }

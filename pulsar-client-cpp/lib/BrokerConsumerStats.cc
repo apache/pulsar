@@ -16,20 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <pulsar/defines.h>
 #include <pulsar/BrokerConsumerStats.h>
 #include <lib/BrokerConsumerStatsImplBase.h>
 
 namespace pulsar {
-BrokerConsumerStats::BrokerConsumerStats(boost::shared_ptr<BrokerConsumerStatsImplBase> impl) : impl_(impl) {}
+BrokerConsumerStats::BrokerConsumerStats(std::shared_ptr<BrokerConsumerStatsImplBase> impl) : impl_(impl) {}
 
 BrokerConsumerStats::BrokerConsumerStats() {}
 
-boost::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStats::getImpl() const { return impl_; }
+std::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStats::getImpl() const { return impl_; }
 
 bool BrokerConsumerStats::isValid() const { return impl_->isValid(); }
 
-#pragma GCC visibility push(default)
-std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj) {
+PULSAR_PUBLIC std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj) {
     os << "\nBrokerConsumerStats ["
        << "validTill_ = " << obj.isValid() << ", msgRateOut_ = " << obj.getMsgRateOut()
        << ", msgThroughputOut_ = " << obj.getMsgThroughputOut()
@@ -43,7 +43,6 @@ std::ostream& operator<<(std::ostream& os, const BrokerConsumerStats& obj) {
        << ", msgBacklog_ = " << obj.getMsgBacklog() << "]";
     return os;
 }
-#pragma GCC visibility pop
 
 double BrokerConsumerStats::getMsgRateOut() const { return impl_->getMsgRateOut(); }
 

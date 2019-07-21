@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.zookeeper;
 
-import java.io.File;
-
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertFalse;
+
+import java.io.File;
+
+import org.apache.bookkeeper.test.PortManager;
+import org.apache.commons.io.FileUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.apache.bookkeeper.test.PortManager;
-import org.apache.commons.io.FileUtils;
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 
 @Test
 public class LocalBookkeeperEnsembleTest {
@@ -62,16 +62,14 @@ public class LocalBookkeeperEnsembleTest {
 
         final int numBk = 1;
         final int zkPort = PortManager.nextFreePort();
-        final int bkPort = PortManager.nextFreePort();
 
         // Start local Bookies/ZooKeepers and confirm that they are running at specified ports
-        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(numBk, zkPort, bkPort);
+        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(numBk, zkPort, () -> PortManager.nextFreePort());
         ensemble.start();
         assertTrue(ensemble.getZkServer().isRunning());
         assertEquals(ensemble.getZkServer().getClientPort(), zkPort);
         assertTrue(ensemble.getZkClient().getState().isConnected());
         assertTrue(ensemble.getBookies()[0].isRunning());
-        assertEquals(ensemble.getBookies()[0].getLocalAddress().getPort(), bkPort);
 
         // Stop local Bookies/ZooKeepers and confirm that they are correctly closed
         ensemble.stop();

@@ -19,21 +19,20 @@
 #ifndef PULSAR_AUTHENTICATION_H_
 #define PULSAR_AUTHENTICATION_H_
 
+#include <pulsar/defines.h>
 #include <vector>
 #include <string>
 #include <map>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <pulsar/Result.h>
-#include <boost/make_shared.hpp>
-
-#pragma GCC visibility push(default)
+#include <functional>
 
 namespace pulsar {
 
 class ClientConfiguration;
 class Authentication;
 
-class AuthenticationDataProvider {
+class PULSAR_PUBLIC AuthenticationDataProvider {
    public:
     virtual ~AuthenticationDataProvider();
     virtual bool hasDataForTls();
@@ -49,11 +48,11 @@ class AuthenticationDataProvider {
     AuthenticationDataProvider();
 };
 
-typedef boost::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
-typedef boost::shared_ptr<Authentication> AuthenticationPtr;
+typedef std::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
+typedef std::shared_ptr<Authentication> AuthenticationPtr;
 typedef std::map<std::string, std::string> ParamMap;
 
-class Authentication {
+class PULSAR_PUBLIC Authentication {
    public:
     virtual ~Authentication();
     virtual const std::string getAuthMethodName() const = 0;
@@ -61,6 +60,7 @@ class Authentication {
         authDataContent = authData_;
         return ResultOk;
     }
+    static ParamMap parseDefaultFormatAuthParams(const std::string& authParamsString);
 
    protected:
     Authentication();
@@ -76,7 +76,7 @@ class Authentication {
  * To use authentication methods that are internally supported, you should
  * use `AuthTls::create("my-cert.pem", "my-private.key")` or similar.
  */
-class AuthFactory {
+class PULSAR_PUBLIC AuthFactory {
    public:
     static AuthenticationPtr Disabled();
 
@@ -85,9 +85,10 @@ class AuthFactory {
      * @param dynamicLibPath
      * @return
      */
-    static AuthenticationPtr create(const std::string& dynamicLibPath);
-    static AuthenticationPtr create(const std::string& dynamicLibPath, const std::string& authParamsString);
-    static AuthenticationPtr create(const std::string& dynamicLibPath, ParamMap& params);
+    static AuthenticationPtr create(const std::string& pluginNameOrDynamicLibPath);
+    static AuthenticationPtr create(const std::string& pluginNameOrDynamicLibPath,
+                                    const std::string& authParamsString);
+    static AuthenticationPtr create(const std::string& pluginNameOrDynamicLibPath, ParamMap& params);
 
    protected:
     static bool isShutdownHookRegistered_;
@@ -98,10 +99,12 @@ class AuthFactory {
 /**
  * TLS implementation of Pulsar client authentication
  */
-class AuthTls : public Authentication {
+class PULSAR_PUBLIC AuthTls : public Authentication {
    public:
     AuthTls(AuthenticationDataPtr&);
     ~AuthTls();
+    static AuthenticationPtr create(ParamMap& params);
+    static AuthenticationPtr create(const std::string& authParamsString);
     static AuthenticationPtr create(const std::string& certificatePath, const std::string& privateKeyPath);
     const std::string getAuthMethodName() const;
     Result getAuthData(AuthenticationDataPtr& authDataTls) const;
@@ -110,10 +113,47 @@ class AuthTls : public Authentication {
     AuthenticationDataPtr authDataTls_;
 };
 
+typedef std::function<std::string()> TokenSupplier;
+
+/**
+ * Token based implementation of Pulsar client authentication
+ */
+class PULSAR_PUBLIC AuthToken : public Authentication {
+   public:
+    AuthToken(AuthenticationDataPtr&);
+    ~AuthToken();
+
+    static AuthenticationPtr create(ParamMap& params);
+
+    static AuthenticationPtr create(const std::string& authParamsString);
+
+    /**
+     * Create an authentication provider for token based authentication.
+     *
+     * @param token
+     *            a string containing the auth token
+     */
+    static AuthenticationPtr createWithToken(const std::string& token);
+
+    /**
+     * Create an authentication provider for token based authentication.
+     *
+     * @param tokenSupplier
+     *            a supplier of the client auth token
+     */
+    static AuthenticationPtr create(const TokenSupplier& tokenSupplier);
+
+    const std::string getAuthMethodName() const;
+    Result getAuthData(AuthenticationDataPtr& authDataToken) const;
+
+   private:
+    AuthenticationDataPtr authDataToken_;
+};
+
 /**
  * Athenz implementation of Pulsar client authentication
  */
-class AuthAthenz : public Authentication {
+class PULSAR_PUBLIC AuthAthenz : public Authentication {
    public:
     AuthAthenz(AuthenticationDataPtr&);
     ~AuthAthenz();
@@ -127,7 +167,5 @@ class AuthAthenz : public Authentication {
 };
 
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif /* PULSAR_AUTHENTICATION_H_ */

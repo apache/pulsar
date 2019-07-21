@@ -23,11 +23,12 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * passed to run functions.
  */
 @Data
 @Getter
@@ -35,10 +36,21 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 @EqualsAndHashCode
 @ToString
 public class InstanceConfig {
-    private String instanceId;
+    private int instanceId;
     private String functionId;
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
+    private Function.FunctionAuthenticationSpec functionAuthenticationSpec;
     private int port;
+    private String clusterName;
+
+    /**
+     * Get the string representation of {@link #getInstanceId()}.
+     *
+     * @return the string representation of {@link #getInstanceId()}.
+     */
+    public String getInstanceName() {
+        return "" + instanceId;
+    }
 }

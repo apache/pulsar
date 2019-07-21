@@ -19,16 +19,18 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.ComparisonChain;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
+
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 
-public final class EntryImpl extends AbstractReferenceCounted implements Entry, Comparable<EntryImpl>, ReferenceCounted {
+public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>, ReferenceCounted {
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -38,12 +40,14 @@ public final class EntryImpl extends AbstractReferenceCounted implements Entry, 
     };
 
     private final Handle<EntryImpl> recyclerHandle;
+    private long timestamp;
     private long ledgerId;
     private long entryId;
     ByteBuf data;
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerEntry.getLedgerId();
         entry.entryId = ledgerEntry.getEntryId();
         entry.data = ledgerEntry.getEntryBuffer();
@@ -55,6 +59,7 @@ public final class EntryImpl extends AbstractReferenceCounted implements Entry, 
     // Used just for tests
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
@@ -64,6 +69,7 @@ public final class EntryImpl extends AbstractReferenceCounted implements Entry, 
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = data;
@@ -74,6 +80,7 @@ public final class EntryImpl extends AbstractReferenceCounted implements Entry, 
 
     public static EntryImpl create(PositionImpl position, ByteBuf data) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = position.getLedgerId();
         entry.entryId = position.getEntryId();
         entry.data = data;
@@ -84,6 +91,7 @@ public final class EntryImpl extends AbstractReferenceCounted implements Entry, 
 
     public static EntryImpl create(EntryImpl other) {
         EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
@@ -93,6 +101,10 @@ public final class EntryImpl extends AbstractReferenceCounted implements Entry, 
 
     private EntryImpl(Recycler.Handle<EntryImpl> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
     }
 
     @Override
@@ -150,6 +162,7 @@ public final class EntryImpl extends AbstractReferenceCounted implements Entry, 
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         data.release();
         data = null;
+        timestamp = -1;
         ledgerId = -1;
         entryId = -1;
         recyclerHandle.recycle(this);

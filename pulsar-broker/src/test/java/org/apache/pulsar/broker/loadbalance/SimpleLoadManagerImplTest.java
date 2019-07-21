@@ -127,15 +127,15 @@ public class SimpleLoadManagerImplTest {
     void setup() throws Exception {
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
 
         // Start broker 1
         ServiceConfiguration config1 = spy(new ServiceConfiguration());
         config1.setClusterName("use");
-        config1.setWebServicePort(PRIMARY_BROKER_WEBSERVICE_PORT);
+        config1.setWebServicePort(Optional.ofNullable(PRIMARY_BROKER_WEBSERVICE_PORT));
         config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config1.setBrokerServicePort(PRIMARY_BROKER_PORT);
+        config1.setBrokerServicePort(Optional.ofNullable(PRIMARY_BROKER_PORT));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         pulsar1 = new PulsarService(config1);
 
@@ -150,9 +150,9 @@ public class SimpleLoadManagerImplTest {
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setClusterName("use");
-        config2.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
+        config2.setWebServicePort(Optional.ofNullable(SECONDARY_BROKER_WEBSERVICE_PORT));
         config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config2.setBrokerServicePort(SECONDARY_BROKER_PORT);
+        config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         pulsar2 = new PulsarService(config2);
 
@@ -251,7 +251,7 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
         ResourceUnit ru1 = new SimpleResourceUnit(
-                "http://" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort(), rd);
+                "http://" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort().get(), rd);
         Set<ResourceUnit> rus = new HashSet<ResourceUnit>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
@@ -355,7 +355,7 @@ public class SimpleLoadManagerImplTest {
         assertTrue(rd1.calculateRank() > rd.calculateRank());
 
         SimpleLoadCalculatorImpl calc = new SimpleLoadCalculatorImpl();
-        calc.recaliberateResourceUsagePerServiceUnit(null);
+        calc.recalibrateResourceUsagePerServiceUnit(null);
         assertNull(calc.getResourceDescription(null));
 
     }

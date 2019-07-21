@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.kafka.compat;
 
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +30,8 @@ public class PulsarClientKafkaConfig {
 
     /// Config variables
     public static final String AUTHENTICATION_CLASS = "pulsar.authentication.class";
+    public static final String AUTHENTICATION_PARAMS_MAP = "pulsar.authentication.params.map";
+    public static final String AUTHENTICATION_PARAMS_STRING = "pulsar.authentication.params.string";
     public static final String USE_TLS = "pulsar.use.tls";
     public static final String TLS_TRUST_CERTS_FILE_PATH = "pulsar.tls.trust.certs.file.path";
     public static final String TLS_ALLOW_INSECURE_CONNECTION = "pulsar.tls.allow.insecure.connection";
@@ -51,10 +54,18 @@ public class PulsarClientKafkaConfig {
         if (properties.containsKey(AUTHENTICATION_CLASS)) {
             String className = properties.getProperty(AUTHENTICATION_CLASS);
             try {
-                @SuppressWarnings("unchecked")
-                Class<Authentication> clazz = (Class<Authentication>) Class.forName(className);
-                Authentication auth = clazz.newInstance();
-                clientBuilder.authentication(auth);
+                if (properties.containsKey(AUTHENTICATION_PARAMS_STRING)) {
+                    String authParamsString = (String) properties.get(AUTHENTICATION_PARAMS_STRING);
+                    clientBuilder.authentication(className, authParamsString);
+                } else if (properties.containsKey(AUTHENTICATION_PARAMS_MAP)) {
+                    Map<String, String> authParams = (Map<String, String>) properties.get(AUTHENTICATION_PARAMS_MAP);
+                    clientBuilder.authentication(className, authParams);
+                } else {
+                    @SuppressWarnings("unchecked")
+                    Class<Authentication> clazz = (Class<Authentication>) Class.forName(className);
+                    Authentication auth = clazz.newInstance();
+                    clientBuilder.authentication(auth);
+                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

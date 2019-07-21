@@ -33,6 +33,6 @@ metadata:
 data:
   zkServers:
     {{- $global := . }}
-    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ printf "%s-%s-%s-%d.%s-%s-%s" $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component $i $global.Release.Name $global.Chart.Name $global.Values.zookeeper.component }}{{ end }}
+    {{ range $i, $e := until (.Values.zookeeper.replicaCount | int) }}{{ if ne $i 0 }},{{ end }}{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}-{{ printf "%d" $i }}.{{ template "pulsar.fullname" $global }}-{{ $global.Values.zookeeper.component }}{{ end }}
 {{ toYaml .Values.autoRecovery.configData | indent 2 }}
 {{- end }}

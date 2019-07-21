@@ -36,9 +36,20 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 public interface AuthorizationProvider extends Closeable {
 
     /**
+     * Check if specified role is a super user
+     * @param role the role to check
+     * @return a CompletableFuture containing a boolean in which true means the role is a super user
+     * and false if it is not
+     */
+    default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
+        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+    }
+
+    /**
      * Perform initialization for the authorization provider
      *
-     * @param config
+     * @param conf
      *            broker config object
      * @param configCache
      *            pulsar zk configuration cache service
@@ -85,6 +96,16 @@ public interface AuthorizationProvider extends Closeable {
             AuthenticationDataSource authenticationData);
 
     /**
+     * Allow all function operations with in this namespace
+     * @param namespaceName The namespace that the function operations can be executed in
+     * @param role The role to check
+     * @param authenticationData authentication data related to the role
+     * @return a boolean to determine whether authorized or not
+     */
+    CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
+                                                     AuthenticationDataSource authenticationData);
+
+    /**
      *
      * Grant authorization-action permission on a namespace to the given client
      *
@@ -101,6 +122,29 @@ public interface AuthorizationProvider extends Closeable {
     CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
             String authDataJson);
 
+    /**
+     * Grant permission to roles that can access subscription-admin api
+     * 
+     * @param namespace
+     * @param subscriptionName
+     * @param roles
+     * @param authDataJson
+     *            additional authdata in json format
+     * @return
+     */
+    CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
+            String authDataJson);
+    
+    /**
+     * Revoke subscription admin-api access for a role
+     * @param namespace
+     * @param subscriptionName
+     * @param role
+     * @return
+     */
+    CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+            String role, String authDataJson);
+    
     /**
      * Grant authorization-action permission on a topic to the given client
      *

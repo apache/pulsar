@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+BINDIR=$(dirname "$0")
+export PULSAR_HOME=`cd $BINDIR/..;pwd`
+. "$PULSAR_HOME/bin/pulsar-admin-common.sh"
+
+# functions related variables
+FUNCTIONS_HOME=$PULSAR_HOME/pulsar-functions
+DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
+JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
+DEFAULT_PY_INSTANCE_FILE=$PULSAR_HOME/instances/python-instance/python_instance_main.py
+PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
+
+# find the java instance location
+if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
+    # didn't find a released jar, then search the built jar
+    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime-all/target/java-instance.jar"
+    if [ -f "${BUILT_JAVA_INSTANCE_JAR}" ]; then
+        JAVA_INSTANCE_JAR=${BUILT_JAVA_INSTANCE_JAR}
+    else
+        echo "\nCouldn't find pulsar java instance jar.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
+fi
+
+# find the python instance location
+if [ ! -f "${PY_INSTANCE_FILE}" ]; then
+    # didn't find a released python instance, then search the built python instance
+    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/instance/target/python-instance/python_instance_main.py"
+    if [ -f "${BUILT_PY_INSTANCE_FILE}" ]; then
+        PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
+    else
+        echo "\nCouldn't find pulsar python instance.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
+fi
+
+# functions
+OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
+OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
+
+MAINCLASS="org.apache.pulsar.functions.LocalRunner"
+
+#Change to PULSAR_HOME to support relative paths
+cd "$PULSAR_HOME"
+exec $JAVA $OPTS $MAINCLASS "$@"

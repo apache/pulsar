@@ -68,8 +68,11 @@ To install the Python bindings:
 
     while True:
         msg = consumer.receive()
-        print("Received message '%s' id='%s'", msg.data().decode('utf-8'), msg.message_id())
-        consumer.acknowledge(msg)
+        try:
+            print("Received message '%s' id='%s'", msg.data().decode('utf-8'), msg.message_id())
+            consumer.acknowledge(msg)
+        except:
+            consumer.negative_acknowledge(msg)
 
     client.close()
 
@@ -98,11 +101,18 @@ To install the Python bindings:
 
 import _pulsar
 
-from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
+from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode  # noqa: F401
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
 from pulsar.functions.serde import SerDe, IdentitySerDe, PickleSerDe
+from pulsar import schema
+_schema = schema
+
+import re
+_retype = type(re.compile('x'))
+
+import certifi
 
 class MessageId:
     """
@@ -117,18 +127,18 @@ class MessageId:
 
     def serialize(self):
         """
-        Returns a string representation of the message id.
-        This string can be stored and later deserialized.
+        Returns a bytes representation of the message id.
+        This bytes sequence can be stored and later deserialized.
         """
         return self._msg_id.serialize()
 
     @staticmethod
-    def deserialize(message_id_str):
+    def deserialize(message_id_bytes):
         """
         Deserialize a message id object from a previously
-        serialized string.
+        serialized bytes sequence.
         """
-        return _pulsar.MessageId.deserialize(message_id_str)
+        return _pulsar.MessageId.deserialize(message_id_bytes)
 
 
 class Message:
@@ -139,9 +149,15 @@ class Message:
 
     def data(self):
         """
-        Returns object typed bytes with the content of the message.
+        Returns object typed bytes with the payload of the message.
         """
         return self._message.data()
+
+    def value(self):
+        """
+        Returns object with the de-serialized version of the message content
+        """
+        return self._schema.decode(self._message.data())
 
     def properties(self):
         """
@@ -163,11 +179,23 @@ class Message:
         """
         return self._message.publish_timestamp()
 
+    def event_timestamp(self):
+        """
+        Get the timestamp in milliseconds with the message event time.
+        """
+        return self._message.event_timestamp()
+
     def message_id(self):
         """
         The message ID that can be used to refere to this particular message.
         """
         return self._message.message_id()
+
+    def topic_name(self):
+        """
+        Get the topic Name from which this message originated from
+        """
+        return self._message.topic_name()
 
 
 class Authentication:
@@ -190,6 +218,7 @@ class Authentication:
         _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
 
+
 class AuthenticationTLS(Authentication):
     """
     TLS Authentication implementation
@@ -206,6 +235,25 @@ class AuthenticationTLS(Authentication):
         _check_type(str, certificate_path, 'certificate_path')
         _check_type(str, private_key_path, 'private_key_path')
         self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+
+
+class AuthenticationToken(Authentication):
+    """
+    Token based authentication implementation
+    """
+    def __init__(self, token):
+        """
+        Create the token authentication provider instance.
+
+        **Args**
+
+        * `token`: A string containing the token or a functions that provides a
+                   string with the token
+        """
+        if not (isinstance(token, str) or callable(token)):
+            raise ValueError("Argument token is expected to be of type 'str' or a function returning 'str'")
+        self.auth = _pulsar.AuthenticationToken(token)
+
 
 class AuthenticationAthenz(Authentication):
     """
@@ -241,7 +289,8 @@ class Client:
                  log_conf_file_path=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
-                 tls_allow_insecure_connection=False
+                 tls_allow_insecure_connection=False,
+                 tls_validate_hostname=False,
                  ):
         """
         Create a new Pulsar client instance.
@@ -276,10 +325,15 @@ class Client:
           is deprecated. TLS will be automatically enabled if the `serviceUrl` is
           set to `pulsar+ssl://` or `https://`
         * `tls_trust_certs_file_path`:
-          Set the path to the trusted TLS certificate file.
+          Set the path to the trusted TLS certificate file. If empty defaults to
+          certifi.
         * `tls_allow_insecure_connection`:
           Configure whether the Pulsar client accepts untrusted TLS certificates
           from the broker.
+        * `tls_validate_hostname`:
+          Configure whether the Pulsar client validates that the hostname of the
+          endpoint, matches the common name on the TLS certificate presented by
+          the endpoint.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
@@ -291,6 +345,7 @@ class Client:
         _check_type(bool, use_tls, 'use_tls')
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
+        _check_type(bool, tls_validate_hostname, 'tls_validate_hostname')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
@@ -305,22 +360,28 @@ class Client:
             conf.use_tls(True)
         if tls_trust_certs_file_path:
             conf.tls_trust_certs_file_path(tls_trust_certs_file_path)
+        else:
+            conf.tls_trust_certs_file_path(certifi.where())
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
+        conf.tls_validate_hostname(tls_validate_hostname)
         self._client = _pulsar.Client(service_url, conf)
         self._consumers = []
 
     def create_producer(self, topic,
                         producer_name=None,
+                        schema=schema.BytesSchema(),
                         initial_sequence_id=None,
                         send_timeout_millis=30000,
                         compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
+                        max_pending_messages_across_partitions=50000,
                         block_if_queue_full=False,
                         batching_enabled=False,
                         batching_max_messages=1000,
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10,
-                        message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution
+                        message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
+                        properties=None,
                         ):
         """
         Create a new producer on a given topic.
@@ -331,12 +392,19 @@ class Client:
           The topic name
 
         **Options**
+
         * `producer_name`:
            Specify a name for the producer. If not assigned,
            the system will generate a globally unique name which can be accessed
            with `Producer.producer_name()`. When specifying a name, it is app to
            the user to ensure that, for a given topic, the producer name is unique
            across all Pulsar's clusters.
+        * `schema`:
+           Define the schema of the data that will be published by this producer.
+           The schema will be used for two purposes:
+             - Validate the data format against the topic defined schema
+             - Perform serialization/deserialization between data and objects
+           An example for this parameter would be to pass `schema=JsonSchema(MyRecordClass)`.
         * `initial_sequence_id`:
            Set the baseline for the sequence ids for messages
            published by the producer. First message will be using
@@ -348,32 +416,46 @@ class Client:
         * `compression_type`:
           Set the compression type for the producer. By default, message
           payloads are not compressed. Supported compression types are
-          `CompressionType.LZ4` and `CompressionType.ZLib`.
+          `CompressionType.LZ4`, `CompressionType.ZLib`, `CompressionType.ZSTD` and `CompressionType.SNAPPY`.
+          ZSTD is supported since Pulsar 2.3. Consumers will need to be at least at that
+          release in order to be able to receive messages compressed with ZSTD.
+          SNAPPY is supported since Pulsar 2.4. Consumers will need to be at least at that
+          release in order to be able to receive messages compressed with SNAPPY.
         * `max_pending_messages`:
           Set the max size of the queue holding the messages pending to receive
           an acknowledgment from the broker.
+        * `max_pending_messages_across_partitions`:
+          Set the max size of the queue holding the messages pending to receive
+          an acknowledgment across partitions from the broker.
         * `block_if_queue_full`: Set whether `send_async` operations should
           block when the outgoing message queue is full.
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
           other option is `PartitionsRoutingMode.UseSinglePartition`
+        * `properties`:
+          Sets the properties for the producer. The properties associated with a producer
+          can be used for identify a producer at broker side.
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
+        _check_type(_schema.Schema, schema, 'schema')
         _check_type_or_none(int, initial_sequence_id, 'initial_sequence_id')
         _check_type(int, send_timeout_millis, 'send_timeout_millis')
         _check_type(CompressionType, compression_type, 'compression_type')
         _check_type(int, max_pending_messages, 'max_pending_messages')
+        _check_type(int, max_pending_messages_across_partitions, 'max_pending_messages_across_partitions')
         _check_type(bool, block_if_queue_full, 'block_if_queue_full')
         _check_type(bool, batching_enabled, 'batching_enabled')
         _check_type(int, batching_max_messages, 'batching_max_messages')
         _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
         _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
+        _check_type_or_none(dict, properties, 'properties')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
         conf.compression_type(compression_type)
         conf.max_pending_messages(max_pending_messages)
+        conf.max_pending_messages_across_partitions(max_pending_messages_across_partitions)
         conf.block_if_queue_full(block_if_queue_full)
         conf.batching_enabled(batching_enabled)
         conf.batching_max_messages(batching_max_messages)
@@ -384,31 +466,50 @@ class Client:
             conf.producer_name(producer_name)
         if initial_sequence_id:
             conf.initial_sequence_id(initial_sequence_id)
+        if properties:
+            for k, v in properties.items():
+                conf.property(k, v)
+
+        conf.schema(schema.schema_info())
+
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
+        p._schema = schema
         return p
 
     def subscribe(self, topic, subscription_name,
                   consumer_type=ConsumerType.Exclusive,
+                  schema=schema.BytesSchema(),
                   message_listener=None,
                   receiver_queue_size=1000,
+                  max_total_receiver_queue_size_across_partitions=50000,
                   consumer_name=None,
                   unacked_messages_timeout_ms=None,
                   broker_consumer_stats_cache_time_ms=30000,
-                  is_read_compacted=False
+                  negative_ack_redelivery_delay_ms=60000,
+                  is_read_compacted=False,
+                  properties=None,
+                  pattern_auto_discovery_period=60,
+                  initial_position=InitialPosition.Latest
                   ):
         """
         Subscribe to the given topic and subscription combination.
 
         **Args**
 
-        * `topic`: The name of the topic.
+        * `topic`: The name of the topic, list of topics or regex pattern.
+                  This method will accept these forms:
+                    - `topic='my-topic'`
+                    - `topic=['topic-1', 'topic-2', 'topic-3']`
+                    - `topic=re.compile('topic-.*')`
         * `subscription`: The name of the subscription.
 
         **Options**
 
         * `consumer_type`:
           Select the subscription type to be used when subscribing to the topic.
+        * `schema`:
+           Define the schema of the data that will be received by this consumer.
         * `message_listener`:
           Sets a message listener for the consumer. When the listener is set,
           the application will receive messages through it. Calls to
@@ -434,6 +535,9 @@ class Client:
           should not be interrupted when the consumer queue size is zero. The
           default value is 1000 messages and should work well for most use
           cases.
+        * `max_total_receiver_queue_size_across_partitions`
+          Set the max total receiver queue size across partitions.
+          This setting will be used to reduce the receiver queue size for individual partitions
         * `consumer_name`:
           Sets the consumer name.
         * `unacked_messages_timeout_ms`:
@@ -442,37 +546,78 @@ class Client:
           the given value is less than 10 seconds. If a successful
           acknowledgement is not sent within the timeout, all the unacknowledged
           messages are redelivered.
+        * `negative_ack_redelivery_delay_ms`:
+           The delay after which to redeliver the messages that failed to be
+           processed (with the `consumer.negative_acknowledge()`)
         * `broker_consumer_stats_cache_time_ms`:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
+        * `properties`:
+          Sets the properties for the consumer. The properties associated with a consumer
+          can be used for identify a consumer at broker side.
+        * `pattern_auto_discovery_period`:
+          Periods of seconds for consumer to auto discover match topics.
+        * `initial_position`:
+          Set the initial position of a consumer  when subscribing to the topic.
+          It could be either: `InitialPosition.Earliest` or `InitialPosition.Latest`.
+          Default: `Latest`.
         """
-        _check_type(str, topic, 'topic')
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
+        _check_type(_schema.Schema, schema, 'schema')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type(int, max_total_receiver_queue_size_across_partitions,
+                    'max_total_receiver_queue_size_across_partitions')
         _check_type_or_none(str, consumer_name, 'consumer_name')
         _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+        _check_type(int, negative_ack_redelivery_delay_ms, 'negative_ack_redelivery_delay_ms')
+        _check_type(int, pattern_auto_discovery_period, 'pattern_auto_discovery_period')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
+        _check_type_or_none(dict, properties, 'properties')
+        _check_type(InitialPosition, initial_position, 'initial_position')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
         conf.read_compacted(is_read_compacted)
         if message_listener:
-            conf.message_listener(message_listener)
+            conf.message_listener(_listener_wrapper(message_listener, schema))
         conf.receiver_queue_size(receiver_queue_size)
+        conf.max_total_receiver_queue_size_across_partitions(max_total_receiver_queue_size_across_partitions)
         if consumer_name:
             conf.consumer_name(consumer_name)
         if unacked_messages_timeout_ms:
             conf.unacked_messages_timeout_ms(unacked_messages_timeout_ms)
+
+        conf.negative_ack_redelivery_delay_ms(negative_ack_redelivery_delay_ms)
         conf.broker_consumer_stats_cache_time_ms(broker_consumer_stats_cache_time_ms)
+        if properties:
+            for k, v in properties.items():
+                conf.property(k, v)
+        conf.subscription_initial_position(initial_position)
+
+        conf.schema(schema.schema_info())
+
         c = Consumer()
-        c._consumer = self._client.subscribe(topic, subscription_name, conf)
+        if isinstance(topic, str):
+            # Single topic
+            c._consumer = self._client.subscribe(topic, subscription_name, conf)
+        elif isinstance(topic, list):
+            # List of topics
+            c._consumer = self._client.subscribe_topics(topic, subscription_name, conf)
+        elif isinstance(topic, _retype):
+            # Regex pattern
+            c._consumer = self._client.subscribe_pattern(topic.pattern, subscription_name, conf)
+        else:
+            raise ValueError("Argument 'topic' is expected to be of a type between (str, list, re.pattern)")
+
         c._client = self
+        c._schema = schema
         self._consumers.append(c)
         return c
 
     def create_reader(self, topic, start_message_id,
+                      schema=schema.BytesSchema(),
                       reader_listener=None,
                       receiver_queue_size=1000,
                       reader_name=None,
@@ -502,6 +647,8 @@ class Client:
 
         **Options**
 
+        * `schema`:
+           Define the schema of the data that will be received by this reader.
         * `reader_listener`:
           Sets a message listener for the reader. When the listener is set,
           the application will receive messages through it. Calls to
@@ -525,23 +672,42 @@ class Client:
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
+        _check_type(_schema.Schema, schema, 'schema')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
         _check_type_or_none(str, reader_name, 'reader_name')
         _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
-            conf.reader_listener(reader_listener)
+            conf.reader_listener(_listener_wrapper(reader_listener, schema))
         conf.receiver_queue_size(receiver_queue_size)
         if reader_name:
             conf.reader_name(reader_name)
         if subscription_role_prefix:
             conf.subscription_role_prefix(subscription_role_prefix)
+        conf.schema(schema.schema_info())
+
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
         c._client = self
+        c._schema = schema
         self._consumers.append(c)
         return c
+
+    def get_topic_partitions(self, topic):
+        """
+        Get the list of partitions for a given topic.
+
+        If the topic is partitioned, this will return a list of partition names. If the topic is not
+        partitioned, the returned list will contain the topic name itself.
+
+        This can be used to discover the partitions and create Reader, Consumer or Producer
+        instances directly on a particular partition.
+        :param topic: the topic name to lookup
+        :return: a list of partition name
+        """
+        _check_type(str, topic, 'topic')
+        return self._client.get_topic_partitions(topic)
 
     def close(self):
         """
@@ -586,7 +752,8 @@ class Producer:
              partition_key=None,
              sequence_id=None,
              replication_clusters=None,
-             disable_replication=False
+             disable_replication=False,
+             event_timestamp=None,
              ):
         """
         Publish a message on the topic. Blocks until the message is acknowledged
@@ -612,9 +779,11 @@ class Producer:
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
+        * `event_timestamp`:
+          Timestamp in millis of the timestamp of event creation
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication)
+                              replication_clusters, disable_replication, event_timestamp)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
@@ -622,7 +791,8 @@ class Producer:
                    partition_key=None,
                    sequence_id=None,
                    replication_clusters=None,
-                   disable_replication=False
+                   disable_replication=False,
+                   event_timestamp=None
                    ):
         """
         Send a message asynchronously.
@@ -662,10 +832,21 @@ class Producer:
           configuration.
         * `disable_replication`:
           Do not replicate this message.
+        * `event_timestamp`:
+          Timestamp in millis of the timestamp of event creation
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication)
+                              replication_clusters, disable_replication, event_timestamp)
         self._producer.send_async(msg, callback)
+
+
+    def flush(self):
+        """
+        Flush all the messages buffered in the client and wait until all messages have been
+        successfully persisted
+        """
+        self._producer.flush()
+
 
     def close(self):
         """
@@ -674,16 +855,19 @@ class Producer:
         self._producer.close()
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
-                   replication_clusters, disable_replication):
-        _check_type(bytes, content, 'content')
+                   replication_clusters, disable_replication, event_timestamp):
+        data = self._schema.encode(content)
+
+        _check_type(bytes, data, 'data')
         _check_type_or_none(dict, properties, 'properties')
         _check_type_or_none(str, partition_key, 'partition_key')
         _check_type_or_none(int, sequence_id, 'sequence_id')
         _check_type_or_none(list, replication_clusters, 'replication_clusters')
         _check_type(bool, disable_replication, 'disable_replication')
+        _check_type_or_none(int, event_timestamp, 'event_timestamp')
 
         mb = _pulsar.MessageBuilder()
-        mb.content(content)
+        mb.content(data)
         if properties:
             for k, v in properties.items():
                 mb.property(k, v)
@@ -695,6 +879,8 @@ class Producer:
             mb.replication_clusters(replication_clusters)
         if disable_replication:
             mb.disable_replication(disable_replication)
+        if event_timestamp:
+            mb.event_timestamp(event_timestamp)
         return mb.build()
 
 
@@ -725,7 +911,7 @@ class Consumer:
 
         This consumer object cannot be reused.
         """
-        return self._consumer.unsubcribe()
+        return self._consumer.unsubscribe()
 
     def receive(self, timeout_millis=None):
         """
@@ -738,13 +924,18 @@ class Consumer:
 
         * `timeout_millis`:
           If specified, the receive will raise an exception if a message is not
-          availble within the timeout.
+          available within the timeout.
         """
         if timeout_millis is None:
-            return self._consumer.receive()
+            msg = self._consumer.receive()
         else:
             _check_type(int, timeout_millis, 'timeout_millis')
-            return self._consumer.receive(timeout_millis)
+            msg = self._consumer.receive(timeout_millis)
+
+        m = Message()
+        m._message = msg
+        m._schema = self._schema
+        return m
 
     def acknowledge(self, message):
         """
@@ -758,7 +949,10 @@ class Consumer:
         * `message`:
           The received message or message id.
         """
-        self._consumer.acknowledge(message)
+        if isinstance(message, Message):
+            self._consumer.acknowledge(message._message)
+        else:
+            self._consumer.acknowledge(message)
 
     def acknowledge_cumulative(self, message):
         """
@@ -773,7 +967,30 @@ class Consumer:
         * `message`:
           The received message or message id.
         """
-        self._consumer.acknowledge_cumulative(message)
+        if isinstance(message, Message):
+            self._consumer.acknowledge_cumulative(message._message)
+        else:
+            self._consumer.acknowledge_cumulative(message)
+
+    def negative_acknowledge(self, message):
+        """
+        Acknowledge the failure to process a single message.
+
+        When a message is "negatively acked" it will be marked for redelivery after
+        some fixed delay. The delay is configurable when constructing the consumer
+        with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
+
+        This call is not blocking.
+
+        **Args**
+
+        * `message`:
+          The received message or message id.
+        """
+        if isinstance(message, Message):
+            self._consumer.negative_acknowledge(message._message)
+        else:
+            self._consumer.negative_acknowledge(message)
 
     def pause_message_listener(self):
         """
@@ -848,10 +1065,15 @@ class Reader:
           available within the timeout.
         """
         if timeout_millis is None:
-            return self._reader.read_next()
+            msg = self._reader.read_next()
         else:
             _check_type(int, timeout_millis, 'timeout_millis')
-            return self._reader.read_next(timeout_millis)
+            msg = self._reader.read_next(timeout_millis)
+
+        m = Message()
+        m._message = msg
+        m._schema = self._schema
+        return m
 
     def has_message_available(self):
         """
@@ -869,10 +1091,22 @@ class Reader:
 
 def _check_type(var_type, var, name):
     if not isinstance(var, var_type):
-        raise ValueError("Argument %s is expected to be of type '%s'" % (name, var_type.__name__))
+        raise ValueError("Argument %s is expected to be of type '%s' and not '%s'"
+                         % (name, var_type.__name__, type(var).__name__))
 
 
 def _check_type_or_none(var_type, var, name):
     if var is not None and not isinstance(var, var_type):
         raise ValueError("Argument %s is expected to be either None or of type '%s'"
                          % (name, var_type.__name__))
+
+
+def _listener_wrapper(listener, schema):
+    def wrapper(consumer, msg):
+        c = Consumer()
+        c._consumer = consumer
+        m = Message()
+        m._message = msg
+        m._schema = schema
+        listener(c, m)
+    return wrapper

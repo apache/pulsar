@@ -33,12 +33,13 @@
       <useDefaultExcludes>true</useDefaultExcludes>
       <includes>
         <include>**/README.md</include>
-        <include>**/DISCLAIMER</include>
         <include>**/LICENSE</include>
         <include>**/NOTICE</include>
         <include>**/pom.xml</include>
         <include>**/src/**</include>
         <include>**/pulsar-client-cpp/**</include>
+        <include>**/pulsar-client-go/**</include>
+        <include>**/pulsar-function-go/**</include>
         <include>**/conf/**</include>
         <include>**/bin/**</include>
         <include>**/*.txt</include>
@@ -49,6 +50,8 @@
       </includes>
       <excludes>
         <exclude>.git/**</exclude>
+        <exclude>**/*.nar</exclude>
+        <exclude>**/.terraform/**</exclude>
         <exclude>**/.gitignore</exclude>
         <exclude>**/.svn</exclude>
         <exclude>**/*.iws</exclude>
@@ -73,6 +76,9 @@
         <exclude>pulsar-client-cpp/perf/perfConsumer</exclude>
 
         <exclude>**/python/dist/**</exclude>
+        <exclude>**/pulsar-client-cpp/pkg/rpm/RPMS/**</exclude>
+        <exclude>**/pulsar-client-cpp/pkg/rpm/SOURCES/**</exclude>
+        <exclude>**/pulsar-client-cpp/pkg/deb/BUILD/**</exclude>
         <exclude>**/python/wheelhouse/**</exclude>
         <exclude>**/python/MANIFEST</exclude>
         <exclude>**/*.egg-info/**</exclude>
@@ -82,6 +88,7 @@
         <exclude>**/file:/**</exclude>
         <exclude>**/SecurityAuth.audit*</exclude>
         <exclude>**/site/**</exclude>
+        <exclude>**/site2/**</exclude>
         <exclude>**/.idea/**</exclude>
         <exclude>**/*.a</exclude>
         <exclude>**/*.so</exclude>

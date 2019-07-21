@@ -18,7 +18,7 @@
  */
 #include <pulsar/MessageBuilder.h>
 
-#include <boost/make_shared.hpp>
+#include <memory>
 
 #include "MessageImpl.h"
 #include "SharedBuffer.h"
@@ -35,7 +35,7 @@ namespace pulsar {
 
 ObjectPool<MessageImpl, 100000> messagePool;
 
-boost::shared_ptr<MessageImpl> MessageBuilder::createMessageImpl() { return messagePool.create(); }
+std::shared_ptr<MessageImpl> MessageBuilder::createMessageImpl() { return messagePool.create(); }
 
 MessageBuilder::MessageBuilder() { impl_ = createMessageImpl(); }
 
@@ -91,6 +91,12 @@ MessageBuilder& MessageBuilder::setProperties(const StringMap& properties) {
 MessageBuilder& MessageBuilder::setPartitionKey(const std::string& partitionKey) {
     checkMetadata();
     impl_->metadata.set_partition_key(partitionKey);
+    return *this;
+}
+
+MessageBuilder& MessageBuilder::setOrderingKey(const std::string& orderingKey) {
+    checkMetadata();
+    impl_->metadata.set_ordering_key(orderingKey);
     return *this;
 }
 

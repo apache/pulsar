@@ -22,21 +22,14 @@
 #include <lib/LookupService.h>
 #include <lib/ClientImpl.h>
 #include <lib/Url.h>
-#include <json/value.h>
-#include <json/reader.h>
-#include <boost/bind.hpp>
-#include <curl/curl.h>
 #include <lib/Version.h>
 
 namespace pulsar {
-class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
+class HTTPLookupService : public LookupService, public std::enable_shared_from_this<HTTPLookupService> {
     class CurlInitializer {
        public:
-        CurlInitializer() {
-            // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
-            curl_global_init(CURL_GLOBAL_ALL);
-        }
-        ~CurlInitializer() { curl_global_cleanup(); }
+        CurlInitializer();
+        ~CurlInitializer();
     };
     static CurlInitializer curlInitializer;
     enum RequestType
@@ -49,10 +42,19 @@ class HTTPLookupService : public LookupService, public boost::enable_shared_from
     std::string adminUrl_;
     AuthenticationPtr authenticationPtr_;
     int lookupTimeoutInSeconds_;
+    bool tlsAllowInsecure_;
+    bool isUseTls_;
+    std::string tlsTrustCertsFilePath_;
+    bool tlsValidateHostname_;
 
     static LookupDataResultPtr parsePartitionData(const std::string&);
     static LookupDataResultPtr parseLookupData(const std::string&);
-    void sendHTTPRequest(LookupPromise, const std::string, RequestType);
+    static NamespaceTopicsPtr parseNamespaceTopicsData(const std::string&);
+
+    void handleLookupHTTPRequest(LookupPromise, const std::string, RequestType);
+    void handleNamespaceTopicsHTTPRequest(NamespaceTopicsPromise promise, const std::string completeUrl);
+
+    Result sendHTTPRequest(const std::string completeUrl, std::string& responseData);
 
    public:
     HTTPLookupService(const std::string&, const ClientConfiguration&, const AuthenticationPtr&);
@@ -60,6 +62,8 @@ class HTTPLookupService : public LookupService, public boost::enable_shared_from
     Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);
 
     Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr&);
+
+    Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName);
 };
 }  // namespace pulsar
 

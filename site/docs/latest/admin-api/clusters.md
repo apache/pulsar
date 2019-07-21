@@ -28,7 +28,7 @@ Pulsar clusters consist of one or more Pulsar {% popover brokers %}, one or more
 Clusters can be managed via:
 
 * The [`clusters`](../../reference/CliTools#pulsar-admin-clusters) command of the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool
-* The `/admin/clusters` endpoint of the admin [REST API](../../reference/RestApi)
+* The `/admin/v2/clusters` endpoint of the admin [REST API](../../reference/RestApi)
 * The `clusters` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../clients/Java)
 
 ## Clusters resources
@@ -51,7 +51,7 @@ $ pulsar-admin clusters create cluster-1 \
 
 #### REST API
 
-{% endpoint PUT /admin/clusters/:cluster %}
+{% endpoint PUT /admin/v2/clusters/:cluster %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster)
 
@@ -73,7 +73,7 @@ When provision a new cluster, you need to initialize that cluster's [metadata](.
 
 * The name of the cluster
 * The local ZooKeeper connection string for the cluster
-* The global ZooKeeper connection string for the entire instance
+* The Configuration Store connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the {% popover brokers %} in the cluster
 
@@ -89,7 +89,7 @@ Here's an example cluster metadata initialization command:
 bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2184 \
+  --configuration-store zk1.us-west.example.com:2184 \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
@@ -119,7 +119,7 @@ $ pulsar-admin clusters get cluster-1
 
 #### REST API
 
-{% endpoint GET /admin/clusters/:cluster %}
+{% endpoint GET /admin/v2/clusters/:cluster %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster)
 
@@ -145,7 +145,7 @@ $ pulsar-admin clusters update cluster-1 \
 
 #### REST
 
-{% endpoint POST /admin/clusters/:cluster %}
+{% endpoint POST /admin/v2/clusters/:cluster %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster)
 
@@ -175,7 +175,7 @@ $ pulsar-admin clusters delete cluster-1
 
 #### REST API
 
-{% endpoint DELETE /admin/clusters/:cluster %}
+{% endpoint DELETE /admin/v2/clusters/:cluster %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster)
 
@@ -201,7 +201,7 @@ cluster-2
 
 #### REST API
 
-{% endpoint GET /admin/clusters %}
+{% endpoint GET /admin/v2/clusters %}
 
 [More info](../../reference/RestApi#/admin/clusters)
 
@@ -225,7 +225,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 
 #### REST API
 
-{% endpoint POST /admin/clusters/:cluster/peers %}
+{% endpoint POST /admin/v2/clusters/:cluster/peers %}
 
 [More info](../../reference/RestApi#/admin/clusters/:cluster/peers)
 

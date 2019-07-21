@@ -651,7 +651,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         final String cluster = pulsar.getConfiguration().getClusterName();
         admin.clusters().createCluster(cluster,
-                new ClusterData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls()));
+                new ClusterData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls()));
         // create
         FailureDomain domain = new FailureDomain();
         domain.setBrokers(Sets.newHashSet("b1", "b2", "b3"));

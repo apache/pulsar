@@ -19,6 +19,9 @@
 #include <stdio.h>
 
 #include <pulsar/Authentication.h>
+#include "auth/AuthTls.h"
+#include "auth/AuthAthenz.h"
+#include "auth/AuthToken.h"
 #include <lib/LogUtils.h>
 
 #include <string>
@@ -26,13 +29,12 @@
 #include <iostream>
 #include <dlfcn.h>
 #include <cstdlib>
-#include <boost/make_shared.hpp>
-#include <boost/thread.hpp>
+#include <mutex>
 #include <boost/algorithm/string.hpp>
 
 DECLARE_LOG_OBJECT()
 
-namespace pulsar {
+using namespace pulsar;
 
 AuthenticationDataProvider::AuthenticationDataProvider() {}
 
@@ -58,6 +60,22 @@ Authentication::Authentication() {}
 
 Authentication::~Authentication() {}
 
+ParamMap Authentication::parseDefaultFormatAuthParams(const std::string& authParamsString) {
+    ParamMap paramMap;
+    if (!authParamsString.empty()) {
+        std::vector<std::string> params;
+        boost::algorithm::split(params, authParamsString, boost::is_any_of(","));
+        for (int i = 0; i < params.size(); i++) {
+            std::vector<std::string> kv;
+            boost::algorithm::split(kv, params[i], boost::is_any_of(":"));
+            if (kv.size() == 2) {
+                paramMap[kv[0]] = kv[1];
+            }
+        }
+    }
+    return paramMap;
+}
+
 class AuthDisabledData : public AuthenticationDataProvider {
    public:
     AuthDisabledData(ParamMap& params) {}
@@ -80,17 +98,17 @@ AuthenticationPtr AuthFactory::Disabled() {
     return AuthDisabled::create(params);
 }
 
-AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath) {
+AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibPath) {
     ParamMap params;
-    return AuthFactory::create(dynamicLibPath, params);
+    return AuthFactory::create(pluginNameOrDynamicLibPath, params);
 }
 
-boost::mutex mutex;
+std::mutex mutex;
 std::vector<void*> AuthFactory::loadedLibrariesHandles_;
 bool AuthFactory::isShutdownHookRegistered_ = false;
 
 void AuthFactory::release_handles() {
-    boost::lock_guard<boost::mutex> lock(mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     for (std::vector<void*>::iterator ite = AuthFactory::loadedLibrariesHandles_.begin();
          ite != AuthFactory::loadedLibrariesHandles_.end(); ite++) {
         dlclose(*ite);
@@ -98,20 +116,54 @@ void AuthFactory::release_handles() {
     loadedLibrariesHandles_.clear();
 }
 
-AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath,
+AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, ParamMap& paramMap) {
+    if (boost::iequals(pluginName, TLS_PLUGIN_NAME) || boost::iequals(pluginName, TLS_JAVA_PLUGIN_NAME)) {
+        return AuthTls::create(paramMap);
+    } else if (boost::iequals(pluginName, TOKEN_PLUGIN_NAME) ||
+               boost::iequals(pluginName, TOKEN_JAVA_PLUGIN_NAME)) {
+        return AuthToken::create(paramMap);
+    } else if (boost::iequals(pluginName, ATHENZ_PLUGIN_NAME) ||
+               boost::iequals(pluginName, ATHENZ_JAVA_PLUGIN_NAME)) {
+        return AuthAthenz::create(paramMap);
+    } else {
+        return AuthenticationPtr();
+    }
+}
+
+AuthenticationPtr tryCreateBuiltinAuth(const std::string& pluginName, const std::string& authParamsString) {
+    if (boost::iequals(pluginName, TLS_PLUGIN_NAME) || boost::iequals(pluginName, TLS_JAVA_PLUGIN_NAME)) {
+        return AuthTls::create(authParamsString);
+    } else if (boost::iequals(pluginName, TOKEN_PLUGIN_NAME) ||
+               boost::iequals(pluginName, TOKEN_JAVA_PLUGIN_NAME)) {
+        return AuthToken::create(authParamsString);
+    } else if (boost::iequals(pluginName, ATHENZ_PLUGIN_NAME) ||
+               boost::iequals(pluginName, ATHENZ_JAVA_PLUGIN_NAME)) {
+        return AuthAthenz::create(authParamsString);
+    } else {
+        return AuthenticationPtr();
+    }
+}
+
+AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibPath,
                                       const std::string& authParamsString) {
     {
-        boost::lock_guard<boost::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         if (!AuthFactory::isShutdownHookRegistered_) {
             atexit(release_handles);
             AuthFactory::isShutdownHookRegistered_ = true;
         }
     }
+
+    AuthenticationPtr authPtr = tryCreateBuiltinAuth(pluginNameOrDynamicLibPath, authParamsString);
+    if (authPtr) {
+        return authPtr;
+    }
+
     Authentication* auth = NULL;
-    void* handle = dlopen(dynamicLibPath.c_str(), RTLD_LAZY);
+    void* handle = dlopen(pluginNameOrDynamicLibPath.c_str(), RTLD_LAZY);
     if (handle != NULL) {
         {
-            boost::lock_guard<boost::mutex> lock(mutex);
+            std::lock_guard<std::mutex> lock(mutex);
             loadedLibrariesHandles_.push_back(handle);
         }
         Authentication* (*createAuthentication)(const std::string&);
@@ -119,36 +171,34 @@ AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath,
         if (createAuthentication != NULL) {
             auth = createAuthentication(authParamsString);
         } else {
-            ParamMap paramMap;
-            if (!authParamsString.empty()) {
-                std::vector<std::string> params;
-                boost::algorithm::split(params, authParamsString, boost::is_any_of(","));
-                for (int i = 0; i < params.size(); i++) {
-                    std::vector<std::string> kv;
-                    boost::algorithm::split(kv, params[i], boost::is_any_of(":"));
-                    if (kv.size() == 2) {
-                        paramMap[kv[0]] = kv[1];
-                    }
-                }
-            }
-            return AuthFactory::create(dynamicLibPath, paramMap);
+            ParamMap paramMap = Authentication::parseDefaultFormatAuthParams(authParamsString);
+            return AuthFactory::create(pluginNameOrDynamicLibPath, paramMap);
         }
+    }
+    if (!auth) {
+        LOG_WARN("Couldn't load auth plugin " << pluginNameOrDynamicLibPath);
     }
     return AuthenticationPtr(auth);
 }
 
-AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath, ParamMap& params) {
+AuthenticationPtr AuthFactory::create(const std::string& pluginNameOrDynamicLibPath, ParamMap& params) {
     {
-        boost::lock_guard<boost::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         if (!AuthFactory::isShutdownHookRegistered_) {
             atexit(release_handles);
             AuthFactory::isShutdownHookRegistered_ = true;
         }
     }
+
+    AuthenticationPtr authPtr = tryCreateBuiltinAuth(pluginNameOrDynamicLibPath, params);
+    if (authPtr) {
+        return authPtr;
+    }
+
     Authentication* auth = NULL;
-    void* handle = dlopen(dynamicLibPath.c_str(), RTLD_LAZY);
+    void* handle = dlopen(pluginNameOrDynamicLibPath.c_str(), RTLD_LAZY);
     if (handle != NULL) {
-        boost::lock_guard<boost::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         loadedLibrariesHandles_.push_back(handle);
         Authentication* (*createAuthentication)(ParamMap&);
         *(void**)(&createAuthentication) = dlsym(handle, "createFromMap");
@@ -156,6 +206,9 @@ AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath, ParamMa
             auth = createAuthentication(params);
         }
     }
+    if (!auth) {
+        LOG_WARN("Couldn't load auth plugin " << pluginNameOrDynamicLibPath);
+    }
+
     return AuthenticationPtr(auth);
 }
-}  // namespace pulsar

@@ -22,16 +22,29 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.RateLimiter;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -50,19 +63,10 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PerformanceProducer {
 
@@ -71,6 +75,9 @@ public class PerformanceProducer {
 
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
+
+    private static final LongAdder totalMessagesSent = new LongAdder();
+    private static final LongAdder totalBytesSent = new LongAdder();
 
     private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
@@ -89,7 +96,7 @@ public class PerformanceProducer {
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size")
+        @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
         @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
@@ -104,12 +111,18 @@ public class PerformanceProducer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
-        @Parameter(names = {
-                "--auth_params" }, description = "Authentication parameters, e.g., \"key1:val1,key2:val2\"")
+        @Parameter(
+            names = { "--auth-params" },
+            description = "Authentication parameters, whose format is determined by the implementation " +
+                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
         public int maxOutstanding = 1000;
+
+        @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
+        public int maxPendingMessagesAcrossPartitions = 50000;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -126,19 +139,23 @@ public class PerformanceProducer {
         @Parameter(names = { "-z", "--compression" }, description = "Compress messages payload")
         public CompressionType compression = CompressionType.NONE;
 
-        @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from a file instead of empty buffer")
+        @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from an UTF-8 encoded text file and a payload " +
+            "will be randomly selected when publishing messages")
         public String payloadFilename = null;
+
+        @Parameter(names = { "-e", "--payload-delimiter" }, description = "The delimiter used to split lines when using payload from a file")
+        public String payloadDelimiter = "\\n"; // here escaping \n since default value will be printed with the help text
+
         @Parameter(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
-        public long batchTime = 1;
+        public double batchTimeMillis = 1.0;
 
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
         public long testTime = 0;
 
-        @Parameter(names = {
-                "--use-tls" }, description = "Use TLS encryption on the connection")
-        public boolean useTls;
+        @Parameter(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
+        public double warmupTimeSeconds = 1.0;
 
         @Parameter(names = {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
@@ -151,13 +168,16 @@ public class PerformanceProducer {
                 "--encryption-key-value-file" }, description = "The file which contains the public key to encrypt payload")
         public String encKeyFile = null;
 
+        @Parameter(names = { "-d",
+                "--delay" }, description = "Mark messages with a given delay in seconds")
+        public long delay = 0;
     }
 
     public static void main(String[] args) throws Exception {
 
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf-producer");
+        jc.setProgramName("pulsar-perf produce");
 
         try {
             jc.parse(args);
@@ -203,16 +223,10 @@ public class PerformanceProducer {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
 
-            if (arguments.useTls == false) {
-               arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
-            }
-
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
             }
         }
-
-        arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
 
         // Dump config variables
         ObjectMapper m = new ObjectMapper();
@@ -220,11 +234,25 @@ public class PerformanceProducer {
         log.info("Starting Pulsar perf producer with config: {}", w.writeValueAsString(arguments));
 
         // Read payload data from file if needed
-        byte payloadData[];
+        final byte[] payloadBytes = new byte[arguments.msgSize];
+        Random random = new Random(0);
+        List<byte[]> payloadByteList = Lists.newArrayList();
         if (arguments.payloadFilename != null) {
-            payloadData = Files.readAllBytes(Paths.get(arguments.payloadFilename));
+            Path payloadFilePath = Paths.get(arguments.payloadFilename);
+            if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
+                throw new IllegalArgumentException("Payload file doesn't exist or it is empty.");
+            }
+            // here escaping the default payload delimiter to correct value
+            String delimiter = arguments.payloadDelimiter.equals("\\n") ? "\n" : arguments.payloadDelimiter;
+            String[] payloadList = new String(Files.readAllBytes(payloadFilePath), StandardCharsets.UTF_8).split(delimiter);
+            log.info("Reading payloads from {} and {} records read", payloadFilePath.toAbsolutePath(), payloadList.length);
+            for (String payload : payloadList) {
+                payloadByteList.add(payload.getBytes(StandardCharsets.UTF_8));
+            }
         } else {
-            payloadData = new byte[arguments.msgSize];
+            for (int i = 0; i < payloadBytes.length; ++i) {
+                payloadBytes[i] = (byte) (random.nextInt(26) + 65);
+            }
         }
 
         // Now processing command line arguments
@@ -236,7 +264,6 @@ public class PerformanceProducer {
                 .connectionsPerBroker(arguments.maxConnections) //
                 .ioThreads(Runtime.getRuntime().availableProcessors()) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .enableTls(arguments.useTls) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
         if (isNotBlank(arguments.authPluginClassName)) {
@@ -269,11 +296,16 @@ public class PerformanceProducer {
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .compressionType(arguments.compression) //
                 .maxPendingMessages(arguments.maxOutstanding) //
+                .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
                 // enable round robin message routing if it is a partitioned topic
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-        if (arguments.batchTime > 0) {
-            producerBuilder.batchingMaxPublishDelay(arguments.batchTime, TimeUnit.MILLISECONDS).enableBatching(true);
+        if (arguments.batchTimeMillis == 0.0) {
+            producerBuilder.enableBatching(false);
+        } else {
+            long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
+            producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS)
+                    .enableBatching(true);
         }
 
         // Block if queue is full else we will start seeing errors in sendAsync
@@ -302,8 +334,11 @@ public class PerformanceProducer {
 
         log.info("Created {} producers", producers.size());
 
+        long start = System.nanoTime();
+
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
+                printAggregatedThroughput(start);
                 printAggregatedStats();
             }
         });
@@ -315,14 +350,16 @@ public class PerformanceProducer {
             try {
                 RateLimiter rateLimiter = RateLimiter.create(arguments.msgRate);
 
-                long startTime = System.currentTimeMillis();
+                long startTime = System.nanoTime();
+                long warmupEndTime = startTime + (long) (arguments.warmupTimeSeconds * 1e9);
+                long testEndTime = startTime + (long) (arguments.testTime * 1e9);
 
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
                     for (Producer<byte[]> producer : producers) {
                         if (arguments.testTime > 0) {
-                            if (System.currentTimeMillis() - startTime > arguments.testTime) {
+                            if (System.nanoTime() > testEndTime) {
                                 log.info("------------------- DONE -----------------------");
                                 printAggregatedStats();
                                 isDone.set(true);
@@ -344,13 +381,32 @@ public class PerformanceProducer {
 
                         final long sendTime = System.nanoTime();
 
-                        producer.sendAsync(payloadData).thenRun(() -> {
+                        byte[] payloadData;
+
+                        if (arguments.payloadFilename != null) {
+                            payloadData = payloadByteList.get(random.nextInt(payloadByteList.size()));
+                        } else {
+                            payloadData = payloadBytes;
+                        }
+
+                        TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage()
+                                .value(payloadData);
+                        if (arguments.delay >0) {
+                            messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                        }
+                        messageBuilder.sendAsync().thenRun(() -> {
                             messagesSent.increment();
                             bytesSent.add(payloadData.length);
 
-                            long latencyMicros = NANOSECONDS.toMicros(System.nanoTime() - sendTime);
-                            recorder.recordValue(latencyMicros);
-                            cumulativeRecorder.recordValue(latencyMicros);
+                            totalMessagesSent.increment();
+                            totalBytesSent.add(payloadData.length);
+
+                            long now = System.nanoTime();
+                            if (now > warmupEndTime) {
+                                long latencyMicros = NANOSECONDS.toMicros(now - sendTime);
+                                recorder.recordValue(latencyMicros);
+                                cumulativeRecorder.recordValue(latencyMicros);
+                            }
                         }).exceptionally(ex -> {
                             log.warn("Write error on message", ex);
                             System.exit(-1);
@@ -417,6 +473,17 @@ public class PerformanceProducer {
         client.close();
     }
 
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;;
+        double rate = totalMessagesSent.sum() / elapsed;
+        double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
+        log.info(
+            "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s",
+            totalMessagesSent,
+            totalFormat.format(rate),
+            totalFormat.format(throughput));
+    }
+
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
@@ -434,5 +501,6 @@ public class PerformanceProducer {
 
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
+    static final DecimalFormat totalFormat = new DecimalFormat("0.000");
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
 }

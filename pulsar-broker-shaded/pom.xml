@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.2.0-incubating-SNAPSHOT</version>
+    <version>2.5.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -77,7 +77,6 @@
                   <include>io.netty:netty-all</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
-                  <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
 
                   <include>javax.ws.rs:*</include>
@@ -102,8 +101,6 @@
                   <include>org.hdrhistogram:*</include>
                   <include>com.github.zafarkhaja:java-semver</include>
                   <include>org.aspectj:*</include>
-                  <include>com.ea.agentloader:*</include>
-                  <include>com.wordnik:swagger-annotations</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
                   <include>org.apache.httpcomponents:httpcore</include>
@@ -118,12 +115,6 @@
                 </includes>
               </artifactSet>
               <filters>
-                <filter>
-                  <artifact>net.jpountz.lz4:lz4</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
                 <filter>
                   <artifact>org.apache.pulsar:pulsar-client-original</artifact>
                   <includes>
@@ -169,14 +160,6 @@
                 <relocation>
                   <pattern>org.apache.pulsar.checksum</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.checksum</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.scurrilous.circe</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.com.scurrilous.circe</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>net.jpountz</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.net.jpountz</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.yahoo.datasketches</pattern>
@@ -341,6 +324,30 @@
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
                 </relocation>
               </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- This plugin is used to run a script after the package phase in order to rename
+            libnetty_transport_native_epoll_x86_64.so from Netty into
+            liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so
+            to reflect the shade that is being applied.
+         -->
+        <artifactId>exec-maven-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <executions>
+          <execution>
+            <id>rename-epoll-library</id>
+            <phase>package</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>${project.parent.basedir}/src/${rename.netty.native.libs}</executable>
+              <arguments>
+                <argument>${project.artifactId}</argument>
+              </arguments>
             </configuration>
           </execution>
         </executions>

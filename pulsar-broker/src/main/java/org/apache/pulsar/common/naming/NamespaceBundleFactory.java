@@ -155,6 +155,10 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return bundlesCache.synchronous().get(nsname);
     }
 
+    public Optional<NamespaceBundles> getBundlesIfPresent(NamespaceName nsname) throws Exception {
+        return Optional.ofNullable(bundlesCache.synchronous().getIfPresent(nsname));
+    }
+
     public NamespaceBundle getBundle(NamespaceName nsname, Range<Long> hashRange) {
         return new NamespaceBundle(nsname, hashRange, this);
     }

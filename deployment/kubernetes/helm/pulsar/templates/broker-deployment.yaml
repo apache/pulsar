@@ -82,7 +82,7 @@ spec:
         command: ["sh", "-c"]
         args:
           - >-
-            until nslookup {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ add (.Values.zookeeper.replicaCount | int) -1 }}.{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}.{{ .Values.namespace }}; do
+            until bin/pulsar zookeeper-shell -server {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }} ls /admin/clusters/{{ template "pulsar.fullname" . }}; do
               sleep 3;
             done;
       containers:
@@ -98,6 +98,7 @@ spec:
         - >
           bin/apply-config-from-env.py conf/broker.conf &&
           bin/apply-config-from-env.py conf/pulsar_env.sh &&
+          bin/gen-yml-from-env.py conf/functions_worker.yml &&
           bin/pulsar broker
         ports:
         - name: http

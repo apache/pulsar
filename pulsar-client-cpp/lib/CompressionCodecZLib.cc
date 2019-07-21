@@ -28,13 +28,13 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
 
-SharedBuffer CompressionCodecZLib::encode(const SharedBuffer& raw) {
+SharedBuffer CompressionCodecZLib::encode(const SharedBuffer &raw) {
     // Get the max size of the compressed data and allocate a buffer to hold it
     int maxCompressedSize = compressBound(raw.readableBytes());
     SharedBuffer compressed = SharedBuffer::allocate(maxCompressedSize);
 
     unsigned long bytesWritten = maxCompressedSize;
-    int res = compress((Bytef*)compressed.mutableData(), &bytesWritten, (const Bytef*)raw.data(),
+    int res = compress((Bytef *)compressed.mutableData(), &bytesWritten, (const Bytef *)raw.data(),
                        raw.readableBytes());
     if (res != Z_OK) {
         LOG_ERROR("Failed to compress buffer. res=" << res);
@@ -45,17 +45,44 @@ SharedBuffer CompressionCodecZLib::encode(const SharedBuffer& raw) {
     return compressed;
 }
 
-bool CompressionCodecZLib::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
-                                  SharedBuffer& decoded) {
+static bool buffer_uncompress(const char *compressedBuffer, unsigned long compressedSize, char *resultBuffer,
+                              uint32_t uncompressedSize) {
+    z_stream stream;
+    stream.next_in = (Bytef *)compressedBuffer;
+    stream.avail_in = compressedSize;
+    stream.zalloc = NULL;
+    stream.zfree = NULL;
+    stream.opaque = NULL;
+
+    int res = inflateInit2(&stream, MAX_WBITS);
+    if (res != Z_OK) {
+        LOG_ERROR("Failed to initialize inflate stream: " << res);
+        return false;
+    }
+
+    stream.next_out = (Bytef *)resultBuffer;
+    stream.avail_out = uncompressedSize;
+
+    res = inflate(&stream, Z_PARTIAL_FLUSH);
+    inflateEnd(&stream);
+
+    if (res == Z_OK || res == Z_STREAM_END) {
+        return true;
+    } else {
+        LOG_ERROR("Failed to decompress zlib buffer: " << res << " -- compressed size: " << compressedSize
+                                                       << " -- uncompressed size: " << uncompressedSize);
+        return false;
+    }
+}
+
+bool CompressionCodecZLib::decode(const SharedBuffer &encoded, uint32_t uncompressedSize,
+                                  SharedBuffer &decoded) {
     SharedBuffer decompressed = SharedBuffer::allocate(uncompressedSize);
 
-    unsigned long bytesUncompressed = uncompressedSize;
-    int res = uncompress((Bytef*)decompressed.mutableData(), &bytesUncompressed, (Bytef*)encoded.data(),
-                         encoded.readableBytes());
-
-    decompressed.bytesWritten(bytesUncompressed);
-    if (res == Z_OK) {
+    if (buffer_uncompress(encoded.data(), encoded.readableBytes(), decompressed.mutableData(),
+                          uncompressedSize)) {
         decoded = decompressed;
+        decoded.setWriterIndex(uncompressedSize);
         return true;
     } else {
         return false;

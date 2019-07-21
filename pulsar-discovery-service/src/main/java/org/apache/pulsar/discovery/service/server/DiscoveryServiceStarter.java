@@ -19,11 +19,13 @@
 package org.apache.pulsar.discovery.service.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.lang.Thread.setDefaultUncaughtExceptionHandler;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -49,8 +51,10 @@ public class DiscoveryServiceStarter {
         // setup handlers
         removeHandlersForRootLogger();
         install();
-        setDefaultUncaughtExceptionHandler((thread, exception) -> {
-            log.error("Uncaught exception in thread {}: {}", thread.getName(), exception.getMessage(), exception);
+
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+        Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
+            System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
         });
 
         // load config file

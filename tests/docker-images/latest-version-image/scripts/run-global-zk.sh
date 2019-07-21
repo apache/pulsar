@@ -18,6 +18,8 @@
 # under the License.
 #
 
+bin/set_python_version.sh
+
 bin/apply-config-from-env.py conf/zookeeper.conf && \
     bin/apply-config-from-env.py conf/pulsar_env.sh && \
     bin/generate-zookeeper-config.sh conf/global_zookeeper.conf

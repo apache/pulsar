@@ -87,7 +87,7 @@ Once you've set up ZooKeeper, initialized cluster metadata, and spun up BookKeep
 
 Brokers can be configured using the [`conf/broker.conf`](../../reference/Configuration#broker) configuration file.
 
-The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](../../reference/Configuration#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](../../reference/Configuration#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
 
 You also need to specify the name of the {% popover cluster %} to which the broker belongs using the [`clusterName`](../../reference/Configuration#broker-clusterName) parameter.
 

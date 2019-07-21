@@ -20,9 +20,9 @@
 package main
 
 import (
-	"github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
 	"fmt"
-	"log"
+	log "github.com/apache/pulsar/pulsar-client-go/logutil"
+	"github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {

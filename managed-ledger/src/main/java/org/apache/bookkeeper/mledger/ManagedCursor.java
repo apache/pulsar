@@ -395,7 +395,7 @@ public interface ManagedCursor {
             final SkipEntriesCallback callback, Object ctx);
 
     /**
-     * Find the newest entry that matches the given predicate.
+     * Find the newest entry that matches the given predicate.  Will only search among active entries
      *
      * @param condition
      *            predicate that reads an entry an applies a condition
@@ -405,9 +405,25 @@ public interface ManagedCursor {
      */
     Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
 
+
     /**
      * Find the newest entry that matches the given predicate.
      *
+     * @param constraint
+     *            search only active entries or all entries
+     * @param condition
+     *            predicate that reads an entry an applies a condition
+     * @return Position of the newest entry that matches the given predicate
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Find the newest entry that matches the given predicate.
+     *
+     * @param constraint
+     *            search only active entries or all entries
      * @param condition
      *            predicate that reads an entry an applies a condition
      * @param callback
@@ -451,7 +467,7 @@ public interface ManagedCursor {
             throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Read the specified set of positions from ManagedLedger.
+     * Read the specified set of positions from ManagedLedger without ordering.
      *
      * @param positions
      *            set of positions to read
@@ -464,6 +480,23 @@ public interface ManagedCursor {
      */
     Set<? extends Position> asyncReplayEntries(
         Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
+
+    /**
+     * Read the specified set of positions from ManagedLedger.
+     *
+     * @param positions
+     *            set of positions to read
+     * @param callback
+     *            callback object returning the list of entries
+     * @param ctx
+     *            opaque context
+     * @param sortEntries
+     *            callback with sorted entry list.
+     * @return skipped positions
+     *              set of positions which are already deleted/acknowledged and skipped while replaying them
+     */
+    Set<? extends Position> asyncReplayEntries(
+            Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries);
 
     /**
      * Close the cursor and releases the associated resources.
@@ -501,6 +534,12 @@ public interface ManagedCursor {
      *
      */
     void setInactive();
+
+    /**
+     * A cursor that is set as always-inactive  will never trigger the caching of
+     * entries.
+     */
+    void setAlwaysInactive();
 
     /**
      * Checks if cursor is active or not.

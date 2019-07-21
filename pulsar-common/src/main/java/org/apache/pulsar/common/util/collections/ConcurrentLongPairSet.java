@@ -26,7 +26,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.StampedLock;
-import java.util.function.Predicate;
+import java.util.function.BiFunction;
+
+import org.apache.pulsar.common.util.collections.LongPairSet.LongPairFunction;
 
 /**
  * Concurrent hash set where values are composed of pairs of longs.
@@ -39,7 +41,7 @@ import java.util.function.Predicate;
  * <p>
  * Values <strong>MUST</strong> be >= 0.
  */
-public class ConcurrentLongPairSet {
+public class ConcurrentLongPairSet implements LongPairSet {
 
     private static final long EmptyItem = -1L;
     private static final long DeletedItem = -2L;
@@ -53,10 +55,6 @@ public class ConcurrentLongPairSet {
 
     public static interface ConsumerLong {
         void accept(LongPair item);
-    }
-
-    public interface LongPairPredicate {
-        boolean test(long v1, long v2);
     }
 
     public static interface LongPairConsumer {
@@ -163,11 +161,11 @@ public class ConcurrentLongPairSet {
 
     /**
      * Removes all of the elements of this collection that satisfy the given predicate.
-     * 
+     *
      * @param filter
      *            a predicate which returns {@code true} for elements to be removed
      * @return {@code true} if any elements were removed
-     * 
+     *
      * @return number of removed values
      */
     public int removeIf(LongPairPredicate filter) {
@@ -191,11 +189,16 @@ public class ConcurrentLongPairSet {
      * @return a new list of keys with max provided numberOfItems (makes a copy)
      */
     public Set<LongPair> items(int numberOfItems) {
-        Set<LongPair> items = new HashSet<>();
+        return items(numberOfItems, (item1, item2) -> new LongPair(item1, item2));
+    }
+
+    @Override
+    public <T> Set<T> items(int numberOfItems, LongPairFunction<T> longPairConverter) {
+        Set<T> items = new HashSet<>();
         for (Section s : sections) {
             s.forEach((item1, item2) -> {
                 if (items.size() < numberOfItems) {
-                    items.add(new LongPair(item1, item2));
+                    items.add(longPairConverter.apply(item1, item2));
                 }
             });
             if (items.size() >= numberOfItems) {
@@ -204,14 +207,14 @@ public class ConcurrentLongPairSet {
         }
         return items;
     }
-
+    
     // A section is a portion of the hash map that is covered by a single
     @SuppressWarnings("serial")
     private static final class Section extends StampedLock {
         // Keys and values are stored interleaved in the table array
-        private long[] table;
+        private volatile long[] table;
 
-        private int capacity;
+        private volatile int capacity;
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;
@@ -449,9 +452,11 @@ public class ConcurrentLongPairSet {
                 }
             }
 
-            capacity = newCapacity;
             table = newTable;
             usedBuckets = size;
+            // Capacity needs to be updated after the values, so that we won't see
+            // a capacity value bigger than the actual array size
+            capacity = newCapacity;
             resizeThreshold = (int) (capacity * SetFillFactor);
         }
 
@@ -532,7 +537,7 @@ public class ConcurrentLongPairSet {
             }
         }
     }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -551,4 +556,5 @@ public class ConcurrentLongPairSet {
         sb.append('}');
         return sb.toString();
     }
+
 }

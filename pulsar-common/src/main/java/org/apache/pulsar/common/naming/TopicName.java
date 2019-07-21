@@ -44,7 +44,7 @@ public class TopicName implements ServiceUnitId {
     public static final String PUBLIC_TENANT = "public";
     public static final String DEFAULT_NAMESPACE = "default";
 
-    private static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
+    public static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
 
     private final String completeTopicName;
 
@@ -120,7 +120,6 @@ public class TopicName implements ServiceUnitId {
                         + "<tenant>/<namespace>/<topic> or <topic>");
                 }
             }
-            this.completeTopicName = completeTopicName;
 
             // The fully qualified topic name can be in two different forms:
             // new:    persistent://tenant/namespace/topic
@@ -164,10 +163,18 @@ public class TopicName implements ServiceUnitId {
             if (localName == null || localName.isEmpty()) {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
+
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Invalid topic name: " + completeTopicName, e);
         }
-
+        if (isV2()) {
+            this.completeTopicName = String.format("%s://%s/%s/%s",
+                                                   domain, tenant, namespacePortion, localName);
+        } else {
+            this.completeTopicName = String.format("%s://%s/%s/%s/%s",
+                                                   domain, tenant, cluster,
+                                                   namespacePortion, localName);
+        }
     }
 
     public boolean isPersistent() {
@@ -330,7 +337,7 @@ public class TopicName implements ServiceUnitId {
     public String getSchemaName() {
         return getTenant()
             + "/" + getNamespacePortion()
-            + "/" + getLocalName();
+            + "/" + getEncodedLocalName();
     }
 
     @Override

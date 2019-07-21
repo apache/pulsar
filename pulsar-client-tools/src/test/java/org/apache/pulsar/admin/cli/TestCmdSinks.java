@@ -18,18 +18,33 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+
+import java.io.File;
+import java.net.URL;
+import java.nio.file.Files;
+import java.util.*;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Resources;
-import org.apache.pulsar.functions.utils.SinkConfig;
-import org.apache.pulsar.io.cassandra.CassandraStringSink;
-import org.mockito.Mockito;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -39,24 +54,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.net.URL;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-
 @Slf4j
 @PrepareForTest({CmdFunctions.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*" })
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*", "org.apache.pulsar.functions.api.*" })
 public class TestCmdSinks {
 
     @ObjectFactory
@@ -67,15 +67,25 @@ public class TestCmdSinks {
     private static final String TENANT = "test-tenant";
     private static final String NAMESPACE = "test-namespace";
     private static final String NAME = "test";
-    private static final String CLASS_NAME = CassandraStringSink.class.getName();
+    private static final String CLASS_NAME = "SomeRandomClassName";
     private static final String INPUTS = "test-src1,test-src2";
+    private static final List<String> INPUTS_LIST;
+    static {
+        INPUTS_LIST = new LinkedList<>();
+        INPUTS_LIST.add("test-src1");
+        INPUTS_LIST.add("test-src2");
+    }
     private static final String TOPIC_PATTERN = "test-src*";
     private static final String CUSTOM_SERDE_INPUT_STRING = "{\"test_src3\": \"\"}";
+    private static final Map<String, String> CUSTOM_SERDE_INPUT_MAP;
+    static {
+        CUSTOM_SERDE_INPUT_MAP = new HashMap<>();
+        CUSTOM_SERDE_INPUT_MAP.put("test_src3", "");
+    }
     private static final FunctionConfig.ProcessingGuarantees PROCESSING_GUARANTEES
             = FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
     private static final Integer PARALLELISM = 1;
-    private static final String JAR_FILE_NAME = "pulsar-io-cassandra.nar";
-    private static final String WRONG_JAR_FILE_NAME = "pulsar-io-twitter.nar";
+    private static final String JAR_FILE_NAME = "dummy.nar";
     private String JAR_FILE_PATH;
     private String WRONG_JAR_PATH;
     private static final Double CPU = 100.0;
@@ -84,7 +94,7 @@ public class TestCmdSinks {
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 0000 2018\"}";
 
     private PulsarAdmin pulsarAdmin;
-    private Functions functions;
+    private Sinks sink;
     private CmdSinks cmdSinks;
     private CmdSinks.CreateSink createSink;
     private CmdSinks.UpdateSink updateSink;
@@ -95,8 +105,8 @@ public class TestCmdSinks {
     public void setup() throws Exception {
 
         pulsarAdmin = mock(PulsarAdmin.class);
-        functions = mock(Functions.class);
-        when(pulsarAdmin.functions()).thenReturn(functions);
+        sink = mock(Sinks.class);
+        when(pulsarAdmin.sinks()).thenReturn(sink);
 
         cmdSinks = spy(new CmdSinks(pulsarAdmin));
         createSink = spy(cmdSinks.getCreateSink());
@@ -105,14 +115,13 @@ public class TestCmdSinks {
         deleteSink = spy(cmdSinks.getDeleteSink());
 
         mockStatic(CmdFunctions.class);
-        PowerMockito.doNothing().when(CmdFunctions.class, "startLocalRun", Mockito.any(), Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        PowerMockito.doNothing().when(localSinkRunner).runCmd();
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
         if (file == null)  {
             throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
         }
         JAR_FILE_PATH = file.getFile();
-        WRONG_JAR_PATH = Thread.currentThread().getContextClassLoader().getResource(WRONG_JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
+        Thread.currentThread().setContextClassLoader(FunctionCommon.loadJar(new File(JAR_FILE_PATH)));
     }
 
     public SinkConfig getSinkConfig() {
@@ -121,12 +130,10 @@ public class TestCmdSinks {
         sinkConfig.setNamespace(NAMESPACE);
         sinkConfig.setName(NAME);
 
-        Map<String, String> topicsToSerDeClassName = new HashMap<>();
-        createSink.parseInputs(INPUTS, topicsToSerDeClassName);
-        createSink.parseCustomSerdeInput(CUSTOM_SERDE_INPUT_STRING, topicsToSerDeClassName);
-        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
-
+        sinkConfig.setInputs(INPUTS_LIST);
+        sinkConfig.setTopicToSerdeClassName(CUSTOM_SERDE_INPUT_MAP);
         sinkConfig.setTopicsPattern(TOPIC_PATTERN);
+
         sinkConfig.setProcessingGuarantees(PROCESSING_GUARANTEES);
         sinkConfig.setParallelism(PARALLELISM);
         sinkConfig.setArchive(JAR_FILE_PATH);
@@ -155,79 +162,11 @@ public class TestCmdSinks {
                 sinkConfig
         );
     }
-    
-    @Test
-    public void testMissingTenant() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setTenant(PUBLIC_TENANT);
-        testCmdSinkCliMissingArgs(
-                null,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingNamespace() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setNamespace(DEFAULT_NAMESPACE);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                null,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
-    public void testMissingName() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setName(null);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                null,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
 
     @Test
     public void testMissingInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        Map<String, String> topicsToSerDeClassName = new HashMap<>();
-        createSink.parseCustomSerdeInput(CUSTOM_SERDE_INPUT_STRING, topicsToSerDeClassName);
-        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+        sinkConfig.setInputs(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -249,9 +188,8 @@ public class TestCmdSinks {
     @Test
     public void testMissingCustomSerdeInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
-        Map<String, String> topicsToSerDeClassName = new HashMap<>();
-        createSink.parseInputs(INPUTS, topicsToSerDeClassName);
-        sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+        sinkConfig.setTopicToSerdeClassName(null);
+        sinkConfig.setTopicToSchemaType(null);
         testCmdSinkCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -292,29 +230,6 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via inputs, customSerdeInputs, or topicPattern")
-    public void testMissingAllInputTopics() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setTopicsPattern(null);
-        sinkConfig.setTopicToSerdeClassName(new HashMap<>());
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                null,
-                null,
-                null,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
     @Test
     public void testMissingProcessingGuarantees() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -328,72 +243,6 @@ public class TestCmdSinks {
                 CUSTOM_SERDE_INPUT_STRING,
                 null,
                 PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingParallelism() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setParallelism(1);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                null,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
-    public void testNegativeParallelism() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setParallelism(-1);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                -1,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
-    public void testZeroParallelism() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setParallelism(0);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                0,
                 JAR_FILE_PATH,
                 CPU,
                 RAM,
@@ -425,29 +274,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-twitter.nar has error: The 'twitter' connector does not provide a sink implementation")
-    public void testInvalidJarWithNoSource() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setArchive(WRONG_JAR_PATH);
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                WRONG_JAR_PATH,
-                CPU,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar" +
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Archive file /tmp/foo.jar" +
             " does not exist")
     public void testInvalidJar() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -466,72 +293,6 @@ public class TestCmdSinks {
                 CPU,
                 RAM,
                 DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingCpu() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(null, RAM, DISK));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                null,
-                RAM,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingRam() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(CPU, null, DISK));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                null,
-                DISK,
-                SINK_CONFIG_STRING,
-                sinkConfig
-        );
-    }
-
-    @Test
-    public void testMissingDisk() throws Exception {
-        SinkConfig sinkConfig = getSinkConfig();
-        sinkConfig.setResources(new Resources(CPU, RAM, null));
-        testCmdSinkCliMissingArgs(
-                TENANT,
-                NAMESPACE,
-                NAME,
-                INPUTS,
-                TOPIC_PATTERN,
-                CUSTOM_SERDE_INPUT_STRING,
-                PROCESSING_GUARANTEES,
-                PARALLELISM,
-                JAR_FILE_PATH,
-                CPU,
-                RAM,
-                null,
                 SINK_CONFIG_STRING,
                 sinkConfig
         );
@@ -645,64 +406,18 @@ public class TestCmdSinks {
     }
 
     @Test
-    public void testCmdSinkConfigFileMissingTenant() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setTenant(null);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setTenant(PUBLIC_TENANT);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test
-    public void testCmdSinkConfigFileMissingNamespace() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setNamespace(null);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setNamespace(DEFAULT_NAMESPACE);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'name' cannot be null!")
-    public void testCmdSinkConfigFileMissingName() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setName(null);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setName(null);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test
     public void testCmdSinkConfigFileMissingTopicToSerdeClassName() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setTopicToSerdeClassName(null);
 
         SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setTopicToSerdeClassName(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
     @Test
     public void testCmdSinkConfigFileMissingTopicsPattern() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setTopicsPattern(null);
 
         SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setTopicsPattern(null);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Must specify at least one topic of input via inputs, customSerdeInputs, or topicPattern")
-    public void testCmdSinkConfigFileMissingAllInput() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setTopicsPattern(null);
-        testSinkConfig.setTopicToSerdeClassName(null);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setTopicsPattern(null);
-        expectedSinkConfig.setTopicToSerdeClassName(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
@@ -713,26 +428,6 @@ public class TestCmdSinks {
 
         SinkConfig expectedSinkConfig = getSinkConfig();
         expectedSinkConfig.setConfigs(null);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
-    public void testCmdSinkConfigFileZeroParallelism() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setParallelism(0);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setParallelism(0);
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'parallelism' must be a Positive Number")
-    public void testCmdSinkConfigFileNegativeParallelism() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setParallelism(-1);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setParallelism(-1);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
@@ -752,7 +447,7 @@ public class TestCmdSinks {
         testSinkConfig.setResources(null);
 
         SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setResources(new Resources());
+        expectedSinkConfig.setResources(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
@@ -766,23 +461,13 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar does not exist")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Archive file /tmp/foo.jar does not exist")
     public void testCmdSinkConfigFileInvalidJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive("/tmp/foo.jar");
 
         SinkConfig expectedSinkConfig = getSinkConfig();
         expectedSinkConfig.setArchive("/tmp/foo.jar");
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-    }
-
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-twitter.nar has error: The 'twitter' connector does not provide a sink implementation")
-    public void testCmdSinkConfigFileInvalidJarNoSink() throws Exception {
-        SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setArchive(WRONG_JAR_PATH);
-
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setArchive(WRONG_JAR_PATH);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
@@ -816,8 +501,8 @@ public class TestCmdSinks {
         verify(updateSink).validateSinkConfigs(eq(expectedSinkConfig));
         verify(localSinkRunner).validateSinkConfigs(eq(expectedSinkConfig));
     }
-    
-    
+
+
     @Test
     public void testCliOverwriteConfigFile() throws Exception {
 
@@ -826,18 +511,17 @@ public class TestCmdSinks {
         testSinkConfig.setNamespace(NAMESPACE + "-prime");
         testSinkConfig.setName(NAME + "-prime");
 
-        Map<String, String> topicsToSerDeClassName = new HashMap<>();
-        createSink.parseInputs(INPUTS + ",test-src-prime", topicsToSerDeClassName);
-        createSink.parseCustomSerdeInput("{\"test_src3-prime\": \"\"}", topicsToSerDeClassName);
-        testSinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
-
+        testSinkConfig.setTopicToSerdeClassName(new HashMap<>());
+        testSinkConfig.getTopicToSerdeClassName().put("test-src-prime", "");
+        testSinkConfig.getTopicToSerdeClassName().put("test_src3-prime", "");
         testSinkConfig.setTopicsPattern(TOPIC_PATTERN + "-prime");
+
         testSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
         testSinkConfig.setParallelism(PARALLELISM + 1);
         testSinkConfig.setArchive(JAR_FILE_PATH + "-prime");
         testSinkConfig.setResources(new Resources(CPU + 1, RAM + 1, DISK + 1));
-        testSinkConfig.setConfigs(createSink.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\"}"));
-        
+        testSinkConfig.setConfigs(createSink.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\", \"otherConfigProperties\":{\"property1.value\":\"value1\",\"property2.value\":\"value2\"}}"));
+
 
         SinkConfig expectedSinkConfig = getSinkConfig();
 
@@ -846,7 +530,7 @@ public class TestCmdSinks {
         new YAMLMapper().writeValue(file, testSinkConfig);
 
         Assert.assertEquals(testSinkConfig, CmdUtils.loadConfig(file.getAbsolutePath(), SinkConfig.class));
-        
+
         testMixCliAndConfigFile(
                 TENANT,
                 NAMESPACE,
@@ -866,7 +550,7 @@ public class TestCmdSinks {
                 expectedSinkConfig
         );
     }
-    
+
     public void testMixCliAndConfigFile(
             String tenant,
             String namespace,
@@ -885,8 +569,8 @@ public class TestCmdSinks {
             String sinkConfigFile,
             SinkConfig sinkConfig
     ) throws Exception {
-        
-        
+
+
         // test create sink
         createSink.tenant = tenant;
         createSink.namespace = namespace;
@@ -923,7 +607,6 @@ public class TestCmdSinks {
         updateSink.sinkConfigString = sinkConfigString;
         updateSink.sinkConfigFile = sinkConfigFile;
 
-
         updateSink.processArguments();
 
         updateSink.runCmd();
@@ -958,38 +641,81 @@ public class TestCmdSinks {
     public void testDeleteMissingTenant() throws Exception {
         deleteSink.tenant = null;
         deleteSink.namespace = NAMESPACE;
-        deleteSink.name = NAME;
+        deleteSink.sinkName = NAME;
 
         deleteSink.processArguments();
 
         deleteSink.runCmd();
 
-        verify(functions).deleteFunction(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
+        verify(sink).deleteSink(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
     }
 
     @Test
     public void testDeleteMissingNamespace() throws Exception {
         deleteSink.tenant = TENANT;
         deleteSink.namespace = null;
-        deleteSink.name = NAME;
+        deleteSink.sinkName = NAME;
 
         deleteSink.processArguments();
 
         deleteSink.runCmd();
 
-        verify(functions).deleteFunction(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
+        verify(sink).deleteSink(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "You must specify a name for the sink")
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "You must specify a name for the sink")
     public void testDeleteMissingName() throws Exception {
         deleteSink.tenant = TENANT;
         deleteSink.namespace = NAMESPACE;
-        deleteSink.name = null;
+        deleteSink.sinkName = null;
 
         deleteSink.processArguments();
 
         deleteSink.runCmd();
 
-        verify(functions).deleteFunction(eq(TENANT), eq(NAMESPACE), null);
+        verify(sink).deleteSink(eq(TENANT), eq(NAMESPACE), null);
+    }
+
+    @Test
+    public void testUpdateSink() throws Exception {
+
+        updateSink.name = "my-sink";
+
+        updateSink.archive = "new-archive";
+
+        updateSink.processArguments();
+
+        updateSink.runCmd();
+
+        verify(sink).updateSink(eq(SinkConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSink.name)
+                .archive(updateSink.archive)
+                .build()), eq(updateSink.archive), eq(new UpdateOptions()));
+
+
+        updateSink.archive = null;
+
+        updateSink.parallelism = 2;
+
+        updateSink.processArguments();
+
+        updateSink.updateAuthData = true;
+
+        updateSink.runCmd();
+
+        UpdateOptions updateOptions = new UpdateOptions();
+        updateOptions.setUpdateAuthData(true);
+
+        verify(sink).updateSink(eq(SinkConfig.builder()
+                .tenant(PUBLIC_TENANT)
+                .namespace(DEFAULT_NAMESPACE)
+                .name(updateSink.name)
+                .parallelism(2)
+                .build()), eq(null), eq(updateOptions));
+
+
+
     }
 }

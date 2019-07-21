@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 
 /**
  * Base type of exception thrown by Pulsar Broker Service
@@ -33,6 +36,10 @@ public class BrokerServiceException extends Exception {
 
     public BrokerServiceException(Throwable t) {
         super(t);
+    }
+
+    public BrokerServiceException(String message, Throwable cause) {
+        super(message, cause);
     }
 
     public static class ConsumerBusyException extends BrokerServiceException {
@@ -145,7 +152,17 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ConsumerAssignException extends BrokerServiceException {
+        public ConsumerAssignException(String msg) {
+            super(msg);
+        }
+    }
+
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
+        return getClientErrorCode(t, true);
+    }
+
+    private static PulsarApi.ServerError getClientErrorCode(Throwable t, boolean checkCauseIfUnknown) {
         if (t instanceof ServerMetadataException) {
             return PulsarApi.ServerError.MetadataError;
         } else if (t instanceof NamingException) {
@@ -163,8 +180,19 @@ public class BrokerServiceException extends Exception {
         } else if (t instanceof ServiceUnitNotReadyException || t instanceof TopicFencedException
                 || t instanceof SubscriptionFencedException) {
             return PulsarApi.ServerError.ServiceNotReady;
+        } else if (t instanceof IncompatibleSchemaException
+            || t instanceof InvalidSchemaDataException) {
+            // for backward compatible with old clients, invalid schema data
+            // is treated as "incompatible schema".
+            return PulsarApi.ServerError.IncompatibleSchema;
+        } else if (t instanceof ConsumerAssignException) {
+            return ServerError.ConsumerAssignError;
         } else {
-            return PulsarApi.ServerError.UnknownError;
+            if (checkCauseIfUnknown) {
+                return getClientErrorCode(t.getCause(), false);
+            } else {
+                return PulsarApi.ServerError.UnknownError;
+            }
         }
     }
 }

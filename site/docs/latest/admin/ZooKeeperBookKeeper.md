@@ -40,7 +40,7 @@ Skip to the [How Pulsar uses ZooKeeper and BookKeeper](#how-pulsar-uses-zookeepe
 
 ### ZooKeeper configuration
 
-In Pulsar, ZooKeeper configuration is handled by two separate configuration files found in the `conf` directory of your Pulsar installation: `conf/zookeeper.conf` for [local ZooKeeper](#local-zookeeper) and `conf/global-zookeeper.conf` for [global ZooKeeper](#global-zookeeper).
+In Pulsar, ZooKeeper configuration is handled by two separate configuration files found in the `conf` directory of your Pulsar installation: `conf/zookeeper.conf` for [local ZooKeeper](#local-zookeeper) and `conf/global-zookeeper.conf` for [Configuration Store](#configuration-store).
 
 #### Local ZooKeeper
 
@@ -48,11 +48,11 @@ Configuration for local ZooKeeper is handled by the [`conf/zookeeper.conf`](../.
 
 {% include config.html id="zookeeper" %}
 
-#### Global ZooKeeper
+#### Configuration Store
 
-Configuration for global ZooKeeper is handled by the [`conf/global-zookeeper.conf`](../../reference/Configuration#global-zookeeper) file. The table below shows the available parameters:
+Configuration for configuration Store is handled by the [`conf/global-zookeeper.conf`](../../reference/Configuration#configuration-store) file. The table below shows the available parameters:
 
-{% include config.html id="global-zookeeper" %}
+{% include config.html id="configuration-store" %}
 
 ## BookKeeper
 
@@ -122,9 +122,9 @@ $ pulsar-admin namespaces set-persistence my-prop/my-cluster/my-ns \
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/persistence %}
+{% endpoint POST /admin/v2/namespaces/:tenant/:namespace/persistence %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/persistence)
 
 #### Java
 
@@ -160,9 +160,9 @@ $ pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/persistence %}
+{% endpoint GET /admin/v2/namespaces/:tenant/:namespace/persistence %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/persistence)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/persistence)
 
 #### Java
 

@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -25,31 +29,71 @@ import org.apache.pulsar.common.schema.SchemaType;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Schema definition for Strings encoded in UTF-8 format.
+ */
 public class StringSchema implements Schema<String> {
-    private final Charset charset;
+
+    static final String CHARSET_KEY = "__charset";
+
+    public static StringSchema utf8() {
+        return UTF8;
+    }
+
+    public static StringSchema fromSchemaInfo(SchemaInfo schemaInfo) {
+        checkArgument(SchemaType.STRING == schemaInfo.getType(), "Not a string schema");
+        String charsetName = schemaInfo.getProperties().get(CHARSET_KEY);
+        if (null == charsetName) {
+            return UTF8;
+        } else {
+            return new StringSchema(Charset.forName(charsetName));
+        }
+    }
+
+    private static final SchemaInfo DEFAULT_SCHEMA_INFO = new SchemaInfo()
+        .setName("String")
+        .setType(SchemaType.STRING)
+        .setSchema(new byte[0]);
     private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+
+    // make sure other static fields are initialized before this field
+    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
+    private final Charset charset;
+    private final SchemaInfo schemaInfo;
 
     public StringSchema() {
         this.charset = DEFAULT_CHARSET;
+        this.schemaInfo = DEFAULT_SCHEMA_INFO;
     }
 
     public StringSchema(Charset charset) {
         this.charset = charset;
+        Map<String, String> properties = new HashMap<>();
+        properties.put(CHARSET_KEY, charset.name());
+        this.schemaInfo = new SchemaInfo()
+            .setName(DEFAULT_SCHEMA_INFO.getName())
+            .setType(SchemaType.STRING)
+            .setSchema(DEFAULT_SCHEMA_INFO.getSchema())
+            .setProperties(properties);
     }
 
     public byte[] encode(String message) {
-        return message.getBytes(charset);
+        if (null == message) {
+            return null;
+        } else {
+            return message.getBytes(charset);
+        }
     }
 
     public String decode(byte[] bytes) {
-        return new String(bytes, charset);
+        if (null == bytes) {
+            return null;
+        } else {
+            return new String(bytes, charset);
+        }
     }
 
     public SchemaInfo getSchemaInfo() {
-        SchemaInfo schemaInfo = new SchemaInfo();
-        schemaInfo.setName("String");
-        schemaInfo.setType(SchemaType.STRING);
-        schemaInfo.setSchema(new byte[0]);
         return schemaInfo;
     }
 }

@@ -19,11 +19,9 @@
 #ifndef LIB_SHARED_BUFFER_H_
 #define LIB_SHARED_BUFFER_H_
 
-#include <boost/array.hpp>
 #include <boost/asio.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/shared_ptr.hpp>
 
+#include <array>
 #include <vector>
 
 namespace pulsar {
@@ -188,7 +186,7 @@ class SharedBuffer {
     }
 
    private:
-    typedef boost::shared_ptr<detail::SharedBufferInternal> BufferPtr;
+    typedef std::shared_ptr<detail::SharedBufferInternal> BufferPtr;
 
     BufferPtr data_;
     char* ptr_;
@@ -200,7 +198,7 @@ class SharedBuffer {
         : data_(), ptr_(ptr), readIdx_(0), writeIdx_(size), capacity_(size) {}
 
     explicit SharedBuffer(size_t size)
-        : data_(boost::make_shared<detail::SharedBufferInternal>(size)),
+        : data_(std::make_shared<detail::SharedBufferInternal>(size)),
           ptr_(data_->ptr()),
           readIdx_(0),
           writeIdx_(0),
@@ -225,8 +223,8 @@ class CompositeSharedBuffer {
     const boost::asio::const_buffer* end() const { return begin() + Size; }
 
    private:
-    boost::array<SharedBuffer, Size> sharedBuffers_;
-    boost::array<boost::asio::const_buffer, Size> asioBuffers_;
+    std::array<SharedBuffer, Size> sharedBuffers_;
+    std::array<boost::asio::const_buffer, Size> asioBuffers_;
 };
 
 typedef CompositeSharedBuffer<2> PairSharedBuffer;

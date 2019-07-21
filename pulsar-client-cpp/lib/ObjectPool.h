@@ -20,11 +20,8 @@
 #define LIB_OBJECTPOOL_H_
 
 #include <algorithm>
-#include <boost/thread/locks.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/thread/tss.hpp>
+#include <mutex>
+#include <memory>
 
 namespace pulsar {
 
@@ -35,7 +32,7 @@ class Allocator {
     class Impl {
        public:
         // cheap lock to acquire
-        static boost::mutex mutex_;
+        static std::mutex mutex_;
 
         // note: use std::forward_list<> when switching to C++11 mode
         struct Node {
@@ -60,7 +57,7 @@ class Allocator {
         void* pop() {
             if (!head_) {
                 // size = 0
-                boost::lock_guard<boost::mutex> lock(mutex_);
+                std::lock_guard<std::mutex> lock(mutex_);
 
                 if (!globalPool_) {
                     return NULL;
@@ -87,7 +84,7 @@ class Allocator {
                 bool deleteList = true;
                 {
                     // Move the entries to global pool
-                    boost::lock_guard<boost::mutex> lock(mutex_);
+                    std::lock_guard<std::mutex> lock(mutex_);
 
                     // If total node count reached max allowed cache limit,
                     // skip adding to global pool.
@@ -149,7 +146,7 @@ class Allocator {
         }
     };
 
-    static boost::thread_specific_ptr<Impl> implPtr_;
+    static thread_local std::unique_ptr<Impl> implPtr_;
     typedef T value_type;
     typedef size_t size_type;
     typedef T* pointer;
@@ -193,27 +190,27 @@ class Allocator {
 // typename Allocator<Type,MaxSize>::Impl is important else the compiler
 // doesn't understand that it is a type
 template <typename Type, int MaxSize>
-boost::thread_specific_ptr<typename Allocator<Type, MaxSize>::Impl> Allocator<Type, MaxSize>::implPtr_;
+thread_local std::unique_ptr<typename Allocator<Type, MaxSize>::Impl> Allocator<Type, MaxSize>::implPtr_;
 
 template <typename Type, int MaxSize>
-boost::mutex Allocator<Type, MaxSize>::Impl::mutex_;
+std::mutex Allocator<Type, MaxSize>::Impl::mutex_;
 
 template <typename Type, int MaxSize>
-struct Allocator<Type, MaxSize>::Impl::GlobalPool* Allocator<Type, MaxSize>::Impl::globalPool_;
+typename Allocator<Type, MaxSize>::Impl::GlobalPool* Allocator<Type, MaxSize>::Impl::globalPool_;
 
 template <typename Type, int MaxSize>
 int Allocator<Type, MaxSize>::Impl::globalNodeCount_;
 
 template <typename Type, int MaxSize>
 class ObjectPool {
-    typedef boost::shared_ptr<Type> TypeSharedPtr;
+    typedef std::shared_ptr<Type> TypeSharedPtr;
 
     Allocator<Type, MaxSize> allocator_;
 
    public:
     ObjectPool() {}
 
-    TypeSharedPtr create() { return boost::allocate_shared<Type>(allocator_); }
+    TypeSharedPtr create() { return std::allocate_shared<Type>(allocator_); }
 
     ~ObjectPool() {
         struct Allocator<Type, MaxSize>::Impl::GlobalPool* poolEntry =

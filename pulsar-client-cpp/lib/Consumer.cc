@@ -73,6 +73,15 @@ Result Consumer::receive(Message& msg, int timeoutMs) {
     return impl_->receive(msg, timeoutMs);
 }
 
+void Consumer::receiveAsync(ReceiveCallback callback) {
+    if (!impl_) {
+        Message msg;
+        callback(ResultConsumerNotInitialized, msg);
+        return;
+    }
+    impl_->receiveAsync(callback);
+}
+
 Result Consumer::acknowledge(const Message& message) { return acknowledge(message.getMessageId()); }
 
 Result Consumer::acknowledge(const MessageId& messageId) {
@@ -131,6 +140,15 @@ void Consumer::acknowledgeCumulativeAsync(const MessageId& messageId, ResultCall
     }
 
     impl_->acknowledgeCumulativeAsync(messageId, callback);
+}
+
+void Consumer::negativeAcknowledge(const Message& message) { negativeAcknowledge(message.getMessageId()); }
+
+void Consumer::negativeAcknowledge(const MessageId& messageId) {
+    if (impl_) {
+        impl_->negativeAcknowledge(messageId);
+        ;
+    }
 }
 
 Result Consumer::close() {

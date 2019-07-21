@@ -20,7 +20,9 @@
 
 namespace pulsar {
 
-ConsumerConfiguration::ConsumerConfiguration() : impl_(boost::make_shared<ConsumerConfigurationImpl>()) {}
+const static std::string emptyString;
+
+ConsumerConfiguration::ConsumerConfiguration() : impl_(std::make_shared<ConsumerConfigurationImpl>()) {}
 
 ConsumerConfiguration::~ConsumerConfiguration() {}
 
@@ -30,6 +32,13 @@ ConsumerConfiguration& ConsumerConfiguration::operator=(const ConsumerConfigurat
     impl_ = x.impl_;
     return *this;
 }
+
+ConsumerConfiguration& ConsumerConfiguration::setSchema(const SchemaInfo& schemaInfo) {
+    impl_->schemaInfo = schemaInfo;
+    return *this;
+}
+
+const SchemaInfo& ConsumerConfiguration::getSchema() const { return impl_->schemaInfo; }
 
 long ConsumerConfiguration::getBrokerConsumerStatsCacheTimeInMs() const {
     return impl_->brokerConsumerStatsCacheTimeInMs;
@@ -83,6 +92,14 @@ void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeco
     impl_->unAckedMessagesTimeoutMs = milliSeconds;
 }
 
+void ConsumerConfiguration::setNegativeAckRedeliveryDelayMs(long redeliveryDelayMillis) {
+    impl_->negativeAckRedeliveryDelay = std::chrono::milliseconds(redeliveryDelayMillis);
+}
+
+long ConsumerConfiguration::getNegativeAckRedeliveryDelayMs() const {
+    return impl_->negativeAckRedeliveryDelay.count();
+}
+
 bool ConsumerConfiguration::isEncryptionEnabled() const { return (impl_->cryptoKeyReader != NULL); }
 
 const CryptoKeyReaderPtr ConsumerConfiguration::getCryptoKeyReader() const { return impl_->cryptoKeyReader; }
@@ -104,5 +121,49 @@ ConsumerConfiguration& ConsumerConfiguration::setCryptoFailureAction(ConsumerCry
 bool ConsumerConfiguration::isReadCompacted() const { return impl_->readCompacted; }
 
 void ConsumerConfiguration::setReadCompacted(bool compacted) { impl_->readCompacted = compacted; }
+
+void ConsumerConfiguration::setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition) {
+    impl_->subscriptionInitialPosition = subscriptionInitialPosition;
+}
+
+InitialPosition ConsumerConfiguration::getSubscriptionInitialPosition() const {
+    return impl_->subscriptionInitialPosition;
+}
+
+void ConsumerConfiguration::setPatternAutoDiscoveryPeriod(int periodInSeconds) {
+    impl_->patternAutoDiscoveryPeriod = periodInSeconds;
+}
+
+int ConsumerConfiguration::getPatternAutoDiscoveryPeriod() const { return impl_->patternAutoDiscoveryPeriod; }
+
+bool ConsumerConfiguration::hasProperty(const std::string& name) const {
+    const std::map<std::string, std::string>& m = impl_->properties;
+    return m.find(name) != m.end();
+}
+
+const std::string& ConsumerConfiguration::getProperty(const std::string& name) const {
+    if (hasProperty(name)) {
+        const std::map<std::string, std::string>& m = impl_->properties;
+        return m.at(name);
+    } else {
+        return emptyString;
+    }
+}
+
+std::map<std::string, std::string>& ConsumerConfiguration::getProperties() const { return impl_->properties; }
+
+ConsumerConfiguration& ConsumerConfiguration::setProperty(const std::string& name, const std::string& value) {
+    impl_->properties.insert(std::make_pair(name, value));
+    return *this;
+}
+
+ConsumerConfiguration& ConsumerConfiguration::setProperties(
+    const std::map<std::string, std::string>& properties) {
+    for (std::map<std::string, std::string>::const_iterator it = properties.begin(); it != properties.end();
+         it++) {
+        setProperty(it->first, it->second);
+    }
+    return *this;
+}
 
 }  // namespace pulsar

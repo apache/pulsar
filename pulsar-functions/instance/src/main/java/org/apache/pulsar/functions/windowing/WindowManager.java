@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.functions.windowing;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.EXPIRE;
+import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.PROCESS;
+import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.STOP;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,9 +31,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.EXPIRE;
-import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.PROCESS;
-import static org.apache.pulsar.functions.windowing.EvictionPolicy.Action.STOP;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.functions.api.Record;
 
 /**
  * Tracks a window of events and fires {@link WindowLifecycleListener} callbacks
@@ -87,11 +89,12 @@ public class WindowManager<T> implements TriggerHandler {
 
     /**
      * Add an event into the window, with the given ts as the tracking ts.
-     *  @param event the event to track
+     *
+     * @param event the event to track
      * @param ts the timestamp
      */
-    public void add(T event, long ts, byte[] messageId) {
-        add(new EventImpl<>(event, ts, messageId));
+    public void add(T event, long ts, Record<?> record) {
+        add(new EventImpl<>(event, ts, record));
     }
 
     /**
@@ -223,7 +226,7 @@ public class WindowManager<T> implements TriggerHandler {
 
     /**
      * Scans the event queue and returns the next earliest event ts
-     * between the startTs and endTs
+     * between the startTs and endTs.
      *
      * @param startTs the start ts (exclusive)
      * @param endTs the end ts (inclusive)

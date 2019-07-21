@@ -50,7 +50,7 @@ public class BacklogQuotaManager {
     public BacklogQuotaManager(PulsarService pulsar) {
         this.defaultQuota = new BacklogQuota(
                 pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
-                RetentionPolicy.producer_request_hold);
+                pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy());
         this.zkCache = pulsar.getConfigurationCache().policiesCache();
     }
 

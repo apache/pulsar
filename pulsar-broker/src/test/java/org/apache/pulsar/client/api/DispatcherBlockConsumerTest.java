@@ -647,8 +647,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             }
             receivedMsgs.add(new String(msg.getData()));
         }
-        receivedMsgs.removeAll(unackMsgs);
-        assertTrue(receivedMsgs.isEmpty());
+        // there is no guarantee when a messages is acknowledged when consumer.acknowledge is called.
+        // consumer.acknowledge only guarantees that an ack request is sent to the wire. so we can
+        // only check all unackMsgs will be redelivered.
+        unackMsgs.forEach(msg -> assertTrue(receivedMsgs.contains(msg)));
     }
 
     /**
@@ -748,8 +750,9 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             }
             // client must receive number of messages = maxUnAckPerbroker rather all produced messages
             assertNotEquals(messages1.size(), totalProducedMsgs);
+            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
-            ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+            ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) newPulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
                     .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumer2Msgs = 0;
@@ -845,6 +848,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             consumer1Sub1.close();
             consumerSub2.close();
             consumer1Sub3.close();
+            newPulsarClient.close();
 
             log.info("-- Exiting {} test --", methodName);
         } catch (Exception e) {
@@ -945,7 +949,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // client must receive number of messages = maxUnAckPerbroker rather all produced messages
             assertNotEquals(messages1.size(), totalProducedMsgs);
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
-            ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+            PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+            ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) newPulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
                     .subscriptionType(SubscriptionType.Shared).subscribe();
             int consumer2Msgs = 0;
@@ -1010,6 +1015,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             consumer1Sub1.close();
             consumer1Sub2.close();
+            newPulsarClient.close();
 
             log.info("-- Exiting {} test --", methodName);
         } catch (Exception e) {

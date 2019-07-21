@@ -23,7 +23,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -42,14 +44,19 @@ import org.slf4j.LoggerFactory;
  */
 class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     private ManagedLedgerImpl ml;
-    private LedgerHandle ledger;
+    LedgerHandle ledger;
     private long entryId;
 
     @SuppressWarnings("unused")
     private volatile AddEntryCallback callback;
-    private Object ctx;
+    Object ctx;
+    volatile long addOpCount;
+    private static final AtomicLongFieldUpdater<OpAddEntry> ADD_OP_COUNT_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(OpAddEntry.class, "addOpCount");
     private boolean closeWhenDone;
     private long startTime;
+    volatile long lastInitTime;
+    @SuppressWarnings("unused")
     ByteBuf data;
     private int dataLength;
 
@@ -64,6 +71,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         op.dataLength = data.readableBytes();
         op.callback = callback;
         op.ctx = ctx;
+        op.addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
         op.closeWhenDone = false;
         op.entryId = -1;
         op.startTime = System.nanoTime();
@@ -84,18 +92,16 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     public void initiate() {
         ByteBuf duplicateBuffer = data.retainedDuplicate();
-        // duplicatedBuffer has refCnt=1 at this point
 
-        ledger.asyncAddEntry(duplicateBuffer, this, ctx);
-
-        // Internally, asyncAddEntry() is refCnt neutral to respect to the passed buffer and it will keep a ref on it
-        // until is done using it. We need to release this buffer here to balance the 1 refCnt added at the creation
-        // time.
-        duplicateBuffer.release();
+        // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
+        addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);;
+        lastInitTime = System.nanoTime();
+        ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
     }
 
     public void failed(ManagedLedgerException e) {
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
+        data.release();
         if (cb != null) {
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
@@ -109,7 +115,11 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         }
         checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
                 lh.getId());
-        checkArgument(this.ctx == ctx);
+        
+        if (!checkAndCompleteOp(ctx)) {
+            // means callback might have been completed by different thread (timeout task thread).. so do nothing
+            return;
+        }
 
         this.entryId = entryId;
         if (log.isDebugEnabled()) {
@@ -118,16 +128,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         }
 
         if (rc != BKException.Code.OK) {
-            // If we get a write error, we will try to create a new ledger and re-submit the pending writes. If the
-            // ledger creation fails (persistent bk failure, another instanche owning the ML, ...), then the writes will
-            // be marked as failed.
-            ml.mbean.recordAddEntryError();
-
-            ml.getExecutor().executeOrdered(ml.getName(), SafeRun.safeRun(() -> {
-                // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
-                // from a BK callback.
-                ml.ledgerClosed(lh);
-            }));
+            handleAddFailure(lh);
         } else {
             // Trigger addComplete callback in a thread hashed on the managed ledger name
             ml.getExecutor().executeOrdered(ml.getName(), this);
@@ -199,6 +200,44 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ml.mbean.addAddEntryLatencySample(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     }
 
+    /**
+     * Checks if add-operation is completed
+     * 
+     * @return true if task is not already completed else returns false.
+     */
+    private boolean checkAndCompleteOp(Object ctx) {
+        long addOpCount = (ctx != null && ctx instanceof Long) ? (long) ctx : -1;
+        if (addOpCount != -1 && ADD_OP_COUNT_UPDATER.compareAndSet(this, this.addOpCount, -1)) {
+            return true;
+        }
+        log.info("Add-entry already completed for {}-{}", ledger != null ? ledger.getId() : -1, entryId);
+        return false;
+    }
+
+    void handleAddTimeoutFailure(final LedgerHandle ledger, Object ctx) {
+        if (checkAndCompleteOp(ctx)) {
+            this.handleAddFailure(ledger);
+        }
+    }
+
+    /**
+     * It handles add failure on the given ledger. it can be triggered when add-entry fails or times out.
+     * 
+     * @param ledger
+     */
+    void handleAddFailure(final LedgerHandle ledger) {
+        // If we get a write error, we will try to create a new ledger and re-submit the pending writes. If the
+        // ledger creation fails (persistent bk failure, another instanche owning the ML, ...), then the writes will
+        // be marked as failed.
+        ml.mbean.recordAddEntryError();
+
+        ml.getExecutor().executeOrdered(ml.getName(), SafeRun.safeRun(() -> {
+            // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
+            // from a BK callback.
+            ml.ledgerClosed(ledger);
+        }));
+    }
+    
     private final Handle<OpAddEntry> recyclerHandle;
 
     private OpAddEntry(Handle<OpAddEntry> recyclerHandle) {
@@ -218,9 +257,11 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         dataLength = -1;
         callback = null;
         ctx = null;
+        addOpCount = -1;
         closeWhenDone = false;
         entryId = -1;
         startTime = -1;
+        lastInitTime = -1;
         recyclerHandle.recycle(this);
     }
 

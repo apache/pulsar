@@ -435,8 +435,8 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("recoverLongTimeAfterMultipleWriteErrors");
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        bkc.failNow(BKException.Code.BookieHandleNotAvailableException,
-                BKException.Code.BookieHandleNotAvailableException);
+        bkc.failAfter(0, BKException.Code.BookieHandleNotAvailableException);
+        bkc.failAfter(1, BKException.Code.BookieHandleNotAvailableException);
 
         CountDownLatch counter = new CountDownLatch(2);
         AtomicReference<ManagedLedgerException> ex = new AtomicReference<>();

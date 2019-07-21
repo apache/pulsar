@@ -21,7 +21,7 @@
 
 #include "MessageImpl.h"
 #include <map>
-#include <boost/thread/mutex.hpp>
+#include <mutex>
 #include <boost/dynamic_bitset.hpp>
 #include <lib/PulsarApi.pb.h>
 #include <algorithm>
@@ -34,10 +34,10 @@ class ConsumerImpl;
 
 class BatchAcknowledgementTracker {
    private:
-    typedef boost::unique_lock<boost::mutex> Lock;
+    typedef std::unique_lock<std::mutex> Lock;
     typedef std::pair<MessageId, boost::dynamic_bitset<> > TrackerPair;
     typedef std::map<MessageId, boost::dynamic_bitset<> > TrackerMap;
-    boost::mutex mutex_;
+    std::mutex mutex_;
 
     TrackerMap trackerMap_;
 

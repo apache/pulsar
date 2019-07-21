@@ -29,6 +29,17 @@ message Schema {
 		Json = 2;
 		Protobuf = 3;
 		Avro = 4;
+		Bool = 5;
+		Int8 = 6;
+		Int16 = 7;
+		Int32 = 8;
+		Int64 = 9;
+		Float = 10;
+		Double = 11;
+		Date = 12;
+		Time = 13;
+		Timestamp = 14;
+		KeyValue = 15;
 	}
 
     required string name = 1;
@@ -65,6 +76,8 @@ enum CompressionType {
 	NONE   = 0;
 	LZ4    = 1;
 	ZLIB   = 2;
+	ZSTD   = 3;
+	SNAPPY   = 4;
 }
 
 message MessageMetadata {
@@ -98,8 +111,19 @@ message MessageMetadata {
 	// Additional parameters required by encryption
 	optional bytes encryption_param = 15;
 	optional bytes schema_version = 16;
-}
 
+	optional bool partition_key_b64_encoded = 17 [ default = false ];
+	// Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
+	optional bytes ordering_key = 18;
+    
+	// Mark the message to be delivered at or after the specified timestamp
+	optional int64 deliver_at_time = 19;
+
+    // Identify whether a message is a "marker" message used for
+    // internal metadata instead of application published data.
+    // Markers will generally not be propagated back to clients
+    optional int32 marker_type = 20;
+}
 
 message SingleMessageMetadata {
 	repeated KeyValue properties    = 1;
@@ -110,6 +134,11 @@ message SingleMessageMetadata {
 	// the timestamp that this event occurs. it is typically set by applications.
 	// if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
 	optional uint64 event_time = 5 [default = 0];
+	optional bool partition_key_b64_encoded = 6 [ default = false ];
+    // Specific a key to overwrite the message key which used for ordering dispatch in Key_Shared mode.
+	optional bytes ordering_key = 7;
+	// Allows consumer retrieve the sequence id that the producer set.
+	optional uint64 sequence_id = 8;
 }
 
 enum ServerError {
@@ -134,6 +163,9 @@ enum ServerError {
 
     ProducerBusy         = 16; // Producer with same name is already connected
     InvalidTopicName = 17; // The topic name is not valid
+
+    IncompatibleSchema = 18; // Specified schema was incompatible with topic schema
+	ConsumerAssignError = 19; // Dispatcher assign consumer error
 }
 
 enum AuthMethod {
@@ -160,7 +192,9 @@ enum ProtocolVersion {
 	v12 = 12;// Added get topic's last messageId from broker
 			 // Added CommandActiveConsumerChange
 			 // Added CommandGetTopicsOfNamespace
-	v13 = 13;
+	v13 = 13; // Schema-registry : added avro schema format for json
+	v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
+	          // Added Key_Shared subscription
 }
 
 message CommandConnect {
@@ -190,6 +224,25 @@ message CommandConnect {
 message CommandConnected {
 	required string server_version = 1;
 	optional int32 protocol_version = 2 [default = 0];
+	optional int32 max_message_size = 3;
+}
+
+message CommandAuthResponse {
+	optional string client_version = 1;
+	optional AuthData response = 2;
+	optional int32 protocol_version = 3 [default = 0];
+}
+
+message CommandAuthChallenge {
+	optional string server_version = 1;
+	optional AuthData challenge = 2;
+	optional int32 protocol_version = 3 [default = 0];
+}
+
+// To support mutual authentication type, such as Sasl, reuse this command to mutual auth.
+message AuthData {
+	optional string auth_method_name = 1;
+	optional bytes auth_data = 2;
 }
 
 message CommandSubscribe {
@@ -197,6 +250,7 @@ message CommandSubscribe {
 		Exclusive = 0;
 		Shared    = 1;
 		Failover  = 2;
+		Key_Shared = 3;
 	}
 	required string topic        = 1;
 	required string subscription = 2;
@@ -229,6 +283,11 @@ message CommandSubscribe {
 	// Signal wthether the subscription will initialize on latest
 	// or not -- earliest
 	optional InitialPosition initialPosition = 13 [default = Latest];
+
+    // Mark the subscription as "replicated". Pulsar will make sure
+    // to periodically sync the state of replicated subscriptions
+    // across different clusters (when using geo-replication).
+    optional bool replicate_subscription_state = 14;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -335,6 +394,7 @@ message CommandSendError {
 message CommandMessage {
 	required uint64 consumer_id       = 1;
 	required MessageIdData message_id = 2;
+	optional uint32 redelivery_count  = 3 [default = 0];
 }
 
 message CommandAck {
@@ -389,6 +449,7 @@ message CommandSeek {
 	required uint64 request_id  = 2;
 
 	optional MessageIdData message_id = 3;
+	optional uint64 message_publish_time = 4;
 }
 
 // Message sent by broker to client when a topic
@@ -503,13 +564,35 @@ message CommandGetLastMessageIdResponse {
 }
 
 message CommandGetTopicsOfNamespace {
+    enum Mode {
+        PERSISTENT = 0;
+        NON_PERSISTENT = 1;
+        ALL = 2;
+    }
 	required uint64 request_id	= 1;
 	required string namespace	= 2;
+    optional Mode mode = 3 [default = PERSISTENT];
 }
 
 message CommandGetTopicsOfNamespaceResponse {
 	required uint64 request_id	= 1;
 	repeated string topics 		= 2;
+}
+
+message CommandGetSchema {
+	required uint64 request_id = 1;
+	required string topic      = 2;
+
+	optional bytes schema_version = 3;
+}
+
+message CommandGetSchemaResponse {
+	required uint64 request_id      = 1;
+	optional ServerError error_code = 2;
+    optional string error_message   = 3;
+
+	optional Schema schema          = 4;
+	optional bytes schema_version   = 5;
 }
 
 message BaseCommand {
@@ -564,6 +647,12 @@ message BaseCommand {
 
 		GET_TOPICS_OF_NAMESPACE 			= 32;
 		GET_TOPICS_OF_NAMESPACE_RESPONSE 	= 33;
+
+		GET_SCHEMA = 34;
+		GET_SCHEMA_RESPONSE = 35;
+
+		AUTH_CHALLENGE = 36;
+		AUTH_RESPONSE = 37;
 	}
 
 
@@ -613,5 +702,11 @@ message BaseCommand {
 
 	optional CommandGetTopicsOfNamespace getTopicsOfNamespace = 32;
 	optional CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse = 33;
+
+	optional CommandGetSchema getSchema = 34;
+	optional CommandGetSchemaResponse getSchemaResponse = 35;
+
+	optional CommandAuthChallenge authChallenge = 36;
+	optional CommandAuthResponse authResponse = 37;
 
 }

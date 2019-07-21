@@ -23,8 +23,6 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 pushd $ROOT_DIR > /dev/null
 
 # Get the project version from the Maven pom.xml
-cat pom.xml | xmllint --format - \
-    | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - \
-    | grep -A 2 "matches pattern" | grep text | sed "s/.* [0-9] //g"
+src/get-project-version.py
 
 popd > /dev/null

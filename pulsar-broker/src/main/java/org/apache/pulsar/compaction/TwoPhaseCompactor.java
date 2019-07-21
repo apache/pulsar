@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.compaction;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.google.common.collect.ImmutableMap;
 
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +36,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
@@ -46,8 +44,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.RawBatchConverter;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +73,7 @@ public class TwoPhaseCompactor extends Compactor {
     @Override
     protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk) {
         return phaseOne(reader).thenCompose(
-                (r) -> phaseTwo(reader, r.from, r.to, r.latestForKey, bk));
+                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk));
     }
 
     private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
@@ -90,7 +87,8 @@ public class TwoPhaseCompactor extends Compactor {
                     } else {
                         log.info("Commencing phase one of compaction for {}, reading to {}",
                                  reader.getTopic(), lastMessageId);
-                        phaseOneLoop(reader, Optional.empty(), lastMessageId, latestForKey, loopPromise);
+                        phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastMessageId, latestForKey,
+                                loopPromise);
                     }
                 });
         return loopPromise;
@@ -98,6 +96,7 @@ public class TwoPhaseCompactor extends Compactor {
 
     private void phaseOneLoop(RawReader reader,
                               Optional<MessageId> firstMessageId,
+                              Optional<MessageId> toMessageId,
                               MessageId lastMessageId,
                               Map<String,MessageId> latestForKey,
                               CompletableFuture<PhaseOneResult> loopPromise) {
@@ -114,6 +113,7 @@ public class TwoPhaseCompactor extends Compactor {
                             return;
                         }
                         MessageId id = m.getMessageId();
+                        boolean deletedMessage = false;
                         if (RawBatchConverter.isReadableBatch(m)) {
                             try {
                                 RawBatchConverter.extractIdsAndKeys(m)
@@ -125,16 +125,23 @@ public class TwoPhaseCompactor extends Compactor {
                         } else {
                             Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
                             if (keyAndSize != null) {
-                                latestForKey.put(keyAndSize.getLeft(), id);
+                                if(keyAndSize.getRight() > 0) {
+                                    latestForKey.put(keyAndSize.getLeft(), id);
+                                } else {
+                                    deletedMessage = true;
+                                    latestForKey.remove(keyAndSize.getLeft());
+                                }
                             }
                         }
 
+                        MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
+                        MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                         if (id.compareTo(lastMessageId) == 0) {
-                            loopPromise.complete(new PhaseOneResult(firstMessageId.orElse(id),
-                                                                    id, latestForKey));
+                            loopPromise.complete(new PhaseOneResult(first, to, lastMessageId, latestForKey));
                         } else {
                             phaseOneLoop(reader,
-                                         Optional.of(firstMessageId.orElse(id)),
+                                         Optional.ofNullable(first),
+                                         Optional.ofNullable(to),
                                          lastMessageId,
                                          latestForKey, loopPromise);
                         }
@@ -146,47 +153,44 @@ public class TwoPhaseCompactor extends Compactor {
 
     private void scheduleTimeout(CompletableFuture<RawMessage> future) {
         Future<?> timeout = scheduler.schedule(() -> {
-                future.completeExceptionally(new TimeoutException("Timeout"));
-            }, 10, TimeUnit.SECONDS);
+            future.completeExceptionally(new TimeoutException("Timeout"));
+        }, 10, TimeUnit.SECONDS);
         future.whenComplete((res, exception) -> {
-                timeout.cancel(true);
-            });
+            timeout.cancel(true);
+        });
     }
 
-    private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to,
-                                             Map<String,MessageId> latestForKey, BookKeeper bk) {
-        Map<String, byte[]> metadata = ImmutableMap.of("compactedTopic", reader.getTopic().getBytes(UTF_8),
-                                                       "compactedTo", to.toByteArray());
+    private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to, MessageId lastReadId,
+            Map<String, MessageId> latestForKey, BookKeeper bk) {
+        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
         return createLedger(bk, metadata).thenCompose((ledger) -> {
-                log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
-                         reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
-                return phaseTwoSeekThenLoop(reader, from, to, latestForKey, bk, ledger);
-            });
+            log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
+                    reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
+            return phaseTwoSeekThenLoop(reader, from, to, lastReadId, latestForKey, bk, ledger);
+        });
     }
 
     private CompletableFuture<Long> phaseTwoSeekThenLoop(RawReader reader, MessageId from, MessageId to,
-                                                         Map<String, MessageId> latestForKey,
-                                                         BookKeeper bk, LedgerHandle ledger) {
+            MessageId lastReadId, Map<String, MessageId> latestForKey, BookKeeper bk, LedgerHandle ledger) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
 
         reader.seekAsync(from).thenCompose((v) -> {
-                Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
-                CompletableFuture<Void> loopPromise = new CompletableFuture<Void>();
-                phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
-                return loopPromise;
-            }).thenCompose((v) -> closeLedger(ledger))
-            .thenCompose((v) -> reader.acknowledgeCumulativeAsync(
-                                 to, ImmutableMap.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
-            .whenComplete((res, exception) -> {
+            Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
+            CompletableFuture<Void> loopPromise = new CompletableFuture<Void>();
+            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
+            return loopPromise;
+        }).thenCompose((v) -> closeLedger(ledger))
+                .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
+                        ImmutableMap.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
+                .whenComplete((res, exception) -> {
                     if (exception != null) {
-                        deleteLedger(bk, ledger)
-                            .whenComplete((res2, exception2) -> {
-                                    if (exception2 != null) {
-                                        log.warn("Cleanup of ledger {} for failed", ledger, exception2);
-                                    }
-                                    // complete with original exception
-                                    promise.completeExceptionally(exception);
-                                });
+                        deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {
+                            if (exception2 != null) {
+                                log.warn("Cleanup of ledger {} for failed", ledger, exception2);
+                            }
+                            // complete with original exception
+                            promise.completeExceptionally(exception);
+                        });
                     } else {
                         promise.complete(ledger.getId());
                     }
@@ -217,13 +221,23 @@ public class TwoPhaseCompactor extends Compactor {
                         }
                     } else {
                         Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
+                        MessageId msg;
                         if (keyAndSize == null) { // pass through messages without a key
                             messageToAdd = Optional.of(m);
-                        } else if (latestForKey.get(keyAndSize.getLeft()).equals(id)
-                                   && keyAndSize.getRight() > 0) {
+                        } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
+                                && msg.equals(id)) { // consider message only if present into latestForKey map
+                            if (keyAndSize.getRight() <= 0) {
+                                promise.completeExceptionally(new IllegalArgumentException(
+                                        "Compaction phase found empty record from sorted key-map"));
+                            }
                             messageToAdd = Optional.of(m);
                         } else {
                             m.close();
+                            // Reached to last-id and phase-one found it deleted-message while iterating on ledger so, not
+                            // present under latestForKey. Complete the compaction.
+                            if (to.equals(id)) {
+                                promise.complete(null);
+                            }
                         }
                     }
 
@@ -306,7 +320,6 @@ public class TwoPhaseCompactor extends Compactor {
                                  bkf.complete(null);
                              }
                          }, null);
-        serialized.release();
         return bkf;
     }
 
@@ -330,12 +343,14 @@ public class TwoPhaseCompactor extends Compactor {
 
     private static class PhaseOneResult {
         final MessageId from;
-        final MessageId to;
+        final MessageId to; // last undeleted messageId
+        final MessageId lastReadId; // last read messageId
         final Map<String,MessageId> latestForKey;
 
-        PhaseOneResult(MessageId from, MessageId to, Map<String,MessageId> latestForKey) {
+        PhaseOneResult(MessageId from, MessageId to, MessageId lastReadId, Map<String,MessageId> latestForKey) {
             this.from = from;
             this.to = to;
+            this.lastReadId = lastReadId;
             this.latestForKey = latestForKey;
         }
     }

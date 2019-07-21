@@ -23,21 +23,24 @@
 
 #include "Future.h"
 
+#include <map>
+#include <iostream>
+
 namespace pulsar {
 
 struct WaitForCallback {
-    Promise<bool, Result>& m_promise;
+    Promise<bool, Result> m_promise;
 
-    WaitForCallback(Promise<bool, Result>& promise) : m_promise(promise) {}
+    WaitForCallback(Promise<bool, Result> promise) : m_promise(promise) {}
 
     void operator()(Result result) { m_promise.setValue(result); }
 };
 
 template <typename T>
 struct WaitForCallbackValue {
-    Promise<Result, T>& m_promise;
+    Promise<Result, T> m_promise;
 
-    WaitForCallbackValue(Promise<Result, T>& promise) : m_promise(promise) {}
+    WaitForCallbackValue(Promise<Result, T> promise) : m_promise(promise) {}
 
     void operator()(Result result, const T& value) {
         if (result == ResultOk) {
@@ -50,9 +53,9 @@ struct WaitForCallbackValue {
 
 template <typename T>
 struct WaitForCallbackType {
-    Promise<Result, T>& m_promise;
+    Promise<Result, T> m_promise;
 
-    WaitForCallbackType(Promise<Result, T>& promise) : m_promise(promise) {}
+    WaitForCallbackType(Promise<Result, T> promise) : m_promise(promise) {}
 
     void operator()(T result) { m_promise.setValue(result); }
 };

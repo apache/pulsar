@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import io.swagger.annotations.ApiParam;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -46,7 +49,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 public class TenantsBase extends AdminResource {
 
     @GET
-    @ApiOperation(value = "Get the list of tenants.", response = String.class, responseContainer = "List")
+    @ApiOperation(value = "Get the list of existing tenants.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant doesn't exist") })
     public List<String> getTenants() {
@@ -67,7 +70,9 @@ public class TenantsBase extends AdminResource {
     @ApiOperation(value = "Get the admin configuration for a given tenant.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist") })
-    public TenantInfo getTenantAdmin(@PathParam("tenant") String tenant) {
+    public TenantInfo getTenantAdmin(
+        @ApiParam(value = "The tenant name")
+        @PathParam("tenant") String tenant) {
         validateSuperUserAccess();
 
         try {
@@ -84,13 +89,21 @@ public class TenantsBase extends AdminResource {
     @ApiOperation(value = "Create a new tenant.", notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
-            @ApiResponse(code = 412, message = "Tenant name is not valid") })
-    public void createTenant(@PathParam("tenant") String tenant, TenantInfo config) {
+            @ApiResponse(code = 412, message = "Tenant name is not valid"),
+            @ApiResponse(code = 412, message = "Clusters do not exist") })
+    public void createTenant(
+        @ApiParam(value = "The tenant name")
+        @PathParam("tenant") String tenant,
+        @ApiParam(value = "TenantInfo") TenantInfo config) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
+        validateClusters(config);
 
         try {
             NamedEntity.checkName(tenant);
+            if (config == null) {
+                config = new TenantInfo();
+            }
             zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
             log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {
@@ -110,10 +123,15 @@ public class TenantsBase extends AdminResource {
     @ApiOperation(value = "Update the admins for a tenant.", notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 409, message = "Tenant already exists") })
-    public void updateTenant(@PathParam("tenant") String tenant, TenantInfo newTenantAdmin) {
+            @ApiResponse(code = 409, message = "Tenant already exists"),
+            @ApiResponse(code = 412, message = "Clusters do not exist") })
+    public void updateTenant(
+        @ApiParam(value = "The tenant name")
+        @PathParam("tenant") String tenant,
+        @ApiParam(value = "TenantInfo") TenantInfo newTenantAdmin) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
+        validateClusters(newTenantAdmin);
 
         Stat nodeStat = new Stat();
         try {
@@ -165,7 +183,10 @@ public class TenantsBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "The tenant still has active namespaces") })
-    public void deleteTenant(@PathParam("tenant") String tenant) {
+    public void deleteTenant(
+        @PathParam("tenant")
+        @ApiParam(value = "The tenant name")
+        String tenant) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
@@ -196,6 +217,27 @@ public class TenantsBase extends AdminResource {
         } catch (Exception e) {
             log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
+        }
+    }
+
+    private void validateClusters(TenantInfo info) {
+        List<String> nonexistentClusters;
+        try {
+            if (info == null) {
+                info = new TenantInfo();
+            }
+            Set<String> availableClusters = clustersListCache().get();
+            Set<String> allowedClusters = info.getAllowedClusters();
+            nonexistentClusters = allowedClusters.stream()
+                .filter(cluster -> !availableClusters.contains(cluster))
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("[{}] Failed to get available clusters", clientAppId(), e);
+            throw new RestException(e);
+        }
+        if (nonexistentClusters.size() > 0) {
+            log.warn("[{}] Failed to validate due to clusters {} do not exist", clientAppId(), nonexistentClusters);
+            throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
         }
     }
 

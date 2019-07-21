@@ -24,7 +24,6 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.broker.admin.impl.BrokerStatsBase;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-import org.apache.pulsar.common.naming.NamespaceName;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -35,7 +34,7 @@ import java.util.Collection;
 import java.util.Map;
 
 @Path("/broker-stats")
-@Api(value = "/broker-stats", description = "Stats for broker", tags = "broker-stats")
+@Api(value = "/broker-stats", description = "Stats for broker", tags = "broker-stats", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 public class BrokerStats extends BrokerStatsBase {
 

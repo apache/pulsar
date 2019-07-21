@@ -25,6 +25,9 @@
 
 namespace pulsar {
 
+const std::string ATHENZ_PLUGIN_NAME = "athenz";
+const std::string ATHENZ_JAVA_PLUGIN_NAME = "org.apache.pulsar.client.impl.auth.AuthenticationAthenz";
+
 class AuthDataAthenz : public AuthenticationDataProvider {
    public:
     AuthDataAthenz(ParamMap& params);
@@ -35,7 +38,7 @@ class AuthDataAthenz : public AuthenticationDataProvider {
     ~AuthDataAthenz();
 
    private:
-    boost::shared_ptr<ZTSClient> ztsClient_;
+    std::shared_ptr<ZTSClient> ztsClient_;
 };
 
 }  // namespace pulsar

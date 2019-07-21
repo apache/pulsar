@@ -19,15 +19,24 @@
 
 package org.apache.pulsar.io.cassandra;
 
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 
 /**
  * Cassandra sink that treats incoming messages on the input topic as Strings
  * and write identical key/value pairs.
  */
+@Connector(
+    name = "cassandra",
+    type = IOType.SINK,
+    help = "The CassandraStringSink is used for moving messages from Pulsar to Cassandra.",
+    configClass = CassandraSinkConfig.class)
 public class CassandraStringSink extends CassandraAbstractSink<String, String> {
     @Override
-    public KeyValue<String, String> extractKeyValue(byte[] message) {
-        return new KeyValue<>(new String(message), new String(message));
+    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
+        String key = record.getKey().orElseGet(() -> new String(record.getValue()));
+        return new KeyValue<>(key, new String(record.getValue()));
     }
 }

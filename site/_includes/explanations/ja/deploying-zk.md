@@ -22,7 +22,7 @@
 各Pulsar{% popover_ja インスタンス %}は2つの別々のZooKeeperクォーラムに依存します。
 
 * [Local ZooKeeper](#local-zookeeperのデプロイ)は{% popover_ja クラスタ %}レベルで動作し、クラスタ固有の設定管理や協調のための機能を提供します。各Pulsarクラスタには専用のZooKeeperクラスタが必要となります。
-* [Global ZooKeeper](#global-zookeeperのデプロイ)は{% popover_ja インスタンス %}レベルで動作し、システム全体 (すなわち全てのクラスタ) の設定管理のための機能を提供します。Global ZooKeeperクォーラムは独立したマシンのクラスタか、あるいはLocal ZooKeeperと同じマシンでも提供できます。
+* [Configuration Store](#configuration-storeのデプロイ)は{% popover_ja インスタンス %}レベルで動作し、システム全体 (すなわち全てのクラスタ) の設定管理のための機能を提供します。Configuration Storeクォーラムは独立したマシンのクラスタか、あるいはLocal ZooKeeperと同じマシンでも提供できます。
 
 ### Local ZooKeeperのデプロイ
 
@@ -59,19 +59,19 @@ $ echo 1 > data/zookeeper/myid
 $ bin/pulsar-daemon start zookeeper
 ```
 
-### Global ZooKeeperのデプロイ
+### Configuration Storeのデプロイ
 
 上記のセクションで設定・起動されたZooKeeperクラスタは、単一のPulsar{% popover_ja クラスタ %}を管理するために使用される*Local* ZooKeeperクラスタです。しかし、完全なPulsar{% popover_ja インスタンス %}にはローカルクラスタに加えてインスタンスレベルの設定と調整タスクを処理する*Global* ZooKeeperクォーラムも必要です。
 
-[単一クラスタ](#単一クラスタのpulsarインスタンス)から成るインスタンスをデプロイする場合、Global ZooKeeperのための別のクラスタは必要ありません。しかしもし[複数クラスタ](#複数クラスタのpulsarインスタンス)をデプロイするのであれば、インスタンスレベルのタスク用に別のZooKeeperクラスタを立ち上げる必要があります。
+[単一クラスタ](#単一クラスタのpulsarインスタンス)から成るインスタンスをデプロイする場合、Configuration Storeのための別のクラスタは必要ありません。しかしもし[複数クラスタ](#複数クラスタのpulsarインスタンス)をデプロイするのであれば、インスタンスレベルのタスク用に別のZooKeeperクラスタを立ち上げる必要があります。
 
 {% include message-ja.html id="global_cluster" %}
 
 #### 単一クラスタのPulsarインスタンス
 
-Pulsar{% popover_ja インスタンス %}がただ1つのクラスタで構成されている場合、{% popover_ja Global ZooKeeper %}はLocal ZooKeeperクォーラムと同じマシン上で、異なるTCPポートで実行できます。
+Pulsar{% popover_ja インスタンス %}がただ1つのクラスタで構成されている場合、{% popover_ja Configuration Store %}はLocal ZooKeeperクォーラムと同じマシン上で、異なるTCPポートで実行できます。
 
-単一クラスタのインスタンスにGlobal ZooKeeperをデプロイするには、ローカルクォーラムに使用されているのと同じZooKeeperサーバを、[Local ZooKeeper](#local-zookeeper)と同様の方法で設定ファイル[`conf/global_zookeeper.conf`](../../reference/Configuration#global-zookeeper)に追加してください。方法は[Local ZooKeeper](#local-zookeeper)の場合と同様ですが、異なるポート (ZooKeeperのデフォルトは2181) を使用してください。以下は2184番ポートを使用する3つのノードから構成されるZooKeeperクラスタの例です:
+単一クラスタのインスタンスにConfiguration Storeをデプロイするには、ローカルクォーラムに使用されているのと同じZooKeeperサーバを、[Local ZooKeeper](#local-zookeeper)と同様の方法で設定ファイル[`conf/global_zookeeper.conf`](../../reference/Configuration#configuration-store)に追加してください。方法は[Local ZooKeeper](#local-zookeeper)の場合と同様ですが、異なるポート (ZooKeeperのデフォルトは2181) を使用してください。以下は2184番ポートを使用する3つのノードから構成されるZooKeeperクラスタの例です:
 
 ```properties
 clientPort=2184
@@ -84,11 +84,11 @@ server.3=zk3.us-west.example.com:2185:2186
 
 #### 複数クラスタのPulsarインスタンス
 
-異なる地理的地域に分散したクラスタから成るグローバルなPulsarインスタンスをデプロイする場合、Global ZooKeeperはある地域全体の障害やネットワークパーティションに耐性のある、高い可用性と強い一貫性を持ったメタデータストアとして機能します。
+異なる地理的地域に分散したクラスタから成るグローバルなPulsarインスタンスをデプロイする場合、Configuration Storeはある地域全体の障害やネットワークパーティションに耐性のある、高い可用性と強い一貫性を持ったメタデータストアとして機能します。
 
 ここで重要な点は、ZKクォーラムのメンバーが少なくとも3つの地域にまたがっており、その他の地域がオブザーバとして実行されている事を確認する事です。
 
-この場合も、Global ZooKeeperサーバの想定される負荷はとても低いため、Local ZooKeeperクォーラムに使用されているのと同じホストを共有させる事ができます。
+この場合も、Configuration Storeサーバの想定される負荷はとても低いため、Local ZooKeeperクォーラムに使用されているのと同じホストを共有させる事ができます。
 
 例として、`us-west`, `us-east`, `us-central`, `eu-central`, `ap-south`というクラスタを持つPulsarインスタンスを想定します。また、各クラスタには次のような名前のLocal ZooKeeperサーバが存在しているとします:
 
@@ -98,7 +98,7 @@ zk[1-3].${CLUSTER}.example.com
 
 このシナリオでは、いくつかのクラスタからクォーラムの参加者を選び、それ以外の全てをZKのオブザーバにします。例えば、7台のサーバクォーラムを形成するには、`us-west`から3台、`us-central`から2台、`us-east`から2台のサーバを選ぶ事ができます。
 
-これにより、これらの地域の内の1つに到達できなくてもGlobal ZooKeeperへの書き込みが可能になります。
+これにより、これらの地域の内の1つに到達できなくてもConfiguration Storeへの書き込みが可能になります。
 
 全てのサーバのZKの設定は次のようになります:
 
@@ -129,8 +129,8 @@ peerType=observer
 
 ##### サービスの起動
 
-Global ZooKeeperの設定が完了したら、[`pulsar-daemon`](../../reference/CliTools#pulsar-daemon)を使用してサービスを起動できます。
+Configuration Storeの設定が完了したら、[`pulsar-daemon`](../../reference/CliTools#pulsar-daemon)を使用してサービスを起動できます。
 
 ```shell
-$ bin/pulsar-daemon start global-zookeeper
+$ bin/pulsar-daemon start configuration-store
 ```

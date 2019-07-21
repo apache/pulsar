@@ -21,18 +21,41 @@ package org.apache.pulsar.client.cli;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.gson.JsonParseException;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.websocket.data.ProducerMessage;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.WebSocket;
+import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
+import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +72,7 @@ public class CmdProduce {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions;
 
-    @Parameter(names = { "-m", "--messages" }, description = "Comma separted string messages to send, "
+    @Parameter(names = { "-m", "--messages" }, description = "Comma separated string messages to send, "
             + "either -m or -f must be specified.")
     private List<String> messages = Lists.newArrayList();
 
@@ -65,7 +88,9 @@ public class CmdProduce {
             + "value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
 
-    ClientBuilder clientBuilder;
+    private ClientBuilder clientBuilder;
+    private Authentication authentication;
+    private String serviceURL;
 
     public CmdProduce() {
         // Do nothing
@@ -75,8 +100,10 @@ public class CmdProduce {
      * Set Pulsar client configuration.
      *
      */
-    public void updateConfig(ClientBuilder newBuilder) {
+    public void updateConfig(ClientBuilder newBuilder, Authentication authentication, String serviceURL) {
         this.clientBuilder = newBuilder;
+        this.authentication = authentication;
+        this.serviceURL = serviceURL;
     }
 
     /*
@@ -97,13 +124,8 @@ public class CmdProduce {
 
         try {
             for (String filename : messageFileNames) {
-                File f = new File(filename);
-                FileInputStream fis = new FileInputStream(f);
-                byte[] fileBytes = new byte[(int) f.length()];
-                fis.read(fileBytes);
+                byte[] fileBytes = Files.readAllBytes(Paths.get(filename));
                 messageBodies.add(fileBytes);
-                fis.close();
-
             }
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
@@ -119,12 +141,15 @@ public class CmdProduce {
      * @throws Exception
      */
     public int run() throws PulsarClientException {
-        if (mainOptions.size() != 1)
+        if (mainOptions.size() != 1) {
             throw (new ParameterException("Please provide one and only one topic name."));
-        if (this.numTimesProduce <= 0)
+        }
+        if (this.numTimesProduce <= 0) {
             throw (new ParameterException("Number of times need to be positive number."));
-        if (messages.size() == 0 && messageFileNames.size() == 0)
+        }
+        if (messages.size() == 0 && messageFileNames.size() == 0) {
             throw (new ParameterException("Please supply message content with either --messages or --files"));
+        }
 
         int totalMessages = (messages.size() + messageFileNames.size()) * numTimesProduce;
         if (totalMessages > MAX_MESSAGES) {
@@ -134,6 +159,15 @@ public class CmdProduce {
         }
 
         String topic = this.mainOptions.get(0);
+
+        if (this.serviceURL.startsWith("ws")) {
+            return publishToWebSocket(topic);
+        } else {
+            return publish(topic);
+        }
+    }
+
+    private int publish(String topic) {
         int numMessagesSent = 0;
         int returnCode = 0;
 
@@ -163,5 +197,141 @@ public class CmdProduce {
         }
 
         return returnCode;
+    }
+
+    @SuppressWarnings("deprecation")
+    private int publishToWebSocket(String topic) {
+        int numMessagesSent = 0;
+        int returnCode = 0;
+
+        TopicName topicName = TopicName.get(topic);
+        String wsTopic = String.format("%s/%s/"+(StringUtils.isEmpty(topicName.getCluster()) ? "" : topicName.getCluster()+"/")+"%s/%s", topicName.getDomain(),topicName.getTenant(),topicName.getNamespacePortion(),topicName.getLocalName()); 
+        String produceBaseEndPoint = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/producer/" + wsTopic;
+        URI produceUri = URI.create(produceBaseEndPoint);
+
+        WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
+        ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+        try {
+            if (authentication != null) {
+                authentication.start();
+                AuthenticationDataProvider authData = authentication.getAuthData();
+                if (authData.hasDataForHttp()) {
+                    for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
+                        produceRequest.setHeader(kv.getKey(), kv.getValue());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.error("Authentication plugin error: " + e.getMessage());
+            return -1;
+        }
+
+        CompletableFuture<Void> connected = new CompletableFuture<>();
+        ProducerSocket produceSocket = new ProducerSocket(connected);
+        try {
+            produceClient.start();
+        } catch (Exception e) {
+            LOG.error("Failed to start websocket-client", e);
+            return -1;
+        }
+
+        try {
+            LOG.info("Trying to create websocket session.. on {},{}", produceUri, produceRequest);
+            produceClient.connect(produceSocket, produceUri, produceRequest);
+            connected.get();
+        } catch (Exception e) {
+            LOG.error("Failed to create web-socket session", e);
+            return -1;
+        }
+
+        try {
+            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
+            RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
+            for (int i = 0; i < this.numTimesProduce; i++) {
+                int index = i * 10;
+                for (byte[] content : messageBodies) {
+                    if (limiter != null) {
+                        limiter.acquire();
+                    }
+                    produceSocket.send(index++, content).get(30,TimeUnit.SECONDS);
+                    numMessagesSent++;
+                }
+            }
+            produceSocket.close();
+        } catch (Exception e) {
+            LOG.error("Error while producing messages");
+            LOG.error(e.getMessage(), e);
+            returnCode = -1;
+        } finally {
+            LOG.info("{} messages successfully produced", numMessagesSent);
+        }
+
+        return returnCode;
+    }
+
+    @WebSocket(maxTextMessageSize = 64 * 1024)
+    public static class ProducerSocket {
+
+        private final CountDownLatch closeLatch;
+        private Session session;
+        private CompletableFuture<Void> connected;
+        private volatile CompletableFuture<Void> result;
+
+        public ProducerSocket(CompletableFuture<Void> connected) {
+            this.closeLatch = new CountDownLatch(1);
+            this.connected = connected;
+        }
+
+        public CompletableFuture<Void> send(int index, byte[] content) throws Exception {
+            this.session.getRemote().sendString(getTestJsonPayload(index, content));
+            this.result = new CompletableFuture<>();
+            return result;
+        }
+
+        private static String getTestJsonPayload(int index, byte[] content) throws JsonProcessingException {
+            ProducerMessage msg = new ProducerMessage();
+            msg.payload = Base64.getEncoder().encodeToString(content);
+            msg.key = Integer.toString(index);
+            return ObjectMapperFactory.getThreadLocal().writeValueAsString(msg);
+        }
+
+        public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
+            return this.closeLatch.await(duration, unit);
+        }
+
+        @OnWebSocketClose
+        public void onClose(int statusCode, String reason) {
+            LOG.info("Connection closed: {} - {}", statusCode, reason);
+            this.session = null;
+            this.closeLatch.countDown();
+        }
+
+        @OnWebSocketConnect
+        public void onConnect(Session session) throws Exception {
+            LOG.info("Got connect: {}", session);
+            this.session = session;
+            this.connected.complete(null);
+        }
+
+        @OnWebSocketMessage
+        public synchronized void onMessage(String msg) throws JsonParseException {
+            LOG.info("ack= {}",msg);
+            if(this.result!=null) {
+                this.result.complete(null);
+            }
+        }
+
+        public RemoteEndpoint getRemote() {
+            return this.session.getRemote();
+        }
+
+        public Session getSession() {
+            return this.session;
+        }
+
+        public void close() {
+            this.session.close();
+        }
+
     }
 }

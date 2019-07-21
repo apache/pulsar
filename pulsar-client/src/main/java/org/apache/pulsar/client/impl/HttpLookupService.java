@@ -19,24 +19,33 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Lists;
+
+import io.netty.channel.EventLoopGroup;
+
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.lookup.data.LookupData;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.channel.EventLoopGroup;
 
 class HttpLookupService implements LookupService {
 
@@ -51,6 +60,11 @@ class HttpLookupService implements LookupService {
         this.httpClient = new HttpClient(conf.getServiceUrl(), conf.getAuthentication(),
                 eventLoopGroup, conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
         this.useTls = conf.isUseTls();
+    }
+
+    @Override
+    public void updateServiceUrl(String serviceUrl) throws PulsarClientException {
+        httpClient.setServiceUrl(serviceUrl);
     }
 
     /**
@@ -93,16 +107,17 @@ class HttpLookupService implements LookupService {
     }
 
     public String getServiceUrl() {
-    	return httpClient.url.toString();
+    	return httpClient.getServiceUrl();
     }
 
     @Override
-    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode) {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
 
-        String format = namespace.isV2() ? "admin/v2/namespaces/%s/topics" : "admin/namespaces/%s/destinations";
+        String format = namespace.isV2()
+            ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
         httpClient
-            .get(String.format(format, namespace), String[].class)
+            .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
                 List<String> result = Lists.newArrayList();
                 // do not keep partition part of topic name
@@ -118,6 +133,39 @@ class HttpLookupService implements LookupService {
                 future.completeExceptionally(ex);
                 return null;
             });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
+        return getSchema(topicName, null);
+    }
+
+    @Override
+    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
+        CompletableFuture<Optional<SchemaInfo>> future = new CompletableFuture<>();
+
+        String schemaName = topicName.getSchemaName();
+        String path = String.format("admin/v2/schemas/%s/schema", schemaName);
+        if (version != null) {
+            path = String.format("admin/v2/schemas/%s/schema/%s",
+                    schemaName,
+                    new String(version, StandardCharsets.UTF_8));
+        }
+        httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
+            future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
+        }).exceptionally(ex -> {
+            if (ex.getCause() instanceof NotFoundException) {
+                future.complete(Optional.empty());
+            } else {
+                log.warn("Failed to get schema for topic {} version {}",
+                        topicName,
+                        version != null ? Base64.getEncoder().encodeToString(version) : null,
+                        ex.getCause());
+                future.completeExceptionally(ex);
+            }
+            return null;
+        });
         return future;
     }
 

@@ -18,14 +18,26 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import javax.ws.rs.client.WebTarget;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 class WebTargets {
 
     static WebTarget addParts(WebTarget target, String[] parts) {
         if (parts != null && parts.length > 0) {
             for (String part : parts) {
-                target = target.path(part);
+                String encode;
+                try {
+                    encode = URLEncoder.encode(part, StandardCharsets.UTF_8.toString());
+                } catch (UnsupportedEncodingException e) {
+                    log.error(String.format("%s is Unknown", StandardCharsets.UTF_8.toString()) + "exception - [{}]", e);
+                    encode = part;
+                }
+                target = target.path(encode);
             }
         }
         return target;

@@ -21,9 +21,8 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.matches;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -46,12 +45,11 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
-import javax.naming.AuthenticationException;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -67,8 +65,10 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -78,10 +78,11 @@ import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
-import org.apache.pulsar.common.api.ByteBufPair;
-import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.Commands.ChecksumType;
-import org.apache.pulsar.common.api.PulsarHandler;
+import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -98,11 +99,11 @@ import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
+import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.Mockito;
@@ -154,14 +155,18 @@ public class ServerCnxTest {
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        ZooKeeperCache cache = mock(ZooKeeperCache.class);
+        doReturn(30).when(cache).getZkOperationTimeoutSeconds();
+        doReturn(cache).when(pulsar).getLocalZkCache();
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
-        doReturn(createMockBookKeeper(mockZk)).when(pulsar).getBookKeeperClient();
+        doReturn(createMockBookKeeper(mockZk, pulsar.getOrderedExecutor().chooseThread(0)))
+            .when(pulsar).getBookKeeperClient();
 
         configCacheService = mock(ConfigurationCacheService.class);
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
-        doReturn(Optional.empty()).when(zkDataCache).get(anyObject());
+        doReturn(Optional.empty()).when(zkDataCache).get(any());
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
 
@@ -177,8 +182,8 @@ public class ServerCnxTest {
 
         namespaceService = mock(NamespaceService.class);
         doReturn(namespaceService).when(pulsar).getNamespaceService();
-        doReturn(true).when(namespaceService).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(namespaceService).isServiceUnitActive(any(TopicName.class));
+        doReturn(true).when(namespaceService).isServiceUnitOwned(any());
+        doReturn(true).when(namespaceService).isServiceUnitActive(any());
 
         setupMLAsyncCallbackMocks();
 
@@ -333,9 +338,23 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testConnectCommandWithAuthenticationPositive() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = mock(AuthenticationProvider.class);
+        AuthenticationState authenticationState = mock(AuthenticationState.class);
+        AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
+        AuthData authData = AuthData.of(null);
+
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
-        doReturn("appid1").when(authenticationService).authenticate(new AuthenticationDataCommand(Mockito.anyString()),
-                Mockito.anyString());
+        doReturn(authenticationProvider).when(authenticationService).getAuthenticationProvider(Mockito.anyString());
+        doReturn(authenticationState).when(authenticationProvider)
+            .newAuthState(Mockito.anyObject(), Mockito.anyObject(), Mockito.anyObject());
+        doReturn(authData).when(authenticationState)
+            .authenticate(authData);
+        doReturn(true).when(authenticationState)
+            .isComplete();
+
+        doReturn("appid1").when(authenticationState)
+            .getAuthRole();
+
         doReturn(true).when(brokerService).isAuthenticationEnabled();
 
         resetChannel();
@@ -353,11 +372,9 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testConnectCommandWithAuthenticationNegative() throws Exception {
-        AuthenticationException e = new AuthenticationException();
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
-        doThrow(e).when(authenticationService).authenticate(new AuthenticationDataCommand(Mockito.anyString()),
-                Mockito.anyString());
+        doReturn(Optional.empty()).when(authenticationService).getAnonymousUserRole();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
 
         resetChannel();
@@ -489,7 +506,7 @@ public class ServerCnxTest {
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
         providerField.set(authorizationService, authorizationProvider);
-        doReturn(false).when(authorizationProvider).isSuperUser(Mockito.anyString());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any());
 
         // Test producer creation
         resetChannel();
@@ -519,7 +536,7 @@ public class ServerCnxTest {
         providerField.set(authorizationService, authorizationProvider);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
-        doReturn(false).when(authorizationProvider).isSuperUser(Mockito.anyString());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(),  Mockito.any());
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).checkPermission(any(TopicName.class), Mockito.anyString(),
                 any(AuthAction.class));
 
@@ -547,7 +564,7 @@ public class ServerCnxTest {
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
         providerField.set(authorizationService, authorizationProvider);
-        doReturn(true).when(authorizationProvider).isSuperUser(Mockito.anyString());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).isSuperUser(Mockito.anyString(),  Mockito.any());
 
         // Test producer creation
         resetChannel();
@@ -737,7 +754,7 @@ public class ServerCnxTest {
             });
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create producer
@@ -796,7 +813,7 @@ public class ServerCnxTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create producer
@@ -874,7 +891,7 @@ public class ServerCnxTest {
             });
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // In a create producer timeout from client side we expect to see this sequence of commands :
         // 1. create a failure producer which will timeout creation after 100msec
@@ -945,7 +962,7 @@ public class ServerCnxTest {
 
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // In a subscribe timeout from client side we expect to see this sequence of commands :
         // 1. Subscribe
@@ -958,9 +975,6 @@ public class ServerCnxTest {
         ByteBuf subscribe1 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */);
         channel.writeInbound(subscribe1);
-
-        ByteBuf closeConsumer = Commands.newCloseConsumer(1 /* consumer id */, 2 /* request id */ );
-        channel.writeInbound(closeConsumer);
 
         ByteBuf subscribe2 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 3 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */);
@@ -979,10 +993,6 @@ public class ServerCnxTest {
         Object response;
 
         synchronized (this) {
-            // Close succeeds
-            response = getResponse();
-            assertEquals(response.getClass(), CommandSuccess.class);
-            assertEquals(((CommandSuccess) response).getRequestId(), 2);
 
             // All other subscribe should fail
             response = getResponse();
@@ -997,9 +1007,12 @@ public class ServerCnxTest {
             assertEquals(response.getClass(), CommandError.class);
             assertEquals(((CommandError) response).getRequestId(), 5);
 
-            // We should not receive response for 1st producer, since it was cancelled by the close
-            assertTrue(channel.outboundMessages().isEmpty());
+            // We should receive response for 1st producer, since it was not cancelled by the close
+            assertTrue(!channel.outboundMessages().isEmpty());
             assertTrue(channel.isActive());
+            response = getResponse();
+            assertEquals(response.getClass(), CommandSuccess.class);
+            assertEquals(((CommandSuccess) response).getRequestId(), 1);
         }
 
         channel.finish();
@@ -1018,7 +1031,7 @@ public class ServerCnxTest {
             });
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         CompletableFuture<Runnable> openTopicFail = new CompletableFuture<>();
         doAnswer(invocationOnMock -> {
@@ -1028,7 +1041,7 @@ public class ServerCnxTest {
             });
             return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // In a subscribe timeout from client side we expect to see this sequence of commands :
         // 1. Subscribe against failtopic which will fail after 100msec
@@ -1255,7 +1268,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1283,7 +1296,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1313,7 +1326,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1348,7 +1361,7 @@ public class ServerCnxTest {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.topicDispatchRate = Maps.newHashMap();
         doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -1379,7 +1392,7 @@ public class ServerCnxTest {
             serverCnx.close();
             channel.close().get();
         }
-        serverCnx = new ServerCnx(brokerService);
+        serverCnx = new ServerCnx(pulsar);
         serverCnx.authRole = "";
         channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4), serverCnx);
     }
@@ -1425,7 +1438,7 @@ public class ServerCnxTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // call openLedgerFailed on ML factory asyncOpen
         doAnswer(new Answer<Object>() {
@@ -1440,7 +1453,7 @@ public class ServerCnxTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer(new Answer<Object>() {
@@ -1450,7 +1463,7 @@ public class ServerCnxTest {
                         invocationOnMock.getArguments()[2]);
                 return null;
             }
-        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), anyObject());
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -1459,7 +1472,17 @@ public class ServerCnxTest {
                 ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
                 return null;
             }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
+
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Thread.sleep(300);
+                ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
+                return null;
+            }
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
+                any(OpenCursorCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -1469,7 +1492,18 @@ public class ServerCnxTest {
                         .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
                 return null;
             }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
+
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                Thread.sleep(300);
+                ((OpenCursorCallback) invocationOnMock.getArguments()[3])
+                        .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
+                return null;
+            }
+        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(Map.class),
+                any(OpenCursorCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -1477,7 +1511,7 @@ public class ServerCnxTest {
                 ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -1486,7 +1520,7 @@ public class ServerCnxTest {
                         .deleteCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
                 return null;
             }
-        }).when(ledgerMock).asyncDeleteCursor(matches(".*fail.*"), any(DeleteCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncDeleteCursor(matches(".*fail.*"), any(DeleteCursorCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -1494,7 +1528,7 @@ public class ServerCnxTest {
                 ((CloseCallback) invocationOnMock.getArguments()[0]).closeComplete(null);
                 return null;
             }
-        }).when(cursorMock).asyncClose(any(CloseCallback.class), anyObject());
+        }).when(cursorMock).asyncClose(any(CloseCallback.class), any());
 
         doReturn(successSubName).when(cursorMock).getName();
     }

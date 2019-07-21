@@ -18,6 +18,8 @@
  */
 #include "utils.h"
 
+#include <functional>
+
 void Producer_send(Producer& producer, const Message& message) {
     Result res;
     Py_BEGIN_ALLOW_THREADS
@@ -49,8 +51,18 @@ void Producer_sendAsync(Producer& producer, const Message& message, py::object c
     Py_XINCREF(pyCallback);
 
     Py_BEGIN_ALLOW_THREADS
-    producer.sendAsync(message, boost::bind(Producer_sendAsyncCallback, pyCallback, _1, _2));
+    producer.sendAsync(message, std::bind(Producer_sendAsyncCallback, pyCallback,
+            std::placeholders::_1, std::placeholders::_2));
     Py_END_ALLOW_THREADS
+}
+
+void Producer_flush(Producer& producer) {
+    Result res;
+    Py_BEGIN_ALLOW_THREADS
+    res = producer.flush();
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
 }
 
 void Producer_close(Producer& producer) {
@@ -86,6 +98,9 @@ void export_producer() {
                          "\n"
                          "@param msg message to publish\n")
             .def("send_async", &Producer_sendAsync)
+            .def("flush", &Producer_flush,
+                 "Flush all the messages buffered in the client and wait until all messages have been\n"
+                         "successfully persisted\n")
             .def("close", &Producer_close)
             ;
 }

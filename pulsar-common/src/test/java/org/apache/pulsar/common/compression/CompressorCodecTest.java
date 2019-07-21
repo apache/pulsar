@@ -21,17 +21,15 @@ package org.apache.pulsar.common.compression;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.Unpooled;
 
 public class CompressorCodecTest {
 
@@ -39,14 +37,14 @@ public class CompressorCodecTest {
 
     @DataProvider(name = "codec")
     public Object[][] codecProvider() {
-        return new Object[][] { { CompressionType.NONE }, { CompressionType.LZ4 }, { CompressionType.ZLIB }, };
+        return new Object[][] { { CompressionType.NONE }, { CompressionType.LZ4 }, { CompressionType.ZLIB }, { CompressionType.ZSTD }, { CompressionType.SNAPPY }};
     }
 
     @Test(dataProvider = "codec")
     void testCompressDecompress(CompressionType type) throws IOException {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
         byte[] data = text.getBytes();
-        ByteBuf raw = PooledByteBufAllocator.DEFAULT.buffer();
+        ByteBuf raw = PulsarByteBufAllocator.DEFAULT.directBuffer();
         raw.writeBytes(data);
 
         ByteBuf compressed = codec.encode(raw);
@@ -87,7 +85,7 @@ public class CompressorCodecTest {
         byte[] data = text.getBytes();
 
         for (int i = 0; i < 5; i++) {
-            ByteBuf raw = PooledByteBufAllocator.DEFAULT.buffer();
+            ByteBuf raw = PulsarByteBufAllocator.DEFAULT.directBuffer();
             raw.writeBytes(data);
             ByteBuf compressed = codec.encode(raw);
             assertEquals(raw.readableBytes(), data.length);

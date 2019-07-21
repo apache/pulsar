@@ -23,27 +23,27 @@
 extern "C" {
 #endif
 
+#include <pulsar/defines.h>
 #include <pulsar/c/result.h>
 #include <pulsar/c/message.h>
 
 #include <stdint.h>
 
-#pragma GCC visibility push(default)
-
 typedef struct _pulsar_producer pulsar_producer_t;
 
 typedef void (*pulsar_send_callback)(pulsar_result, pulsar_message_t *msg, void *ctx);
 typedef void (*pulsar_close_callback)(pulsar_result, void *ctx);
+typedef void (*pulsar_flush_callback)(pulsar_result, void *ctx);
 
 /**
  * @return the topic to which producer is publishing to
  */
-const char *pulsar_producer_get_topic(pulsar_producer_t *producer);
+PULSAR_PUBLIC const char *pulsar_producer_get_topic(pulsar_producer_t *producer);
 
 /**
  * @return the producer name which could have been assigned by the system or specified by the client
  */
-const char *pulsar_producer_get_producer_name(pulsar_producer_t *producer);
+PULSAR_PUBLIC const char *pulsar_producer_get_producer_name(pulsar_producer_t *producer);
 
 /**
  * Publish a message on the topic associated with this Producer.
@@ -61,7 +61,7 @@ const char *pulsar_producer_get_producer_name(pulsar_producer_t *producer);
  * @return ResultOk if the message was published successfully
  * @return ResultWriteError if it wasn't possible to publish the message
  */
-pulsar_result pulsar_producer_send(pulsar_producer_t *producer, pulsar_message_t *msg);
+PULSAR_PUBLIC pulsar_result pulsar_producer_send(pulsar_producer_t *producer, pulsar_message_t *msg);
 
 /**
  * Asynchronously publish a message on the topic associated with this Producer.
@@ -77,8 +77,8 @@ pulsar_result pulsar_producer_send(pulsar_producer_t *producer, pulsar_message_t
  * @param msg message to publish
  * @param callback the callback to get notification of the completion
  */
-void pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *msg,
-                                pulsar_send_callback callback, void *ctx);
+PULSAR_PUBLIC void pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *msg,
+                                              pulsar_send_callback callback, void *ctx);
 
 /**
  * Get the last sequence id that was published by this producer.
@@ -92,7 +92,7 @@ void pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *m
  *
  * @return the last sequence id published by this producer
  */
-int64_t pulsar_producer_get_last_sequence_id(pulsar_producer_t *producer);
+PULSAR_PUBLIC int64_t pulsar_producer_get_last_sequence_id(pulsar_producer_t *producer);
 
 /**
  * Close the producer and release resources allocated.
@@ -103,7 +103,7 @@ int64_t pulsar_producer_get_last_sequence_id(pulsar_producer_t *producer);
  *
  * @return an error code to indicate the success or failure
  */
-pulsar_result pulsar_producer_close(pulsar_producer_t *producer);
+PULSAR_PUBLIC pulsar_result pulsar_producer_close(pulsar_producer_t *producer);
 
 /**
  * Close the producer and release resources allocated.
@@ -112,11 +112,16 @@ pulsar_result pulsar_producer_close(pulsar_producer_t *producer);
  * triggered when all pending write requests are persisted. In case of errors,
  * pending writes will not be retried.
  */
-void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx);
+PULSAR_PUBLIC void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback,
+                                               void *ctx);
 
-void pulsar_producer_free(pulsar_producer_t *producer);
+// Flush all the messages buffered in the client and wait until all messages have been successfully persisted.
+PULSAR_PUBLIC pulsar_result pulsar_producer_flush(pulsar_producer_t *producer);
 
-#pragma GCC visibility pop
+PULSAR_PUBLIC void pulsar_producer_flush_async(pulsar_producer_t *producer, pulsar_flush_callback callback,
+                                               void *ctx);
+
+PULSAR_PUBLIC void pulsar_producer_free(pulsar_producer_t *producer);
 
 #ifdef __cplusplus
 }

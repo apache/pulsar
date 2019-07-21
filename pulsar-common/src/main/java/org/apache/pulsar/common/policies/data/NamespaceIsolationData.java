@@ -20,17 +20,52 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.base.Objects;
 
+@ApiModel(
+    value = "NamespaceIsolationData",
+    description = "The data of namespace isolation configuration"
+)
 public class NamespaceIsolationData {
 
+    @ApiModelProperty(
+        name = "namespaces",
+        value = "The list of namespaces to apply this namespace isolation data"
+    )
     public List<String> namespaces = new ArrayList<String>();
+    @ApiModelProperty(
+        name = "primary",
+        value = "The list of primary brokers for serving the list of namespaces in this isolation policy"
+    )
     public List<String> primary = new ArrayList<String>();
+    @ApiModelProperty(
+        name = "primary",
+        value = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
+    )
     public List<String> secondary = new ArrayList<String>();
+    @ApiModelProperty(
+        name = "auto_failover_policy",
+        value = "The data of auto-failover policy configuration",
+        example =
+              "{"
+            + "  \"policy_type\": \"min_available\""
+            + "  \"parameters\": {"
+            + "    \"\": \"\""
+            + "  }"
+            + "}"
+    )
     public AutoFailoverPolicyData auto_failover_policy;
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(namespaces, primary, secondary,
+                auto_failover_policy);
+    }
 
     @Override
     public boolean equals(Object obj) {

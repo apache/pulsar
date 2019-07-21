@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -38,7 +37,7 @@ public class FunctionsMetricsResource extends FunctionApiResource {
     @Path("metrics")
     @GET
     @Produces(MediaType.TEXT_PLAIN)
-    public Response getMetrics() throws JsonProcessingException {
+    public Response getMetrics() {
 
         WorkerService workerService = get();
 
@@ -53,7 +52,10 @@ public class FunctionsMetricsResource extends FunctionApiResource {
                 out.write(payload, arrayOffset, readableBytes);
                 out.flush();
             };
-            return Response.ok(streamOut).build();
+            return Response
+                .ok(streamOut)
+                .type(MediaType.TEXT_PLAIN_TYPE)
+                .build();
         } finally {
             buf.release();
         }

@@ -21,12 +21,23 @@ syntax = "proto2";
 option java_package = "org.apache.bookkeeper.mledger.proto";
 option optimize_for = SPEED;
 
+message KeyValue {
+	required string key = 1;
+	required string value = 2;
+}
+
+message OffloadDriverMetadata {
+    required string name = 1;
+    repeated KeyValue properties = 2;
+}
+
 message OffloadContext {
     optional int64 uidMsb = 1;
     optional int64 uidLsb = 2;
     optional bool complete = 3;
     optional bool bookkeeperDeleted = 4;
     optional int64 timestamp = 5;
+    optional OffloadDriverMetadata driverMetadata = 6;
 }
 
 message ManagedLedgerInfo {

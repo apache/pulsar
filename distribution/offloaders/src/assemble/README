@@ -1,0 +1,10 @@
+
+Please refer to http://pulsar.apache.org/ for access to documentation.
+
+This package contains Pulsar offloader archives. Each archive
+contains:
+
+ * the offloader code plus all the dependencies
+
+ * META-INF/DEPEDENCIES file with licensing information for all transitive
+   dependencies

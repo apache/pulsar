@@ -28,6 +28,7 @@ import org.testng.annotations.Test;
 @Test
 public class TopicNameTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     void topic() {
         try {
@@ -215,6 +216,7 @@ public class TopicNameTest {
         assertEquals(name.getPersistenceNamingEncoding(), "prop/colo/ns/persistent/" + encodedName);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTopicNameWithoutCluster() throws Exception {
         TopicName topicName = TopicName.get("persistent://tenant/namespace/topic");

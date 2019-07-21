@@ -17,10 +17,8 @@
  * under the License.
  */
 #include <iostream>
-#include <boost/bind.hpp>
 
 #include <pulsar/Client.h>
-#include <pulsar/MessageBuilder.h>
 
 #include <lib/LogUtils.h>
 

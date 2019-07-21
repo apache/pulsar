@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.discovery.service.server;
 
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -45,13 +46,13 @@ public class ServiceConfig implements PulsarConfiguration {
     private int zookeeperSessionTimeoutMs = 30_000;
 
     // Port to use to server binary-proto request
-    private int servicePort = 5000;
+    private Optional<Integer> servicePort = Optional.ofNullable(5000);
     // Port to use to server binary-proto-tls request
-    private int servicePortTls = 5001;
+    private Optional<Integer> servicePortTls = Optional.empty();
     // Port to use to server HTTP request
-    private int webServicePort = 8080;
+    private Optional<Integer> webServicePort = Optional.ofNullable(8080);
     // Port to use to server HTTPS request
-    private int webServicePortTls = 8443;
+    private Optional<Integer> webServicePortTls = Optional.empty();
     // Control whether to bind directly on localhost rather than on normal
     // hostname
     private boolean bindOnLocalhost = false;
@@ -75,8 +76,10 @@ public class ServiceConfig implements PulsarConfiguration {
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     /***** --- TLS --- ****/
-    // Enable TLS
+    @Deprecated
     private boolean tlsEnabled = false;
+    // Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+    private long tlsCertRefreshCheckDurationSec = 300;
     // Path for the TLS certificate file
     private String tlsCertificateFilePath;
     // Path for the TLS private key file
@@ -131,42 +134,44 @@ public class ServiceConfig implements PulsarConfiguration {
         this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
     }
 
-    public int getServicePort() {
+    public Optional<Integer> getServicePort() {
         return servicePort;
     }
 
-    public void setServicePort(int servicePort) {
+    public void setServicePort(Optional<Integer> servicePort) {
         this.servicePort = servicePort;
     }
 
-    public int getServicePortTls() {
+    public Optional<Integer> getServicePortTls() {
         return servicePortTls;
     }
 
-    public void setServicePortTls(int servicePortTls) {
+    public void setServicePortTls(Optional<Integer> servicePortTls) {
         this.servicePortTls = servicePortTls;
     }
 
-    public int getWebServicePort() {
+    public Optional<Integer> getWebServicePort() {
         return webServicePort;
     }
 
-    public void setWebServicePort(int webServicePort) {
+    public void setWebServicePort(Optional<Integer> webServicePort) {
         this.webServicePort = webServicePort;
     }
 
-    public int getWebServicePortTls() {
+    public Optional<Integer> getWebServicePortTls() {
         return webServicePortTls;
     }
 
-    public void setWebServicePortTls(int webServicePortTls) {
+    public void setWebServicePortTls(Optional<Integer> webServicePortTls) {
         this.webServicePortTls = webServicePortTls;
     }
 
+    @Deprecated
     public boolean isTlsEnabled() {
-        return tlsEnabled;
+        return tlsEnabled || webServicePortTls != null || servicePortTls != null;
     }
 
+    @Deprecated
     public void setTlsEnabled(boolean tlsEnabled) {
         this.tlsEnabled = tlsEnabled;
     }
@@ -273,6 +278,14 @@ public class ServiceConfig implements PulsarConfiguration {
 
     public void setTlsProtocols(Set<String> tlsProtocols) {
         this.tlsProtocols = tlsProtocols;
+    }
+
+    public long getTlsCertRefreshCheckDurationSec() {
+        return tlsCertRefreshCheckDurationSec;
+    }
+
+    public void setTlsCertRefreshCheckDurationSec(long tlsCertRefreshCheckDurationSec) {
+        this.tlsCertRefreshCheckDurationSec = tlsCertRefreshCheckDurationSec;
     }
 
     public Set<String> getTlsCiphers() {

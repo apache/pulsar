@@ -25,7 +25,13 @@
 #include <lib/LogUtils.h>
 #include <lib/TopicName.h>
 
+#include <vector>
+
 namespace pulsar {
+typedef std::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;
+typedef Promise<Result, NamespaceTopicsPtr> NamespaceTopicsPromise;
+typedef std::shared_ptr<Promise<Result, NamespaceTopicsPtr>> NamespaceTopicsPromisePtr;
+
 class LookupService {
    public:
     /*
@@ -42,10 +48,17 @@ class LookupService {
      */
     virtual Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr& topicName) = 0;
 
+    /**
+     * @param   namespace - namespace-name
+     *
+     * Returns all the topics name for a given namespace.
+     */
+    virtual Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName) = 0;
+
     virtual ~LookupService() {}
 };
 
-typedef boost::shared_ptr<LookupService> LookupServicePtr;
+typedef std::shared_ptr<LookupService> LookupServicePtr;
 
 }  // namespace pulsar
 #endif  // PULSAR_CPP_LOOKUPSERVICE_H

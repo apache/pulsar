@@ -25,6 +25,9 @@ type ProducerMessage struct {
 	// Payload for the message
 	Payload []byte
 
+	//Value and payload is mutually exclusive, `Value interface{}` for schema message.
+	Value interface{}
+
 	// Sets the key of the message for routing policy
 	Key string
 
@@ -36,9 +39,15 @@ type ProducerMessage struct {
 
 	// Override the replication clusters for this message.
 	ReplicationClusters []string
+
+	// Set the sequence id to assign to the current message
+	SequenceID int64
 }
 
 type Message interface {
+	// Get the topic from which this message originated from
+	Topic() string
+
 	// Return the properties attached to the message.
 	// Properties are application defined key/value pairs that will be attached to the message
 	Properties() map[string]string
@@ -60,6 +69,9 @@ type Message interface {
 
 	// Get the key of the message, if any
 	Key() string
+
+	//Get the de-serialized value of the message, according the configured
+	GetValue(v interface{}) error
 }
 
 // Identifier for a particular message

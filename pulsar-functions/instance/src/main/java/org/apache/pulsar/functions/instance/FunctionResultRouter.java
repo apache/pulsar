@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
 
 /**
- * Router for routing function results
+ * Router for routing function results.
  */
 public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
 
@@ -59,7 +59,7 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
         // round-robin routing.
         if (msg.hasKey() || msg.getSequenceId() < 0) {
             // TODO: the message key routing is problematic at this moment.
-            //       https://github.com/apache/incubator-pulsar/pull/1029 is fixing that.
+            //       https://github.com/apache/pulsar/pull/1029 is fixing that.
             return super.choosePartition(msg, metadata);
         }
         // if there is no key and sequence id is provided, it is an effectively-once publish, we need to ensure

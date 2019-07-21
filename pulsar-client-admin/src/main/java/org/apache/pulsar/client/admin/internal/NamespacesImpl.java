@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -35,6 +36,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -42,6 +44,8 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 public class NamespacesImpl extends BaseResource implements Namespaces {
@@ -49,8 +53,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     private final WebTarget adminNamespaces;
     private final WebTarget adminV2Namespaces;
 
-    public NamespacesImpl(WebTarget web, Authentication auth) {
-        super(auth);
+    public NamespacesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         adminNamespaces = web.path("/admin/namespaces");
         adminV2Namespaces = web.path("/admin/v2/namespaces");
     }
@@ -230,6 +234,30 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         }
     }
 
+
+    @Override
+    public void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles)
+            throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "permissions", "subscription", subscription);
+            request(path).post(Entity.entity(roles, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void revokePermissionOnSubscription(String namespace, String subscription, String role) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "permissions", subscription, role);
+            request(path).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
     @Override
     public List<String> getNamespaceReplicationClusters(String namespace) throws PulsarAdminException {
         try {
@@ -377,6 +405,39 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "persistence", "bookieAffinity");
+            request(path).post(Entity.entity(bookieAffinityGroup, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void deleteBookieAffinityGroup(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "persistence", "bookieAffinity");
+            request(path).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public BookieAffinityGroupData getBookieAffinityGroup(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "persistence", "bookieAffinity");
+            return request(path).get(BookieAffinityGroupData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public PersistencePolicies getPersistence(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
@@ -479,6 +540,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void setSubscribeRate(String namespace, SubscribeRate subscribeRate) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "subscribeRate");
+            request(path).post(Entity.entity(subscribeRate, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public SubscribeRate getSubscribeRate(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "subscribeRate");
+            return request(path).get(SubscribeRate.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
@@ -494,6 +577,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "subscriptionDispatchRate");
+            return request(path).get(DispatchRate.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void setReplicatorDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "replicatorDispatchRate");
+            request(path).post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public DispatchRate getReplicatorDispatchRate(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "replicatorDispatchRate");
             return request(path).get(DispatchRate.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -696,6 +801,90 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "offloadThreshold");
             request(path).put(Entity.entity(offloadThreshold, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public Long getOffloadDeleteLagMs(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "offloadDeletionLagMs");
+            return request(path).get(Long.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void setOffloadDeleteLag(String namespace, long lag, TimeUnit unit) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "offloadDeletionLagMs");
+            request(path).put(Entity.entity(TimeUnit.MILLISECONDS.convert(lag, unit), MediaType.APPLICATION_JSON),
+                              ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void clearOffloadDeleteLag(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "offloadDeletionLagMs");
+            request(path).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public SchemaAutoUpdateCompatibilityStrategy getSchemaAutoUpdateCompatibilityStrategy(String namespace)
+            throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "schemaAutoUpdateCompatibilityStrategy");
+            return request(path).get(SchemaAutoUpdateCompatibilityStrategy.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void setSchemaAutoUpdateCompatibilityStrategy(String namespace,
+                                                         SchemaAutoUpdateCompatibilityStrategy strategy)
+            throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "schemaAutoUpdateCompatibilityStrategy");
+            request(path).put(Entity.entity(strategy, MediaType.APPLICATION_JSON),
+                              ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public boolean getSchemaValidationEnforced(String namespace)
+            throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "schemaValidationEnforced");
+            return request(path).get(Boolean.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void setSchemaValidationEnforced(String namespace, boolean schemaValidationEnforced)
+            throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "schemaValidationEnforced");
+            request(path).post(Entity.entity(schemaValidationEnforced, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

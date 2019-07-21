@@ -27,35 +27,60 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class TopicReaderTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TopicReaderTest.class);
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterClass
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider
+    public static Object[][] variationsForExpectedPos() {
+        return new Object[][] {
+                // batching / start-inclusive / num-of-messages
+                {true, true, 10 },
+                {true, false, 10 },
+                {false, true, 10 },
+                {false, false, 10 },
+
+                {true, true, 100 },
+                {true, false, 100 },
+                {false, true, 100 },
+                {false, false, 100 },
+        };
+    }
+
+    @DataProvider
+    public static Object[][] variationsForResetOnLatestMsg() {
+        return new Object[][] {
+                // start-inclusive / num-of-messages
+                {true, 20},
+                {false, 20}
+        };
     }
 
     @Test
@@ -176,35 +201,45 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertEquals(stats.subscriptions.size(), 0);
     }
 
-    @Test
-    public void testReaderOnLastMessage() throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderOnLastMessage")
+    @Test(dataProvider = "variationsForResetOnLatestMsg")
+    public void testReaderOnLatestMessage(boolean startInclusive, int numOfMessages) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderOnLatestMessage";
+        final int halfOfMsgs = numOfMessages / 2;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
                 .create();
-        for (int i = 0; i < 10; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
+
+        for (int i = 0; i < halfOfMsgs; i++) {
+            producer.send(String.format("my-message-%d", i).getBytes());
         }
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testReaderOnLastMessage")
-                .startMessageId(MessageId.latest).create();
+        ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.latest);
 
-        for (int i = 10; i < 20; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
+        if (startInclusive) {
+            readerBuilder.startMessageIdInclusive();
+        }
+
+        Reader<byte[]> reader = readerBuilder.create();
+
+        for (int i = halfOfMsgs; i < numOfMessages; i++) {
+            producer.send(String.format("my-message-%d", i).getBytes());
         }
 
         // Publish more messages and verify the readers only sees new messages
-
-        Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
-        for (int i = 10; i < 20; i++) {
-            msg = reader.readNext(1, TimeUnit.SECONDS);
-
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
+        for (int i = halfOfMsgs; i < numOfMessages; i++) {
+            Message<byte[]> message = reader.readNext();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("my-message-%d", i);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
+
+        assertTrue(reader.isConnected());
+        assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
+        assertEquals(messageSet.size(), halfOfMsgs);
 
         // Acknowledge the consumption of all messages at once
         reader.close();
@@ -405,6 +440,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         // readNext should return null, after reach the end of topic.
         assertNull(reader.readNext(1, TimeUnit.SECONDS));
 
+        reader.close();
         producer.close();
     }
 
@@ -446,6 +482,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         assertFalse(reader.hasMessageAvailable());
+
+        reader.close();
         producer.close();
     }
 
@@ -479,9 +517,217 @@ public class TopicReaderTest extends ProducerConsumerBase {
             assertTrue(reader.hasMessageAvailable());
 
             String readOut = new String(reader.readNext().getData());
-            assertTrue(readOut.equals(content));
+            assertEquals(content, readOut);
             assertFalse(reader.hasMessageAvailable());
         }
 
+    }
+
+    @Test
+    public void testReaderNonDurableIsAbleToSeekRelativeTime() throws Exception {
+        final int numOfMessage = 10;
+        final String topicName = "persistent://my-property/my-ns/ReaderNonDurableIsAbleToSeekRelativeTime";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName).create();
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes());
+        }
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
+        assertTrue(reader.hasMessageAvailable());
+
+        reader.seek(RelativeTimeUtil.parseRelativeTimeInSeconds("-1m"));
+
+        assertTrue(reader.hasMessageAvailable());
+
+        reader.close();
+        producer.close();
+    }
+
+    @Test
+    public void testReaderIsAbleToSeekWithTimeOnBeginningOfTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderSeekWithTimeOnBeginningOfTopic";
+        final int numOfMessage = 10;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName).create();
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes());
+        }
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
+
+        assertTrue(reader.hasMessageAvailable());
+
+        // Read all messages the first time
+        Set<String> messageSetA = Sets.newHashSet();
+        for (int i = 0; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSetA, receivedMessage, expectedMessage);
+        }
+
+        assertFalse(reader.hasMessageAvailable());
+
+        // Perform cursor reset by time
+        reader.seek(RelativeTimeUtil.parseRelativeTimeInSeconds("-1m"));
+
+        // Read all messages a second time after seek()
+        Set<String> messageSetB = Sets.newHashSet();
+        for (int i = 0; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSetB, receivedMessage, expectedMessage);
+        }
+
+        // Reader should be finished
+        assertTrue(reader.isConnected());
+        assertFalse(reader.hasMessageAvailable());
+        assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
+
+        reader.close();
+        producer.close();
+    }
+
+    @Test
+    public void testReaderIsAbleToSeekWithMessageIdOnMiddleOfTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderSeekWithMessageIdOnMiddleOfTopic";
+        final int numOfMessage = 100;
+        final int halfMessages = numOfMessage / 2;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName).create();
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes());
+        }
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
+
+        assertTrue(reader.hasMessageAvailable());
+
+        // Read all messages the first time
+        MessageId midmessageToSeek = null;
+        Set<String> messageSetA = Sets.newHashSet();
+        for (int i = 0; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSetA, receivedMessage, expectedMessage);
+
+            if (i == halfMessages) {
+                midmessageToSeek = message.getMessageId();
+            }
+        }
+
+        assertFalse(reader.hasMessageAvailable());
+
+        // Perform cursor reset by MessageId to half of the topic
+        reader.seek(midmessageToSeek);
+
+        // Read all halved messages after seek()
+        Set<String> messageSetB = Sets.newHashSet();
+        for (int i = halfMessages + 1; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSetB, receivedMessage, expectedMessage);
+        }
+
+        // Reader should be finished
+        assertTrue(reader.isConnected());
+        assertFalse(reader.hasMessageAvailable());
+        assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
+
+        reader.close();
+        producer.close();
+    }
+
+    @Test
+    public void testReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderIsAbleToSeekWithTimeOnMiddleOfTopic";
+        final int numOfMessage = 10;
+        final int halfMessages = numOfMessage / 2;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName).create();
+
+        long l = System.currentTimeMillis();
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.send(String.format("msg num %d", i).getBytes());
+            Thread.sleep(100);
+        }
+
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
+
+        int plusTime = (halfMessages + 1) * 100;
+        reader.seek(l + plusTime);
+
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = halfMessages; i < numOfMessage; i++) {
+            Message<byte[]> message = reader.readNext();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+
+        reader.close();
+        producer.close();
+    }
+
+    @Test(dataProvider = "variationsForExpectedPos")
+    public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
+            throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderStartMessageIdAtExpectedPos";
+        final int resetIndex = new Random().nextInt(numOfMessages); // Choose some random index to reset
+        final int firstMessage = startInclusive ? resetIndex : resetIndex + 1; // First message of reset
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(batching)
+                .create();
+
+        MessageId resetPos = null;
+        for (int i = 0; i < numOfMessages; i++) {
+            MessageId msgId = producer.send(String.format("msg num %d", i).getBytes());
+            if (resetIndex == i) {
+                resetPos = msgId;
+            }
+        }
+
+        ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(resetPos);
+
+        if (startInclusive) {
+            readerBuilder.startMessageIdInclusive();
+        }
+
+        Reader<byte[]> reader = readerBuilder.create();
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = firstMessage; i < numOfMessages; i++) {
+            Message<byte[]> message = reader.readNext();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+
+        assertTrue(reader.isConnected());
+        assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
+
+        // Processed messages should be the number of messages in the range: [FirstResetMessage..TotalNumOfMessages]
+        assertEquals(messageSet.size(), numOfMessages - firstMessage);
+
+        reader.close();
+        producer.close();
     }
 }

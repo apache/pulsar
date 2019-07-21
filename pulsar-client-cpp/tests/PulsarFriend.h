@@ -34,7 +34,7 @@ class PulsarFriend {
 
     static ProducerStatsImplPtr getProducerStatsPtr(Producer producer) {
         ProducerImpl* producerImpl = static_cast<ProducerImpl*>(producer.impl_.get());
-        return boost::static_pointer_cast<ProducerStatsImpl>(producerImpl->producerStatsBasePtr_);
+        return std::static_pointer_cast<ProducerStatsImpl>(producerImpl->producerStatsBasePtr_);
     }
 
     template <typename T>
@@ -48,7 +48,7 @@ class PulsarFriend {
 
     static ConsumerStatsImplPtr getConsumerStatsPtr(Consumer consumer) {
         ConsumerImpl* consumerImpl = static_cast<ConsumerImpl*>(consumer.impl_.get());
-        return boost::static_pointer_cast<ConsumerStatsImpl>(consumerImpl->consumerStatsBasePtr_);
+        return std::static_pointer_cast<ConsumerStatsImpl>(consumerImpl->consumerStatsBasePtr_);
     }
 
     static ProducerImpl& getProducerImpl(Producer producer) {
