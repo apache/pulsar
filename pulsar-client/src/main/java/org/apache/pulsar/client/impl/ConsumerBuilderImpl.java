@@ -58,6 +58,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private List<ConsumerInterceptor<T>> interceptorList;
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
+    private static long MIN_TICK_TIME_MILLIS = 100;
     private static long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
 
 
@@ -153,6 +154,14 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         checkArgument(ackTimeout == 0 || timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
                 "Ack timeout should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
         conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> ackTimeoutTickTime(long tickTime, TimeUnit timeUnit) {
+        checkArgument(timeUnit.toMillis(tickTime) >= MIN_TICK_TIME_MILLIS,
+                "Ack timeout tick time should be greater than " + MIN_TICK_TIME_MILLIS + " ms");
+        conf.setTickDurationMillis(timeUnit.toMillis(tickTime));
         return this;
     }
 
