@@ -119,17 +119,15 @@ public class MarkersTest {
     @Test
     public void testTxnCommitMarker() {
         long sequenceId = 1L;
-        long indirectLedgerId = 0L;
         long mostBits = 1234L;
         long leastBits = 2345L;
 
-        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, indirectLedgerId, mostBits, leastBits);
+        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits);
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
         assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_COMMIT_VALUE);
         assertEquals(msgMetadata.getSequenceId(), sequenceId);
-        assertEquals(msgMetadata.getIndirectLedgerId(), indirectLedgerId);
         assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
     }
@@ -137,17 +135,15 @@ public class MarkersTest {
     @Test
     public void testTxnAbortMarker() {
         long sequenceId = 1L;
-        long indirectLedgerId = 0L;
         long mostBits = 1234L;
         long leastBits = 2345L;
 
-        ByteBuf buf = Markers.newTxnAbortMarker(sequenceId, indirectLedgerId, mostBits, leastBits);
+        ByteBuf buf = Markers.newTxnAbortMarker(sequenceId, mostBits, leastBits);
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
         assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_ABORT_VALUE);
         assertEquals(msgMetadata.getSequenceId(), sequenceId);
-        assertEquals(msgMetadata.getIndirectLedgerId(), indirectLedgerId);
         assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
     }

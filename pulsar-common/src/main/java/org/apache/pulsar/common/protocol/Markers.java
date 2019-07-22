@@ -261,9 +261,9 @@ public class Markers {
                && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE;
     }
 
-    public static ByteBuf newTxnCommitMarker(long sequenceId, long indirectLedgerId, long txnMostBits,
+    public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
                                              long txnLeastBits) {
-        return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, indirectLedgerId, txnMostBits, txnLeastBits);
+        return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits);
     }
 
     public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {
@@ -272,19 +272,18 @@ public class Markers {
                && msgMetadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE;
     }
 
-    public static ByteBuf newTxnAbortMarker(long sequenceId, long indirectLedgerId, long txnMostBits,
+    public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
                                             long txnLeastBits) {
-        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, indirectLedgerId, txnMostBits, txnLeastBits);
+        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits);
     }
 
-    private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long indirectLedgerId, long txnMostBits,
+    private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits,
                                         long txnLeastBits) {
         MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
         msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
         msgMetadataBuilder.setProducerName("pulsar.txn.marker");
         msgMetadataBuilder.setSequenceId(sequenceId);
         msgMetadataBuilder.setMarkerType(markerType.getNumber());
-        msgMetadataBuilder.setIndirectLedgerId(indirectLedgerId);
         msgMetadataBuilder.setTxnidMostBits(txnMostBits);
         msgMetadataBuilder.setTxnidLeastBits(txnLeastBits);
 

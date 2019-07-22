@@ -3104,10 +3104,6 @@ public final class PulsarApi {
     boolean hasMarkerType();
     int getMarkerType();
     
-    // optional int64 indirect_ledger_id = 21;
-    boolean hasIndirectLedgerId();
-    long getIndirectLedgerId();
-    
     // optional uint64 txnid_least_bits = 22 [default = 0];
     boolean hasTxnidLeastBits();
     long getTxnidLeastBits();
@@ -3455,21 +3451,11 @@ public final class PulsarApi {
       return markerType_;
     }
     
-    // optional int64 indirect_ledger_id = 21;
-    public static final int INDIRECT_LEDGER_ID_FIELD_NUMBER = 21;
-    private long indirectLedgerId_;
-    public boolean hasIndirectLedgerId() {
-      return ((bitField0_ & 0x00010000) == 0x00010000);
-    }
-    public long getIndirectLedgerId() {
-      return indirectLedgerId_;
-    }
-    
     // optional uint64 txnid_least_bits = 22 [default = 0];
     public static final int TXNID_LEAST_BITS_FIELD_NUMBER = 22;
     private long txnidLeastBits_;
     public boolean hasTxnidLeastBits() {
-      return ((bitField0_ & 0x00020000) == 0x00020000);
+      return ((bitField0_ & 0x00010000) == 0x00010000);
     }
     public long getTxnidLeastBits() {
       return txnidLeastBits_;
@@ -3479,7 +3465,7 @@ public final class PulsarApi {
     public static final int TXNID_MOST_BITS_FIELD_NUMBER = 23;
     private long txnidMostBits_;
     public boolean hasTxnidMostBits() {
-      return ((bitField0_ & 0x00040000) == 0x00040000);
+      return ((bitField0_ & 0x00020000) == 0x00020000);
     }
     public long getTxnidMostBits() {
       return txnidMostBits_;
@@ -3505,7 +3491,6 @@ public final class PulsarApi {
       orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       deliverAtTime_ = 0L;
       markerType_ = 0;
-      indirectLedgerId_ = 0L;
       txnidLeastBits_ = 0L;
       txnidMostBits_ = 0L;
     }
@@ -3608,12 +3593,9 @@ public final class PulsarApi {
         output.writeInt32(20, markerType_);
       }
       if (((bitField0_ & 0x00010000) == 0x00010000)) {
-        output.writeInt64(21, indirectLedgerId_);
-      }
-      if (((bitField0_ & 0x00020000) == 0x00020000)) {
         output.writeUInt64(22, txnidLeastBits_);
       }
-      if (((bitField0_ & 0x00040000) == 0x00040000)) {
+      if (((bitField0_ & 0x00020000) == 0x00020000)) {
         output.writeUInt64(23, txnidMostBits_);
       }
     }
@@ -3707,13 +3689,9 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00010000) == 0x00010000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeInt64Size(21, indirectLedgerId_);
-      }
-      if (((bitField0_ & 0x00020000) == 0x00020000)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(22, txnidLeastBits_);
       }
-      if (((bitField0_ & 0x00040000) == 0x00040000)) {
+      if (((bitField0_ & 0x00020000) == 0x00020000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(23, txnidMostBits_);
       }
@@ -3868,12 +3846,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00020000);
         markerType_ = 0;
         bitField0_ = (bitField0_ & ~0x00040000);
-        indirectLedgerId_ = 0L;
-        bitField0_ = (bitField0_ & ~0x00080000);
         txnidLeastBits_ = 0L;
-        bitField0_ = (bitField0_ & ~0x00100000);
+        bitField0_ = (bitField0_ & ~0x00080000);
         txnidMostBits_ = 0L;
-        bitField0_ = (bitField0_ & ~0x00200000);
+        bitField0_ = (bitField0_ & ~0x00100000);
         return this;
       }
       
@@ -3990,13 +3966,9 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00080000) == 0x00080000)) {
           to_bitField0_ |= 0x00010000;
         }
-        result.indirectLedgerId_ = indirectLedgerId_;
+        result.txnidLeastBits_ = txnidLeastBits_;
         if (((from_bitField0_ & 0x00100000) == 0x00100000)) {
           to_bitField0_ |= 0x00020000;
-        }
-        result.txnidLeastBits_ = txnidLeastBits_;
-        if (((from_bitField0_ & 0x00200000) == 0x00200000)) {
-          to_bitField0_ |= 0x00040000;
         }
         result.txnidMostBits_ = txnidMostBits_;
         result.bitField0_ = to_bitField0_;
@@ -4082,9 +4054,6 @@ public final class PulsarApi {
         }
         if (other.hasMarkerType()) {
           setMarkerType(other.getMarkerType());
-        }
-        if (other.hasIndirectLedgerId()) {
-          setIndirectLedgerId(other.getIndirectLedgerId());
         }
         if (other.hasTxnidLeastBits()) {
           setTxnidLeastBits(other.getTxnidLeastBits());
@@ -4246,18 +4215,13 @@ public final class PulsarApi {
               markerType_ = input.readInt32();
               break;
             }
-            case 168: {
-              bitField0_ |= 0x00080000;
-              indirectLedgerId_ = input.readInt64();
-              break;
-            }
             case 176: {
-              bitField0_ |= 0x00100000;
+              bitField0_ |= 0x00080000;
               txnidLeastBits_ = input.readUInt64();
               break;
             }
             case 184: {
-              bitField0_ |= 0x00200000;
+              bitField0_ |= 0x00100000;
               txnidMostBits_ = input.readUInt64();
               break;
             }
@@ -4909,43 +4873,22 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional int64 indirect_ledger_id = 21;
-      private long indirectLedgerId_ ;
-      public boolean hasIndirectLedgerId() {
-        return ((bitField0_ & 0x00080000) == 0x00080000);
-      }
-      public long getIndirectLedgerId() {
-        return indirectLedgerId_;
-      }
-      public Builder setIndirectLedgerId(long value) {
-        bitField0_ |= 0x00080000;
-        indirectLedgerId_ = value;
-        
-        return this;
-      }
-      public Builder clearIndirectLedgerId() {
-        bitField0_ = (bitField0_ & ~0x00080000);
-        indirectLedgerId_ = 0L;
-        
-        return this;
-      }
-      
       // optional uint64 txnid_least_bits = 22 [default = 0];
       private long txnidLeastBits_ ;
       public boolean hasTxnidLeastBits() {
-        return ((bitField0_ & 0x00100000) == 0x00100000);
+        return ((bitField0_ & 0x00080000) == 0x00080000);
       }
       public long getTxnidLeastBits() {
         return txnidLeastBits_;
       }
       public Builder setTxnidLeastBits(long value) {
-        bitField0_ |= 0x00100000;
+        bitField0_ |= 0x00080000;
         txnidLeastBits_ = value;
         
         return this;
       }
       public Builder clearTxnidLeastBits() {
-        bitField0_ = (bitField0_ & ~0x00100000);
+        bitField0_ = (bitField0_ & ~0x00080000);
         txnidLeastBits_ = 0L;
         
         return this;
@@ -4954,19 +4897,19 @@ public final class PulsarApi {
       // optional uint64 txnid_most_bits = 23 [default = 0];
       private long txnidMostBits_ ;
       public boolean hasTxnidMostBits() {
-        return ((bitField0_ & 0x00200000) == 0x00200000);
+        return ((bitField0_ & 0x00100000) == 0x00100000);
       }
       public long getTxnidMostBits() {
         return txnidMostBits_;
       }
       public Builder setTxnidMostBits(long value) {
-        bitField0_ |= 0x00200000;
+        bitField0_ |= 0x00100000;
         txnidMostBits_ = value;
         
         return this;
       }
       public Builder clearTxnidMostBits() {
-        bitField0_ = (bitField0_ & ~0x00200000);
+        bitField0_ = (bitField0_ & ~0x00100000);
         txnidMostBits_ = 0L;
         
         return this;
