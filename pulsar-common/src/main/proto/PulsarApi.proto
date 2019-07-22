@@ -124,9 +124,9 @@ message MessageMetadata {
     // Markers will generally not be propagated back to clients
     optional int32 marker_type = 20;
 
-	// transaction related message info
-	optional uint64 txnid_least_bits = 22 [default = 0];
-	optional uint64 txnid_most_bits = 23 [default = 0];
+    // transaction related message info
+    optional uint64 txnid_least_bits = 22 [default = 0];
+    optional uint64 txnid_most_bits = 23 [default = 0];
 }
 
 message SingleMessageMetadata {
