@@ -25,7 +25,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import lombok.Builder;
-import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -61,7 +60,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
 import static org.apache.pulsar.functions.utils.FunctionCommon.extractClassLoader;
-import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
 
 @Slf4j
 public class LocalRunner {
@@ -407,7 +405,7 @@ public class LocalRunner {
                 serviceUrl,
                 stateStorageServiceUrl,
                 authConfig,
-                new ClearTextSecretsProvider(), null);
+                new ClearTextSecretsProvider(), null, null);
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(functionDetails);

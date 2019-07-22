@@ -44,7 +44,7 @@ public class SparkStreamingPulsarReceiverTest extends PulsarTestSuite {
 
     @Test(dataProvider = "ServiceUrls")
     public void testReceivedMessage(String serviceUrl) throws Exception {
-        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData();
+        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData<>();
 
         Set<String> set = new HashSet<>();
         set.add(TOPIC);
@@ -80,8 +80,8 @@ public class SparkStreamingPulsarReceiverTest extends PulsarTestSuite {
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testDefaultSettingsOfReceiver(String serviceUrl) throws Exception {
-        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData();
+    public void testDefaultSettingsOfReceiver(String serviceUrl) {
+        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData<>();
 
         Set<String> set = new HashSet<>();
         set.add(TOPIC);

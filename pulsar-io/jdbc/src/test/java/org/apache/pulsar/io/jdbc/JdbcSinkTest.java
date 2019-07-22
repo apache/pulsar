@@ -124,10 +124,8 @@ public class JdbcSinkTest {
 
         Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
             .message(insertMessage)
-            .topicName("fake_topic_name").ackFunction(new Runnable(){
-                    public void run(){
-                    }
-                })
+            .topicName("fake_topic_name")
+            .ackFunction(() -> {})
             .build();
 
         genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
@@ -173,10 +171,8 @@ public class JdbcSinkTest {
         Message<GenericRecord> updateMessage = mock(MessageImpl.class);
         Record<GenericRecord> updateRecord = PulsarRecord.<GenericRecord>builder()
                 .message(updateMessage)
-                .topicName("fake_topic_name").ackFunction(new Runnable(){
-                    public void run(){
-                    }
-                })
+                .topicName("fake_topic_name")
+                .ackFunction(() -> {})
                 .build();
 
         GenericSchema<GenericRecord> updateGenericAvroSchema;
@@ -216,10 +212,8 @@ public class JdbcSinkTest {
         Message<GenericRecord> deleteMessage = mock(MessageImpl.class);
         Record<GenericRecord> deleteRecord = PulsarRecord.<GenericRecord>builder()
                 .message(deleteMessage)
-                .topicName("fake_topic_name").ackFunction(new Runnable(){
-                    public void run(){
-                    }
-                })
+                .topicName("fake_topic_name")
+                .ackFunction(() -> {})
                 .build();
 
         GenericSchema<GenericRecord> deleteGenericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());

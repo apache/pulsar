@@ -192,33 +192,27 @@ public class PulsarMetadata implements ConnectorMetadata {
 
         ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
 
-        tableMetaData.getColumns().forEach(new Consumer<ColumnMetadata>() {
-            @Override
-            public void accept(ColumnMetadata columnMetadata) {
+        tableMetaData.getColumns().forEach(columnMetadata -> {
 
-                PulsarColumnMetadata pulsarColumnMetadata = (PulsarColumnMetadata) columnMetadata;
+            PulsarColumnMetadata pulsarColumnMetadata = (PulsarColumnMetadata) columnMetadata;
 
-                PulsarColumnHandle pulsarColumnHandle = new PulsarColumnHandle(
-                        connectorId,
-                        pulsarColumnMetadata.getNameWithCase(),
-                        pulsarColumnMetadata.getType(),
-                        pulsarColumnMetadata.isHidden(),
-                        pulsarColumnMetadata.isInternal(),
-                        pulsarColumnMetadata.getFieldNames(),
-                        pulsarColumnMetadata.getPositionIndices());
+            PulsarColumnHandle pulsarColumnHandle = new PulsarColumnHandle(
+                    connectorId,
+                    pulsarColumnMetadata.getNameWithCase(),
+                    pulsarColumnMetadata.getType(),
+                    pulsarColumnMetadata.isHidden(),
+                    pulsarColumnMetadata.isInternal(),
+                    pulsarColumnMetadata.getFieldNames(),
+                    pulsarColumnMetadata.getPositionIndices());
 
-                columnHandles.put(
-                        columnMetadata.getName(),
-                        pulsarColumnHandle);
-            }
+            columnHandles.put(
+                    columnMetadata.getName(),
+                    pulsarColumnHandle);
         });
 
-        PulsarInternalColumn.getInternalFields().stream().forEach(new Consumer<PulsarInternalColumn>() {
-            @Override
-            public void accept(PulsarInternalColumn pulsarInternalColumn) {
-                PulsarColumnHandle pulsarColumnHandle = pulsarInternalColumn.getColumnHandle(connectorId, false);
-                columnHandles.put(pulsarColumnHandle.getName(), pulsarColumnHandle);
-            }
+        PulsarInternalColumn.getInternalFields().forEach(pulsarInternalColumn -> {
+            PulsarColumnHandle pulsarColumnHandle = pulsarInternalColumn.getColumnHandle(connectorId, false);
+            columnHandles.put(pulsarColumnHandle.getName(), pulsarColumnHandle);
         });
 
         return columnHandles.build();

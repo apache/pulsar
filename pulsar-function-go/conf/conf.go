@@ -27,7 +27,7 @@ import (
 	"os/user"
 	"time"
 
-	"github.com/apache/pulsar/pulsar-function-go/log"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	"gopkg.in/yaml.v2"
 )
 
@@ -87,15 +87,24 @@ func (c *Conf) GetConf() *Conf {
 		flag.Usage()
 	}
 
+	if confContent == "" && confFilePath == "" {
+		log.Errorf("no yaml file or conf content provided")
+		return nil
+	}
+
 	if confFilePath != "" {
 		yamlFile, err := ioutil.ReadFile(confFilePath)
-		if err != nil {
-			log.Errorf("not found conf file, err:%s", err.Error())
+		if err == nil {
+			err = yaml.Unmarshal(yamlFile, c)
+			if err != nil {
+				log.Errorf("unmarshal yaml file error:%s", err.Error())
+				return nil
+			}
+		} else if err != nil && os.IsNotExist(err) && confContent == "" {
+			log.Errorf("conf file not found, no config content provided, err:%s", err.Error())
 			return nil
-		}
-		err = yaml.Unmarshal(yamlFile, c)
-		if err != nil {
-			log.Errorf("unmarshal yaml file error:%s", err.Error())
+		} else if err != nil && !os.IsNotExist(err) {
+			log.Errorf("load conf file failed, err:%s", err.Error())
 			return nil
 		}
 	}
@@ -107,6 +116,7 @@ func (c *Conf) GetConf() *Conf {
 			return nil
 		}
 	}
+
 	return c
 }
 

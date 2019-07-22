@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import com.google.common.base.MoreObjects;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -41,7 +42,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -182,6 +182,8 @@ public class NonPersistentSubscription implements Subscription {
             return "Failover";
         case Shared:
             return "Shared";
+        case Key_Shared:
+            return "Key_Shared";
         }
 
         return "Null";
@@ -306,12 +308,12 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public CopyOnWriteArrayList<Consumer> getConsumers() {
+    public List<Consumer> getConsumers() {
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             return dispatcher.getConsumers();
         } else {
-            return CopyOnWriteArrayList.empty();
+            return Collections.emptyList();
         }
     }
 

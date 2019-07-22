@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
@@ -631,8 +632,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new Policies()), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
-        List<String> list = persistentTopics.getList(property, cluster, namespace);
-        assertTrue(list.isEmpty());
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.getList(response, property, cluster, namespace);
+        verify(response, times(1)).resume(Lists.newArrayList());
         // create topic
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());
         persistentTopics.createPartitionedTopic(property, cluster, namespace, topic, 5);
