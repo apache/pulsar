@@ -60,23 +60,7 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
     @Override
     public CompletableFuture<List<TransactionEntry>> readNext(int numEntries) {
-        CompletableFuture<List<TransactionEntry>> readFuture = new CompletableFuture<>();
-
-        meta.readEntries(numEntries, currentSeuquenceId).thenCompose(entries -> {
-            readEntry(entries).thenCompose(txnEntries -> {
-                readFuture.complete(txnEntries);
-                return null;
-            }).exceptionally(readError -> {
-                readFuture.completeExceptionally(readError);
-                return null;
-            });
-            return null;
-        }).exceptionally(e -> {
-            readFuture.completeExceptionally(e);
-            return null;
-        });
-
-        return readFuture;
+        return meta.readEntries(numEntries, currentSeuquenceId).thenCompose(this::readEntry);
     }
 
     private CompletableFuture<List<TransactionEntry>> readEntry(SortedMap<Long, Position> entries) {
@@ -104,6 +88,13 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
         readFuture.complete(txnEntries);
 
         return readFuture;
+    }
+
+    private CompletableFuture<TransactionEntry> writeToTxnEntry(Position position, long sequenceId) {
+        return readEntry(position).thenCompose(entry -> CompletableFuture.completedFuture(
+            new TransactionEntryImpl(meta.id(), sequenceId, entry.getDataBuffer(), meta.committedAtLedgerId(),
+                                     meta.committedAtEntryId())));
+
     }
 
     private CompletableFuture<Entry> readEntry(Position position) {

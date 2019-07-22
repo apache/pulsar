@@ -21,7 +21,6 @@ package org.apache.pulsar.transaction.buffer.impl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
@@ -59,7 +58,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private ManagedCursor retentionCursor;
 
 
-    abstract class TxnCtx implements PublishContext{
+    abstract static class TxnCtx implements PublishContext{
         private long sequenceId;
 
         TxnCtx(long sequenceId) {

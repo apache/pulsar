@@ -96,13 +96,7 @@ public class TransactionCursorImpl implements TransactionCursor {
         }
 
         synchronized (meta) {
-            meta.abortTxn().thenCompose(abortMeta -> {
-                abortFuture.complete(null);
-                return null;
-            }).exceptionally(e -> {
-                abortFuture.completeExceptionally(e);
-                return null;
-            });
+            abortFuture = meta.abortTxn().thenApply(ignore -> null);
         }
 
         return abortFuture;
