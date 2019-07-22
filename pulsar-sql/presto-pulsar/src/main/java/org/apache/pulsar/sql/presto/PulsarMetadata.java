@@ -66,6 +66,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.StandardErrorCode.NOT_FOUND;
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -75,11 +76,14 @@ import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
 import static java.util.Objects.requireNonNull;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertColumnHandle;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertTableHandle;
+import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded;
+import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 
 public class PulsarMetadata implements ConnectorMetadata {
 
     private final String connectorId;
     private final PulsarAdmin pulsarAdmin;
+    private final PulsarConnectorConfig pulsarConnectorConfig;
 
     private static final String INFORMATION_SCHEMA = "information_schema";
 
@@ -88,6 +92,7 @@ public class PulsarMetadata implements ConnectorMetadata {
     @Inject
     public PulsarMetadata(PulsarConnectorId connectorId, PulsarConnectorConfig pulsarConnectorConfig) {
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
+        this.pulsarConnectorConfig = pulsarConnectorConfig;
         try {
             this.pulsarAdmin = pulsarConnectorConfig.getPulsarAdmin();
         } catch (PulsarClientException e) {
@@ -101,7 +106,8 @@ public class PulsarMetadata implements ConnectorMetadata {
         try {
             List<String> tenants = pulsarAdmin.tenants().getTenants();
             for (String tenant : tenants) {
-                prestoSchemas.addAll(pulsarAdmin.namespaces().getNamespaces(tenant));
+                prestoSchemas.addAll(pulsarAdmin.namespaces().getNamespaces(tenant).stream().map(namespace ->
+                        rewriteNamespaceDelimiterIfNeeded(namespace, pulsarConnectorConfig)).collect(Collectors.toList()));
             }
         } catch (PulsarAdminException e) {
             throw new RuntimeException("Failed to get schemas from pulsar: "
@@ -157,7 +163,7 @@ public class PulsarMetadata implements ConnectorMetadata {
             } else {
                 List<String> pulsarTopicList = null;
                 try {
-                    pulsarTopicList = this.pulsarAdmin.topics().getList(schemaNameOrNull);
+                    pulsarTopicList = this.pulsarAdmin.topics().getList(restoreNamespaceDelimiterIfNeeded(schemaNameOrNull, pulsarConnectorConfig));
                 } catch (PulsarAdminException e) {
                     if (e.getStatusCode() == 404) {
                         log.warn("Schema " + schemaNameOrNull + " does not exsit");
@@ -250,28 +256,29 @@ public class PulsarMetadata implements ConnectorMetadata {
         if (schemaTableName.getSchemaName().equals(INFORMATION_SCHEMA)) {
             return null;
         }
+        String namespace = restoreNamespaceDelimiterIfNeeded(schemaTableName.getSchemaName(), pulsarConnectorConfig);
 
         TopicName topicName = TopicName.get(
-                String.format("%s/%s", schemaTableName.getSchemaName(), schemaTableName.getTableName()));
+                String.format("%s/%s", namespace, schemaTableName.getTableName()));
 
         List<String> topics;
         try {
             if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
-                topics = this.pulsarAdmin.topics().getList(schemaTableName.getSchemaName());
+                topics = this.pulsarAdmin.topics().getList(namespace);
             } else {
-                topics = this.pulsarAdmin.topics().getPartitionedTopicList((schemaTableName.getSchemaName()));
+                topics = this.pulsarAdmin.topics().getPartitionedTopicList(namespace);
             }
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
-                throw new PrestoException(NOT_FOUND, "Schema " + schemaTableName.getSchemaName() + " does not exist");
+                throw new PrestoException(NOT_FOUND, "Schema " + namespace + " does not exist");
             }
-            throw new RuntimeException("Failed to get topics in schema " + schemaTableName.getSchemaName()
+            throw new RuntimeException("Failed to get topics in schema " + namespace
                     + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
         if (!topics.contains(topicName.toString())) {
             log.error("Table %s not found",
-                    String.format("%s/%s", schemaTableName.getSchemaName(),
+                    String.format("%s/%s", namespace,
                             schemaTableName.getTableName()));
             throw new TableNotFoundException(schemaTableName);
         }
@@ -279,14 +286,14 @@ public class PulsarMetadata implements ConnectorMetadata {
         SchemaInfo schemaInfo;
         try {
             schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(
-                    String.format("%s/%s", schemaTableName.getSchemaName(), schemaTableName.getTableName()));
+                    String.format("%s/%s", namespace, schemaTableName.getTableName()));
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
                 // to indicate that we can't read from topic because there is no schema
                 return null;
             }
             throw new RuntimeException("Failed to get schema information for topic "
-                    + String.format("%s/%s", schemaTableName.getSchemaName(), schemaTableName.getTableName())
+                    + String.format("%s/%s", namespace, schemaTableName.getTableName())
                     + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
