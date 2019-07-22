@@ -22,7 +22,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Optional;
 
 import lombok.SneakyThrows;
@@ -252,6 +251,52 @@ public class Markers {
         } finally {
             builder.recycle();
             inStream.recycle();
+        }
+    }
+
+    public static boolean isTxnCommitMarker(MessageMetadata msgMetadata) {
+        return msgMetadata != null
+               && msgMetadata.hasMarkerType()
+               && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE;
+    }
+
+    public static ByteBuf newTxnCommitMarker(long sequenceId, long indirectLedgerId, long txnMostBits,
+                                             long txnLeastBits) {
+        return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, indirectLedgerId, txnMostBits, txnLeastBits);
+    }
+
+    public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {
+        return msgMetadata != null
+               && msgMetadata.hasMarkerType()
+               && msgMetadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE;
+    }
+
+    public static ByteBuf newTxnAbortMarker(long sequenceId, long indirectLedgerId, long txnMostBits,
+                                            long txnLeastBits) {
+        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, indirectLedgerId, txnMostBits, txnLeastBits);
+    }
+
+    private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long indirectLedgerId, long txnMostBits,
+                                        long txnLeastBits) {
+        MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
+        msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
+        msgMetadataBuilder.setProducerName("pulsar.txn.marker");
+        msgMetadataBuilder.setSequenceId(sequenceId);
+        msgMetadataBuilder.setMarkerType(markerType.getNumber());
+        msgMetadataBuilder.setIndirectLedgerId(indirectLedgerId);
+        msgMetadataBuilder.setTxnidMostBits(txnMostBits);
+        msgMetadataBuilder.setTxnidLeastBits(txnLeastBits);
+
+        MessageMetadata msgMetadata = msgMetadataBuilder.build();
+
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer();
+
+        try {
+            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
+        } finally {
+            payload.release();
+            msgMetadata.recycle();
+            msgMetadataBuilder.recycle();
         }
     }
 }
