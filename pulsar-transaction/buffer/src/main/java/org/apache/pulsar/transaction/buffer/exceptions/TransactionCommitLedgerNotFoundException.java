@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.transaction.buffer.exceptions;
 
+/**
+ * Exception when get a non exist committed ledger.
+ */
 public class TransactionCommitLedgerNotFoundException extends TransactionBufferException {
 
     private static final long serialVersionUID = 0L;

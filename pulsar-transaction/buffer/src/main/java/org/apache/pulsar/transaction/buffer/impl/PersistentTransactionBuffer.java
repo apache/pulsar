@@ -24,8 +24,6 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -241,7 +239,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         }
 
 
-        dataLedgers.forEach( dataLedger -> {
+        dataLedgers.forEach(dataLedger -> {
             txnCursor.getRemoveTxns(22L).thenAccept(txnIDS -> {
                 txnIDS.forEach(txnID -> {
                     deleteTxn(txnID).thenCompose(delete -> {
