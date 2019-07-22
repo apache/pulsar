@@ -180,6 +180,18 @@ module.exports = {
         forum_link: 'https://streaml.io/blog',
         title: 'Sentiment Analysis of Tweets using Apache Pulsar',
         link: 'https://streaml.io/blog/sentiment-analysis-of-tweets-using-apache-pulsar'
+    },
+    {
+        forum: 'Apache Flink blog',
+        forum_link: 'https://flink.apache.org/blog/',
+        title: 'When Flink & Pulsar Come Together',
+        link: 'https://flink.apache.org/2019/05/03/pulsar-flink.html'
+    },
+    {
+        forum: 'Debezium blog',
+        forum_link: 'https://debezium.io/blog',
+        title: 'Tutorial for Using Debezium Connectors With Apache Pulsar',
+        link: 'https://debezium.io/blog/2019/05/23/tutorial-using-debezium-connectors-with-apache-pulsar/'
     }
   ],
   presentations: [
