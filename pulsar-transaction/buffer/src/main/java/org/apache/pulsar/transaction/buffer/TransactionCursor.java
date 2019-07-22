@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.buffer;
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.transaction.impl.common.TxnID;
@@ -55,10 +56,18 @@ public interface TransactionCursor {
     CompletableFuture<Void> abortTxn(TxnID txnID);
 
     /**
-     * Remove transaction from index.
+     * Get all the transaction id on the specified ledger.
      *
-     * @param txnID the remove transaction id
+     * @param ledgerId the transaction committed ledger id
      * @return
      */
-    CompletableFuture<Void> removeTxn(TxnID txnID);
+    CompletableFuture<Set<TxnID>> getRemoveTxns(long ledgerId);
+
+    /**
+     * Remove transaction from index.
+     *
+     * @param ledgerId the remove transaction id
+     * @return
+     */
+    CompletableFuture<Void> removeCommittedLedger(long ledgerId);
 }

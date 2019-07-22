@@ -23,9 +23,16 @@ import io.netty.buffer.Unpooled;
 import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang.SerializationUtils;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -36,15 +43,18 @@ import org.apache.pulsar.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
  * A persistent transaction buffer implementation.
  */
+@Slf4j
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 
     private TransactionCursor txnCursor;
+    private ManagedCursor retentionCursor;
 
 
     abstract class TxnCtx implements PublishContext{
@@ -76,9 +86,10 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService)
-        throws BrokerServiceException.NamingException {
+        throws BrokerServiceException.NamingException, ManagedLedgerException {
         super(topic, ledger, brokerService);
         this.txnCursor = new TransactionCursorImpl();
+        this.retentionCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
     }
 
     @Override
@@ -120,9 +131,12 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             try {
                 PersistentTransactionBufferReader reader = new PersistentTransactionBufferReader(meta, ledger);
                 readerFuture.complete(reader);
-            } catch (ManagedLedgerException e) {
+            } catch (ManagedLedgerException | TransactionNotSealedException e) {
                 readerFuture.completeExceptionally(e);
             }
+            return null;
+        }).exceptionally(e -> {
+            readerFuture.completeExceptionally(e);
             return null;
         });
 
@@ -137,25 +151,18 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf marker = Unpooled.wrappedBuffer(commitMarker.serialize());
 
         txnCursor.getTxnMeta(txnID, false).thenCompose(meta -> {
-            publishMessage(marker, new TxnCtx(meta.lastSequenceId() + 1) {
-                @Override
-                public void completed(Exception e, long ledgerId, long entryId) {
-                    if (e != null) {
-                        commitFuture.completeExceptionally(e);
-                        return;
-                    }
-
-                    txnCursor
-                        .commitTxn(committedAtLedgerId, committedAtEntryId, txnID, PositionImpl.get(ledgerId, entryId))
-                        .thenCompose(v -> {
-                            commitFuture.complete(null);
-                            return null;
-                        }).exceptionally(error -> {
-                        commitFuture.completeExceptionally(error);
-                        return null;
-                    });
-
-                }
+            publishMessage(marker, meta.lastSequenceId() + 1).thenCompose(position -> {
+                txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID, position).thenCompose(v -> {
+                    commitFuture.complete(null);
+                    return null;
+                }).exceptionally(e -> {
+                    commitFuture.completeExceptionally(e);
+                    return null;
+                });
+                return null;
+            }).exceptionally(e -> {
+                commitFuture.completeExceptionally(e);
+                return null;
             });
             return null;
         }).exceptionally(e -> {
@@ -174,23 +181,18 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf marker = Unpooled.wrappedBuffer(abortMarker.serialize());
 
         txnCursor.getTxnMeta(txnID, false).thenCompose(meta -> {
-            publishMessage(marker, new TxnCtx(meta.lastSequenceId() + 1) {
-                @Override
-                public void completed(Exception e, long ledgerId, long entryId) {
-                    if (e != null) {
-                        abortFuture.completeExceptionally(e);
-                        return;
-                    }
-
-                    txnCursor.abortTxn(txnID).thenCompose(v -> {
-                        abortFuture.complete(null);
-                        return null;
-                    }).exceptionally(error -> {
-                        abortFuture.completeExceptionally(error);
-                        return null;
-                    });
-
-                }
+            publishMessage(marker, meta.lastSequenceId() + 1).thenCompose(position -> {
+                txnCursor.abortTxn(txnID).thenCompose(v -> {
+                    abortFuture.complete(null);
+                    return null;
+                }).exceptionally(e -> {
+                    abortFuture.completeExceptionally(e);
+                    return null;
+                });
+                return null;
+            }).exceptionally(e -> {
+                abortFuture.completeExceptionally(e);
+                return null;
             });
             return null;
         }).exceptionally(e -> {
@@ -201,9 +203,104 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         return abortFuture;
     }
 
+    private CompletableFuture<Position> publishMessage(ByteBuf msg, long sequenceId) {
+        CompletableFuture<Position> publishFuture = new CompletableFuture<>();
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        brokerService.executor().execute(() -> {
+            publishMessage(msg, new TxnCtx(sequenceId) {
+                @Override
+                public void completed(Exception e, long ledgerId, long entryId) {
+                    if (e != null) {
+                        publishFuture.completeExceptionally(e);
+                        return;
+                    }
+
+                    publishFuture.complete(PositionImpl.get(ledgerId, entryId));
+                    latch.countDown();
+                }
+            });
+        });
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            publishFuture.completeExceptionally(e);
+        }
+
+        return publishFuture;
+    }
+
     @Override
     public CompletableFuture<Void> purgeTxns(List<Long> dataLedgers) {
-        return FutureUtil.failedFuture(new UnsupportedOperationException());
+        CompletableFuture<Void> purgeFuture = new CompletableFuture<>();
+
+        if (log.isDebugEnabled()) {
+            log.debug("Begin to purge the ledgers {}", dataLedgers);
+        }
+
+
+        dataLedgers.forEach( dataLedger -> {
+            txnCursor.getRemoveTxns(22L).thenAccept(txnIDS -> {
+                txnIDS.forEach(txnID -> {
+                    deleteTxn(txnID).thenCompose(delete -> {
+                        log.info("Success delete transaction `{}`", txnID);
+                        return null;
+                    });
+                });
+            }).exceptionally(e -> {
+                purgeFuture.completeExceptionally(e);
+                return null;
+            });
+
+            if (!purgeFuture.isCompletedExceptionally()) {
+                txnCursor.removeCommittedLedger(dataLedger).thenCompose(v -> {
+                    log.info("Success remove ledger {} and related transactions", dataLedger);
+                    return null;
+                });
+            }
+
+        });
+
+        if (!purgeFuture.isCompletedExceptionally()) {
+            purgeFuture.complete(null);
+        }
+
+        purgeFuture.complete(null);
+        return purgeFuture;
+    }
+
+    private CompletableFuture<Void> deleteTxn(TxnID txnID) {
+        CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
+
+        txnCursor.getTxnMeta(txnID, false).thenCompose(meta -> {
+            meta.readEntries(meta.numEntries(), -1L).thenCompose(longPositionSortedMap -> {
+                longPositionSortedMap.values().forEach(position -> {
+                    retentionCursor.asyncMarkDelete(position, new AsyncCallbacks.MarkDeleteCallback() {
+                        @Override
+                        public void markDeleteComplete(Object ctx) {
+                            log.info("Success delete transaction `{}` entry on position {}", txnID, position);
+                        }
+
+                        @Override
+                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("Failed delete transaction `{}` entry on position {}", txnID, position,
+                                      exception);
+                        }
+                    }, null);
+                });
+                deleteFuture.complete(null);
+                return null;
+            });
+
+            return null;
+        }).exceptionally(e -> {
+            deleteFuture.completeExceptionally(e);
+            return null;
+        });
+
+        return deleteFuture;
     }
 
     @Override

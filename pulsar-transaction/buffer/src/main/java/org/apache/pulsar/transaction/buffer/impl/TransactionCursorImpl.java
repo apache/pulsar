@@ -29,6 +29,8 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.transaction.buffer.exceptions.TransactionBufferException;
+import org.apache.pulsar.transaction.buffer.exceptions.TransactionCommitLedgerNotFoundException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
@@ -73,10 +75,15 @@ public class TransactionCursorImpl implements TransactionCursor {
         }
 
         synchronized (meta) {
-            meta.commitTxn(committedLedgerId, committedEntryId);
-            addTxnToCommittedIndex(txnID, committedLedgerId);
+            meta.commitTxn(committedLedgerId, committedEntryId).thenCompose(commit -> {
+                addTxnToCommittedIndex(txnID, committedLedgerId);
+                commitFuture.complete(null);
+                return null;
+            }).exceptionally(e -> {
+                commitFuture.completeExceptionally(e);
+                return null;
+            });
         }
-        commitFuture.complete(null);
 
         return commitFuture;
     }
@@ -97,25 +104,53 @@ public class TransactionCursorImpl implements TransactionCursor {
         }
 
         synchronized (meta) {
-            meta.abortTxn();
+            meta.abortTxn().thenCompose(abortMeta -> {
+                abortFuture.complete(null);
+                return null;
+            }).exceptionally(e -> {
+                abortFuture.completeExceptionally(e);
+                return null;
+            });
         }
-
-        abortFuture.complete(null);
 
         return abortFuture;
     }
 
     private TransactionMeta getMeta(TxnID txnID, CompletableFuture<Void> future) {
         TransactionMeta meta = txnIndex.get(txnID);
-        if (meta != null) {
+        if (meta == null) {
             future.completeExceptionally(new TransactionNotFoundException("Transaction `" + txnID + "` doesn't exist"));
         }
 
         return meta;
     }
 
+    public CompletableFuture<Set<TxnID>> getRemoveTxns(long ledgerId) {
+        CompletableFuture<Set<TxnID>> removeFuture = new CompletableFuture<>();
+
+        Set<TxnID> txnIDS = committedTxnIndex.get(ledgerId);
+
+        if (!committedTxnIndex.keySet().contains(ledgerId)) {
+            removeFuture.completeExceptionally(new TransactionCommitLedgerNotFoundException(
+                "Transaction commited " + "ledger id `" + ledgerId + "` doesn't exist") {
+            });
+            return removeFuture;
+        }
+
+        removeFuture.complete(txnIDS);
+        return removeFuture;
+    }
+
     @Override
-    public CompletableFuture<Void> removeTxn(TxnID txnID) {
-        return FutureUtil.failedFuture(new UnsupportedOperationException());
+    public CompletableFuture<Void> removeCommittedLedger(long ledgerId) {
+
+        synchronized (committedTxnIndex) {
+            Set<TxnID> txnIDS = committedTxnIndex.remove(ledgerId);
+            txnIDS.forEach(txnID -> {
+                txnIndex.remove(txnID);
+            });
+        }
+
+        return CompletableFuture.completedFuture(null);
     }
 }

@@ -113,7 +113,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
         @Override
         public CompletableFuture<TransactionMeta> abortTxn() {
-            return CompletableFuture.failedFuture(new UnsupportedOperationException());
+            return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
         synchronized TxnBuffer abort() throws UnexpectedTxnStatusException {

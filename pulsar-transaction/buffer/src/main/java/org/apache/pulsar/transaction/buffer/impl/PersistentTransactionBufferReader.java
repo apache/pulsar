@@ -35,6 +35,9 @@ import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
+import org.apache.pulsar.transaction.buffer.exceptions.TransactionSealedException;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
  * A persistent transaction buffer reader implementation.
@@ -47,7 +50,11 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
     private long currentSeuquenceId = -1L;
 
 
-    PersistentTransactionBufferReader(TransactionMeta meta, ManagedLedger ledger) throws ManagedLedgerException {
+    PersistentTransactionBufferReader(TransactionMeta meta, ManagedLedger ledger)
+        throws ManagedLedgerException, TransactionNotSealedException {
+        if (TxnStatus.OPEN == meta.status()) {
+            throw new TransactionNotSealedException("Transaction `" + meta.id() + "` is not sealed yet");
+        }
         this.meta = meta;
         this.readCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
     }
@@ -70,7 +77,7 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
             return null;
         });
 
-        return null;
+        return readFuture;
     }
 
     private CompletableFuture<List<TransactionEntry>> readEntry(SortedMap<Long, Position> entries) {
@@ -127,6 +134,9 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
     @Override
     public void close() {
+        if (readCursor == null) {
+            return;
+        }
         readCursor.asyncClose(new AsyncCallbacks.CloseCallback() {
             @Override
             public void closeComplete(Object ctx) {

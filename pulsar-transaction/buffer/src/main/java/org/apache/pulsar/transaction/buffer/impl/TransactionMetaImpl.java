@@ -136,8 +136,8 @@ public class TransactionMetaImpl implements TransactionMeta {
         this.committedAtLedgerId = committedAtLedgerId;
         this.committedAtEntryId = committedAtEntryId;
         this.txnStatus = TxnStatus.COMMITTED;
-        commitFuture.complete(this);
-
+        TransactionMeta meta = this;
+        commitFuture.complete(meta);
         return commitFuture;
     }
 
