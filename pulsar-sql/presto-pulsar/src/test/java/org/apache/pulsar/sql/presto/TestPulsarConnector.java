@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -63,6 +64,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.time.LocalDate;
@@ -933,5 +935,21 @@ public abstract class TestPulsarConnector {
     @AfterMethod
     public void cleanup() {
         completedBytes = 0L;
+    }
+
+    @DataProvider(name = "rewriteNamespaceDelimiter")
+    public static Object[][] serviceUrls() {
+        return new Object[][] {
+                { "|" }, { null }
+        };
+    }
+
+    protected void updateRewriteNamespaceDelimiterIfNeeded(String delimiter) {
+        if (StringUtils.isNotBlank(delimiter)) {
+            pulsarConnectorConfig.setNamespaceDelimiterRewriteEnable(true);
+            pulsarConnectorConfig.setRewriteNamespaceDelimiter(delimiter);
+        } else {
+            pulsarConnectorConfig.setNamespaceDelimiterRewriteEnable(false);
+        }
     }
 }
