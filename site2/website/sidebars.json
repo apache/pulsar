@@ -57,7 +57,8 @@
       "administration-dashboard",
       "administration-stats",
       "administration-load-balance",
-      "administration-proxy"
+      "administration-proxy",
+      "administration-upgrade"
     ],
     "Security": [
       "security-overview",
