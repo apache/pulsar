@@ -940,7 +940,7 @@ public abstract class TestPulsarConnector {
     @DataProvider(name = "rewriteNamespaceDelimiter")
     public static Object[][] serviceUrls() {
         return new Object[][] {
-                { "__" }, { null }
+                { "|" }, { null }
         };
     }
 
