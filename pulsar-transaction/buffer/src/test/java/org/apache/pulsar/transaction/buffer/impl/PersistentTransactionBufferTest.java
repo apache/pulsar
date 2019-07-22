@@ -419,13 +419,14 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
 
         assertEquals(txnID, meta.id());
-        assertEquals(TxnStatus.OPEN, meta.status());
+        assertEquals(meta.status(), TxnStatus.OPEN);
 
         buffer.commitTxn(txnID, 22L, 33L);
         meta = buffer.getTransactionMeta(txnID).get();
 
+        System.out.println(meta.status());
         assertEquals(txnID, meta.id());
-        assertEquals(TxnStatus.COMMITTED, meta.status());
+        assertEquals(meta.status(), TxnStatus.COMMITTED);
     }
 
     @Test

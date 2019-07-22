@@ -73,14 +73,8 @@ public class TransactionCursorImpl implements TransactionCursor {
         }
 
         synchronized (meta) {
-            meta.commitTxn(committedLedgerId, committedEntryId).thenCompose(commit -> {
-                addTxnToCommittedIndex(txnID, committedLedgerId);
-                commitFuture.complete(null);
-                return null;
-            }).exceptionally(e -> {
-                commitFuture.completeExceptionally(e);
-                return null;
-            });
+            commitFuture = meta.commitTxn(committedLedgerId, committedEntryId)
+                               .thenAccept(ignore -> addTxnToCommittedIndex(txnID, committedLedgerId));
         }
 
         return commitFuture;

@@ -74,7 +74,7 @@ public class TransactionBufferTest {
 
     @AfterMethod
     public void teardown() throws Exception {
-        this.buffer.closeBuffer();
+        this.buffer.closeAsync();
     }
 
     @Test

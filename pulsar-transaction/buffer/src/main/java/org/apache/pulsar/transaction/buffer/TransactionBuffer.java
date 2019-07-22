@@ -123,5 +123,5 @@ public interface TransactionBuffer {
     /**
      * {@inheritDoc}
      */
-    CompletableFuture<Void> closeBuffer();
+    CompletableFuture<Void> closeAsync();
 }
