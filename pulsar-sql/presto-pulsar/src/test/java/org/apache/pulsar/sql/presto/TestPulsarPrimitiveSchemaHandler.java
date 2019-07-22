@@ -117,24 +117,21 @@ public class TestPulsarPrimitiveSchemaHandler {
         Date dateValue = new Date(System.currentTimeMillis());
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(DateSchema.of().encode(dateValue)));
         Object dateDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData());
-        Assert.assertEquals(dateValue, dateDeserializeValue);
-        Assert.assertEquals(dateValue.getTime(), pulsarPrimitiveSchemaHandler.extractField(0, dateDeserializeValue));
+        Assert.assertEquals(dateValue.getTime(), dateDeserializeValue);
 
         SchemaInfo schemaInfoTime = SchemaInfo.builder().type(SchemaType.TIME).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoTime);
         Time timeValue = new Time(System.currentTimeMillis());
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(TimeSchema.of().encode(timeValue)));
         Object timeDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData());
-        Assert.assertEquals(timeValue, timeDeserializeValue);
-        Assert.assertEquals(timeValue.getTime(), pulsarPrimitiveSchemaHandler.extractField(0, timeDeserializeValue));
+        Assert.assertEquals(timeValue.getTime(), timeDeserializeValue);
 
         SchemaInfo schemaInfoTimestamp = SchemaInfo.builder().type(SchemaType.TIMESTAMP).build();
         pulsarPrimitiveSchemaHandler = new PulsarPrimitiveSchemaHandler(schemaInfoTimestamp);
         Timestamp timestampValue = new Timestamp(System.currentTimeMillis());
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(TimestampSchema.of().encode(timestampValue)));
         Object timestampDeserializeValue = pulsarPrimitiveSchemaHandler.deserialize(rawMessage.getData());
-        Assert.assertEquals(timestampValue, timestampDeserializeValue);
-        Assert.assertEquals(timestampValue.getTime(), pulsarPrimitiveSchemaHandler.extractField(0, timestampDeserializeValue));
+        Assert.assertEquals(timestampValue.getTime(), timestampDeserializeValue);
     }
 
     @Test
