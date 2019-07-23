@@ -124,6 +124,8 @@ Currently, Pulsar supports the following complex types:
     Users can choose the encoding type when constructing the key/value schema.
 
     **Example**
+    
+    This example shows how to construct a key/value schema and then use it to produce and consume messages.
 
     1. Construct a key/value schema with `INLINE` encoding type.
 
