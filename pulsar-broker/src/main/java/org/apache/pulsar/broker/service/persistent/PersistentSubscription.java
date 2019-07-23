@@ -441,7 +441,21 @@ public class PersistentSubscription implements Subscription {
             }
         }
         // Persist pending ack messages info to cursor meta store.
-        persistPendingAckPositions();
+        persistPendingAckPositions(new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, MetaStore.Stat stat) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Persist pending ack positions {} to managed cursor for transaction:{}",
+                            topicName, subName, positions, txnId);
+                }
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                log.error("[{}][{}] Fail to persist pending ack positions {} to managed cursor for transaction:{}",
+                        topicName, subName, positions, txnId);
+            }
+        });
     }
 
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
@@ -967,7 +981,7 @@ public class PersistentSubscription implements Subscription {
     /**
      *
      */
-    private void persistPendingAckPositions() {
+    private void persistPendingAckPositions(MetaStoreCallback<Void> callback) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         PendingAckMessageEntry.Builder pendingAckMessagesEntryBuilder = PendingAckMessageEntry.newBuilder();
@@ -995,34 +1009,49 @@ public class PersistentSubscription implements Subscription {
         });
 
         ((ManagedCursorImpl) cursor).persistPendingAckPositionMetaInfo(pendingCumulativeAckPositionInfoBuilder,
-                pendingAckMessagesEntryList, subName, new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, MetaStore.Stat stat) {
-                        future.complete(true);
-                    }
-
-                    @Override
-                    public void operationFailed(ManagedLedgerException.MetaStoreException e) {
-                        future.complete(false);
-                    }
-                });
-        // Wait for persist to complete, so when acknowledgeMessages returns we know this operation has succeed.
-        try {
-            future.wait(1000);
-        } catch (InterruptedException e) {
-
-        }
+            pendingAckMessagesEntryList, subName, callback);
     }
 
     private void recoverPendingAckMessages() {
-        SubscriptionPendingAckMessages subscriptionPendingAckMessages =
-                                                    ((ManagedCursorImpl) cursor).getPendingAckPositionMetaInfo(subName);
-        if (subscriptionPendingAckMessages.getPendingAckMessagesList() != null) {
-            //recover pending ack message map.
-        }
-        if (subscriptionPendingAckMessages.getPendingCumulativeAckMessagePosition() != null) {
-            //recover pending cumulative ack position.
-        }
+        ((ManagedCursorImpl) cursor).getPendingAckPositionMetaInfo(subName,
+            new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+                @Override
+                public void operationComplete(SubscriptionPendingAckMessages result, MetaStore.Stat stat) {
+                    if (result.getPendingAckMessagesList() != null) {
+                        pendingAckMessages = new ConcurrentOpenHashSet<>();
+                        pendingAckMessagesMap = new ConcurrentOpenHashMap<>();
+                        result.getPendingAckMessagesList().forEach(pendingAckMessageEntry -> {
+                            ConcurrentOpenHashSet<Position> pendingAckPositionsForTxn = new ConcurrentOpenHashSet<>();
+                            pendingAckMessageEntry.getPositionList().getPositionsList().forEach(positionInfo -> {
+                                Position pendingAckPosition = new PositionImpl(positionInfo.getLedgerId(), positionInfo.getEntryId());
+                                pendingAckPositionsForTxn.add(pendingAckPosition);
+                            });
+                            try {
+                                pendingAckMessagesMap.put(TxnID.fromString(pendingAckMessageEntry.getTxnId()),
+                                        pendingAckPositionsForTxn);
+                                pendingAckPositionsForTxn.forEach(position -> pendingAckMessages.add(position));
+                            } catch (IllegalArgumentException e) {
+                                // Log error, not interrupting subscription recover.
+                                log.error(  "[" + topicName + "][" + subName + "]Fail to recover pending ack" +
+                                            " positions for single transaction due to malformed txnID:" +
+                                            pendingAckMessageEntry.getTxnId());
+                            }
+                        });
+                    }
+                    if (result.getPendingCumulativeAckMessagePosition() != null) {
+                        pendingCumulativeAckMessage = new PositionImpl(
+                                result.getPendingCumulativeAckMessagePosition().getLedgerId(),
+                                result.getPendingCumulativeAckMessagePosition().getLedgerId());
+                    }
+                }
+
+                @Override
+                public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                    log.error("[" + topicName + "][" + subName + "]Fail to recover pending ack positions info " +
+                              "from managedCursor due to:" + e);
+                }
+            }
+        );
     }
 
     /**

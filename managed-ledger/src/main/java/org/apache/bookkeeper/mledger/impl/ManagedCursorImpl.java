@@ -2053,29 +2053,20 @@ public class ManagedCursorImpl implements ManagedCursor {
                 });
     }
 
-    public SubscriptionPendingAckMessages getPendingAckPositionMetaInfo(String subName) {
-        CompletableFuture<SubscriptionPendingAckMessages> future = new CompletableFuture<>();
-
+    public void getPendingAckPositionMetaInfo(String subName,
+                                              MetaStoreCallback<SubscriptionPendingAckMessages> callback) {
         ledger.getStore().asyncGetSubscriptionPendingAckMessages(ledger.getName(), name, subName,
                 new MetaStoreCallback<SubscriptionPendingAckMessages>() {
             @Override
             public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
-                future.complete(result);
+                callback.operationComplete(result, stat);
             }
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                future.completeExceptionally(e);
+                callback.operationFailed(e);
             }
         });
-
-        try {
-            future.wait(1000);
-            return future.get();
-        } catch (InterruptedException | ExecutionException e) {
-            return null;
-        }
-
     }
 
     @Override

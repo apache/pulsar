@@ -240,7 +240,7 @@ public class PersistentSubscriptionTest {
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (TransactionConflictException e) {
             assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
+                    "Transaction:1,2 try to ack message:2:1 in pending ack status.");
         }
 
         positions.clear();
@@ -253,7 +253,7 @@ public class PersistentSubscriptionTest {
         } catch (TransactionConflictException e) {
             System.out.println(e.getMessage());
             assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
+                "Transaction:1,2 try to cumulative ack message while transaction:1,1 already cumulative acked messages.");
         }
 
         positions.clear();

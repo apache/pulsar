@@ -45,8 +45,20 @@ public class TxnID implements Serializable {
      */
     private final long leastSigBits;
 
+    public static TxnID fromString(String txnID) {
+        if (!txnID.contains(",")) {
+            throw new IllegalArgumentException("Malformed TxnID string:" + txnID);
+        }
+        String[] parts = txnID.split(",");
+        try {
+            return new TxnID(Long.parseLong(parts[0]), Long.parseLong(parts[1]));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Malformed TxnID string:" + txnID);
+        }
+    }
+
     @Override
     public String toString() {
-        return "(" + mostSigBits + "," + leastSigBits + ")";
+        return mostSigBits + "," + leastSigBits;
     }
 }
