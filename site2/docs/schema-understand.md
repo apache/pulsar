@@ -252,3 +252,68 @@ Currently, Pulsar supports the following complex types:
                       .set("intField", 32)
                       .build()).send();
           ```
+
+### Auto Schema
+
+If you do not know the schema type of a producer, the schema type of a Pulsar topic, or the schema type a consumer, you might have incompatible issues. 
+
+To prevent this situation, Pulsar provides AUTO Schema to get the schema information automatically from the broker side:
+
+| Auto Schema Type | Description |
+|---|---|
+| `AUTO_PRODUCE` | This is useful for transferring data **from a producer to a Pulsar topic** that has a schema. |
+| `AUTO_CONSUME` | This is useful for transferring data **from a Pulsar topic to a consumer** that has a schema. |
+
+#### AUTO_PRODUCE
+
+`AUTO_PRODUCE` schema helps a producer validate whether the bytes sent by the producer is compatible with the schema of a topic. 
+
+**Example**
+
+Suppose that:
+
+* You have a producer processing messages from the topic _K_ of Kafka, and you do not know the schema type of _K_.
+
+* You have a Pulsar topic _P_. 
+
+* Your application reads the messages from _K_ and writes the messages to _P_.  
+   
+In this case, you can use `AUTO_PRODUCE` to verify whether the bytes produced by _K_ can be sent to _P_ or not.
+
+    ```text
+    Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE())
+        …
+        .create();
+
+    byte[] kafkaMessageBytes = … ; 
+
+    pulsarProducer.produce(kafkaMessageBytes);
+    ```
+
+### AUTO_CONSUME
+
+`AUTO_CONSUME` schema helps a Pulsar topic validate whether the bytes sent by a Pulsar topic is compatible with the schema of a consumer, that is, the Pulsar topic deserializes messages into language-specific objects using the `SchemaInfo` retrieved from broker-side. 
+
+Currently, `AUTO_CONSUME` only supports **AVRO** and **JSON** schemas. It deserializes messages into `GenericRecord`.
+
+**Example**
+
+Suppose that:
+
+* You have a Pulsar topic _P_.
+
+* You have a consumer (for example, MySQL) receiving messages from the topic _P_.
+
+* You application reads the messages from _P_ and writes the messages to MySQL.
+   
+In this case, you can use `AUTO_CONSUME` to verify whether the bytes produced by _P_ can be sent to MySQL or not.
+
+```text
+Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME())
+    …
+    .subscribe();
+
+Message<GenericRecord> msg = consumer.receive() ; 
+GenericRecord record = msg.getValue();
+…
+```
