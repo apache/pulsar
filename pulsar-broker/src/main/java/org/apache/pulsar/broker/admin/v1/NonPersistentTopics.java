@@ -37,6 +37,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
@@ -180,6 +181,9 @@ public class NonPersistentTopics extends PersistentTopics {
                 // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
                 validateGlobalNamespaceOwnership(nsName);
             }
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+            return;
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
