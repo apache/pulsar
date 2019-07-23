@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
@@ -47,6 +48,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
@@ -84,6 +86,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooDefs.Ids;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -505,8 +508,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         properties.createTenant("tenant-config-is-null", null);
         assertEquals(properties.getTenantAdmin("tenant-config-is-null"), nullTenantInfo);
 
-
-        namespaces.deleteNamespace("my-tenant", "use", "my-namespace", false);
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.deleteNamespace(response, "my-tenant", "use", "my-namespace", false);
+        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getStatus(), Status.OK.getStatusCode());
         properties.deleteTenant("my-tenant");
         properties.deleteTenant("tenant-config-is-null");
     }

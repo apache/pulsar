@@ -32,6 +32,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
@@ -76,8 +77,10 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateNamespaceName(property, cluster, namespace);
             asyncResponse.resume(internalGetList());
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
         } catch (Exception e) {
-            asyncResponse.resume(e instanceof RestException ? e : new RestException(e));
+            asyncResponse.resume(new RestException(e));
         }
     }
 
@@ -286,6 +289,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalGetPartitionedStats(asyncResponse, authoritative, perPartition);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
@@ -306,6 +311,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalGetPartitionedStatsInternal(asyncResponse, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
