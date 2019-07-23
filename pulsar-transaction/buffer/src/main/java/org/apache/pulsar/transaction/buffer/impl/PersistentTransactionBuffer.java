@@ -60,17 +60,19 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
         private final CompletableFuture<Position> completableFuture;
+        private final String producerName;
 
-        TxnCtx(long sequenceId, CompletableFuture<Position> future) {
+        TxnCtx(String producerName, long sequenceId, CompletableFuture<Position> future) {
             this.sequenceId = sequenceId;
             this.completableFuture = future;
+            this.producerName = producerName;
         }
 
 
 
         @Override
         public String getProducerName() {
-            return "txn-producer";
+            return this.producerName;
         }
 
         @Override
@@ -103,7 +105,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
-        return publishMessage(buffer, sequenceId).thenCompose(position -> appendBuffer(txnId, position, sequenceId));
+        return publishMessage(txnId, buffer, sequenceId).thenCompose(position -> appendBuffer(txnId, position,
+                                                                                             sequenceId));
     }
 
     private CompletableFuture<Void> appendBuffer(TxnID txnID, Position position, long sequenceId) {
@@ -121,7 +124,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         try {
             PersistentTransactionBufferReader reader = new PersistentTransactionBufferReader(meta, ledger);
             createReaderFuture.complete(reader);
-        } catch (ManagedLedgerException | TransactionNotSealedException e) {
+        } catch (TransactionNotSealedException e) {
             createReaderFuture.completeExceptionally(e);
         }
 
@@ -134,7 +137,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf marker = Unpooled.wrappedBuffer(commitMarker.serialize());
 
         return txnCursor.getTxnMeta(txnID, false)
-                 .thenCompose(meta -> publishMessage(marker, meta.lastSequenceId() + 1))
+                 .thenCompose(meta -> publishMessage(txnID, marker, meta.lastSequenceId() + 1))
                  .thenCompose(
                      position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID, position));
     }
@@ -146,13 +149,13 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf marker = Unpooled.wrappedBuffer(abortMarker.serialize());
 
         return txnCursor.getTxnMeta(txnID, false)
-                 .thenCompose(meta -> publishMessage(marker, meta.lastSequenceId() + 1))
+                 .thenCompose(meta -> publishMessage(txnID, marker, meta.lastSequenceId() + 1))
                  .thenCompose(position -> txnCursor.abortTxn(txnID));
     }
 
-    private CompletableFuture<Position> publishMessage(ByteBuf msg, long sequenceId) {
+    private CompletableFuture<Position> publishMessage(TxnID txnID, ByteBuf msg, long sequenceId) {
         CompletableFuture<Position> publishFuture = new CompletableFuture<>();
-        publishMessage(msg, new TxnCtx(sequenceId, publishFuture) {
+        publishMessage(msg, new TxnCtx(txnID.toString(), sequenceId, publishFuture) {
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
                 if (e != null) {
@@ -171,7 +174,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             log.debug("Begin to purge the ledgers {}", dataLedgers);
         }
 
-        List<CompletableFuture<Void>> futures = dataLedgers.stream().map(dataLedger -> deleteLedger(dataLedger))
+        List<CompletableFuture<Void>> futures = dataLedgers.stream().map(dataLedger -> cleanTxnsOnLedger(dataLedger))
                                                            .collect(Collectors.toList());
         return FutureUtil.waitForAll(futures).thenCompose(v -> removeCommittedLedgerFromIndex(dataLedgers));
     }
@@ -182,11 +185,11 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         return FutureUtil.waitForAll(removeFutures);
     }
 
-    private CompletableFuture<Void> deleteLedger(long dataledger) {
+    private CompletableFuture<Void> cleanTxnsOnLedger(long dataledger) {
         if (log.isDebugEnabled()) {
             log.debug("Start to clean ledger {}", dataledger);
         }
-        return txnCursor.getAllTxnsCommitedAtLedger(dataledger).thenCompose(txnIDS -> deleteTxns(txnIDS));
+        return txnCursor.getAllTxnsCommittedAtLedger(dataledger).thenCompose(txnIDS -> deleteTxns(txnIDS));
     }
 
     private CompletableFuture<Void> deleteTxns(Set<TxnID> txnIDS) {
@@ -226,7 +229,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         retentionCursor.asyncMarkDelete(position, new AsyncCallbacks.MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
-                log.info("Success delete transaction `{}` entry on position {}", txnID, position);
+                log.debug("Success delete transaction `{}` entry on position {}", txnID, position);
                 deleteFuture.complete(null);
             }
 

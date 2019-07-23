@@ -36,11 +36,11 @@ public class TransactionCursorImpl implements TransactionCursor {
 
 
     private ConcurrentMap<TxnID, TransactionMetaImpl> txnIndex;
-    private Map<Long, Set<TxnID>> committedTxnIndex;
+    private Map<Long, Set<TxnID>> committedLedgerTxnIndex;
 
     TransactionCursorImpl() {
         this.txnIndex = new ConcurrentHashMap<>();
-        this.committedTxnIndex = new TreeMap<>();
+        this.committedLedgerTxnIndex = new TreeMap<>();
     }
 
     @Override
@@ -55,8 +55,12 @@ public class TransactionCursorImpl implements TransactionCursor {
             }
 
             TransactionMetaImpl newMeta = new TransactionMetaImpl(txnID);
-            txnIndex.putIfAbsent(txnID, newMeta);
-            meta = newMeta;
+            TransactionMeta oldMeta = txnIndex.putIfAbsent(txnID, newMeta);
+            if (null != oldMeta) {
+                meta = oldMeta;
+            } else {
+                meta = newMeta;
+            }
         }
         getFuture.complete(meta);
 
@@ -66,59 +70,32 @@ public class TransactionCursorImpl implements TransactionCursor {
     @Override
     public CompletableFuture<Void> commitTxn(long committedLedgerId, long committedEntryId, TxnID txnID,
                                              Position position) {
-        CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-        TransactionMeta meta = getMeta(txnID, commitFuture);
-        if (commitFuture.isCompletedExceptionally()) {
-            return commitFuture;
-        }
-
-        synchronized (meta) {
-            commitFuture = meta.commitTxn(committedLedgerId, committedEntryId)
-                               .thenAccept(ignore -> addTxnToCommittedIndex(txnID, committedLedgerId));
-        }
-
-        return commitFuture;
+        return getTxnMeta(txnID, false)
+            .thenCompose(meta -> meta.commitTxn(committedLedgerId, committedEntryId))
+            .thenAccept(meta -> addTxnToCommittedIndex(txnID, committedLedgerId));
     }
 
     private void addTxnToCommittedIndex(TxnID txnID, long committedAtLedgerId) {
-        synchronized (committedTxnIndex) {
-            committedTxnIndex.computeIfAbsent(committedAtLedgerId, ledgerId -> new HashSet<>()).add(txnID);
+        synchronized (committedLedgerTxnIndex) {
+            committedLedgerTxnIndex.computeIfAbsent(committedAtLedgerId, ledgerId -> new HashSet<>()).add(txnID);
         }
     }
 
     @Override
     public CompletableFuture<Void> abortTxn(TxnID txnID) {
-        CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-
-        TransactionMeta meta = getMeta(txnID, abortFuture);
-        if (abortFuture.isCompletedExceptionally()) {
-            return abortFuture;
-        }
-
-        synchronized (meta) {
-            abortFuture = meta.abortTxn().thenApply(ignore -> null);
-        }
-
-        return abortFuture;
+        return getTxnMeta(txnID, false)
+            .thenCompose(meta -> meta.abortTxn())
+            .thenApply(meta -> null);
     }
 
-    private TransactionMeta getMeta(TxnID txnID, CompletableFuture<Void> future) {
-        TransactionMeta meta = txnIndex.get(txnID);
-        if (meta == null) {
-            future.completeExceptionally(new TransactionNotFoundException("Transaction `" + txnID + "` doesn't exist"));
-        }
-
-        return meta;
-    }
-
-    public CompletableFuture<Set<TxnID>> getAllTxnsCommitedAtLedger(long ledgerId) {
+    public CompletableFuture<Set<TxnID>> getAllTxnsCommittedAtLedger(long ledgerId) {
         CompletableFuture<Set<TxnID>> removeFuture = new CompletableFuture<>();
 
-        Set<TxnID> txnIDS = committedTxnIndex.get(ledgerId);
+        Set<TxnID> txnIDS = committedLedgerTxnIndex.get(ledgerId);
 
-        if (!committedTxnIndex.keySet().contains(ledgerId)) {
+        if (null == txnIDS) {
             removeFuture.completeExceptionally(new NoTxnsCommittedAtLedgerException(
-                "Transaction committed " + "ledger id `" + ledgerId + "` doesn't exist") {
+                "Transaction committed ledger id `" + ledgerId + "` doesn't exist") {
             });
             return removeFuture;
         }
@@ -129,14 +106,21 @@ public class TransactionCursorImpl implements TransactionCursor {
 
     @Override
     public CompletableFuture<Void> removeTxnsCommittedAtLedger(long ledgerId) {
+        CompletableFuture<Void> removeFuture = new CompletableFuture<>();
 
-        synchronized (committedTxnIndex) {
-            Set<TxnID> txnIDS = committedTxnIndex.remove(ledgerId);
-            txnIDS.forEach(txnID -> {
-                txnIndex.remove(txnID);
-            });
+        synchronized (committedLedgerTxnIndex) {
+            Set<TxnID> txnIDS = committedLedgerTxnIndex.remove(ledgerId);
+            if (null == txnIDS) {
+                removeFuture.completeExceptionally(new NoTxnsCommittedAtLedgerException(
+                    "Transaction committed ledger id `" + ledgerId + "` doesn't exist"));
+            } else {
+                txnIDS.forEach(txnID -> {
+                    txnIndex.remove(txnID);
+                });
+                removeFuture.complete(null);
+            }
         }
 
-        return CompletableFuture.completedFuture(null);
+        return removeFuture;
     }
 }

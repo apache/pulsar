@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.buffer.impl;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -84,25 +85,17 @@ public class TransactionMetaImpl implements TransactionMeta {
         SortedMap<Long, Position> result = new TreeMap<>();
 
         SortedMap<Long, Position> readEntries = entries;
-        if (startSequenceId != -1L) {
+        if (startSequenceId != PersistentTransactionBufferReader.DEFAULT_START_SEQUENCE_ID) {
             readEntries = entries.tailMap(startSequenceId);
         }
-        if (startSequenceId == -2L) {
-            readFuture.completeExceptionally(
-                new EndOfTransactionException("No more entries found in transaction `" + txnID + "`"));
+
+        if (readEntries.isEmpty()) {
+            readFuture.completeExceptionally(new EndOfTransactionException("No more entries found in transaction `"  + txnID + "`"));
+            return readFuture;
         }
 
         for (Map.Entry<Long, Position> longPositionEntry : readEntries.entrySet()) {
             result.put(longPositionEntry.getKey(), longPositionEntry.getValue());
-            if (num-- == 0) {
-                break;
-            }
-        }
-
-        if (num != 0) {
-            result.put(-2L, PositionImpl.earliest);
-            readFuture.complete(result);
-            return readFuture;
         }
 
         readFuture.complete(result);
@@ -127,7 +120,7 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
+    public synchronized CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
         CompletableFuture<TransactionMeta> commitFuture = new CompletableFuture<>();
         if (!checkOpened(txnID, commitFuture)) {
             return commitFuture;
@@ -142,7 +135,7 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public CompletableFuture<TransactionMeta> abortTxn() {
+    public synchronized CompletableFuture<TransactionMeta> abortTxn() {
         CompletableFuture<TransactionMeta> abortFuture = new CompletableFuture<>();
         if (!checkOpened(txnID, abortFuture)) {
             return abortFuture;

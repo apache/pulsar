@@ -24,7 +24,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
- * The transaction Cursor maintained the index of all transaction.
+ * The transaction Cursor maintains the index of all transactions.
  */
 public interface TransactionCursor {
     /**
@@ -61,7 +61,7 @@ public interface TransactionCursor {
      * @param ledgerId the transaction committed ledger id
      * @return
      */
-    CompletableFuture<Set<TxnID>> getAllTxnsCommitedAtLedger(long ledgerId);
+    CompletableFuture<Set<TxnID>> getAllTxnsCommittedAtLedger(long ledgerId);
 
     /**
      * Remove the transactions on the specified ledger.

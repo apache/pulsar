@@ -19,7 +19,7 @@
 package org.apache.pulsar.transaction.buffer.exceptions;
 
 /**
- * Exception when get a non exist committed ledger.
+ * Exception is thrown when no transactions found committed at a given ledger.
  */
 public class NoTxnsCommittedAtLedgerException extends TransactionBufferException {
 

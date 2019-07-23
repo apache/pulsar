@@ -26,10 +26,10 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
@@ -45,18 +45,20 @@ import org.apache.pulsar.transaction.impl.common.TxnStatus;
 @Slf4j
 public class PersistentTransactionBufferReader implements TransactionBufferReader {
 
-    private final ManagedCursor readCursor;
+    static final long DEFAULT_START_SEQUENCE_ID = -1L;
+
+    private final ManagedLedger ledger;
     private final TransactionMeta meta;
-    private long currentSequenceId = -1L;
+    private volatile long currentSequenceId = DEFAULT_START_SEQUENCE_ID;
 
 
     PersistentTransactionBufferReader(TransactionMeta meta, ManagedLedger ledger)
-        throws ManagedLedgerException, TransactionNotSealedException {
+        throws TransactionNotSealedException {
         if (TxnStatus.OPEN == meta.status()) {
             throw new TransactionNotSealedException("Transaction `" + meta.id() + "` is not sealed yet");
         }
         this.meta = meta;
-        this.readCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        this.ledger = ledger;
     }
 
     @Override
@@ -66,7 +68,6 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
     private CompletableFuture<List<TransactionEntry>> readEntry(SortedMap<Long, Position> entries) {
         CompletableFuture<List<TransactionEntry>> readFuture = new CompletableFuture<>();
-
         List<TransactionEntry> txnEntries = new ArrayList<>(entries.size());
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
@@ -80,16 +81,20 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
                                                                          entry.getDataBuffer(),
                                                                          meta.committedAtLedgerId(),
                                                                          meta.committedAtEntryId());
-                    txnEntries.add(txnEntry);
+                    synchronized (txnEntries) {
+                        txnEntries.add(txnEntry);
+                    }
                     tmpFuture.complete(null);
                 }
             });
+            futures.add(tmpFuture);
         }
 
-        FutureUtil.waitForAll(futures).whenComplete((v, e) -> {
-            if (e != null) {
-                readFuture.completeExceptionally(e);
+        FutureUtil.waitForAll(futures).whenComplete((ignore, error) -> {
+            if (error != null) {
+                readFuture.completeExceptionally(error);
             } else {
+                currentSequenceId = entries.lastKey();
                 readFuture.complete(txnEntries);
             }
         });
@@ -100,42 +105,25 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
     private CompletableFuture<Entry> readEntry(Position position) {
         CompletableFuture<Entry> readFuture = new CompletableFuture<>();
 
-        readCursor.seek(position);
-        if (readCursor.hasMoreEntries()) {
-            readCursor.asyncReadEntries(1, new AsyncCallbacks.ReadEntriesCallback() {
-                @Override
-                public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                    readFuture.complete(entries.get(0));
-                }
+        ManagedLedgerImpl readLedger = (ManagedLedgerImpl) ledger;
 
-                @Override
-                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                    readFuture.completeExceptionally(exception);
-                }
-            }, null);
-        } else {
-            readFuture.completeExceptionally(
-                new EndOfTransactionException("No more entries found in transaction `" + meta.id() + "` log"));
-        }
+        readLedger.asyncReadEntry((PositionImpl) position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                readFuture.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                readFuture.completeExceptionally(exception);
+            }
+        }, null);
 
         return readFuture;
     }
 
     @Override
     public void close() {
-        if (readCursor == null) {
-            return;
-        }
-        readCursor.asyncClose(new AsyncCallbacks.CloseCallback() {
-            @Override
-            public void closeComplete(Object ctx) {
-                log.info("Transaction `{}` closed successfully.", meta.id());
-            }
-
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Transaction `{}` closed failed.", meta.id(), exception);
-            }
-        }, null);
+        log.info("Txn {} reader closed.", meta.id());
     }
 }

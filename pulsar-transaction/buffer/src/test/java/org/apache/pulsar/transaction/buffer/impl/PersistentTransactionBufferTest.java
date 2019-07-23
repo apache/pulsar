@@ -20,6 +20,7 @@ package org.apache.pulsar.transaction.buffer.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -43,10 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -79,9 +78,10 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.transaction.buffer.exceptions.NoTxnsCommittedAtLedgerException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.transaction.buffer.exceptions.TransactionSealedException;
 import org.apache.pulsar.transaction.buffer.exceptions.UnexpectedTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
@@ -96,7 +96,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -361,7 +360,6 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
 
-        CountDownLatch latch = new CountDownLatch(1);
         buffer.commitTxn(txnID, 22L, 33L).get();
 
         meta = buffer.getTransactionMeta(txnID).get();
@@ -376,7 +374,14 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                     verifyAndReleaseEntries(transactionEntries, txnID, 0L, numEntries);
                 }
             });
+
+            reader.readNext(1).whenComplete((transactionEntries, throwable) -> {
+                assertNotNull(throwable);
+                assertTrue(throwable instanceof EndOfTransactionException);
+            });
+
         }
+
     }
 
     @Test
@@ -398,6 +403,30 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(meta.status(), TxnStatus.OPEN);
 
         buffer.commitTxn(txnID, 22L, 33L).get();
+        meta = buffer.getTransactionMeta(txnID).get();
+
+        assertEquals(txnID, meta.id());
+        assertEquals(meta.status(), TxnStatus.COMMITTED);
+    }
+
+    @Test
+    public void testCommitTxnMultiTimes() throws ExecutionException, InterruptedException {
+        final int numEntries = 10;
+        appendEntries(txnID, numEntries, 0L);
+        TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
+
+        assertEquals(txnID, meta.id());
+        assertEquals(meta.status(), TxnStatus.OPEN);
+
+        buffer.commitTxn(txnID, 22L, 33L).get();
+        buffer.commitTxn(txnID, 23L, 34L).whenComplete((ignore, error) -> {
+            assertNotNull(error);
+            assertTrue(error instanceof UnexpectedTxnStatusException);
+        });
+        buffer.commitTxn(txnID, 24L, 35L).whenComplete((ignore, error) -> {
+            assertNotNull(error);
+            assertTrue(error instanceof UnexpectedTxnStatusException);
+        });
         meta = buffer.getTransactionMeta(txnID).get();
 
         assertEquals(txnID, meta.id());
@@ -475,6 +504,22 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.COMMITTED, meta3.status());
 
         buffer.purgeTxns(Lists.newArrayList(Long.valueOf(22L))).get();
+
+        verifyTxnNotExist(txnId2);
+
+        meta1 = buffer.getTransactionMeta(txnId1).get();
+        assertEquals(txnId1, meta1.id());
+        assertEquals(TxnStatus.OPEN, meta1.status());
+
+        meta3 = buffer.getTransactionMeta(txnId3).get();
+        assertEquals(txnId3, meta3.id());
+        assertEquals(TxnStatus.COMMITTED, meta3.status());
+
+        // purge a non exist ledger.
+        buffer.purgeTxns(Lists.newArrayList(Long.valueOf(1L))).whenComplete((ignore, error) -> {
+            assertNotNull(error);
+            assertTrue(error instanceof NoTxnsCommittedAtLedgerException);
+        });
 
         verifyTxnNotExist(txnId2);
 
