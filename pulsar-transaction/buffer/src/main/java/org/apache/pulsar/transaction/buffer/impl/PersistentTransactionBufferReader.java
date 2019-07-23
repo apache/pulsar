@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
@@ -46,7 +47,7 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
     private final ManagedCursor readCursor;
     private final TransactionMeta meta;
-    private long currentSeuquenceId = -1L;
+    private long currentSequenceId = -1L;
 
 
     PersistentTransactionBufferReader(TransactionMeta meta, ManagedLedger ledger)
@@ -60,41 +61,40 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
     @Override
     public CompletableFuture<List<TransactionEntry>> readNext(int numEntries) {
-        return meta.readEntries(numEntries, currentSeuquenceId).thenCompose(this::readEntry);
+        return meta.readEntries(numEntries, currentSequenceId).thenCompose(this::readEntry);
     }
 
     private CompletableFuture<List<TransactionEntry>> readEntry(SortedMap<Long, Position> entries) {
         CompletableFuture<List<TransactionEntry>> readFuture = new CompletableFuture<>();
 
         List<TransactionEntry> txnEntries = new ArrayList<>(entries.size());
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         for (Map.Entry<Long, Position> longPositionEntry : entries.entrySet()) {
-            readEntry(longPositionEntry.getValue()).thenApply(entry -> {
-                TransactionEntry txnEntry = new TransactionEntryImpl(meta.id(), longPositionEntry.getKey(),
-                                                                     entry.getDataBuffer(), meta.committedAtLedgerId(),
-                                                                     meta.committedAtEntryId());
-                txnEntries.add(txnEntry);
-                return null;
-            }).exceptionally(e -> {
-                readFuture.completeExceptionally(e);
-                return null;
+            CompletableFuture<Void> tmpFuture = new CompletableFuture<>();
+            readEntry(longPositionEntry.getValue()).whenComplete((entry, throwable) -> {
+                if (null != throwable) {
+                    tmpFuture.completeExceptionally(throwable);
+                } else {
+                    TransactionEntry txnEntry = new TransactionEntryImpl(meta.id(), longPositionEntry.getKey(),
+                                                                         entry.getDataBuffer(),
+                                                                         meta.committedAtLedgerId(),
+                                                                         meta.committedAtEntryId());
+                    txnEntries.add(txnEntry);
+                    tmpFuture.complete(null);
+                }
             });
-
-            if (readFuture.isCompletedExceptionally()) {
-                return readFuture;
-            }
         }
 
-        readFuture.complete(txnEntries);
+        FutureUtil.waitForAll(futures).whenComplete((v, e) -> {
+            if (e != null) {
+                readFuture.completeExceptionally(e);
+            } else {
+                readFuture.complete(txnEntries);
+            }
+        });
 
         return readFuture;
-    }
-
-    private CompletableFuture<TransactionEntry> writeToTxnEntry(Position position, long sequenceId) {
-        return readEntry(position).thenCompose(entry -> CompletableFuture.completedFuture(
-            new TransactionEntryImpl(meta.id(), sequenceId, entry.getDataBuffer(), meta.committedAtLedgerId(),
-                                     meta.committedAtEntryId())));
-
     }
 
     private CompletableFuture<Entry> readEntry(Position position) {
@@ -116,7 +116,6 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
         } else {
             readFuture.completeExceptionally(
                 new EndOfTransactionException("No more entries found in transaction `" + meta.id() + "` log"));
-            return readFuture;
         }
 
         return readFuture;
