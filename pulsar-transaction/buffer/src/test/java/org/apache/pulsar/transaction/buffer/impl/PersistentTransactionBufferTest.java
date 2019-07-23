@@ -43,9 +43,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -54,11 +57,13 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -80,6 +85,7 @@ import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
 import org.apache.pulsar.transaction.buffer.exceptions.NoTxnsCommittedAtLedgerException;
+import org.apache.pulsar.transaction.buffer.exceptions.TransactionBufferException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.transaction.buffer.exceptions.UnexpectedTxnStatusException;
@@ -326,7 +332,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     private PersistentTransactionBuffer buffer;
 
     @Test
-    public void testGetANonExistTxn() throws BrokerServiceException.NamingException {
+    public void testGetANonExistTxn() {
         buffer.getTransactionMeta(txnID).whenComplete(((meta, throwable) -> {
             assertTrue(throwable instanceof TransactionNotFoundException);
         }));
@@ -342,7 +348,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testOpenReadOnAnOpenTxn() throws ExecutionException, InterruptedException {
         final int numEntries = 10;
-        appendEntries(txnID, numEntries, 0L);
+        appendEntries(buffer, txnID, numEntries, 0L);
         TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
@@ -355,7 +361,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testOpenReaderOnCommittedTxn() throws ExecutionException, InterruptedException {
         final int numEntries = 10;
-        appendEntries(txnID, numEntries, 0L);
+        appendEntries(buffer, txnID, numEntries, 0L);
         TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
@@ -396,7 +402,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testCommitTxn() throws Exception {
         final int numEntries = 10;
-        appendEntries(txnID, numEntries, 0L);
+        appendEntries(buffer, txnID, numEntries, 0L);
         TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
 
         assertEquals(txnID, meta.id());
@@ -412,25 +418,26 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testCommitTxnMultiTimes() throws ExecutionException, InterruptedException {
         final int numEntries = 10;
-        appendEntries(txnID, numEntries, 0L);
+        appendEntries(buffer, txnID, numEntries, 0L);
         TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
 
         assertEquals(txnID, meta.id());
         assertEquals(meta.status(), TxnStatus.OPEN);
 
         buffer.commitTxn(txnID, 22L, 33L).get();
-        buffer.commitTxn(txnID, 23L, 34L).whenComplete((ignore, error) -> {
-            assertNotNull(error);
-            assertTrue(error instanceof UnexpectedTxnStatusException);
-        });
-        buffer.commitTxn(txnID, 24L, 35L).whenComplete((ignore, error) -> {
-            assertNotNull(error);
-            assertTrue(error instanceof UnexpectedTxnStatusException);
-        });
+        try {
+            buffer.commitTxn(txnID, 23L, 34L).get();
+            buffer.commitTxn(txnID, 24L, 34L).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof UnexpectedTxnStatusException);
+        }
         meta = buffer.getTransactionMeta(txnID).get();
 
         assertEquals(txnID, meta.id());
         assertEquals(meta.status(), TxnStatus.COMMITTED);
+        assertEquals(meta.committedAtLedgerId(), 22L);
+        assertEquals(meta.committedAtEntryId(), 33L);
+        assertEquals(meta.numEntries(), numEntries);
     }
 
     @Test
@@ -446,7 +453,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testAbortCommittedTxn() throws Exception {
         final int numEntries = 10;
-        appendEntries(txnID, numEntries, 0L);
+        appendEntries(buffer, txnID, numEntries, 0L);
         TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
@@ -471,7 +478,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @Test
     public void testAbortTxn() throws Exception {
         final int numEntries = 10;
-        appendEntries(txnID, numEntries, 0L);
+        appendEntries(buffer, txnID, numEntries, 0L);
         TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
@@ -484,20 +491,20 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     public void testPurgeTxns() throws Exception {
         final int numEntries = 10;
         TxnID txnId1 = new TxnID(1234L, 2345L);
-        appendEntries(txnId1, numEntries, 0L);
+        appendEntries(buffer, txnId1, numEntries, 0L);
         TransactionMeta meta1 = buffer.getTransactionMeta(txnId1).get();
         assertEquals(txnId1, meta1.id());
         assertEquals(TxnStatus.OPEN, meta1.status());
 
         TxnID txnId2 = new TxnID(1234L, 3456L);
-        appendEntries(txnId2, numEntries, 0L);
+        appendEntries(buffer, txnId2, numEntries, 0L);
         buffer.commitTxn(txnId2, 22L, 0L).get();
         TransactionMeta meta2 = buffer.getTransactionMeta(txnId2).get();
         assertEquals(txnId2, meta2.id());
         assertEquals(TxnStatus.COMMITTED, meta2.status());
 
         TxnID txnId3 = new TxnID(1234L, 4567L);
-        appendEntries(txnId3, numEntries, 0L);
+        appendEntries(buffer, txnId3, numEntries, 0L);
         buffer.commitTxn(txnId3, 23L, 0L).get();
         TransactionMeta meta3 = buffer.getTransactionMeta(txnId3).get();
         assertEquals(txnId3, meta3.id());
@@ -532,6 +539,95 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.COMMITTED, meta3.status());
     }
 
+    @Test
+    public void testAppendEntry() throws ExecutionException, InterruptedException, ManagedLedgerException,
+                                         BrokerServiceException.NamingException {
+        ManagedLedger ledger = factory.open("test_ledger");
+        PersistentTransactionBuffer newBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
+                                                                                brokerService);
+        final int numEntries = 10;
+        TxnID txnID = new TxnID(1111L, 2222L);
+        List<ByteBuf> appendEntries =  appendEntries(newBuffer, txnID, numEntries, 0L);
+        List<ByteBuf> copy = new ArrayList<>(appendEntries);
+        TransactionMetaImpl meta = (TransactionMetaImpl) newBuffer.getTransactionMeta(txnID).get();
+        assertEquals(meta.id(), txnID);
+        assertEquals(numEntries, meta.numEntries());
+        assertEquals(meta.status(), TxnStatus.OPEN);
+
+        verifyEntries(ledger, appendEntries, meta.getEntries());
+
+        newBuffer.commitTxn(txnID, 22L, 33L).get();
+        meta = (TransactionMetaImpl) newBuffer.getTransactionMeta(txnID).get();
+
+        assertEquals(meta.id(), txnID);
+        assertEquals(meta.numEntries(), numEntries);
+        assertEquals(meta.status(), TxnStatus.COMMITTED);
+        verifyEntries(ledger, copy, meta.getEntries());
+    }
+
+    private void verifyEntries(ManagedLedger ledger, List<ByteBuf> appendEntries,
+                               SortedMap<Long, Position> addedEntries)
+        throws ManagedLedgerException, InterruptedException {
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        assertNotNull(cursor);
+        for (Map.Entry<Long, Position> longPositionEntry : addedEntries.entrySet()) {
+            Entry entry = getEntry(cursor, longPositionEntry.getValue());
+            assertTrue(appendEntries.remove(entry.getDataBuffer()));
+        }
+    }
+
+    private Entry getEntry(ManagedCursor cursor, Position position)
+        throws ManagedLedgerException, InterruptedException {
+        assertNotNull(cursor);
+        cursor.seek(position);
+        List<Entry> readEntry = cursor.readEntries(1);
+        assertEquals(readEntry.size(), 1);
+        return readEntry.get(0);
+    }
+
+    @Test
+    public void testNoDeduplicateMessage()
+        throws ManagedLedgerException, InterruptedException, BrokerServiceException.NamingException,
+               ExecutionException {
+        ManagedLedger ledger = factory.open("test_deduplicate");
+        PersistentTransactionBuffer newBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
+                                                                                brokerService);
+        final int numEntries = 10;
+
+        TxnID txnID = new TxnID(1234L, 5678L);
+        List<ByteBuf> appendEntries = appendEntries(newBuffer, txnID, numEntries, 0L);
+        TransactionMetaImpl meta = (TransactionMetaImpl) newBuffer.getTransactionMeta(txnID).get();
+
+        assertEquals(meta.id(), txnID);
+        assertEquals(meta.status(), TxnStatus.OPEN);
+        assertEquals(meta.numEntries(), appendEntries.size());
+
+        verifyEntries(ledger, appendEntries, meta.getEntries());
+
+        // append new message with same sequenceId
+        List<ByteBuf> deduplicateData = new ArrayList<>();
+        for (int i = 0; i < numEntries; i++) {
+            long sequenceId = i;
+            ByteBuf data = Unpooled.copiedBuffer("message-deduplicate-" + sequenceId, UTF_8);
+            newBuffer.appendBufferToTxn(txnID, sequenceId, data);
+            deduplicateData.add(data);
+        }
+
+        TransactionMetaImpl meta1 = (TransactionMetaImpl) newBuffer.getTransactionMeta(txnID).get();
+
+        assertEquals(meta1.id(), txnID);
+        assertEquals(meta1.numEntries(), numEntries);
+        assertEquals(meta.status(), TxnStatus.OPEN);
+
+        // read all entries in new buffer
+        ManagedCursor read = ledger.newNonDurableCursor(PositionImpl.earliest);
+        List<Entry> allEntries = read.readEntries(100);
+        List<ByteBuf> allMsg = allEntries.stream().map(entry -> entry.getDataBuffer()).collect(Collectors.toList());
+
+        assertEquals(allEntries.size(), numEntries);
+        verifyEntries(ledger, allMsg, meta1.getEntries());
+    }
+
     private void verifyTxnNotExist(TxnID txnID) throws Exception {
         try {
             buffer.getTransactionMeta(txnID).get();
@@ -540,11 +636,15 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         }
     }
 
-    private void appendEntries(TxnID id, int numEntries, long startSequenceId) {
+    private List<ByteBuf> appendEntries(PersistentTransactionBuffer writeBuffer, TxnID id, int numEntries,
+                                        long startSequenceId) {
+        List<ByteBuf> entries = new ArrayList<>();
         for (int i = 0; i < numEntries; i++) {
             long sequenceId = startSequenceId + i;
-            buffer.appendBufferToTxn(id, sequenceId, Unpooled.copiedBuffer("message-" + sequenceId, UTF_8)).join();
+            writeBuffer.appendBufferToTxn(id, sequenceId, Unpooled.copiedBuffer("message-" + sequenceId, UTF_8)).join();
+            entries.add(Unpooled.copiedBuffer("message-" + sequenceId, UTF_8));
         }
+        return entries;
     }
 
     private void verifyAndReleaseEntries(List<TransactionEntry> txnEntries,
@@ -567,4 +667,3 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     }
 
 }
-

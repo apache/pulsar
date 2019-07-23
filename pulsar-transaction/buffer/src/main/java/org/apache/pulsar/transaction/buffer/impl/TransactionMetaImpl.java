@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.buffer.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedMap;
@@ -61,6 +62,11 @@ public class TransactionMetaImpl implements TransactionMeta {
         synchronized (entries) {
             return entries.size();
         }
+    }
+
+    @VisibleForTesting
+    public SortedMap<Long, Position> getEntries() {
+        return entries;
     }
 
     @Override
