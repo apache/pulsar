@@ -35,7 +35,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 

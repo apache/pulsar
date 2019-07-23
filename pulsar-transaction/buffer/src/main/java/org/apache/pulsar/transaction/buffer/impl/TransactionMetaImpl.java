@@ -19,13 +19,11 @@
 package org.apache.pulsar.transaction.buffer.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionSealedException;
@@ -96,7 +94,8 @@ public class TransactionMetaImpl implements TransactionMeta {
         }
 
         if (readEntries.isEmpty()) {
-            readFuture.completeExceptionally(new EndOfTransactionException("No more entries found in transaction `"  + txnID + "`"));
+            readFuture.completeExceptionally(
+                new EndOfTransactionException("No more entries found in transaction `" + txnID + "`"));
             return readFuture;
         }
 
@@ -126,7 +125,8 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public synchronized CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
+    public synchronized CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId,
+                                                                     long committedAtEntryId) {
         CompletableFuture<TransactionMeta> commitFuture = new CompletableFuture<>();
         if (!checkOpened(txnID, commitFuture)) {
             return commitFuture;
