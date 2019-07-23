@@ -121,7 +121,9 @@ public interface TransactionBuffer {
     CompletableFuture<Void> purgeTxns(List<Long> dataLedgers);
 
     /**
-     * {@inheritDoc}
+     * Close the buffer asynchronous.
+     *
+     * @return
      */
     CompletableFuture<Void> closeAsync();
 }

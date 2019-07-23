@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.transaction.buffer.exceptions.TransactionCommitLedgerNotFoundException;
+import org.apache.pulsar.transaction.buffer.exceptions.NoTxnsCommittedAtLedgerException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
@@ -111,14 +111,14 @@ public class TransactionCursorImpl implements TransactionCursor {
         return meta;
     }
 
-    public CompletableFuture<Set<TxnID>> getRemoveTxns(long ledgerId) {
+    public CompletableFuture<Set<TxnID>> getAllTxnsCommitedAtLedger(long ledgerId) {
         CompletableFuture<Set<TxnID>> removeFuture = new CompletableFuture<>();
 
         Set<TxnID> txnIDS = committedTxnIndex.get(ledgerId);
 
         if (!committedTxnIndex.keySet().contains(ledgerId)) {
-            removeFuture.completeExceptionally(new TransactionCommitLedgerNotFoundException(
-                "Transaction commited " + "ledger id `" + ledgerId + "` doesn't exist") {
+            removeFuture.completeExceptionally(new NoTxnsCommittedAtLedgerException(
+                "Transaction committed " + "ledger id `" + ledgerId + "` doesn't exist") {
             });
             return removeFuture;
         }
@@ -128,7 +128,7 @@ public class TransactionCursorImpl implements TransactionCursor {
     }
 
     @Override
-    public CompletableFuture<Void> removeCommittedLedger(long ledgerId) {
+    public CompletableFuture<Void> removeTxnsCommittedAtLedger(long ledgerId) {
 
         synchronized (committedTxnIndex) {
             Set<TxnID> txnIDS = committedTxnIndex.remove(ledgerId);

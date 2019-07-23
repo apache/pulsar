@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -58,12 +57,16 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private ManagedCursor retentionCursor;
 
 
-    abstract static class TxnCtx implements PublishContext{
-        private long sequenceId;
+    abstract static class TxnCtx implements PublishContext {
+        private final long sequenceId;
+        private final CompletableFuture<Position> completableFuture;
 
-        TxnCtx(long sequenceId) {
+        TxnCtx(long sequenceId, CompletableFuture<Position> future) {
             this.sequenceId = sequenceId;
+            this.completableFuture = future;
         }
+
+
 
         @Override
         public String getProducerName() {
@@ -149,31 +152,16 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     private CompletableFuture<Position> publishMessage(ByteBuf msg, long sequenceId) {
         CompletableFuture<Position> publishFuture = new CompletableFuture<>();
-
-        CountDownLatch latch = new CountDownLatch(1);
-
-        brokerService.executor().execute(() -> {
-            publishMessage(msg, new TxnCtx(sequenceId) {
-                @Override
-                public void completed(Exception e, long ledgerId, long entryId) {
-                    if (e != null) {
-                        publishFuture.completeExceptionally(e);
-                        latch.countDown();
-                        return;
-                    }
-
+        publishMessage(msg, new TxnCtx(sequenceId, publishFuture) {
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                if (e != null) {
+                    publishFuture.completeExceptionally(e);
+                } else {
                     publishFuture.complete(PositionImpl.get(ledgerId, entryId));
-                    latch.countDown();
                 }
-            });
+            }
         });
-
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            publishFuture.completeExceptionally(e);
-        }
-
         return publishFuture;
     }
 
@@ -190,7 +178,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     private CompletableFuture<Void> removeCommittedLedgerFromIndex(List<Long> dataLedgers) {
         List<CompletableFuture<Void>> removeFutures = dataLedgers.stream().map(
-            dataLedger -> txnCursor.removeCommittedLedger(dataLedger)).collect(Collectors.toList());
+            dataLedger -> txnCursor.removeTxnsCommittedAtLedger(dataLedger)).collect(Collectors.toList());
         return FutureUtil.waitForAll(removeFutures);
     }
 
@@ -198,7 +186,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         if (log.isDebugEnabled()) {
             log.debug("Start to clean ledger {}", dataledger);
         }
-        return txnCursor.getRemoveTxns(dataledger).thenCompose(txnIDS -> deleteTxns(txnIDS));
+        return txnCursor.getAllTxnsCommitedAtLedger(dataledger).thenCompose(txnIDS -> deleteTxns(txnIDS));
     }
 
     private CompletableFuture<Void> deleteTxns(Set<TxnID> txnIDS) {

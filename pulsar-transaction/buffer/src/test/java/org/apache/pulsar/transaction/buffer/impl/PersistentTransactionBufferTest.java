@@ -81,6 +81,7 @@ import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
+import org.apache.pulsar.transaction.buffer.exceptions.TransactionSealedException;
 import org.apache.pulsar.transaction.buffer.exceptions.UnexpectedTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
@@ -327,30 +328,16 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testGetANonExistTxn() throws BrokerServiceException.NamingException {
-        buffer.getTransactionMeta(txnID).thenCompose(v -> {
-            Assert.fail("Should not have the txn");
-            return null;
-        }).exceptionally(e -> {
-            return null;
-        });
+        buffer.getTransactionMeta(txnID).whenComplete(((meta, throwable) -> {
+            assertTrue(throwable instanceof TransactionNotFoundException);
+        }));
     }
 
     @Test
     public void testOpenReaderOnNonExistentTxn() throws Exception {
-
-        CountDownLatch latch = new CountDownLatch(1);
-
-        buffer.openTransactionBufferReader(txnID, 0).thenApply(transactionBufferReader -> {
-            fail("Should fail to open rad if a transaction doesn't exist");
-            latch.countDown();
-            return null;
-        }).exceptionally(e -> {
-            assertTrue(e.getCause() instanceof TransactionNotFoundException);
-            latch.countDown();
-            return null;
+        buffer.openTransactionBufferReader(txnID, 0L).whenComplete((transactionBufferReader, throwable) -> {
+            assertTrue(throwable instanceof TransactionNotFoundException);
         });
-
-        assertTrue(latch.await(1, TimeUnit.SECONDS));
     }
 
     @Test
@@ -361,12 +348,9 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
 
-        try {
-            TransactionBufferReader reader = buffer.openTransactionBufferReader(txnID, 0L).get();
-            fail("Should fail to open a reader on an OPEN transaction");
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionNotSealedException);
-        }
+        buffer.openTransactionBufferReader(txnID, 0L).whenComplete((transactionBufferReader, throwable) -> {
+            assertTrue(throwable instanceof TransactionNotSealedException);
+        });
     }
 
     @Test
@@ -378,27 +362,19 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.OPEN, meta.status());
 
         CountDownLatch latch = new CountDownLatch(1);
-        buffer.commitTxn(txnID, 22L, 33L).thenCompose(v -> {
-            latch.countDown();
-            System.out.println("Commit Done");
-            return null;
-        });
+        buffer.commitTxn(txnID, 22L, 33L).get();
 
-        System.out.println("hello");
-        assertTrue(latch.await(1, TimeUnit.SECONDS));
-
-        System.out.println("Continue the txn");
         meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.COMMITTED, meta.status());
 
         try (TransactionBufferReader reader = buffer.openTransactionBufferReader(txnID, 0L).get()) {
-            reader.readNext(numEntries).thenCompose(transactionEntries -> {
-                verifyAndReleaseEntries(transactionEntries, txnID, 0L, numEntries);
-                return null;
-            }).exceptionally(e -> {
-                fail("Should not fail to read entries");
-                return null;
+            reader.readNext(numEntries).whenComplete((transactionEntries, throwable) -> {
+                if (null != throwable) {
+                    fail("Should not fail to read entries");
+                } else {
+                    verifyAndReleaseEntries(transactionEntries, txnID, 0L, numEntries);
+                }
             });
         }
     }
@@ -421,10 +397,9 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(txnID, meta.id());
         assertEquals(meta.status(), TxnStatus.OPEN);
 
-        buffer.commitTxn(txnID, 22L, 33L);
+        buffer.commitTxn(txnID, 22L, 33L).get();
         meta = buffer.getTransactionMeta(txnID).get();
 
-        System.out.println(meta.status());
         assertEquals(txnID, meta.id());
         assertEquals(meta.status(), TxnStatus.COMMITTED);
     }
@@ -447,7 +422,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
 
-        buffer.commitTxn(txnID, 22L, 33L);
+        buffer.commitTxn(txnID, 22L, 33L).get();
         meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.COMMITTED, meta.status());
@@ -487,14 +462,14 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
         TxnID txnId2 = new TxnID(1234L, 3456L);
         appendEntries(txnId2, numEntries, 0L);
-        buffer.commitTxn(txnId2, 22L, 0L);
+        buffer.commitTxn(txnId2, 22L, 0L).get();
         TransactionMeta meta2 = buffer.getTransactionMeta(txnId2).get();
         assertEquals(txnId2, meta2.id());
         assertEquals(TxnStatus.COMMITTED, meta2.status());
 
         TxnID txnId3 = new TxnID(1234L, 4567L);
         appendEntries(txnId3, numEntries, 0L);
-        buffer.commitTxn(txnId3, 23L, 0L);
+        buffer.commitTxn(txnId3, 23L, 0L).get();
         TransactionMeta meta3 = buffer.getTransactionMeta(txnId3).get();
         assertEquals(txnId3, meta3.id());
         assertEquals(TxnStatus.COMMITTED, meta3.status());

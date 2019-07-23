@@ -61,13 +61,13 @@ public interface TransactionCursor {
      * @param ledgerId the transaction committed ledger id
      * @return
      */
-    CompletableFuture<Set<TxnID>> getRemoveTxns(long ledgerId);
+    CompletableFuture<Set<TxnID>> getAllTxnsCommitedAtLedger(long ledgerId);
 
     /**
-     * Remove transaction from index.
+     * Remove the transactions on the specified ledger.
      *
      * @param ledgerId the remove transaction id
      * @return
      */
-    CompletableFuture<Void> removeCommittedLedger(long ledgerId);
+    CompletableFuture<Void> removeTxnsCommittedAtLedger(long ledgerId);
 }
