@@ -196,6 +196,46 @@ module.exports = {
   ],
   presentations: [
     {
+      forum: '',
+      forum_link: '',
+      presenter: 'Sijie Guo',
+      date: 'June 2019',
+      title: "What's new in apache pulsar 2.4.0",
+      link: 'https://www.slideshare.net/streamnative/whats-new-in-apache-pulsar-240'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Shenzhen',
+      forum_link: 'https://www.huodongxing.com/event/9495713659500',
+      presenter: 'Yijie Shen',
+      date: 'June 2019',
+      title: 'A Unified Platform for Real-time Storage and Processing - Apache Pulsar as Stream Storage, Apache Spark for Processing as an example',
+      link: 'https://www.slideshare.net/streamnative/a-unified-platform-for-realtime-storage-and-processing'
+    },
+    {
+      forum: 'Ray Forward Beijing Meetup',
+      forum_link: 'https://tech.antfin.com/community/activities/698',
+      presenter: 'Sijie Guo',
+      date: 'June 2019',
+      title: 'Serverless Event Streaming with Pulsar Functions',
+      link: 'https://www.slideshare.net/streamnative/serverless-event-streaming-with-pulsar-functions'
+    },
+    {
+      forum: 'Flink Forward San Francisco 2019',
+      forum_link: 'https://sf-2019.flink-forward.org/',
+      presenter: 'Sijie Guo',
+      date: 'April 2019',
+      title: 'Elastic Data Processing with Apache Flink and Apache Pulsar',
+      link: 'https://www.slideshare.net/streamnative/elastic-data-processing-with-apache-flink-and-apache-pulsar'
+    },
+    {
+      forum: 'Strata Data San Francisco 2019',
+      forum_link: '',
+      presenter: 'Penghui Li, Sijie Guo',
+      date: 'March 2019',
+      title: 'How Zhaopin built its Event Center using Apache Pulsar',
+      link: 'https://www.slideshare.net/streamnative/how-zhaopin-built-its-event-center-using-apache-pulsar-152691364'
+    },
+    {
       forum: 'Strata San Jose',
       forum_link: 'https://conferences.oreilly.com/strata/strata-ca',
       presenter: 'Matteo Merli',
