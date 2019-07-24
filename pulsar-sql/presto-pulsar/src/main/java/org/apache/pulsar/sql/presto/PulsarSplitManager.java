@@ -267,7 +267,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         endPosition.getEntryId(),
                         startPosition.getLedgerId(),
                         endPosition.getLedgerId(),
-                        tupleDomain));
+                        tupleDomain,
+                        schemaInfo.getProperties()));
             }
             return splits;
         } finally {

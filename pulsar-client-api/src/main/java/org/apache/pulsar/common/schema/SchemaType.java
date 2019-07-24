@@ -175,4 +175,46 @@ public enum SchemaType {
           default: return NONE;
         }
       }
+
+
+    public boolean isPrimitive() {
+        return isPrimitiveType(this);
+    }
+
+    public boolean isStruct() {
+        return isStructType(this);
+    }
+
+    public static boolean isPrimitiveType(SchemaType type) {
+        switch (type) {
+            case STRING:
+            case BOOLEAN:
+            case INT8:
+            case INT16:
+            case INT32:
+            case INT64:
+            case FLOAT:
+            case DOUBLE:
+            case DATE:
+            case TIME:
+            case TIMESTAMP:
+            case BYTES:
+            case NONE:
+                return true;
+            default:
+                return false;
+        }
+
+    }
+
+    public static boolean isStructType(SchemaType type) {
+        switch (type) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF:
+                return true;
+            default:
+                return false;
+        }
+    }
 }
