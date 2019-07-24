@@ -86,7 +86,7 @@ public class PulsarConnectorCache {
                 .setZkServers(pulsarConnectorConfig.getZookeeperUri())
                 .setClientTcpNoDelay(false)
                 .setUseV2WireProtocol(true)
-                .setStickyReadsEnabled(true)
+                .setStickyReadsEnabled(false)
                 .setReadEntryTimeout(60);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }

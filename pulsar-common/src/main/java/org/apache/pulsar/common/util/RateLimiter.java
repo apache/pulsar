@@ -239,12 +239,7 @@ public class RateLimiter implements AutoCloseable{
     }
 
     protected ScheduledFuture<?> createTask() {
-        return executorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                renew();
-            }
-        }, this.rateTime, this.rateTime, this.timeUnit);
+        return executorService.scheduleAtFixedRate(this::renew, this.rateTime, this.rateTime, this.timeUnit);
     }
 
     synchronized void renew() {

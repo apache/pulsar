@@ -51,6 +51,7 @@ import com.google.common.base.Predicate;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 
 import javax.inject.Inject;
+import java.sql.Timestamp;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -59,6 +60,7 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
+import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 
 public class PulsarSplitManager implements ConnectorSplitManager {
 
@@ -93,16 +95,18 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         PulsarTableHandle tableHandle = layoutHandle.getTable();
         TupleDomain<ColumnHandle> tupleDomain = layoutHandle.getTupleDomain();
 
-        TopicName topicName = TopicName.get("persistent", NamespaceName.get(tableHandle.getSchemaName()),
+        String namespace = restoreNamespaceDelimiterIfNeeded(tableHandle.getSchemaName(), pulsarConnectorConfig);
+        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace),
                 tableHandle.getTableName());
 
         SchemaInfo schemaInfo;
+
         try {
             schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(
-                    String.format("%s/%s", tableHandle.getSchemaName(), tableHandle.getTableName()));
+                    String.format("%s/%s", namespace, tableHandle.getTableName()));
         } catch (PulsarAdminException e) {
             throw new RuntimeException("Failed to get schema for topic "
-                    + String.format("%s/%s", tableHandle.getSchemaName(), tableHandle.getTableName())
+                    + String.format("%s/%s", namespace, tableHandle.getTableName())
                     + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
@@ -127,7 +131,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
                 .setZkServers(this.pulsarConnectorConfig.getZookeeperUri())
                 .setClientTcpNoDelay(false)
-                .setStickyReadsEnabled(true)
+                .setStickyReadsEnabled(false)
                 .setUseV2WireProtocol(true);
         return new ManagedLedgerFactoryImpl(bkClientConfiguration);
     }
@@ -257,7 +261,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 PositionImpl endPosition = (PositionImpl) readOnlyCursor.getReadPosition();
 
                 splits.add(new PulsarSplit(i, this.connectorId,
-                        tableHandle.getSchemaName(),
+                        restoreNamespaceDelimiterIfNeeded(tableHandle.getSchemaName(), pulsarConnectorConfig),
                         tableName,
                         entriesForSplit,
                         new String(schemaInfo.getSchema()),
@@ -266,7 +270,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         endPosition.getEntryId(),
                         startPosition.getLedgerId(),
                         endPosition.getLedgerId(),
-                        tupleDomain));
+                        tupleDomain,
+                        schemaInfo.getProperties()));
             }
             return splits;
         } finally {
@@ -321,13 +326,13 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                             Range range = domain.getValues().getRanges().getOrderedRanges().get(0);
 
                             if (!range.getHigh().isUpperUnbounded()) {
-                                upperBoundTs = new SqlTimestampWithTimeZone(range.getHigh().getValueBlock().get()
-                                        .getLong(0, 0)).getMillisUtc();
+                                upperBoundTs = new Timestamp(range.getHigh().getValueBlock().get()
+                                        .getLong(0, 0)).getTime();
                             }
 
                             if (!range.getLow().isLowerUnbounded()) {
-                                lowerBoundTs = new SqlTimestampWithTimeZone(range.getLow().getValueBlock().get()
-                                        .getLong(0, 0)).getMillisUtc();
+                                lowerBoundTs = new Timestamp(range.getLow().getValueBlock().get()
+                                        .getLong(0, 0)).getTime();
                             }
 
                             PositionImpl overallStartPos;
@@ -335,15 +340,20 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                 overallStartPos = (PositionImpl) readOnlyCursor.getReadPosition();
                             } else {
                                 overallStartPos = findPosition(readOnlyCursor, lowerBoundTs);
+                                if (overallStartPos == null) {
+                                    overallStartPos = (PositionImpl) readOnlyCursor.getReadPosition();
+                                }
                             }
 
                             PositionImpl overallEndPos;
                             if (upperBoundTs == null) {
-
                                 readOnlyCursor.skipEntries(Math.toIntExact(totalNumEntries));
                                 overallEndPos = (PositionImpl) readOnlyCursor.getReadPosition();
                             } else {
                                 overallEndPos = findPosition(readOnlyCursor, upperBoundTs);
+                                if (overallEndPos == null) {
+                                    overallEndPos = overallStartPos;
+                                }
                             }
 
                             // Just use a close bound since presto can always filter out the extra entries even if

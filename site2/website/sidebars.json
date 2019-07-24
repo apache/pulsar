@@ -18,6 +18,9 @@
       "concepts-tiered-storage",
       "concepts-schema-registry"
     ],
+    "Pulsar Schema": [
+      "schema-get-started"
+    ],
     "Pulsar Functions": [
       "functions-overview",
       "functions-quickstart",
@@ -57,7 +60,8 @@
       "administration-dashboard",
       "administration-stats",
       "administration-load-balance",
-      "administration-proxy"
+      "administration-proxy",
+      "administration-upgrade"
     ],
     "Security": [
       "security-overview",

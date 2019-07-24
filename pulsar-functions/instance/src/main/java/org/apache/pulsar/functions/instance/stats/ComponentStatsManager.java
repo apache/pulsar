@@ -77,14 +77,11 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         this.collectorRegistry = collectorRegistry;
         this.metricsLabels = metricsLabels;
 
-        scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    reset();
-                } catch (Exception e) {
-                    log.error("Failed to reset metrics for 1min window", e);
-                }
+        scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> {
+            try {
+                reset();
+            } catch (Exception e) {
+                log.error("Failed to reset metrics for 1min window", e);
             }
         }, 1, 1, TimeUnit.MINUTES);
     }

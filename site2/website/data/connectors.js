@@ -24,6 +24,18 @@ module.exports = [
         link: ''
     },
     {
+        name: 'debezium-mysql',
+        longName: 'Debezium MySQL CDC',
+        type: 'Source',
+        link: 'https://debezium.io/'
+    },
+    {
+        name: 'debezium-postgres',
+        longName: 'Debezium PostgreSQL CDC',
+        type: 'Source',
+        link: 'https://debezium.io/'
+    },
+    {
         name: 'elastic-search',
         longName: 'Elastic Search',
         type: 'Sink',
@@ -94,5 +106,11 @@ module.exports = [
         longName: 'Twitter Firehose',
         type: 'Source',
         link: 'https://developer.twitter.com/en/docs'
+    },
+    {
+        name: 'influxdb',
+        longName: 'InfluxDB',
+        type: 'Source',
+        link: 'https://www.influxdata.com/products/influxdb-overview/'
     }
 ]

@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -51,6 +52,14 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     private JdbcUtils.TableId tableId;
     private PreparedStatement insertStatement;
+    private PreparedStatement updateStatment;
+    private PreparedStatement deleteStatment;
+
+
+    protected static final String ACTION = "ACTION";
+    protected static final String INSERT = "INSERT";
+    protected static final String UPDATE = "UPDATE";
+    protected static final String DELETE = "DELETE";
 
     protected JdbcUtils.TableDefinition tableDefinition;
 
@@ -87,8 +96,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
         tableName = jdbcSinkConfig.getTableName();
         tableId = JdbcUtils.getTableId(connection, tableName);
-        tableDefinition = JdbcUtils.getTableDefinition(connection, tableId);
-        insertStatement = JdbcUtils.buildInsertStatement(connection, JdbcUtils.buildInsertSql(tableDefinition));
+        // Init PreparedStatement include insert, delete, update
+        initStatement();
 
         timeoutMs = jdbcSinkConfig.getTimeoutMs();
         batchSize = jdbcSinkConfig.getBatchSize();
@@ -98,6 +107,28 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
         flushExecutor = Executors.newScheduledThreadPool(1);
         flushExecutor.scheduleAtFixedRate(() -> flush(), timeoutMs, timeoutMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void initStatement()  throws Exception {
+        List<String> keyList = Lists.newArrayList();
+        String key = jdbcSinkConfig.getKey();
+        if (key !=null && !key.isEmpty()) {
+            keyList = Arrays.asList(key.split(","));
+        }
+        List<String> nonKeyList = Lists.newArrayList();
+        String nonKey = jdbcSinkConfig.getNonKey();
+        if (nonKey != null && !nonKey.isEmpty()) {
+            nonKeyList = Arrays.asList(nonKey.split(","));
+        }
+
+        tableDefinition = JdbcUtils.getTableDefinition(connection, tableId, keyList, nonKeyList);
+        insertStatement = JdbcUtils.buildInsertStatement(connection, JdbcUtils.buildInsertSql(tableDefinition));
+        if (!nonKeyList.isEmpty()) {
+            updateStatment = JdbcUtils.buildUpdateStatement(connection, JdbcUtils.buildUpdateSql(tableDefinition));
+        }
+        if (!keyList.isEmpty()) {
+            deleteStatment = JdbcUtils.buildDeleteStatement(connection, JdbcUtils.buildDeleteSql(tableDefinition));
+        }
     }
 
     @Override
@@ -115,11 +146,10 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) throws Exception {
         int number;
-        synchronized (incomingList) {
+        synchronized (this) {
             incomingList.add(record);
             number = incomingList.size();
         }
-
         if (number == batchSize) {
             flushExecutor.schedule(() -> flush(), 0, TimeUnit.MILLISECONDS);
         }
@@ -128,8 +158,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     // bind value with a PreparedStetement
     public abstract void bindValue(
         PreparedStatement statement,
-        Record<T> message) throws Exception;
-
+        Record<T> message, String action) throws Exception;
 
     private void flush() {
         // if not in flushing state, do flush, else return;
@@ -140,8 +169,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             if (!swapList.isEmpty()) {
                 throw new IllegalStateException("swapList should be empty since last flush. swapList.size: " + swapList.size());
             }
-
-            synchronized (incomingList) {
+            synchronized (this) {
                 List<Record<T>> tmpList;
                 swapList.clear();
 
@@ -150,22 +178,24 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 incomingList = tmpList;
             }
 
-            int updateCount = 0;
-            boolean noInfo = false;
+            int count = 0;
             try {
                 // bind each record value
                 for (Record<T> record : swapList) {
-                    bindValue(insertStatement, record);
-                    insertStatement.addBatch();
-                    record.ack();
-                }
-
-                for (int updates : insertStatement.executeBatch()) {
-                    if (updates == Statement.SUCCESS_NO_INFO) {
-                        noInfo = true;
-                        continue;
+                    String action = record.getProperties().get(ACTION);
+                    if (action != null && action.equals(DELETE)) {
+                        bindValue(deleteStatment, record, action);
+                        count += 1;
+                        deleteStatment.execute();
+                    } else if (action != null && action.equals(UPDATE)) {
+                        bindValue(updateStatment, record, action);
+                        count += 1;
+                        updateStatment.execute();
+                    } else if (action != null && action.equals(INSERT)){
+                        bindValue(insertStatement, record, action);
+                        count += 1;
+                        insertStatement.execute();
                     }
-                    updateCount += updateCount;
                 }
                 connection.commit();
                 swapList.forEach(tRecord -> tRecord.ack());
@@ -174,14 +204,15 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 swapList.forEach(tRecord -> tRecord.fail());
             }
 
-            if (swapList.size() != updateCount) {
-                log.error("Update count {}  not match total number of records {}", updateCount, swapList.size());
+            if (swapList.size() != count) {
+                log.error("Update count {}  not match total number of records {}", count, swapList.size());
             }
 
             // finish flush
             if (log.isDebugEnabled()) {
                 log.debug("Finish flush, queue size: {}", swapList.size());
             }
+            swapList.clear();
             isFlushing.set(false);
         } else {
             if (log.isDebugEnabled()) {

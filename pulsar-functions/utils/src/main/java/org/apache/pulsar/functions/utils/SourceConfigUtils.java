@@ -222,61 +222,93 @@ public class SourceConfigUtils {
         if (sourceConfig.getResources() != null) {
             ResourceConfigUtils.validate(sourceConfig.getResources());
         }
+        if (archivePath == null && sourcePackageFile == null) {
+            throw new IllegalArgumentException("Source package is not provided");
+        }
 
-        String sourceClassName;
-        final Class<?> typeArg;
-        final ClassLoader classLoader;
-        if (!isEmpty(sourceConfig.getClassName())) {
-            sourceClassName = sourceConfig.getClassName();
-            // We really don't know if we should use nar class loader or regular classloader
-            ClassLoader jarClassLoader = null;
-            ClassLoader narClassLoader = null;
-            try {
-                jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
-            } catch (Exception e) {
+        Class<?> typeArg;
+        ClassLoader classLoader;
+        String sourceClassName = sourceConfig.getClassName();
+        ClassLoader jarClassLoader = null;
+        ClassLoader narClassLoader = null;
+
+        Exception jarClassLoaderException = null;
+        Exception narClassLoaderException = null;
+
+        try {
+            jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sourcePackageFile);
+        } catch (Exception e) {
+            jarClassLoaderException = e;
+        }
+        try {
+            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
+        } catch (Exception e) {
+            narClassLoaderException = e;
+        }
+
+        // if source class name is not provided, we can only try to load archive as a NAR
+        if (isEmpty(sourceClassName)) {
+            if (narClassLoader == null) {
+                throw new IllegalArgumentException("Source package does not have the correct format. " +
+                        "Pulsar cannot determine if the package is a NAR package or JAR package." +
+                        "Source classname is not provided and attempts to load it as a NAR package produced the following error.",
+                        narClassLoaderException);
             }
             try {
-                narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
-            } catch (Exception e) {
+                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Failed to extract source class from archive", e);
             }
-            if (jarClassLoader == null && narClassLoader == null) {
-                throw new IllegalArgumentException("Invalid Source Package");
-            }
-            // We use typeArg and classLoader as arguments for lambda functions that require them to be final
-            // Thus we use these tmp vars
-            Class<?> tmptypeArg;
-            ClassLoader tmpclassLoader;
             try {
-                tmptypeArg = getSourceType(sourceClassName, narClassLoader);
-                tmpclassLoader = narClassLoader;
-            } catch (Exception e) {
+                typeArg = getSourceType(sourceClassName, narClassLoader);
+                classLoader = narClassLoader;
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(
+                        String.format("Source class %s must be in class path", sourceClassName), e);
+            }
+
+        } else {
+            // if source class name is provided, we need to try to load it as a JAR and as a NAR.
+            if (jarClassLoader != null) {
                 try {
-                    tmptypeArg = getSourceType(sourceClassName, jarClassLoader);
+                    typeArg = getSourceType(sourceClassName, jarClassLoader);
+                    classLoader = jarClassLoader;
+                } catch (ClassNotFoundException e) {
+                    // class not found in JAR try loading as a NAR and searching for the class
+                    if (narClassLoader != null) {
+                        try {
+                            typeArg = getSourceType(sourceClassName, narClassLoader);
+                            classLoader = narClassLoader;
+                        } catch (ClassNotFoundException e1) {
+                            throw new IllegalArgumentException(
+                                    String.format("Source class %s must be in class path", sourceClassName), e1);
+                        }
+                    } else {
+                        throw new IllegalArgumentException(
+                                String.format("Source class %s must be in class path", sourceClassName), e);
+                    }
+                }
+            } else if (narClassLoader != null) {
+                try {
+                    typeArg = getSourceType(sourceClassName, narClassLoader);
+                    classLoader = narClassLoader;
                 } catch (ClassNotFoundException e1) {
                     throw new IllegalArgumentException(
                             String.format("Source class %s must be in class path", sourceClassName), e1);
                 }
-                tmpclassLoader = jarClassLoader;
-            }
-            typeArg = tmptypeArg;
-            classLoader = tmpclassLoader;
-        } else if (!StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.FILE)) {
-            throw new IllegalArgumentException("Class-name must be present for archive with file-url");
-        } else {
-            classLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile);
-            if (classLoader == null) {
-                throw new IllegalArgumentException("Source Package is not provided");
-            }
-            try {
-                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) classLoader);
-            } catch (IOException e1) {
-                throw new IllegalArgumentException("Failed to extract source class from archive", e1);
-            }
-            try {
-                typeArg = getSourceType(sourceClassName, classLoader);
-            } catch (ClassNotFoundException e) {
-                throw new IllegalArgumentException(
-                        String.format("Source class %s must be in class path", sourceClassName), e);
+            } else {
+                StringBuilder errorMsg = new StringBuilder("Source package does not have the correct format." +
+                        " Pulsar cannot determine if the package is a NAR package or JAR package.");
+
+                if (jarClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                }
+
+                if (narClassLoaderException != null) {
+                    errorMsg.append("Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                }
+
+                throw new IllegalArgumentException(errorMsg.toString());
             }
         }
 

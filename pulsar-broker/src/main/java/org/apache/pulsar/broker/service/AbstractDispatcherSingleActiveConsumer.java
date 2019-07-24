@@ -20,8 +20,10 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -29,7 +31,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,7 +239,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return ACTIVE_CONSUMER_UPDATER.get(this);
     }
 
-    public CopyOnWriteArrayList<Consumer> getConsumers() {
+    @Override
+    public List<Consumer> getConsumers() {
         return consumers;
     }
 

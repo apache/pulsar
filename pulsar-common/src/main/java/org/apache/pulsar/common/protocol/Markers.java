@@ -254,4 +254,49 @@ public class Markers {
             inStream.recycle();
         }
     }
+
+    public static boolean isTxnCommitMarker(MessageMetadata msgMetadata) {
+        return msgMetadata != null
+               && msgMetadata.hasMarkerType()
+               && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE;
+    }
+
+    public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
+                                             long txnLeastBits) {
+        return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits);
+    }
+
+    public static boolean isTxnAbortMarker(MessageMetadata msgMetadata) {
+        return msgMetadata != null
+               && msgMetadata.hasMarkerType()
+               && msgMetadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE;
+    }
+
+    public static ByteBuf newTxnAbortMarker(long sequenceId, long txnMostBits,
+                                            long txnLeastBits) {
+        return newTxnMarker(MarkerType.TXN_ABORT, sequenceId, txnMostBits, txnLeastBits);
+    }
+
+    private static ByteBuf newTxnMarker(MarkerType markerType, long sequenceId, long txnMostBits,
+                                        long txnLeastBits) {
+        MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
+        msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
+        msgMetadataBuilder.setProducerName("pulsar.txn.marker");
+        msgMetadataBuilder.setSequenceId(sequenceId);
+        msgMetadataBuilder.setMarkerType(markerType.getNumber());
+        msgMetadataBuilder.setTxnidMostBits(txnMostBits);
+        msgMetadataBuilder.setTxnidLeastBits(txnLeastBits);
+
+        MessageMetadata msgMetadata = msgMetadataBuilder.build();
+
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer();
+
+        try {
+            return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
+        } finally {
+            payload.release();
+            msgMetadata.recycle();
+            msgMetadataBuilder.recycle();
+        }
+    }
 }

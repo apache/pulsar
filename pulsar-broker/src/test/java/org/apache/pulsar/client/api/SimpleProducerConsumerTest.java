@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -671,13 +671,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
 
@@ -712,13 +709,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         barrier.reset();
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
         barrier.await();
@@ -742,13 +736,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         barrier.reset();
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
         barrier.await();
