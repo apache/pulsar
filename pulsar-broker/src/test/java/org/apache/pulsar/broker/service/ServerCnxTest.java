@@ -25,7 +25,6 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -1008,7 +1007,7 @@ public class ServerCnxTest {
             assertEquals(((CommandError) response).getRequestId(), 5);
 
             // We should receive response for 1st producer, since it was not cancelled by the close
-            assertTrue(!channel.outboundMessages().isEmpty());
+            assertFalse(channel.outboundMessages().isEmpty());
             assertTrue(channel.isActive());
             response = getResponse();
             assertEquals(response.getClass(), CommandSuccess.class);
@@ -1167,7 +1166,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
         Object response = getResponse();
         assertTrue(response instanceof CommandError);
-        assertTrue(((CommandError) response).getError().equals(ServerError.UnsupportedVersionError));
+        assertEquals(ServerError.UnsupportedVersionError, ((CommandError) response).getError());
 
         // Server will not close the connection
         assertTrue(channel.isOpen());
