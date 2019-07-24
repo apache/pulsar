@@ -15,6 +15,8 @@ public final class PulsarMarkers {
     REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE(2, 11),
     REPLICATED_SUBSCRIPTION_SNAPSHOT(3, 12),
     REPLICATED_SUBSCRIPTION_UPDATE(4, 13),
+    TXN_COMMIT(5, 20),
+    TXN_ABORT(6, 21),
     ;
     
     public static final int UNKNOWN_MARKER_VALUE = 0;
@@ -22,6 +24,8 @@ public final class PulsarMarkers {
     public static final int REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE = 11;
     public static final int REPLICATED_SUBSCRIPTION_SNAPSHOT_VALUE = 12;
     public static final int REPLICATED_SUBSCRIPTION_UPDATE_VALUE = 13;
+    public static final int TXN_COMMIT_VALUE = 20;
+    public static final int TXN_ABORT_VALUE = 21;
     
     
     public final int getNumber() { return value; }
@@ -33,6 +37,8 @@ public final class PulsarMarkers {
         case 11: return REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE;
         case 12: return REPLICATED_SUBSCRIPTION_SNAPSHOT;
         case 13: return REPLICATED_SUBSCRIPTION_UPDATE;
+        case 20: return TXN_COMMIT;
+        case 21: return TXN_ABORT;
         default: return null;
       }
     }
