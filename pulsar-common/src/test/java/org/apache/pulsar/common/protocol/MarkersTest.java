@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
@@ -113,6 +114,38 @@ public class MarkersTest {
         assertEquals(snapshot.getClusters(1).getCluster(), "us-east");
         assertEquals(snapshot.getClusters(1).getMessageId().getLedgerId(), 10);
         assertEquals(snapshot.getClusters(1).getMessageId().getEntryId(), 11);
+    }
+
+    @Test
+    public void testTxnCommitMarker() {
+        long sequenceId = 1L;
+        long mostBits = 1234L;
+        long leastBits = 2345L;
+
+        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits);
+
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
+
+        assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_COMMIT_VALUE);
+        assertEquals(msgMetadata.getSequenceId(), sequenceId);
+        assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
+        assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
+    }
+
+    @Test
+    public void testTxnAbortMarker() {
+        long sequenceId = 1L;
+        long mostBits = 1234L;
+        long leastBits = 2345L;
+
+        ByteBuf buf = Markers.newTxnAbortMarker(sequenceId, mostBits, leastBits);
+
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
+
+        assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_ABORT_VALUE);
+        assertEquals(msgMetadata.getSequenceId(), sequenceId);
+        assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
+        assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
     }
 
 }
