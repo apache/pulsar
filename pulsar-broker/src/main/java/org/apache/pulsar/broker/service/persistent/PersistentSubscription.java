@@ -1012,6 +1012,9 @@ public class PersistentSubscription implements Subscription {
             pendingAckMessagesEntryList, subName, callback);
     }
 
+    /**
+     *
+     */
     private void recoverPendingAckMessages() {
         ((ManagedCursorImpl) cursor).getPendingAckPositionMetaInfo(subName,
             new MetaStoreCallback<SubscriptionPendingAckMessages>() {
@@ -1050,8 +1053,7 @@ public class PersistentSubscription implements Subscription {
                     log.error("[" + topicName + "][" + subName + "]Fail to recover pending ack positions info " +
                               "from managedCursor due to:" + e);
                 }
-            }
-        );
+        });
     }
 
     /**

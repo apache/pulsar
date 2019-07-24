@@ -330,7 +330,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
         log.info("[{}] [{}] [{}] Updating subscription's pending ack messages",
                 ledgerName, cursorName, subName);
 
-        String zkPath = prefix + ledgerName + "/" + cursorName;
+        String zkPath = prefix + ledgerName + "/" + cursorName + "/" + subName;
         byte[] data = subscriptionPendingAckMessages.toByteArray(); // Binary format
 
         if (stat == null) {
@@ -342,7 +342,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
                     (rc, path, ctx, name) -> executor.executeOrdered(ledgerName, safeRun(() -> {
                         if (rc != Code.OK.intValue()) {
                             log.warn("[{}] [{}] [{}] Error creating path for subscription's pending ack messages " +
-                                            "to meta-data store with {}: ", ledgerName, cursorName, subName,
+                                            "to meta-data store with {}: {}", ledgerName, cursorName, subName,
                                             Code.get(rc), data);
                             callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
                         } else {

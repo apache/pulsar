@@ -22,6 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -32,6 +35,10 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages.PendingAckMessageEntry;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages.PositionList;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -183,6 +190,110 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
         });
 
         latch.await();
+    }
+
+    @Test(timeOut = 20000)
+    void readMalformedSubscriptionPendingAckMessages() throws Exception {
+        MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+
+        zkc.create("/managed-ledgers/pendingAckMessages", "".getBytes(),ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        zkc.create("/managed-ledgers/pendingAckMessages/cursor", "".getBytes(),ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        zkc.create("/managed-ledgers/pendingAckMessages/cursor/subscription", "invalid-data".getBytes(),
+                                                                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        store.asyncGetSubscriptionPendingAckMessages("pendingAckMessages", "cursor", "subscription",
+                                                            new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+            public void operationFailed(MetaStoreException e) {
+                latch.countDown();
+            }
+
+            public void operationComplete(SubscriptionPendingAckMessages result, Stat version) {
+                fail("asyncGetSubscriptionPendingAckMessages should fail");
+            }
+        });
+
+        latch.await();
+    }
+
+    @Test(timeOut = 40000)
+    void updatingAndReadingSubscriptionPendingAckMessages() throws Exception {
+        final MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
+
+        // Create parent path
+        zkc.create("/managed-ledgers/pendingAckMessages", "".getBytes(),ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        zkc.create("/managed-ledgers/pendingAckMessages/cursor", "".getBytes(),ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        // Prepare data.
+        PositionInfo.Builder positionBuilder = PositionInfo.newBuilder()
+                                                           .setLedgerId(1)
+                                                           .setEntryId(2);
+        PositionList.Builder positionListBuilder = PositionList.newBuilder()
+                                                               .addPositions(positionBuilder.build());
+        PendingAckMessageEntry.Builder messageEntryBuilder = PendingAckMessageEntry.newBuilder()
+                                                                    .setTxnId("3,4")
+                                                                    .setPositionList(positionListBuilder.build());
+        SubscriptionPendingAckMessages subscriptionPendingAckMessages = SubscriptionPendingAckMessages.newBuilder()
+                                                .addAllPendingAckMessages(Arrays.asList(messageEntryBuilder.build()))
+                                                .setPendingCumulativeAckMessagePosition(positionBuilder.build())
+                                                .build();
+        store.asyncUpdateSubscriptionPendingAckMessages("pendingAckMessages", "cursor", "subscription",
+                null, subscriptionPendingAckMessages, new MetaStoreCallback<Void>() {
+            public void operationFailed(MetaStoreException e) {
+                fail("asyncUpdateSubscriptionPendingAckMessages should succeed");
+            }
+
+            public void operationComplete(Void result, Stat version) {
+                // Update again using the version, should fail
+                zkc.failNow(Code.CONNECTIONLOSS);
+
+                SubscriptionPendingAckMessages subscriptionPendingAckMessages = SubscriptionPendingAckMessages.newBuilder()
+                                                    .addAllPendingAckMessages(Collections.emptyList())
+                                                    .build();
+                store.asyncUpdateSubscriptionPendingAckMessages("pendingAckMessages", "cursor", "subscription",
+                        null, subscriptionPendingAckMessages, new MetaStoreCallback<Void>() {
+                    public void operationFailed(MetaStoreException e) {
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void operationComplete(Void result, Stat version) {
+                        fail("asyncUpdateSubscriptionPendingAckMessages should fail");
+                    }
+                });
+            }
+        });
+
+        latch.await();
+
+        final CountDownLatch anotherLatch = new CountDownLatch(1);
+
+        // Read data back and assert it's what be put.
+        store.asyncGetSubscriptionPendingAckMessages("pendingAckMessages", "cursor", "subscription",
+            new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+                @Override
+                public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
+                    assertEquals(result.getPendingCumulativeAckMessagePosition().getLedgerId(), 1);
+                    assertEquals(result.getPendingCumulativeAckMessagePosition().getEntryId(), 2);
+                    List<PendingAckMessageEntry> pendingAckMessageEntryList = result.getPendingAckMessagesList();
+                    assertEquals(pendingAckMessageEntryList.size(), 1);
+                    assertEquals(pendingAckMessageEntryList.get(0).getTxnId(), "3,4");
+                    PositionList positionList = pendingAckMessageEntryList.get(0).getPositionList();
+                    assertEquals(positionList.getPositionsList().size(), 1);
+                    assertEquals(positionList.getPositionsList().get(0).getLedgerId(), 1);
+                    assertEquals(positionList.getPositionsList().get(0).getEntryId(), 2);
+                    anotherLatch.countDown();
+                }
+
+                @Override
+                public void operationFailed(MetaStoreException e) {
+                    fail("asyncGetSubscriptionPendingAckMessages should succeed");
+                }
+        });
+
+        anotherLatch.await();
     }
 
     @Test(timeOut = 20000)
