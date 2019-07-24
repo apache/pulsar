@@ -216,29 +216,28 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
         latch.await();
     }
 
-    @Test(timeOut = 40000)
+    @Test(timeOut = 20000)
     void updatingAndReadingSubscriptionPendingAckMessages() throws Exception {
         final MetaStore store = new MetaStoreImplZookeeper(zkc, executor);
 
-        // Create parent path
+        // Create parent ZNode with only ledger name, test will create parent ZNode if it's missing.
         zkc.create("/managed-ledgers/pendingAckMessages", "".getBytes(),ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        zkc.create("/managed-ledgers/pendingAckMessages/cursor", "".getBytes(),ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
         final CountDownLatch latch = new CountDownLatch(1);
 
         // Prepare data.
         PositionInfo.Builder positionBuilder = PositionInfo.newBuilder()
-                                                           .setLedgerId(1)
-                                                           .setEntryId(2);
+                .setLedgerId(1)
+                .setEntryId(2);
         PositionList.Builder positionListBuilder = PositionList.newBuilder()
-                                                               .addPositions(positionBuilder.build());
+                .addPositions(positionBuilder.build());
         PendingAckMessageEntry.Builder messageEntryBuilder = PendingAckMessageEntry.newBuilder()
-                                                                    .setTxnId("3,4")
-                                                                    .setPositionList(positionListBuilder.build());
+                .setTxnId("3,4")
+                .setPositionList(positionListBuilder.build());
         SubscriptionPendingAckMessages subscriptionPendingAckMessages = SubscriptionPendingAckMessages.newBuilder()
-                                                .addAllPendingAckMessages(Arrays.asList(messageEntryBuilder.build()))
-                                                .setPendingCumulativeAckMessagePosition(positionBuilder.build())
-                                                .build();
+                .addAllPendingAckMessages(Arrays.asList(messageEntryBuilder.build()))
+                .setPendingCumulativeAckMessagePosition(positionBuilder.build())
+                .build();
         store.asyncUpdateSubscriptionPendingAckMessages("pendingAckMessages", "cursor", "subscription",
                 null, subscriptionPendingAckMessages, new MetaStoreCallback<Void>() {
             public void operationFailed(MetaStoreException e) {

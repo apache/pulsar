@@ -340,7 +340,24 @@ public class MetaStoreImplZookeeper implements MetaStore {
             }
             zk.create(zkPath, data, Acl, CreateMode.PERSISTENT,
                     (rc, path, ctx, name) -> executor.executeOrdered(ledgerName, safeRun(() -> {
-                        if (rc != Code.OK.intValue()) {
+                        if (rc == Code.NONODE.intValue()) {
+                            // Try create parent ZNode id missing.
+                            log.info("Creating '{}{}'", prefix + ledgerName, cursorName);
+
+                            StringCallback createcb = (rc1, path1, ctx1, name1) -> {
+                                if (rc1 == Code.OK.intValue()) {
+                                    // Try UpdateSubscriptionPendingAckMessages again if create succeed.
+                                    asyncUpdateSubscriptionPendingAckMessages(ledgerName, cursorName, subName, stat,
+                                           subscriptionPendingAckMessages, callback);
+                                } else {
+                                    callback.operationFailed(
+                                            new MetaStoreException(KeeperException.create(Code.get(rc1))));
+                                }
+                            };
+
+                            asyncCreateFullPathOptimistic(prefix + ledgerName, cursorName, new byte[0], Acl,
+                                    CreateMode.PERSISTENT, createcb);
+                        } else if (rc != Code.OK.intValue()) {
                             log.warn("[{}] [{}] [{}] Error creating path for subscription's pending ack messages " +
                                             "to meta-data store with {}: {}", ledgerName, cursorName, subName,
                                             Code.get(rc), data);
