@@ -76,6 +76,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.StandardErrorCode.NOT_FOUND;
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
+import static com.facebook.presto.spi.StandardErrorCode.QUERY_REJECTED;
 import static com.facebook.presto.spi.type.DateType.DATE;
 import static com.facebook.presto.spi.type.TimeType.TIME;
 import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
@@ -116,6 +117,9 @@ public class PulsarMetadata implements ConnectorMetadata {
                         rewriteNamespaceDelimiterIfNeeded(namespace, pulsarConnectorConfig)).collect(Collectors.toList()));
             }
         } catch (PulsarAdminException e) {
+            if (e.getStatusCode() == 401) {
+                throw new PrestoException(QUERY_REJECTED, "Failed to get schemas from pulsar: Unauthorized");
+            }
             throw new RuntimeException("Failed to get schemas from pulsar: "
                     + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
@@ -174,6 +178,9 @@ public class PulsarMetadata implements ConnectorMetadata {
                     if (e.getStatusCode() == 404) {
                         log.warn("Schema " + schemaNameOrNull + " does not exsit");
                         return builder.build();
+                    } else if (e.getStatusCode() == 401) {
+                        throw new PrestoException(QUERY_REJECTED,
+                                String.format("Failed to get tables/topics in %s: Unauthorized", schemaNameOrNull));
                     }
                     throw new RuntimeException("Failed to get tables/topics in " + schemaNameOrNull + ": "
                             + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
@@ -277,6 +284,9 @@ public class PulsarMetadata implements ConnectorMetadata {
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
                 throw new PrestoException(NOT_FOUND, "Schema " + namespace + " does not exist");
+            } else if (e.getStatusCode() == 401) {
+                throw new PrestoException(QUERY_REJECTED,
+                        String.format("Failed to get topics in schema %s: Unauthorized", namespace));
             }
             throw new RuntimeException("Failed to get topics in schema " + namespace
                     + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
@@ -297,8 +307,13 @@ public class PulsarMetadata implements ConnectorMetadata {
             if (e.getStatusCode() == 404) {
                 // to indicate that we can't read from topic because there is no schema
                 return null;
+            } else if (e.getStatusCode() == 401) {
+                throw new PrestoException(QUERY_REJECTED,
+                        String.format("Failed to get pulsar topic schema information for topic %s/%s: Unauthorized",
+                                namespace, schemaTableName.getTableName()));
             }
-            throw new RuntimeException("Failed to get schema information for topic "
+
+            throw new RuntimeException("Failed to get pulsar topic schema information for topic "
                     + String.format("%s/%s", namespace, schemaTableName.getTableName())
                     + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
