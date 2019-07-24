@@ -21,6 +21,8 @@ package org.apache.pulsar.sql.presto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.configuration.Config;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.common.naming.NamedEntity;
@@ -44,6 +46,11 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private String statsProvider = NullStatsProvider.class.getName();
 
     private Map<String, String> statsProviderConfigs = new HashMap<>();
+    private String authPluginClassName;
+    private String authParams;
+    private String tlsTrustCertsFilePath;
+    private Boolean tlsAllowInsecureConnection;
+    private Boolean tlsHostnameVerificationEnable;
 
     private boolean namespaceDelimiterRewriteEnable = false;
     private String rewriteNamespaceDelimiter = "/";
@@ -154,6 +161,33 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
+    public String getRewriteNamespaceDelimiter() {
+        return rewriteNamespaceDelimiter;
+    }
+
+    @Config("pulsar.rewrite-namespace-delimiter")
+    public PulsarConnectorConfig setRewriteNamespaceDelimiter(String rewriteNamespaceDelimiter) {
+        Matcher m = NamedEntity.NAMED_ENTITY_PATTERN.matcher(rewriteNamespaceDelimiter);
+        if (m.matches()) {
+            throw new IllegalArgumentException(
+                    "Can't use " + rewriteNamespaceDelimiter + "as delimiter, "
+                            + "because delimiter must contain characters which name of namespace not allowed"
+            );
+        }
+        this.rewriteNamespaceDelimiter = rewriteNamespaceDelimiter;
+        return this;
+    }
+
+    public boolean getNamespaceDelimiterRewriteEnable() {
+        return namespaceDelimiterRewriteEnable;
+    }
+
+    @Config("pulsar.namespace-delimiter-rewrite-enable")
+    public PulsarConnectorConfig setNamespaceDelimiterRewriteEnable(boolean namespaceDelimiterRewriteEnable) {
+        this.namespaceDelimiterRewriteEnable = namespaceDelimiterRewriteEnable;
+        return this;
+    }
+
     /**** --- Ledger Offloading --- ****/
 
     public int getManagedLedgerOffloadMaxThreads() {
@@ -197,37 +231,80 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
-    public String getRewriteNamespaceDelimiter() {
-        return rewriteNamespaceDelimiter;
+    /**** --- Authentication --- ****/
+
+    public String getAuthPlugin() {
+        return this.authPluginClassName;
     }
 
-    @Config("pulsar.rewrite-namespace-delimiter")
-    public PulsarConnectorConfig setRewriteNamespaceDelimiter(String rewriteNamespaceDelimiter) {
-        Matcher m = NamedEntity.NAMED_ENTITY_PATTERN.matcher(rewriteNamespaceDelimiter);
-        if (m.matches()) {
-            throw new IllegalArgumentException(
-                    "Can't use " + rewriteNamespaceDelimiter + "as delimiter, "
-                    + "because delimiter must contain characters which name of namespace not allowed"
-            );
-        }
-        this.rewriteNamespaceDelimiter = rewriteNamespaceDelimiter;
+    @Config("pulsar.auth-plugin")
+    public PulsarConnectorConfig setAuthPlugin(String authPluginClassName) throws IOException {
+        this.authPluginClassName = authPluginClassName;
         return this;
     }
 
-    public boolean getNamespaceDelimiterRewriteEnable() {
-        return namespaceDelimiterRewriteEnable;
+    public String getAuthParams() {
+        return this.authParams;
     }
 
-    @Config("pulsar.namespace-delimiter-rewrite-enable")
-    public PulsarConnectorConfig setNamespaceDelimiterRewriteEnable(boolean namespaceDelimiterRewriteEnable) {
-        this.namespaceDelimiterRewriteEnable = namespaceDelimiterRewriteEnable;
+    @Config("pulsar.auth-params")
+    public PulsarConnectorConfig setAuthParams(String authParams) throws IOException {
+        this.authParams = authParams;
+        return this;
+    }
+
+    public Boolean isTlsAllowInsecureConnection() {
+        return tlsAllowInsecureConnection;
+    }
+
+    @Config("pulsar.tls-allow-insecure-connection")
+    public PulsarConnectorConfig setTlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
+        this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
+        return this;
+    }
+
+    public Boolean isTlsHostnameVerificationEnable() {
+        return tlsHostnameVerificationEnable;
+    }
+
+    @Config("pulsar.tls-hostname-verification-enable")
+    public PulsarConnectorConfig setTlsHostnameVerificationEnable(boolean tlsHostnameVerificationEnable) {
+        this.tlsHostnameVerificationEnable = tlsHostnameVerificationEnable;
+        return this;
+    }
+
+    public String getTlsTrustCertsFilePath() {
+        return tlsTrustCertsFilePath;
+    }
+
+    @Config("pulsar.tls-trust-cert-file-path")
+    public PulsarConnectorConfig setTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
+        this.tlsTrustCertsFilePath = tlsTrustCertsFilePath;
         return this;
     }
 
     @NotNull
     public PulsarAdmin getPulsarAdmin() throws PulsarClientException {
         if (this.pulsarAdmin == null) {
-            this.pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(getBrokerServiceUrl()).build();
+            PulsarAdminBuilder builder = PulsarAdmin.builder();
+
+            if (getAuthPlugin() != null) {
+                builder.authentication(getAuthPlugin(), getAuthParams());
+            }
+
+            if (isTlsAllowInsecureConnection() != null) {
+                builder.allowTlsInsecureConnection(isTlsAllowInsecureConnection());
+            }
+
+            if (isTlsHostnameVerificationEnable() != null) {
+                builder.enableTlsHostnameVerification(isTlsHostnameVerificationEnable());
+            }
+
+            if (getTlsTrustCertsFilePath() != null) {
+                builder.tlsTrustCertsFilePath(getTlsTrustCertsFilePath());
+            }
+
+            this.pulsarAdmin = builder.serviceHttpUrl(getBrokerServiceUrl()).build();
         }
         return this.pulsarAdmin;
     }
