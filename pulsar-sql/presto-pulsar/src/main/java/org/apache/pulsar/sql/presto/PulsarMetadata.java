@@ -34,9 +34,14 @@ import com.facebook.presto.spi.TableNotFoundException;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.BooleanType;
+import com.facebook.presto.spi.type.DateType;
 import com.facebook.presto.spi.type.DoubleType;
 import com.facebook.presto.spi.type.IntegerType;
 import com.facebook.presto.spi.type.RealType;
+import com.facebook.presto.spi.type.SmallintType;
+import com.facebook.presto.spi.type.TimeType;
+import com.facebook.presto.spi.type.TimestampType;
+import com.facebook.presto.spi.type.TinyintType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarbinaryType;
 import com.facebook.presto.spi.type.VarcharType;
@@ -55,6 +60,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 import javax.inject.Inject;
 import java.util.HashMap;
@@ -296,6 +302,56 @@ public class PulsarMetadata implements ConnectorMetadata {
                     + String.format("%s/%s", namespace, schemaTableName.getTableName())
                     + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
+        List<ColumnMetadata> handles = getPulsarColumns(
+                topicName, schemaInfo, withInternalColumns
+        );
+
+
+        return new ConnectorTableMetadata(schemaTableName, handles);
+    }
+
+    /**
+     * Convert pulsar schema into presto table metadata.
+     */
+    static List<ColumnMetadata> getPulsarColumns(TopicName topicName,
+                                                 SchemaInfo schemaInfo,
+                                                 boolean withInternalColumns) {
+        SchemaType schemaType = schemaInfo.getType();
+        if (schemaType.isStruct()) {
+            return getPulsarColumnsFromStructSchema(topicName, schemaInfo, withInternalColumns);
+        } else if (schemaType.isPrimitive()) {
+            return getPulsarColumnsFromPrimitiveSchema(topicName, schemaInfo, withInternalColumns);
+        } else {
+            throw new IllegalArgumentException("Unsupported schema : " + schemaInfo);
+        }
+    }
+
+    static List<ColumnMetadata> getPulsarColumnsFromPrimitiveSchema(TopicName topicName,
+                                                                    SchemaInfo schemaInfo,
+                                                                    boolean withInternalColumns) {
+        ImmutableList.Builder<ColumnMetadata> builder = ImmutableList.builder();
+
+        ColumnMetadata valueColumn = new PulsarColumnMetadata(
+                "__value__",
+                convertPulsarType(schemaInfo.getType()),
+                null, null, false, false,
+                new String[0],
+                new Integer[0]);
+
+        builder.add(valueColumn);
+
+        if (withInternalColumns) {
+            PulsarInternalColumn.getInternalFields()
+                    .stream()
+                    .forEach(pulsarInternalColumn -> builder.add(pulsarInternalColumn.getColumnMetadata(false)));
+        }
+
+        return builder.build();
+    }
+
+    static List<ColumnMetadata> getPulsarColumnsFromStructSchema(TopicName topicName,
+                                                                 SchemaInfo schemaInfo,
+                                                                 boolean withInternalColumns) {
 
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
@@ -315,11 +371,44 @@ public class PulsarMetadata implements ConnectorMetadata {
         builder.addAll(getColumns(null, schema, new HashSet<>(), new Stack<>(), new Stack<>()));
 
         if (withInternalColumns) {
-            PulsarInternalColumn.getInternalFields().forEach(
-                pulsarInternalColumn -> builder.add(pulsarInternalColumn.getColumnMetadata(false)));
+            PulsarInternalColumn.getInternalFields()
+                    .stream()
+                    .forEach(pulsarInternalColumn -> builder.add(pulsarInternalColumn.getColumnMetadata(false)));
         }
-
-        return new ConnectorTableMetadata(schemaTableName, builder.build());
+         return builder.build();
+    }
+    @VisibleForTesting
+    static Type convertPulsarType(SchemaType pulsarType) {
+        switch (pulsarType) {
+            case BOOLEAN:
+                return BooleanType.BOOLEAN;
+            case INT8:
+                return TinyintType.TINYINT;
+            case INT16:
+                return SmallintType.SMALLINT;
+            case INT32:
+                return IntegerType.INTEGER;
+            case INT64:
+                return BigintType.BIGINT;
+            case FLOAT:
+                return RealType.REAL;
+            case DOUBLE:
+                return DoubleType.DOUBLE;
+            case NONE:
+            case BYTES:
+                return VarbinaryType.VARBINARY;
+            case STRING:
+                return VarcharType.VARCHAR;
+            case DATE:
+                return DateType.DATE;
+            case TIME:
+                return TimeType.TIME;
+            case TIMESTAMP:
+                return TimestampType.TIMESTAMP;
+            default:
+                log.error("Cannot convert type: %s", pulsarType);
+                return null;
+        }
     }
 
 

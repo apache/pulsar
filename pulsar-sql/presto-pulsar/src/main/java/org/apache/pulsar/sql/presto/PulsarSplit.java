@@ -26,9 +26,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,6 +48,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final long startPositionLedgerId;
     private final long endPositionLedgerId;
     private final TupleDomain<ColumnHandle> tupleDomain;
+    private final SchemaInfo schemaInfo;
 
     private final PositionImpl startPosition;
     private final PositionImpl endPosition;
@@ -63,8 +66,16 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionEntryId") long endPositionEntryId,
             @JsonProperty("startPositionLedgerId") long startPositionLedgerId,
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
-            @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain) {
+            @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
+            @JsonProperty("properties") Map<String, String> schemaInfoProperties) {
         this.splitId = splitId;
+        requireNonNull(schemaName, "schema name is null");
+        this.schemaInfo = SchemaInfo.builder()
+                .type(schemaType)
+                .name(schemaName)
+                .schema(schema.getBytes())
+                .properties(schemaInfoProperties)
+                .build();
         this.schemaName = requireNonNull(schemaName, "schema name is null");
         this.connectorId = requireNonNull(connectorId, "connector id is null");
         this.tableName = requireNonNull(tableName, "table name is null");
@@ -178,5 +189,9 @@ public class PulsarSplit implements ConnectorSplit {
                 ", startPositionLedgerId=" + startPositionLedgerId +
                 ", endPositionLedgerId=" + endPositionLedgerId +
                 '}';
+    }
+
+    public SchemaInfo getSchemaInfo() {
+        return schemaInfo;
     }
 }
