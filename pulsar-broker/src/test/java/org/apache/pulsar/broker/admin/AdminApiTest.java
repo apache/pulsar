@@ -26,6 +26,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -1440,7 +1441,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .readValue(expectedJson);
         assertEquals(r1.allowedClusters, Sets.newHashSet("test", "usw"));
         assertEquals(r1.someNewIntField, 0);
-        assertEquals(r1.someNewString, null);
+        assertNull(r1.someNewString);
     }
 
     @Test
@@ -1458,7 +1459,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(result.allowedClusters, Sets.newHashSet("test"));
         assertEquals(result.someNewIntField, 0);
-        assertEquals(result.someNewString, null);
+        assertNull(result.someNewString);
 
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.tenants().deleteTenant("prop-xyz");
