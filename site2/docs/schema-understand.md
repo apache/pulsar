@@ -177,9 +177,9 @@ KeyValueEncodingType.SEPARATED
 );
 
 Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
-    .topic(TOPIC)
     ...
-    .subscribe();
+    .topic(TOPIC)
+    .subscriptionName(SubscriptionName).subscribe();
 
 // receive key/value pair
 Message<KeyValue<Integer, String>> msg = consumer.receive();
@@ -315,3 +315,63 @@ Message<GenericRecord> msg = consumer.receive() ;
 GenericRecord record = msg.getValue();
 …
 ```
+
+## Schema version
+
+Each `SchemaInfo` stored with a topic has a version. Schema version manages schema changes happening within a topic. 
+
+Messages produced with a given `SchemaInfo` is tagged with the schema version, so when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding schema information, and then use the schema information to deserialize data.
+
+## How does Schema work
+
+Schema works on the producer side and the consumer side.
+
+### Producer side
+
+This diagram illustrates how does schema work on the Producer side.
+
+![Schema works at the producer side](assets/schema-producer.png)
+
+1. The application uses a schema instance to construct a producer instance. 
+
+    The schema instance defines the schema for the data being produced using the producer instance. 
+
+    Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the schema info that the producer needs to pass to a broker when it connects.
+
+2. The producer connects to the broker with the schema info extracted from the passed-in schema instance.
+   
+3. The broker looks up the schema in the schema storage to check if it is already a registered schema. 
+   
+4. If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the producer.
+  
+5. If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic. 
+  
+6. If the schema is compatible, the broker stores it and returns the schema version to the producer. 
+
+    All the messages produced by this producer are tagged with the schema version. 
+
+7. If the schema is incompatible, the broker rejects it.
+
+### Consumer side
+
+This diagram illustrates how does Schema work on the consumer side. 
+
+[diagram placeholder]
+
+1. The application uses a schema instance to construct a consumer instance.
+   
+    The schema instance defines the schema that the consumer uses for decoding messages received from a broker.
+
+2. The consumer connects to the broker with schema info extracted from the passed-in schema instance.
+   
+3. The broker looks up the schema in the schema storage to check if it is already a registered schema. 
+   
+4. If yes, the broker skips the schema validation since it is a known schema, and returns the schema version to the consumer.
+
+5. If no, the broker validates the schema based on the schema compatibility check strategy defined for the topic. 
+   
+6. If the schema is compatible, the broker stores it and returns the schema version to the consumer. 
+   
+7. If the schema is incompatible, the consumer will be disconnected.
+
+8. The consumer receives the messages from the broker. If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer will fetch the schema info of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.
