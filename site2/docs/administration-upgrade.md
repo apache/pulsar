@@ -6,7 +6,7 @@ sidebar_label: Upgrade
 
 ## Upgrade guidelines
 
-Apache Pulsar is comprised of multiple components, ZooKeeper, bookies and brokers. These components are either stateful or stateless. You do not have to upgrade ZooKeeper nodes unless it is required. While upgrading, you need to pay attention to bookies (stateful), brokers and proxies (stateless).
+Apache Pulsar is comprised of multiple components, ZooKeeper, bookies and brokers. These components are either stateful or stateless. You do not have to upgrade ZooKeeper nodes unless you have special requirement. While upgrading, you need to pay attention to bookies (stateful), brokers and proxies (stateless).
 
 The following are some guidelines on upgrading a Pulsar cluster. Read the guidelines before upgrading.
 
@@ -26,27 +26,27 @@ The following are some guidelines on upgrading a Pulsar cluster. Read the guidel
 
 To upgrade an Apache Pulsar cluster, follow the upgrade sequence.
 
-1. Upgrade ZooKeeper (optional)
-Canary test: test an upgraded version in one or a small set of ZooKeeper nodes.
-Rolling upgrade: rollout the upgraded version to all ZooKeeper servers incrementally, one at a time. Monitor your dashboard during the whole rolling upgrade process.
-2. Upgrade bookies
-Canary test: test an upgraded version in one or a small set of bookies.
-Rolling upgrade:
-    a. Disable `autorecovery` with the following command.
+1. Upgrade ZooKeeper (optional)  
+- Canary test: test an upgraded version in one or a small set of ZooKeeper nodes.  
+- Rolling upgrade: rollout the upgraded version to all ZooKeeper servers incrementally, one at a time. Monitor your dashboard during the whole rolling upgrade process.
+2. Upgrade bookies  
+- Canary test: test an upgraded version in one or a small set of bookies.
+- Rolling upgrade:  
+    - a. Disable `autorecovery` with the following command.
        ```shell
        bin/bookkeeper shell autorecovery -disable
-       ```
-    b. Rollout the upgraded version to all bookies in the cluster after you have determined a version is safe after canary.
-    c. After all bookies are upgraded, re-enable `autorecovery` with the following command.
+       ```  
+    - b. Rollout the upgraded version to all bookies in the cluster after you have determined a version is safe after canary.  
+    - c. After all bookies are upgraded, re-enable `autorecovery` with the following command.
        ```shell
        bin/bookkeeper shell autorecovery -enable
        ```
 3. Upgrade brokers
-Canary test: test an upgraded version in one or a small set of brokers.
-Rolling upgrade: rollout the upgraded version to all brokers in the cluster after you have determined a version is safe after canary.
+- Canary test: test an upgraded version in one or a small set of brokers.
+- Rolling upgrade: rollout the upgraded version to all brokers in the cluster after you have determined a version is safe after canary.
 4. Upgrade proxies
-Canary test: test an upgraded version in one or a small set of proxies.
-Rolling upgrade: rollout the upgraded version to all proxies in the cluster after you have determined a version is safe after canary.
+- Canary test: test an upgraded version in one or a small set of proxies.
+- Rolling upgrade: rollout the upgraded version to all proxies in the cluster after you have determined a version is safe after canary.
 
 ## Upgrade ZooKeeper (optional)
 
@@ -92,17 +92,18 @@ While upgrading in both scenarios, the procedure is the same for each bookie.
 2. Upgrade the software (either new binary or new configuration files).
 2. Start the bookie.
 
-> Advanced operations: when rolling upgrade a large BookKeeper cluster, upgrading one bookie at a time is slow. If you have configured rack-aware or region-aware placement policy, you can upgrade bookies rack by rack or region by region. It will speed up the whole upgrade process.
+> **Advanced operations**   
+> When upgrading a large BookKeeper cluster in rolling upgrade scenario, it is slow to upgrade one bookie at a time. If you have configured rack-aware or region-aware placement policy, you can upgrade bookies rack by rack or region by region. It speeds up the whole upgrade process.
 
 ## Upgrade brokers and proxies
 
-The upgrade procedure for brokers and proxies is the same. Brokers and proxies are `stateless`, so it is easier to upgrade the two services.
+The upgrade procedure for brokers and proxies is the same. Brokers and proxies are `stateless`, so it is easy to upgrade the two services.
 
 ### Canary test
 
-Before upgrading, you’d better verify a new version in one or a small set of nodes before upgrading all nodes in your cluster.
+You can test an upgraded version in one or a small set of nodes before upgrading all nodes in your cluster.
 
-To canary an upgraded version, complete the following steps:
+To upgrade to a new version, complete the following steps:
 
 1. Stop a broker (or proxy).
 2. Upgrade the binary and configuration file.
