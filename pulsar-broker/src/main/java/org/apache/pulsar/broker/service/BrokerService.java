@@ -454,7 +454,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * disables and shutdowns publish-rate-limiter monitor task if broker disables it.
      */
     public synchronized void setupPublishRateLimiterMonitor() {
-        // Lazy-init..avoid running task if none of the topic in broker requires publish-throttling
         long tickTimeMs = pulsar().getConfiguration().getPublisherThrottlingTickTimeMillis();
         if (tickTimeMs > 0) {
             if (this.publishRateLimiterMonitor == null) {
@@ -462,8 +461,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         new DefaultThreadFactory("pulsar-publish-rate-limiter-monitor"));
                 if (tickTimeMs > 0) {
                     // schedule task that sums up publish-rate across all cnx on a topic
-                    publishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkPublishThrottlingRate()), tickTimeMs,
-                            tickTimeMs, TimeUnit.MILLISECONDS);
+                    publishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkPublishThrottlingRate()),
+                            tickTimeMs, tickTimeMs, TimeUnit.MILLISECONDS);
                     // schedule task that refreshes rate-limitting bucket
                     publishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshPublishRate()), 1, 1,
                             TimeUnit.SECONDS);

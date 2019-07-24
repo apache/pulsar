@@ -40,7 +40,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import javax.naming.AuthenticationException;
@@ -139,6 +138,9 @@ public class ServerCnx extends PulsarHandler {
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
+    
+    // Flag to manage throttling-rate by atomically enable/disable read-channel.
+    private volatile boolean autoReadDisabledRateLimiting = false;
 
     enum State {
         Start, Connected, Failed, Connecting
@@ -1451,10 +1453,12 @@ public class ServerCnx extends PulsarHandler {
     }
 
     public void startSendOperation(Producer producer) {
-        if (++pendingSendRequest == MaxPendingSendRequests || producer.getTopic().isPublishRateExceeded()) {
+        boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
+            autoReadDisabledRateLimiting = isPublishRateExceeded;
         }
     }
 
@@ -1472,13 +1476,14 @@ public class ServerCnx extends PulsarHandler {
 
     public void enableCnxAutoRead() {
         // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
-        // pendingSendRequest to be volatile and it can be expensive while writting. also this will be called on if
-        // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine. 
-        if (!ctx.channel().config().isAutoRead()) {
+        // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
+        // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
+        if (!ctx.channel().config().isAutoRead() && autoReadDisabledRateLimiting) {
             // Resume reading from socket if pending-request is not reached to threshold
             ctx.channel().config().setAutoRead(true);
             // triggers channel read
             ctx.read();
+            autoReadDisabledRateLimiting = false;
         }
     }
     

@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
-import com.google.common.base.MoreObjects;
-
+/**
+ * Publish-rate to manage publish throttling.
+ */
 public class PublishRate {
 
     public int publishThrottlingRateInMsg = -1;

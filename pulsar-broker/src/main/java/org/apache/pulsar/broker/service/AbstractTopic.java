@@ -271,18 +271,18 @@ public abstract class AbstractTopic implements Topic {
 
      private void updatePublishDispatcher(Policies policies) {
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
-        final PublishRate publishRate = policies != null && policies.publish_max_message_rate != null
-                ? policies.publish_max_message_rate.get(clusterName)
+        final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
+                ? policies.publishMaxMessageRate.get(clusterName)
                 : null;
         if (publishRate != null
                 && (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0)) {
             log.info("Enabling publish rate limiting {} on topic {}", publishRate, this.topic);
+            // lazy init Publish-rateLimiting monitoring if not initialized yet
+            this.brokerService.setupPublishRateLimiterMonitor();
             if (this.publishRateLimiter == null
                     || this.publishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
                 // create new rateLimiter if rate-limiter is disabled
                 this.publishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
-                // lazy init Publish-rateLimiting monitoring if not initialized yet
-                this.brokerService.setupPublishRateLimiterMonitor();
             } else {
                 this.publishRateLimiter.update(policies, clusterName);
             }
