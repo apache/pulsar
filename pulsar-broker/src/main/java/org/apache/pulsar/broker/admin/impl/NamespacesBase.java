@@ -262,7 +262,7 @@ public abstract class NamespacesBase extends AdminResource {
                 return null;
             }
 
-            asyncResponse.resume(Response.ok().build());
+            asyncResponse.resume(Response.noContent().build());
             return null;
         });
     }
@@ -627,7 +627,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
             log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(), namespaceName);
-            asyncResponse.resume(Response.ok().build());
+            asyncResponse.resume(Response.noContent().build());
             return null;
         });
     }
@@ -1199,7 +1199,7 @@ public abstract class NamespacesBase extends AdminResource {
             }
             log.info("[{}] Successfully cleared backlog on all the bundles for namespace {}", clientAppId(),
                     namespaceName);
-            asyncResponse.resume(Response.ok().build());
+            asyncResponse.resume(Response.noContent().build());
             return null;
         });
     }
@@ -1262,7 +1262,7 @@ public abstract class NamespacesBase extends AdminResource {
             }
             log.info("[{}] Successfully cleared backlog for subscription {} on all the bundles for namespace {}",
                     clientAppId(), subscription, namespaceName);
-            asyncResponse.resume(Response.ok().build());
+            asyncResponse.resume(Response.noContent().build());
             return null;
         });
     }
@@ -1326,7 +1326,7 @@ public abstract class NamespacesBase extends AdminResource {
             }
             log.info("[{}] Successfully unsubscribed {} on all the bundles for namespace {}", clientAppId(),
                     subscription, namespaceName);
-            asyncResponse.resume(Response.ok().build());
+            asyncResponse.resume(Response.noContent().build());
             return null;
         });
     }

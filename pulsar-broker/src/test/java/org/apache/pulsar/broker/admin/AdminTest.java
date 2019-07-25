@@ -512,7 +512,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         namespaces.deleteNamespace(response, "my-tenant", "use", "my-namespace", false);
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(captor.capture());
-        assertEquals(captor.getValue().getStatus(), Status.OK.getStatusCode());
+        assertEquals(captor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
         properties.deleteTenant("my-tenant");
         properties.deleteTenant("tenant-config-is-null");
     }
