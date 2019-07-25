@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.compression;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertSame;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -111,6 +111,6 @@ public class CompressorCodecTest {
         CompressionCodec codec2 = CompressionCodecProvider.getCompressionCodec(type);
 
         // A single provider instance must return the same codec instance every time
-        assertTrue(codec1 == codec2);
+        assertSame(codec1, codec2);
     }
 }

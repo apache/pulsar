@@ -18,7 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -49,7 +52,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ManagedCursor c1 = ledger.openCursor("c1");
 
-        assertEquals(zkc.exists("/managed-ledgers/my_test_ledger/c1", false) != null, true);
+        assertNotNull(zkc.exists("/managed-ledgers/my_test_ledger/c1", false));
 
         zkc.failNow(Code.BADVERSION);
 
@@ -65,7 +68,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         // Cursor ledger deletion will fail, but that should not prevent the deleteCursor to fail
         ledger.deleteCursor("c1");
 
-        assertEquals(zkc.exists("/managed-ledgers/my_test_ledger/c1", false) != null, false);
+        assertNull(zkc.exists("/managed-ledgers/my_test_ledger/c1", false));
         assertEquals(bkc.getLedgers().size(), 2);
     }
 

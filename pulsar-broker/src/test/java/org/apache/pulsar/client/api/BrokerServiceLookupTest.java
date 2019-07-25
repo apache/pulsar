@@ -23,7 +23,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -869,7 +869,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 .subscribe();
 
         NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService().getBundle(TopicName.get(topic2));
-        assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
+        assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit);
 
         consumer1.close();
         consumer2.close();
@@ -1000,7 +1000,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                     .subscribe();
 
             NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService().getBundle(TopicName.get(topic2));
-            assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
+            assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit);
 
             consumer1.close();
             consumer2.close();

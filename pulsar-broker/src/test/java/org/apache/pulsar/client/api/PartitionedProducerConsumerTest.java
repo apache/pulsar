@@ -315,7 +315,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < numMessages * 2; i++) producer.send(("my-message-" + i).getBytes());
 
         log.info("Waiting for message listener to ack " + numMessages + " messages");
-        assertEquals(latch.get().await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.get().await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
 
         log.info("Giving message listener an opportunity to receive messages while paused");
         Thread.sleep(2000);     // hopefully this is long enough
@@ -326,7 +326,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         consumer.resume();
 
         log.info("Waiting for message listener to ack all messages");
-        assertEquals(latch.get().await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.get().await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
 
         consumer.close();
         producer.close();
