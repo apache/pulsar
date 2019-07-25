@@ -154,11 +154,15 @@ void BatchMessageContainer::batchMessageCallBack(Result r, MessageContainerListP
     }
     LOG_DEBUG("BatchMessageContainer::batchMessageCallBack called with [Result = "
               << r << "] [numOfMessages = " << messagesContainerListPtr->size() << "]");
-    for (MessageContainerList::iterator iter = messagesContainerListPtr->begin();
-         iter != messagesContainerListPtr->end(); iter++) {
-        // callback(result, message)
-        iter->sendCallback_(r, iter->message_);
+    size_t batch_size = messagesContainerListPtr->size();
+    for (size_t i = 0; i < batch_size; i++) {
+        messagesContainerListPtr->operator[](i).callBack(r);
     }
+    // for (MessageContainerList::iterator iter = messagesContainerListPtr->begin();
+    //      iter != messagesContainerListPtr->end(); iter++) {
+    //     // callback(result, message)
+    //     iter->sendCallback_(r, iter->message_);
+    // }
     if (flushCallback) {
         flushCallback(ResultOk);
     }
