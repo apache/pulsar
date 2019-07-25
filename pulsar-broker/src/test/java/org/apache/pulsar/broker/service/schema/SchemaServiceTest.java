@@ -111,6 +111,12 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void findSchemaVersionTest() throws Exception {
+        putSchema(schemaId1, schema1, version(0));
+        assertEquals(0, schemaRegistryService.findSchemaVersion(schemaId1, schema1).get().longValue());
+    }
+
+    @Test
     public void deleteSchemaAndAddSchema() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         SchemaData latest = getLatestSchema(schemaId1, version(0));
