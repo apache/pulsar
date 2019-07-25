@@ -19,8 +19,6 @@
 package org.apache.pulsar.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import java.io.Serializable;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
@@ -34,10 +32,10 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.commons.lang.SerializationUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
@@ -82,13 +80,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Builder
-    private static final class Marker implements Serializable {
-        TxnID txnID;
-        TxnStatus status;
-
-        public byte[] serialize() {
-            return SerializationUtils.serialize(this);
-        }
+    final static class Marker {
+        long sequenceId;
+        ByteBuf marker;
     }
 
     public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService)
@@ -133,25 +127,43 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
-        Marker commitMarker = Marker.builder().txnID(txnID).status(TxnStatus.COMMITTED).build();
-        ByteBuf marker = Unpooled.wrappedBuffer(commitMarker.serialize());
-
         return txnCursor.getTxnMeta(txnID, false)
-                 .thenCompose(meta -> publishMessage(txnID, marker, meta.lastSequenceId() + 1))
-                 .thenCompose(
-                     position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID, position));
+                        .thenCompose(meta -> createCommitMarker(meta))
+                        .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
+                        .thenCompose(position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID,
+                                                                     position));
+    }
+
+    private CompletableFuture<Marker> createCommitMarker(TransactionMeta meta) {
+        if (log.isDebugEnabled()) {
+            log.debug("Transaction {} create a commit marker", meta.id());
+        }
+        long sequenceId = meta.lastSequenceId() + 1;
+        ByteBuf commitMarker = Markers.newTxnCommitMarker(sequenceId, meta.id().getMostSigBits(),
+                                                          meta.id().getLeastSigBits());
+        Marker marker = Marker.builder().sequenceId(sequenceId).marker(commitMarker).build();
+        return CompletableFuture.completedFuture(marker);
     }
 
     @Override
     public CompletableFuture<Void> abortTxn(TxnID txnID) {
-
-        Marker abortMarker = Marker.builder().txnID(txnID).status(TxnStatus.ABORTED).build();
-        ByteBuf marker = Unpooled.wrappedBuffer(abortMarker.serialize());
-
         return txnCursor.getTxnMeta(txnID, false)
-                 .thenCompose(meta -> publishMessage(txnID, marker, meta.lastSequenceId() + 1))
-                 .thenCompose(position -> txnCursor.abortTxn(txnID));
+                        .thenCompose(meta -> createAbortMarker(meta))
+                        .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
+                        .thenCompose(position -> txnCursor.abortTxn(txnID));
     }
+
+    private CompletableFuture<Marker> createAbortMarker(TransactionMeta meta) {
+        if (log.isDebugEnabled()) {
+            log.debug("Transaction {} create a abort marker", meta.id());
+        }
+        long sequenceId = meta.lastSequenceId() + 1;
+        ByteBuf abortMarker = Markers.newTxnAbortMarker(sequenceId, meta.id().getMostSigBits(),
+                                                        meta.id().getLeastSigBits());
+        Marker marker = Marker.builder().sequenceId(sequenceId).marker(abortMarker).build();
+        return CompletableFuture.completedFuture(marker);
+    }
+
 
     private CompletableFuture<Position> publishMessage(TxnID txnID, ByteBuf msg, long sequenceId) {
         CompletableFuture<Position> publishFuture = new CompletableFuture<>();
