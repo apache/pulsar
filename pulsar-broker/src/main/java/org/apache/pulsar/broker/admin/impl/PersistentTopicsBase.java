@@ -985,13 +985,37 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             // validate ownership and redirect if current broker is not owner
             validateAdminOperationOnTopic(authoritative);
+
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            final AtomicReference<Throwable> exception = new AtomicReference<>();
+
             topic.getReplicators().forEach((subName, replicator) -> {
-                internalExpireMessages(subName, expireTimeInSeconds, authoritative);
+                try {
+                    internalExpireMessagesForSinglePartition(subName, expireTimeInSeconds, authoritative);
+                } catch (Throwable t) {
+                    exception.set(t);
+                }
             });
+
             topic.getSubscriptions().forEach((subName, subscriber) -> {
-                internalExpireMessages(subName, expireTimeInSeconds, authoritative);
+                try {
+                    internalExpireMessagesForSinglePartition(subName, expireTimeInSeconds, authoritative);
+                } catch (Throwable t) {
+                    exception.set(t);
+                }
             });
+
+            if (exception.get() != null) {
+                if (exception.get() instanceof WebApplicationException) {
+                    WebApplicationException wae = (WebApplicationException) exception.get();
+                    asyncResponse.resume(wae);
+                    return;
+                } else {
+                    asyncResponse.resume(new RestException(exception.get()));
+                    return;
+                }
+            }
+
             asyncResponse.resume(Response.noContent().build());
             return;
         }
@@ -1403,51 +1427,104 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalExpireMessages(String subName, int expireTimeInSeconds, boolean authoritative) {
+    protected void internalExpireMessages(AsyncResponse asyncResponse, String subName, int expireTimeInSeconds,
+            boolean authoritative) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
+
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
         if (partitionMetadata.partitions > 0) {
+            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
             // expire messages for each partition topic
-            try {
-                for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    pulsar().getAdminClient().topics()
-                            .expireMessages(topicName.getPartition(i).toString(), subName, expireTimeInSeconds);
+            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                TopicName topicNamePartition = topicName.getPartition(i);
+                try {
+                    futures.add(pulsar().getAdminClient().topics().expireMessagesAsync(topicNamePartition.toString(),
+                            subName, expireTimeInSeconds));
+                } catch (Exception e) {
+                    log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(), expireTimeInSeconds,
+                            topicNamePartition, e);
+                    asyncResponse.resume(new RestException(e));
+                    return;
                 }
-            } catch (Exception e) {
-                throw new RestException(e);
             }
+
+            FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                if (exception != null) {
+                    Throwable t = exception.getCause();
+                    if (t instanceof NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                        return null;
+                    } else {
+                        log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(), expireTimeInSeconds,
+                                topicName, t);
+                        asyncResponse.resume(new RestException(t));
+                        return null;
+                    }
+                }
+
+                asyncResponse.resume(Response.noContent().build());
+                return null;
+            });
         } else {
-            // validate ownership and redirect if current broker is not owner
-            validateAdminAccessForSubscriber(subName, authoritative);
-            if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
-                log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
-                        subName);
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Expire messages on a non-persistent topic is not allowed");
-            }
-            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             try {
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                    checkNotNull(repl);
-                    repl.expireMessages(expireTimeInSeconds);
-                } else {
-                    PersistentSubscription sub = topic.getSubscription(subName);
-                    checkNotNull(sub);
-                    sub.expireMessages(expireTimeInSeconds);
-                }
-                log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds,
-                        topicName, subName);
-            } catch (NullPointerException npe) {
-                throw new RestException(Status.NOT_FOUND, "Subscription not found");
-            } catch (Exception exception) {
-                log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}", clientAppId(),
-                        expireTimeInSeconds, topicName, subName, exception);
-                throw new RestException(exception);
+                internalExpireMessagesForSinglePartition(subName, expireTimeInSeconds, authoritative);
+            } catch (WebApplicationException wae) {
+                asyncResponse.resume(wae);
+                return;
+            } catch (Exception e) {
+                asyncResponse.resume(new RestException(e));
+                return;
             }
+            asyncResponse.resume(Response.noContent().build());
+            return;
+        }
+    }
+
+    private void internalExpireMessagesForSinglePartition(String subName, int expireTimeInSeconds,
+            boolean authoritative) {
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        if (partitionMetadata.partitions > 0) {
+            String msg = "This method should not be called for partitioned topic";
+            log.error("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
+            throw new IllegalStateException(msg);
+        }
+
+        // validate ownership and redirect if current broker is not owner
+        validateAdminAccessForSubscriber(subName, authoritative);
+
+        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
+            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName, subName);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Expire messages on a non-persistent topic is not allowed");
+        }
+
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        try {
+            if (subName.startsWith(topic.getReplicatorPrefix())) {
+                String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                checkNotNull(repl);
+                repl.expireMessages(expireTimeInSeconds);
+            } else {
+                PersistentSubscription sub = topic.getSubscription(subName);
+                checkNotNull(sub);
+                sub.expireMessages(expireTimeInSeconds);
+            }
+            log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, topicName,
+                    subName);
+        } catch (NullPointerException npe) {
+            throw new RestException(Status.NOT_FOUND, "Subscription not found");
+        } catch (Exception exception) {
+            log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}", clientAppId(),
+                    expireTimeInSeconds, topicName, subName, exception);
+            throw new RestException(exception);
         }
     }
 

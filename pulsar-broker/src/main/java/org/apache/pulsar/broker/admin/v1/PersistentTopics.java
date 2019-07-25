@@ -390,12 +390,19 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(hidden = true, value = "Expire messages on a topic subscription.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic or subscription does not exist") })
-    public void expireTopicMessages(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void expireTopicMessages(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @PathParam("subName") String encodedSubName, @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        internalExpireMessages(decode(encodedSubName), expireTimeInSeconds, authoritative);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalExpireMessages(asyncResponse, decode(encodedSubName), expireTimeInSeconds, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @POST
