@@ -43,7 +43,6 @@ import org.apache.pulsar.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**
  * A persistent transaction buffer implementation.
