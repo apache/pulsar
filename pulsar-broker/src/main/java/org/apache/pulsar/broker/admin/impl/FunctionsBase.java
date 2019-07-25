@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.*;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.Example;
+import io.swagger.annotations.ExampleProperty;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -163,10 +168,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             )
                     )
             )
-            final @FormDataParam("functionConfig") String functionConfigJson) {
+            final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
 
         functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-            functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
+            functionPkgUrl, functionConfig, clientAppId(), clientAuthData());
     }
 
     @PUT
@@ -270,12 +275,12 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             )
                     )
             )
-            final @FormDataParam("functionConfig") String functionConfigJson,
+            final @FormDataParam("functionConfig") FunctionConfig functionConfig,
             @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateOptions);
+                functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
 
@@ -627,14 +632,24 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
     @POST
     @ApiOperation(
-            value = "Uploads Pulsar Function file data",
+            value = "Uploads Pulsar Function file data (Admin only)",
             hidden = true
     )
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions.uploadFunction(uploadedInputStream, path);
+        functions.uploadFunction(uploadedInputStream, path, clientAppId());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Downloads Pulsar Function file data (Admin only)",
+            hidden = true
+    )
+    @Path("/download")
+    public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
+        return functions.downloadFunction(path, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -642,9 +657,16 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             value = "Downloads Pulsar Function file data",
             hidden = true
     )
-    @Path("/download")
-    public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
-        return functions.downloadFunction(path);
+    @Path("/{tenant}/{namespace}/{functionName}/download")
+    public StreamingOutput downloadFunction(
+            @ApiParam(value = "The tenant of functions")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The namespace of functions")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of functions")
+            final @PathParam("functionName") String functionName) {
+
+        return functions.downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET

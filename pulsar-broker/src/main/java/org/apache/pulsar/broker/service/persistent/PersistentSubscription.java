@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.MoreObjects;
 
 import java.util.ArrayList;
@@ -71,11 +73,8 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 public class PersistentSubscription implements Subscription {
     protected final PersistentTopic topic;
@@ -197,8 +196,9 @@ public class PersistentSubscription implements Subscription {
             case Failover:
                 int partitionIndex = TopicName.getPartitionIndex(topicName);
                 if (partitionIndex < 0) {
-                    // For non partition topics, assume index 0 to pick a predictable consumer
-                    partitionIndex = 0;
+                    // For non partition topics, use a negative index so dispatcher won't sort consumers before picking
+                    // an active consumer for the topic.
+                    partitionIndex = -1;
                 }
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
@@ -836,12 +836,12 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public CopyOnWriteArrayList<Consumer> getConsumers() {
+    public List<Consumer> getConsumers() {
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             return dispatcher.getConsumers();
         } else {
-            return CopyOnWriteArrayList.empty();
+            return Collections.emptyList();
         }
     }
 

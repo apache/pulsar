@@ -148,7 +148,16 @@ public class MessageImpl<T> implements Message<T> {
             msgMetadataBuilder.setEventTime(singleMessageMetadata.getEventTime());
         }
 
+        if (singleMessageMetadata.hasSequenceId()) {
+            msgMetadataBuilder.setSequenceId(singleMessageMetadata.getSequenceId());
+        }
+
         this.schema = schema;
+    }
+
+    public MessageImpl(String topic, String msgId, Map<String, String> properties,
+            byte[] payload, Schema<T> schema) {
+        this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema);
     }
 
     public MessageImpl(String topic, String msgId, Map<String, String> properties,

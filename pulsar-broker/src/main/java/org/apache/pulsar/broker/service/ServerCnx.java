@@ -58,7 +58,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -668,7 +668,7 @@ public class ServerCnx extends PulsarHandler {
                                     error = ServerError.ServiceNotReady;
                                 }else {
                                     error = getErrorCode(existingConsumerFuture);
-                                    consumers.remove(consumerId, consumerFuture);
+                                    consumers.remove(consumerId);
                                 }
                                 ctx.writeAndFlush(Commands.newError(requestId, error,
                                         "Consumer is already present on the connection"));
@@ -738,7 +738,7 @@ public class ServerCnx extends PulsarHandler {
                                     // back to client, only if not completed already.
                                     if (consumerFuture.completeExceptionally(exception)) {
                                         ctx.writeAndFlush(Commands.newError(requestId,
-                                                BrokerServiceException.getClientErrorCode(exception.getCause()),
+                                                BrokerServiceException.getClientErrorCode(exception),
                                                 exception.getCause().getMessage()));
                                     }
                                     consumers.remove(consumerId, consumerFuture);
@@ -863,7 +863,8 @@ public class ServerCnx extends PulsarHandler {
                                     error = ServerError.ServiceNotReady;
                                 }else {
                                     error = getErrorCode(existingProducerFuture);
-                                    producers.remove(producerId, producerFuture);
+                                    // remove producer with producerId as it's already completed with exception
+                                    producers.remove(producerId);
                                 }
                                 log.warn("[{}][{}] Producer with id {} is already present on the connection", remoteAddress,
                                         producerId, topicName);
@@ -927,7 +928,7 @@ public class ServerCnx extends PulsarHandler {
 
                             schemaVersionFuture.exceptionally(exception -> {
                                 ctx.writeAndFlush(Commands.newError(requestId,
-                                        BrokerServiceException.getClientErrorCode(exception.getCause()),
+                                        BrokerServiceException.getClientErrorCode(exception),
                                         exception.getMessage()));
                                 producers.remove(producerId, producerFuture);
                                 return null;
@@ -1455,7 +1456,7 @@ public class ServerCnx extends PulsarHandler {
             future.getNow(null);
         } catch (Exception e) {
             if (e.getCause() instanceof BrokerServiceException) {
-                error = BrokerServiceException.getClientErrorCode((BrokerServiceException) e.getCause());
+                error = BrokerServiceException.getClientErrorCode(e.getCause());
             }
         }
         return error;

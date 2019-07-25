@@ -126,6 +126,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitGB|  Default per-topic backlog quota limit |10|
+|allowAutoTopicCreation| Enable topic auto creation if new producer or consumer connected |true|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
 |messageExpiryCheckIntervalInMinutes| How frequently to proactively check and purge expired messages  |5|

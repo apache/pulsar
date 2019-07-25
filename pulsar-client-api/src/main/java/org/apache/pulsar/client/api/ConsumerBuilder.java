@@ -170,7 +170,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
-     * 10 seconds.
+     * 1 second.
      * <p>
      * By default, the acknowledge timeout is disabled and that means that messages delivered to a
      * consumer will not be re-delivered unless the consumer crashes.
@@ -186,6 +186,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
+
+    /**
+     * Define the granularity of the ack-timeout redelivery.
+     * <p>
+     * By default, the tick time is set to 1 second. Using an higher tick time will
+     * reduce the memory overhead to track messages when the ack-timeout is set to
+     * bigger values (eg: 1hour).
+     *
+     * @param tickTime
+     *            the min precision for the ack timeout messages tracker
+     * @param timeUnit
+     *            unit in which the timeout is provided.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> ackTimeoutTickTime(long tickTime, TimeUnit timeUnit);
 
     /**
      * Set the delay to wait before re-delivering messages that have failed to be process.
@@ -386,7 +401,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * C5       1             1
      * Order in which broker dispatches messages to consumers: C1, C2, C3, C1, C4, C5, C4
      * </pre>
-     * 
+     *
      * <b>Failover subscription</b>
      * Broker selects active consumer for a failover-subscription based on consumer's priority-level and lexicographical sorting of a consumer name.
      * eg:
@@ -395,15 +410,15 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Consumer PriorityLevel Name
      * C1       0             aaa
      * C2       0             bbb
-     * 
+     *
      * 2. Active consumer = C2 : Consumer with highest priority
      * Consumer PriorityLevel Name
      * C1       1             aaa
      * C2       0             bbb
-     * 
+     *
      * Partitioned-topics:
      * Broker evenly assigns partitioned topics to highest priority consumers.
-     * 
+     *
      * </pre>
      *
      * @param priorityLevel the priority of this consumer

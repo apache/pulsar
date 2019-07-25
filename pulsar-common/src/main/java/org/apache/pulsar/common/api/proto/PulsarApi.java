@@ -3103,6 +3103,14 @@ public final class PulsarApi {
     // optional int32 marker_type = 20;
     boolean hasMarkerType();
     int getMarkerType();
+    
+    // optional uint64 txnid_least_bits = 22 [default = 0];
+    boolean hasTxnidLeastBits();
+    long getTxnidLeastBits();
+    
+    // optional uint64 txnid_most_bits = 23 [default = 0];
+    boolean hasTxnidMostBits();
+    long getTxnidMostBits();
   }
   public static final class MessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -3443,6 +3451,26 @@ public final class PulsarApi {
       return markerType_;
     }
     
+    // optional uint64 txnid_least_bits = 22 [default = 0];
+    public static final int TXNID_LEAST_BITS_FIELD_NUMBER = 22;
+    private long txnidLeastBits_;
+    public boolean hasTxnidLeastBits() {
+      return ((bitField0_ & 0x00010000) == 0x00010000);
+    }
+    public long getTxnidLeastBits() {
+      return txnidLeastBits_;
+    }
+    
+    // optional uint64 txnid_most_bits = 23 [default = 0];
+    public static final int TXNID_MOST_BITS_FIELD_NUMBER = 23;
+    private long txnidMostBits_;
+    public boolean hasTxnidMostBits() {
+      return ((bitField0_ & 0x00020000) == 0x00020000);
+    }
+    public long getTxnidMostBits() {
+      return txnidMostBits_;
+    }
+    
     private void initFields() {
       producerName_ = "";
       sequenceId_ = 0L;
@@ -3463,6 +3491,8 @@ public final class PulsarApi {
       orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       deliverAtTime_ = 0L;
       markerType_ = 0;
+      txnidLeastBits_ = 0L;
+      txnidMostBits_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -3562,6 +3592,12 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00008000) == 0x00008000)) {
         output.writeInt32(20, markerType_);
       }
+      if (((bitField0_ & 0x00010000) == 0x00010000)) {
+        output.writeUInt64(22, txnidLeastBits_);
+      }
+      if (((bitField0_ & 0x00020000) == 0x00020000)) {
+        output.writeUInt64(23, txnidMostBits_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -3650,6 +3686,14 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00008000) == 0x00008000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(20, markerType_);
+      }
+      if (((bitField0_ & 0x00010000) == 0x00010000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(22, txnidLeastBits_);
+      }
+      if (((bitField0_ & 0x00020000) == 0x00020000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(23, txnidMostBits_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -3802,6 +3846,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00020000);
         markerType_ = 0;
         bitField0_ = (bitField0_ & ~0x00040000);
+        txnidLeastBits_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00080000);
+        txnidMostBits_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00100000);
         return this;
       }
       
@@ -3915,6 +3963,14 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00008000;
         }
         result.markerType_ = markerType_;
+        if (((from_bitField0_ & 0x00080000) == 0x00080000)) {
+          to_bitField0_ |= 0x00010000;
+        }
+        result.txnidLeastBits_ = txnidLeastBits_;
+        if (((from_bitField0_ & 0x00100000) == 0x00100000)) {
+          to_bitField0_ |= 0x00020000;
+        }
+        result.txnidMostBits_ = txnidMostBits_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -3998,6 +4054,12 @@ public final class PulsarApi {
         }
         if (other.hasMarkerType()) {
           setMarkerType(other.getMarkerType());
+        }
+        if (other.hasTxnidLeastBits()) {
+          setTxnidLeastBits(other.getTxnidLeastBits());
+        }
+        if (other.hasTxnidMostBits()) {
+          setTxnidMostBits(other.getTxnidMostBits());
         }
         return this;
       }
@@ -4151,6 +4213,16 @@ public final class PulsarApi {
             case 160: {
               bitField0_ |= 0x00040000;
               markerType_ = input.readInt32();
+              break;
+            }
+            case 176: {
+              bitField0_ |= 0x00080000;
+              txnidLeastBits_ = input.readUInt64();
+              break;
+            }
+            case 184: {
+              bitField0_ |= 0x00100000;
+              txnidMostBits_ = input.readUInt64();
               break;
             }
           }
@@ -4801,6 +4873,48 @@ public final class PulsarApi {
         return this;
       }
       
+      // optional uint64 txnid_least_bits = 22 [default = 0];
+      private long txnidLeastBits_ ;
+      public boolean hasTxnidLeastBits() {
+        return ((bitField0_ & 0x00080000) == 0x00080000);
+      }
+      public long getTxnidLeastBits() {
+        return txnidLeastBits_;
+      }
+      public Builder setTxnidLeastBits(long value) {
+        bitField0_ |= 0x00080000;
+        txnidLeastBits_ = value;
+        
+        return this;
+      }
+      public Builder clearTxnidLeastBits() {
+        bitField0_ = (bitField0_ & ~0x00080000);
+        txnidLeastBits_ = 0L;
+        
+        return this;
+      }
+      
+      // optional uint64 txnid_most_bits = 23 [default = 0];
+      private long txnidMostBits_ ;
+      public boolean hasTxnidMostBits() {
+        return ((bitField0_ & 0x00100000) == 0x00100000);
+      }
+      public long getTxnidMostBits() {
+        return txnidMostBits_;
+      }
+      public Builder setTxnidMostBits(long value) {
+        bitField0_ |= 0x00100000;
+        txnidMostBits_ = value;
+        
+        return this;
+      }
+      public Builder clearTxnidMostBits() {
+        bitField0_ = (bitField0_ & ~0x00100000);
+        txnidMostBits_ = 0L;
+        
+        return this;
+      }
+      
       // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageMetadata)
     }
     
@@ -4844,6 +4958,10 @@ public final class PulsarApi {
     // optional bytes ordering_key = 7;
     boolean hasOrderingKey();
     org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOrderingKey();
+    
+    // optional uint64 sequence_id = 8;
+    boolean hasSequenceId();
+    long getSequenceId();
   }
   public static final class SingleMessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -4983,6 +5101,16 @@ public final class PulsarApi {
       return orderingKey_;
     }
     
+    // optional uint64 sequence_id = 8;
+    public static final int SEQUENCE_ID_FIELD_NUMBER = 8;
+    private long sequenceId_;
+    public boolean hasSequenceId() {
+      return ((bitField0_ & 0x00000040) == 0x00000040);
+    }
+    public long getSequenceId() {
+      return sequenceId_;
+    }
+    
     private void initFields() {
       properties_ = java.util.Collections.emptyList();
       partitionKey_ = "";
@@ -4991,6 +5119,7 @@ public final class PulsarApi {
       eventTime_ = 0L;
       partitionKeyB64Encoded_ = false;
       orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      sequenceId_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -5040,6 +5169,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         output.writeBytes(7, orderingKey_);
       }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        output.writeUInt64(8, sequenceId_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -5075,6 +5207,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(7, orderingKey_);
+      }
+      if (((bitField0_ & 0x00000040) == 0x00000040)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(8, sequenceId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -5203,6 +5339,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000020);
         orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000040);
+        sequenceId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000080);
         return this;
       }
       
@@ -5265,6 +5403,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000020;
         }
         result.orderingKey_ = orderingKey_;
+        if (((from_bitField0_ & 0x00000080) == 0x00000080)) {
+          to_bitField0_ |= 0x00000040;
+        }
+        result.sequenceId_ = sequenceId_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -5298,6 +5440,9 @@ public final class PulsarApi {
         }
         if (other.hasOrderingKey()) {
           setOrderingKey(other.getOrderingKey());
+        }
+        if (other.hasSequenceId()) {
+          setSequenceId(other.getSequenceId());
         }
         return this;
       }
@@ -5372,6 +5517,11 @@ public final class PulsarApi {
             case 58: {
               bitField0_ |= 0x00000040;
               orderingKey_ = input.readBytes();
+              break;
+            }
+            case 64: {
+              bitField0_ |= 0x00000080;
+              sequenceId_ = input.readUInt64();
               break;
             }
           }
@@ -5609,6 +5759,27 @@ public final class PulsarApi {
       public Builder clearOrderingKey() {
         bitField0_ = (bitField0_ & ~0x00000040);
         orderingKey_ = getDefaultInstance().getOrderingKey();
+        
+        return this;
+      }
+      
+      // optional uint64 sequence_id = 8;
+      private long sequenceId_ ;
+      public boolean hasSequenceId() {
+        return ((bitField0_ & 0x00000080) == 0x00000080);
+      }
+      public long getSequenceId() {
+        return sequenceId_;
+      }
+      public Builder setSequenceId(long value) {
+        bitField0_ |= 0x00000080;
+        sequenceId_ = value;
+        
+        return this;
+      }
+      public Builder clearSequenceId() {
+        bitField0_ = (bitField0_ & ~0x00000080);
+        sequenceId_ = 0L;
         
         return this;
       }

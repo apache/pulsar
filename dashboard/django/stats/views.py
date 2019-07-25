@@ -48,6 +48,7 @@ def home(request):
             numNamespaces = Subquery(
                 Namespace.objects.filter(
                     deleted=False,
+                    timestamp=ts,
                     property=OuterRef('pk')
                 ).values('property')
                     .annotate(cnt=Count('pk'))
@@ -143,7 +144,7 @@ def deleteNamespace(request, namespace_name):
 
 def topic(request, topic_name):
     timestamp = get_timestamp()
-    topic_name = 'persistent://' + topic_name.split('persistent/', 1)[1]
+    topic_name = extract_topic_db_name(topic_name)
     cluster_name = request.GET.get('cluster')
     clusters = []
 
@@ -230,7 +231,7 @@ def brokers_cluster(request, cluster_name):
                 )
 
     brokers = brokers.annotate(
-        numBundles       = Count('topic__bundle'),
+        numBundles       = Count('topic__bundle', True),
         numTopics        = Count('topic'),
         numProducers     = Sum('topic__producerCount'),
         numSubscriptions = Sum('topic__subscriptionCount'),
@@ -309,7 +310,16 @@ def clusters(request):
 
 def clearSubscription(request, topic_name, subscription_name):
     url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name + '/skip_all'
-    requests.post(url)
+    response = requests.post(url)
+    if response.status_code == 204:
+        ts = get_timestamp()
+        topic_db_name = extract_topic_db_name(topic_name)
+        topic = Topic.objects.get(name=topic_db_name, timestamp=ts)
+        subscription = Subscription.objects.get(name=subscription_name, topic=topic, timestamp=ts)
+        topic.backlog = topic.backlog - subscription.msgBacklog
+        topic.save(update_fields=['backlog'])
+        subscription.msgBacklog = 0
+        subscription.save(update_fields=['msgBacklog'])
     return redirect('topic', topic_name=topic_name)
 
 def deleteSubscription(request, topic_name, subscription_name):
@@ -318,9 +328,11 @@ def deleteSubscription(request, topic_name, subscription_name):
     status = response.status_code
     if status == 204:
         ts = get_timestamp()
-        topic_db_name = 'persistent://' + topic_name.split('persistent/', 1)[1]
-        topic = Topic.objects.filter(name=topic_db_name, timestamp=ts)[0]
-        Subscription.objects.filter(name=subscription_name, topic=topic, timestamp=ts).update(deleted=True)
+        topic_db_name = extract_topic_db_name(topic_name)
+        topic = Topic.objects.get(name=topic_db_name, timestamp=ts)
+        deleted_subscription = Subscription.objects.get(name=subscription_name, topic=topic, timestamp=ts)
+        deleted_subscription.deleted = True
+        deleted_subscription.save(update_fields=['deleted'])
         subscriptions = Subscription.objects.filter(topic=topic, deleted=False, timestamp=ts)
         if not subscriptions:
             topic.deleted=True
@@ -328,10 +340,13 @@ def deleteSubscription(request, topic_name, subscription_name):
             m = re.search(r"persistent/(?P<namespace>.*)/.*", topic_name)
             namespace_name = m.group("namespace")
             return redirect('namespace', namespace_name=namespace_name)
+        else:
+            topic.backlog = topic.backlog - deleted_subscription.msgBacklog
+            topic.save(update_fields=['backlog'])
     return redirect('topic', topic_name=topic_name)
 
 def messages(request, topic_name, subscription_name):
-    topic_name = 'persistent://' + topic_name.split('persistent/', 1)[1]
+    topic_name = extract_topic_db_name(topic_name)
     timestamp = get_timestamp()
     cluster_name = request.GET.get('cluster')
 
@@ -357,3 +372,7 @@ def peek(request, topic_name, subscription_name, message_number):
         'message_body' : json.dumps(json.loads(message), indent=4),
     }
     return render(request, 'stats/peek.html', context)
+
+
+def extract_topic_db_name(topic_name):
+    return 'persistent://' + topic_name.split('persistent/', 1)[1]

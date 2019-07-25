@@ -890,8 +890,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }).exceptionally(th -> {
             log.error("[{}] Policies update failed {}, scheduled retry in {} seconds", topic, th.getMessage(),
                     POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, th);
-            brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
-                    POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, TimeUnit.SECONDS);
+            if (!(th.getCause() instanceof TopicFencedException)) {
+                // retriable exception
+                brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
+                        POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, TimeUnit.SECONDS);
+            }
             result.completeExceptionally(th);
             return null;
         });
@@ -1274,14 +1277,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // Start subscription name & consumers
             try {
                 topicStatsStream.startObject(subscriptionName);
-                Object[] consumers = subscription.getConsumers().array();
-                nsStats.consumerCount += consumers.length;
-                bundleStats.consumerCount += consumers.length;
-
                 topicStatsStream.startList("consumers");
 
-                for (Object consumerObj : consumers) {
-                    Consumer consumer = (Consumer) consumerObj;
+                for (Consumer consumer : subscription.getConsumers()) {
+                    ++nsStats.consumerCount;
+                    ++bundleStats.consumerCount;
                     consumer.updateRates();
 
                     ConsumerStats consumerStats = consumer.getStats();

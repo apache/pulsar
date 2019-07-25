@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.annotations.Test;
@@ -59,6 +60,7 @@ public class ConfigurationDataUtilsTest {
         Map<String, Object> config = new HashMap<>();
         config.put("producerName", "test-producer");
         config.put("batchingEnabled", false);
+        confData.setBatcherBuilder(BatcherBuilder.DEFAULT);
         confData = ConfigurationDataUtils.loadData(config, confData, ProducerConfigurationData.class);
         assertEquals("test-producer", confData.getProducerName());
         assertEquals(false, confData.isBatchingEnabled());

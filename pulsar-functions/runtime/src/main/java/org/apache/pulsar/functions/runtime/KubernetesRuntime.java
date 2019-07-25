@@ -185,7 +185,7 @@ public class KubernetesRuntime implements Runtime {
         }
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
-                logConfigFile = "kubernetes_instance_log4j2.yml";
+                logConfigFile = "kubernetes_instance_log4j2.xml";
                 break;
             case PYTHON:
                 logConfigFile = pulsarRootDir + "/conf/functions-logging/console_logging_config.ini";
@@ -250,9 +250,9 @@ public class KubernetesRuntime implements Runtime {
         if (channel == null && stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
             stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
+            String jobName = createJobName(instanceConfig.getFunctionDetails());
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
-                String address = createJobName(instanceConfig.getFunctionDetails()) + "-" +
-                        i + "." + createJobName(instanceConfig.getFunctionDetails());
+                String address = getServiceUrl(jobName, jobNamespace, i);
                 channel[i] = ManagedChannelBuilder.forAddress(address, GRPC_PORT)
                         .usePlaintext(true)
                         .build();
@@ -751,13 +751,16 @@ public class KubernetesRuntime implements Runtime {
         return Arrays.asList(
                 "sh",
                 "-c",
-                String.join(" ", getDownloadCommand(userCodePkgUrl, originalCodeFileName))
+                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails().getTenant(),
+                        instanceConfig.getFunctionDetails().getNamespace(),
+                        instanceConfig.getFunctionDetails().getName(),
+                        originalCodeFileName))
                         + " && " + setShardIdEnvironmentVariableCommand()
                         + " && " + String.join(" ", processArgs)
         );
     }
 
-    private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
+    private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath) {
 
         // add auth plugin and parameters if necessary
         if (authenticationEnabled && authConfig != null) {
@@ -774,8 +777,12 @@ public class KubernetesRuntime implements Runtime {
                         pulsarAdminUrl,
                         "functions",
                         "download",
-                        "--path",
-                        bkPath,
+                        "--tenant",
+                        tenant,
+                        "--namespace",
+                        namespace,
+                        "--name",
+                        name,
                         "--destination-file",
                         userCodeFilePath);
             }
@@ -787,8 +794,12 @@ public class KubernetesRuntime implements Runtime {
                 pulsarAdminUrl,
                 "functions",
                 "download",
-                "--path",
-                bkPath,
+                "--tenant",
+                tenant,
+                "--namespace",
+                namespace,
+                "--name",
+                name,
                 "--destination-file",
                 userCodeFilePath);
     }
@@ -980,6 +991,10 @@ public class KubernetesRuntime implements Runtime {
 
     private static String createJobName(String tenant, String namespace, String functionName) {
         return "pf-" + tenant + "-" + namespace + "-" + functionName;
+    }
+
+    private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
+        return String.format("%s-%d.%s.%s.svc.cluster.local", jobName, instanceId, jobName, jobNamespace);
     }
 
     public static void doChecks(Function.FunctionDetails functionDetails) {

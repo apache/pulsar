@@ -369,8 +369,16 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     }
 
     @Override
-    public void downloadFunction(String destinationPath, String path) throws PulsarAdminException {
+    public void downloadFunction(String destinationPath, String tenant, String namespace, String functionName) throws PulsarAdminException {
+        downloadFile(destinationPath, functions.path(tenant).path(namespace).path(functionName).path("download"));
+    }
 
+    @Override
+    public void downloadFunction(String destinationPath, String path) throws PulsarAdminException {
+        downloadFile(destinationPath, functions.path("download").queryParam("path", path));
+    }
+
+    private void downloadFile(String destinationPath, WebTarget target) throws PulsarAdminException {
         HttpResponseStatus status;
         try {
             File file = new File(destinationPath);
@@ -378,7 +386,6 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 file.createNewFile();
             }
             FileChannel os = new FileOutputStream(new File(destinationPath)).getChannel();
-            WebTarget target = functions.path("download").queryParam("path", path);
 
             RequestBuilder builder = get(target.getUri().toASCIIString());
 

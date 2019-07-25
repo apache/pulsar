@@ -20,12 +20,13 @@ package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
 import org.apache.pulsar.common.naming.TopicName;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+
+import static org.testng.Assert.assertEquals;
 
 @Test(singleThreaded = true)
 public class TestPulsarRecordCursor extends TestPulsarConnector {
@@ -50,22 +51,22 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                         columnsSeen.add(fooColumnHandles.get(i).getName());
                     } else {
                         if (fooColumnHandles.get(i).getName().equals("field1")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("field1").apply(count)).longValue());
+                            assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("field1").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field2")) {
-                            Assert.assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("field2").apply(count)).getBytes());
+                            assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("field2").apply(count)).getBytes());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field3")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("field3").apply(count)).floatValue()));
+                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("field3").apply(count)).floatValue()));
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field4")) {
-                            Assert.assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("field4").apply(count)).doubleValue());
+                            assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("field4").apply(count)).doubleValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field5")) {
-                            Assert.assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("field5").apply(count)).booleanValue());
+                            assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("field5").apply(count)).booleanValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field6")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("field6").apply(count)).longValue());
+                            assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("field6").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("timestamp")) {
                             pulsarRecordCursor.getLong(i);
@@ -77,40 +78,40 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                             pulsarRecordCursor.getLong(i);
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.field1")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.field1").apply(count)).longValue());
+                            assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.field1").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.field2")) {
-                            Assert.assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("bar.field2").apply(count)).getBytes());
+                            assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), ((String) fooFunctions.get("bar.field2").apply(count)).getBytes());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.field3")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("bar.field3").apply(count)).floatValue()));
+                            assertEquals(pulsarRecordCursor.getLong(i), Float.floatToIntBits(((Float) fooFunctions.get("bar.field3").apply(count)).floatValue()));
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test.field4")) {
-                            Assert.assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("bar.test.field4").apply(count)).doubleValue());
+                            assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("bar.test.field4").apply(count)).doubleValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test.field5")) {
-                            Assert.assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("bar.test.field5").apply(count)).booleanValue());
+                            assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("bar.test.field5").apply(count)).booleanValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test.field6")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("bar.test.field6").apply(count)).longValue());
+                            assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("bar.test.field6").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test.foobar.field1")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test.foobar.field1").apply(count)).longValue());
+                            assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test.foobar.field1").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field4")) {
-                            Assert.assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("bar.test2.field4").apply(count)).doubleValue());
+                            assertEquals(pulsarRecordCursor.getDouble(i), ((Double) fooFunctions.get("bar.test2.field4").apply(count)).doubleValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field5")) {
-                            Assert.assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("bar.test2.field5").apply(count)).booleanValue());
+                            assertEquals(pulsarRecordCursor.getBoolean(i), ((Boolean) fooFunctions.get("bar.test2.field5").apply(count)).booleanValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test2.field6")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("bar.test2.field6").apply(count)).longValue());
+                            assertEquals(pulsarRecordCursor.getLong(i), ((Long) fooFunctions.get("bar.test2.field6").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("bar.test2.foobar.field1")) {
-                            Assert.assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test2.foobar.field1").apply(count)).longValue());
+                            assertEquals(pulsarRecordCursor.getLong(i), ((Integer) fooFunctions.get("bar.test2.foobar.field1").apply(count)).longValue());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else if (fooColumnHandles.get(i).getName().equals("field7")) {
-                            Assert.assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), fooFunctions.get("field7").apply(count).toString().getBytes());
+                            assertEquals(pulsarRecordCursor.getSlice(i).getBytes(), fooFunctions.get("field7").apply(count).toString().getBytes());
                             columnsSeen.add(fooColumnHandles.get(i).getName());
                         } else {
                             if (PulsarInternalColumn.getInternalFieldsMap().containsKey(fooColumnHandles.get(i).getName())) {
@@ -119,11 +120,11 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                         }
                     }
                 }
-                Assert.assertEquals(columnsSeen.size(), fooColumnHandles.size());
+                assertEquals(columnsSeen.size(), fooColumnHandles.size());
                 count++;
             }
-            Assert.assertEquals(count, topicsToNumEntries.get(topicName.getSchemaName()).longValue());
-            Assert.assertEquals(pulsarRecordCursor.getCompletedBytes(), completedBytes);
+            assertEquals(count, topicsToNumEntries.get(topicName.getSchemaName()).longValue());
+            assertEquals(pulsarRecordCursor.getCompletedBytes(), completedBytes);
             cleanup();
             pulsarRecordCursor.close();
         }

@@ -81,6 +81,8 @@ groups:
     endpoint: ZooKeeperBookKeeper
   - title: Geo-replication
     endpoint: GeoReplication
+  - title: Upgrade Guide
+    endpoint: Upgrade
   - title: Dashboard
     endpoint: Dashboard
   - title: Pulsar statistics
