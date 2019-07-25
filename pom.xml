@@ -1007,7 +1007,7 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
         <version>${joda.version}</version>
-      </dependency>      
+      </dependency>
       <dependency>
         <groupId>org.javassist</groupId>
         <artifactId>javassist</artifactId>
@@ -1449,7 +1449,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
-          <version>2.2.4</version>
+          <version>3.0.0</version>
         </plugin>
       </plugins>
     </pluginManagement>
