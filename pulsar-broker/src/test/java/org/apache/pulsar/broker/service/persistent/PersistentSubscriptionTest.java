@@ -169,7 +169,7 @@ public class PersistentSubscriptionTest {
         }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
         doAnswer((invocationOnMock) -> {
-            assertTrue(((PositionImpl)invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)) == 0);
+            assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
             ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
                     .markDeleteComplete(invocationOnMock.getArguments()[3]);
             return null;

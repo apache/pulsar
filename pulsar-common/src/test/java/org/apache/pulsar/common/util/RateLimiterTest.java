@@ -65,7 +65,7 @@ public class RateLimiterTest {
         final long rateTimeMSec = 1000;
         RateLimiter rate = new RateLimiter(1, rateTimeMSec, TimeUnit.MILLISECONDS);
         rate.acquire();
-        assertTrue(rate.getAvailablePermits() == 0);
+        assertEquals(rate.getAvailablePermits(), 0);
         long start = System.currentTimeMillis();
         rate.acquire();
         long end = System.currentTimeMillis();
@@ -85,7 +85,7 @@ public class RateLimiterTest {
         }
         long end = System.currentTimeMillis();
         assertTrue((end - start) < rateTimeMSec);
-        assertTrue(rate.getAvailablePermits() == 0);
+        assertEquals(rate.getAvailablePermits(), 0);
         rate.close();
     }
 
@@ -101,7 +101,7 @@ public class RateLimiterTest {
         }
         long end = System.currentTimeMillis();
         assertTrue((end - start) < rateTimeMSec);
-        assertTrue(rate.getAvailablePermits() == 0);
+        assertEquals(rate.getAvailablePermits(), 0);
         rate.close();
     }
 
@@ -111,7 +111,7 @@ public class RateLimiterTest {
         RateLimiter rate = new RateLimiter(1, rateTimeMSec, TimeUnit.MILLISECONDS);
         assertTrue(rate.tryAcquire());
         assertFalse(rate.tryAcquire());
-        assertTrue(rate.getAvailablePermits() == 0);
+        assertEquals(rate.getAvailablePermits(), 0);
         rate.close();
     }
 
@@ -123,7 +123,7 @@ public class RateLimiterTest {
         for (int i = 0; i < permits; i++) {
             rate.tryAcquire();
         }
-        assertTrue(rate.getAvailablePermits() == 0);
+        assertEquals(rate.getAvailablePermits(), 0);
         rate.close();
     }
 
@@ -136,7 +136,7 @@ public class RateLimiterTest {
         for (int i = 0; i < permits / acquirePermist; i++) {
             rate.tryAcquire(acquirePermist);
         }
-        assertTrue(rate.getAvailablePermits() == 0);
+        assertEquals(rate.getAvailablePermits(), 0);
         rate.close();
     }
 

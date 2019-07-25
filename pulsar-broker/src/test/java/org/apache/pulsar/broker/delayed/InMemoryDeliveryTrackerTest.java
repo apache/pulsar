@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -56,7 +61,7 @@ public class InMemoryDeliveryTrackerTest {
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock);
 
-        assertEquals(tracker.hasMessageAvailable(), false);
+        assertFalse(tracker.hasMessageAvailable());
 
         assertTrue(tracker.addMessage(2, 2, 20));
         assertTrue(tracker.addMessage(1, 1, 10));
@@ -64,7 +69,7 @@ public class InMemoryDeliveryTrackerTest {
         assertTrue(tracker.addMessage(5, 5, 50));
         assertTrue(tracker.addMessage(4, 4, 40));
 
-        assertEquals(tracker.hasMessageAvailable(), false);
+        assertFalse(tracker.hasMessageAvailable());
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
 
         assertEquals(tracker.getScheduledMessages(10), Collections.emptySet());
@@ -76,7 +81,7 @@ public class InMemoryDeliveryTrackerTest {
         assertFalse(tracker.addMessage(6, 6, 10));
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
-        assertEquals(tracker.hasMessageAvailable(), true);
+        assertTrue(tracker.hasMessageAvailable());
         Set<PositionImpl> scheduled = tracker.getScheduledMessages(10);
         assertEquals(scheduled.size(), 1);
 
@@ -84,17 +89,17 @@ public class InMemoryDeliveryTrackerTest {
         clockTime.set(60);
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 4);
-        assertEquals(tracker.hasMessageAvailable(), true);
+        assertTrue(tracker.hasMessageAvailable());
         scheduled = tracker.getScheduledMessages(1);
         assertEquals(scheduled.size(), 1);
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 3);
-        assertEquals(tracker.hasMessageAvailable(), true);
+        assertTrue(tracker.hasMessageAvailable());
         scheduled = tracker.getScheduledMessages(3);
         assertEquals(scheduled.size(), 3);
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 0);
-        assertEquals(tracker.hasMessageAvailable(), false);
+        assertFalse(tracker.hasMessageAvailable());
         assertEquals(tracker.getScheduledMessages(10), Collections.emptySet());
     }
 

@@ -19,7 +19,8 @@
 package org.apache.pulsar.common.naming;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 
 import org.apache.pulsar.common.util.Codec;
@@ -52,8 +53,8 @@ public class TopicNameTest {
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").toString(),
                 "persistent://tenant/cluster/namespace/topic");
 
-        assertFalse(TopicName.get("persistent://tenant/cluster/namespace/topic")
-                .equals("persistent://tenant/cluster/namespace/topic"));
+        assertNotEquals(TopicName.get("persistent://tenant/cluster/namespace/topic"),
+            "persistent://tenant/cluster/namespace/topic");
 
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getDomain(),
                 TopicDomain.persistent);
@@ -231,7 +232,7 @@ public class TopicNameTest {
         assertEquals(topicName.toString(), "persistent://tenant/namespace/topic");
         assertEquals(topicName.getDomain(), TopicDomain.persistent);
         assertEquals(topicName.getTenant(), "tenant");
-        assertEquals(topicName.getCluster(), null);
+        assertNull(topicName.getCluster());
         assertEquals(topicName.getNamespacePortion(), "namespace");
         assertEquals(topicName.getNamespace(), "tenant/namespace");
         assertEquals(topicName.getLocalName(), "topic");

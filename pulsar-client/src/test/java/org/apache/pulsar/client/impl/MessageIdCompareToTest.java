@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import org.testng.annotations.Test;
@@ -35,8 +36,8 @@ public class MessageIdCompareToTest  {
         BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(234L, 345L, 456, 567);
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(234L, 345L, 456, 567);
 
-        assertTrue(messageIdImpl1.compareTo(messageIdImpl2) == 0, "Expected to be equal");
-        assertTrue(batchMessageId1.compareTo(batchMessageId2) == 0, "Expected to be equal");
+        assertEquals(messageIdImpl1.compareTo(messageIdImpl2), 0, "Expected to be equal");
+        assertEquals(batchMessageId1.compareTo(batchMessageId2), 0, "Expected to be equal");
     }
 
     @Test
@@ -110,11 +111,11 @@ public class MessageIdCompareToTest  {
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(123L, 345L, 567, 789);
         BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(messageIdImpl);
         assertTrue(messageIdImpl.compareTo(batchMessageId1) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl.compareTo(batchMessageId2) == 0, "Expected to be equal");
-        assertTrue(messageIdImpl.compareTo(batchMessageId3) == 0, "Expected to be equal");
+        assertEquals(messageIdImpl.compareTo(batchMessageId2), 0, "Expected to be equal");
+        assertEquals(messageIdImpl.compareTo(batchMessageId3), 0, "Expected to be equal");
         assertTrue(batchMessageId1.compareTo(messageIdImpl) < 0, "Expected to be less than");
         assertTrue(batchMessageId2.compareTo(messageIdImpl) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId3.compareTo(messageIdImpl) == 0, "Expected to be equal");
+        assertEquals(batchMessageId3.compareTo(messageIdImpl), 0, "Expected to be equal");
     }
 
     @Test
@@ -133,11 +134,11 @@ public class MessageIdCompareToTest  {
             "test-topic",
             new BatchMessageIdImpl(messageIdImpl));
         assertTrue(messageIdImpl.compareTo(topicMessageId1) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl.compareTo(topicMessageId2) == 0, "Expected to be equal");
-        assertTrue(messageIdImpl.compareTo(topicMessageId3) == 0, "Expected to be equal");
+        assertEquals(messageIdImpl.compareTo(topicMessageId2), 0, "Expected to be equal");
+        assertEquals(messageIdImpl.compareTo(topicMessageId3), 0, "Expected to be equal");
         assertTrue(topicMessageId1.compareTo(messageIdImpl) < 0, "Expected to be less than");
         assertTrue(topicMessageId2.compareTo(messageIdImpl) > 0, "Expected to be greater than");
-        assertTrue(topicMessageId3.compareTo(messageIdImpl) == 0, "Expected to be equal");
+        assertEquals(topicMessageId3.compareTo(messageIdImpl), 0, "Expected to be equal");
     }
 
     @Test
@@ -156,11 +157,11 @@ public class MessageIdCompareToTest  {
         assertTrue(messageIdImpl1.compareTo(topicMessageId1) > 0, "Expected to be greater than");
         assertTrue(messageIdImpl1.compareTo(topicMessageId2) > 0, "Expected to be greater than");
         assertTrue(messageIdImpl2.compareTo(topicMessageId2) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl3.compareTo(topicMessageId2) == 0, "Expected to be equal");
+        assertEquals(messageIdImpl3.compareTo(topicMessageId2), 0, "Expected to be equal");
         assertTrue(topicMessageId1.compareTo(messageIdImpl1) < 0, "Expected to be less than");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl1) == 0, "Expected to be equal");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl2) == 0, "Expected to be equal");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl2) == 0, "Expected to be equal");
+        assertEquals(topicMessageId2.compareTo(messageIdImpl1), 0, "Expected to be equal");
+        assertEquals(topicMessageId2.compareTo(messageIdImpl2), 0, "Expected to be equal");
+        assertEquals(topicMessageId2.compareTo(messageIdImpl2), 0, "Expected to be equal");
     }
 
 }

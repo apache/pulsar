@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import java.lang.reflect.Method;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;

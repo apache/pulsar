@@ -20,9 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpServer;
-import lombok.ToString;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -35,8 +32,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -44,37 +39,22 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.Utils;
-import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import javax.ws.rs.core.Response;
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.lang.reflect.Method;
-import java.net.HttpURLConnection;
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
@@ -85,20 +65,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Test Pulsar function state
@@ -364,27 +338,27 @@ public class PulsarFunctionStateTest {
         }, 5, 150);
 
         FunctionState state = admin.functions().getFunctionState(tenant, namespacePortion, functionName, "foo");
-        Assert.assertEquals(state.getNumberValue().intValue(), 5);
+        assertEquals(state.getNumberValue().intValue(), 5);
 
         try {
             admin.functions().getFunctionState(tenant, namespacePortion, functionName, "bar");
-            Assert.fail("Should have failed since key shouldn't exist");
+            fail("Should have failed since key shouldn't exist");
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
+            assertEquals(e.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
         }
 
         FunctionState newState = new FunctionState("foobar", "foobarvalue", null, 0l, 0l);
         try {
             admin.functions().putFunctionState(tenant, namespacePortion, functionName + "bar", newState);
-            Assert.fail("Should have failed since function doesn't exist");
+            fail("Should have failed since function doesn't exist");
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
+            assertEquals(e.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
         }
 
         // This succeeds because function name is correct
         admin.functions().putFunctionState(tenant, namespacePortion, functionName, newState);
         state = admin.functions().getFunctionState(tenant, namespacePortion, functionName, "foobar");
-        Assert.assertTrue(state.getStringValue().equals("foobarvalue"));
+        assertEquals(state.getStringValue(), "foobarvalue");
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
@@ -409,6 +383,6 @@ public class PulsarFunctionStateTest {
         File dir = new File(System.getProperty("java.io.tmpdir"));
         File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 }

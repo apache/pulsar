@@ -27,6 +27,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
@@ -42,7 +43,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -540,8 +540,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         quota.setBandwidthIn(defaultBandwidth);
         quota.setBandwidthOut(defaultBandwidth);
         resourceQuotas.setDefaultResourceQuota(quota);
-        assertTrue(resourceQuotas.getDefaultResourceQuota().getBandwidthIn() == defaultBandwidth);
-        assertTrue(resourceQuotas.getDefaultResourceQuota().getBandwidthOut() == defaultBandwidth);
+        assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthIn());
+        assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthOut());
 
         String property = "prop-xyz";
         String cluster = "use";
@@ -586,8 +586,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // remove quota which sets to default quota
         resourceQuotas.removeNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange);
         bundleQuota = resourceQuotas.getNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange);
-        assertTrue(bundleQuota.getBandwidthIn() == defaultBandwidth);
-        assertTrue(bundleQuota.getBandwidthOut() == defaultBandwidth);
+        assertEquals(defaultBandwidth, bundleQuota.getBandwidthIn());
+        assertEquals(defaultBandwidth, bundleQuota.getBandwidthOut());
     }
 
     @Test
@@ -599,7 +599,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertNotNull(loadReport);
         assertNotNull(loadReport.getCpu());
         Collection<Metrics> mBeans = brokerStats.getMBeans();
-        assertTrue(!mBeans.isEmpty());
+        assertFalse(mBeans.isEmpty());
         AllocatorStats allocatorStats = brokerStats.getAllocatorStats("default");
         assertNotNull(allocatorStats);
         Map<String, Map<String, PendingBookieOpsStats>> bookieOpsStats = brokerStats.getPendingBookieOpsStats();

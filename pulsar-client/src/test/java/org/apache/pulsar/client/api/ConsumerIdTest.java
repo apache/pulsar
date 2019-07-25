@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+
 import org.testng.annotations.Test;
 
 import com.google.common.base.Objects;
 
 import org.apache.pulsar.client.impl.ConsumerId;
-import org.testng.Assert;
 
 public class ConsumerIdTest {
     private static final String TOPIC_TEST = "my-topic-1";
@@ -33,19 +35,19 @@ public class ConsumerIdTest {
     @Test
     public void getTopicTest() {
         ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        Assert.assertEquals(TOPIC_TEST, testConsumerId.getTopic());
+        assertEquals(TOPIC_TEST, testConsumerId.getTopic());
     }
 
     @Test
     public void getSubscribtionTest() {
         ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        Assert.assertEquals(SUBCRIBTION_TEST, testConsumerId.getSubscription());
+        assertEquals(SUBCRIBTION_TEST, testConsumerId.getSubscription());
     }
 
     @Test
     public void hashCodeTest() {
         ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
-        Assert.assertEquals(Objects.hashCode(TOPIC_TEST, SUBCRIBTION_TEST), testConsumerId.hashCode());
+        assertEquals(Objects.hashCode(TOPIC_TEST, SUBCRIBTION_TEST), testConsumerId.hashCode());
     }
 
     @Test
@@ -54,11 +56,11 @@ public class ConsumerIdTest {
         ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
         ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBCRIBTION_TEST);
 
-        Assert.assertTrue(testConsumerId1.equals(testConsumerId2));
+        assertEquals(testConsumerId2, testConsumerId1);
 
-        Assert.assertTrue(!testConsumerId1.equals(testConsumerId3));
+        assertNotEquals(testConsumerId3, testConsumerId1);
 
-        Assert.assertTrue(!testConsumerId1.equals(new String()));
+        assertNotEquals("", testConsumerId1);
     }
 
     @Test
@@ -67,8 +69,8 @@ public class ConsumerIdTest {
         ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBCRIBTION_TEST);
         ConsumerId testConsumerId3 = new ConsumerId(TOPIC_TEST_2, SUBCRIBTION_TEST);
 
-        Assert.assertEquals(0, testConsumerId1.compareTo(testConsumerId2));
-        Assert.assertEquals(-1, testConsumerId1.compareTo(testConsumerId3));
+        assertEquals(0, testConsumerId1.compareTo(testConsumerId2));
+        assertEquals(-1, testConsumerId1.compareTo(testConsumerId3));
 
     }
 }

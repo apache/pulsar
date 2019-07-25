@@ -64,7 +64,6 @@ import org.testng.annotations.Test;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FilenameFilter;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -83,6 +82,7 @@ import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -479,7 +479,7 @@ public class PulsarFunctionLocalRunTest {
         }, 10, 150);
 
         try {
-            assertTrue(admin.topics().getStats(sinkTopic).publishers.size() == 0);
+            assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() != 404) {
                 fail();
@@ -553,7 +553,7 @@ public class PulsarFunctionLocalRunTest {
 
         TopicStats sourceStats = admin.topics().getStats(sinkTopic);
         assertEquals(sourceStats.publishers.size(), 1);
-        assertTrue(sourceStats.publishers.get(0).metadata != null);
+        assertNotNull(sourceStats.publishers.get(0).metadata);
         assertTrue(sourceStats.publishers.get(0).metadata.containsKey("id"));
         assertEquals(sourceStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
 
@@ -573,15 +573,12 @@ public class PulsarFunctionLocalRunTest {
             try {
                 return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
             } catch (PulsarAdminException e) {
-                if (e.getStatusCode() == 404) {
-                    return true;
-                }
-                return false;
+                return e.getStatusCode() == 404;
             }
         }, 10, 150);
 
         try {
-            assertTrue(admin.topics().getStats(sinkTopic).publishers.size() == 0);
+            assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() != 404) {
                 fail();

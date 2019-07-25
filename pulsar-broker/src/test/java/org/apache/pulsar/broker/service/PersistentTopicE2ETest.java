@@ -313,7 +313,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // (5.1) Validate: active-consumer must be empty
         assertFalse(ledger.getActiveCursors().iterator().hasNext());
         // (5.2) Validate: Entry-cache must be cleared
-        assertTrue(entryCache.getSize() == 0);
+        assertEquals(entryCache.getSize(), 0);
 
     }
 
@@ -554,7 +554,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         pulsarClient.newProducer().topic(topic).create();
         pulsarClient.close();
 
-        assertTrue(pulsar.getBrokerService().getTopicReference(topic) != null);
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topic));
         assertTrue(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers()
                 .containsKey(topicName.getPersistenceNamingEncoding()));
 
@@ -1394,7 +1394,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             }
         }
         // Make sure that first 10 messages that we didn't acknowledge get redelivered.
-        assertTrue(unackedMessages.size() == 0);
+        assertEquals(unackedMessages.size(), 0);
 
         // Verify no other messages are redelivered
         msg = consumer.receive(100, TimeUnit.MILLISECONDS);

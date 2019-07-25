@@ -769,10 +769,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // verify split bundles
             BundlesData bundlesData = namespaces.getBundlesData(testTenant, testLocalCluster, bundledNsLocal);
             assertNotNull(bundlesData);
-            assertTrue(bundlesData.boundaries.size() == 3);
-            assertTrue(bundlesData.boundaries.get(0).equals("0x00000000"));
-            assertTrue(bundlesData.boundaries.get(1).equals("0x7fffffff"));
-            assertTrue(bundlesData.boundaries.get(2).equals("0xffffffff"));
+            assertEquals(bundlesData.boundaries.size(), 3);
+            assertEquals(bundlesData.boundaries.get(0), "0x00000000");
+            assertEquals(bundlesData.boundaries.get(1), "0x7fffffff");
+            assertEquals(bundlesData.boundaries.get(2), "0xffffffff");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }

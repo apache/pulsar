@@ -598,7 +598,7 @@ public class ClientErrorsTest {
 
         producer.send(new byte[0]);
 
-        assertEquals(msgSent.get(), true);
+        assertTrue(msgSent.get());
         assertTrue(numOfConnections.get() >= 3);
 
         mockBrokerService.resetHandleConnect();

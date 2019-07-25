@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import java.util.List;
 import java.util.Set;
@@ -335,7 +336,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
         position = new LongPair(2, 30);
-        assertEquals(set.rangeContaining(position.getKey(), position.getValue()), null);
+        assertNull(set.rangeContaining(position.getKey(), position.getValue()));
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
         position = new LongPair(3, 13);
@@ -344,7 +345,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
 
         position = new LongPair(3, 22);
-        assertEquals(set.rangeContaining(position.getKey(), position.getValue()), null);
+        assertNull(set.rangeContaining(position.getKey(), position.getValue()));
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
     }
 

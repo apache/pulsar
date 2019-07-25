@@ -21,8 +21,6 @@ package org.apache.pulsar.client.impl.schema;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.Date;
-
 public class DoubleSchemaTest {
 
     @Test

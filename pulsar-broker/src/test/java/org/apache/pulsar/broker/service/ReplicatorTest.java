@@ -456,7 +456,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         replicator.updateRates(); // for code-coverage
         replicator.expireMessages(1); // for code-coverage
         ReplicatorStats status = replicator.getStats();
-        assertTrue(status.replicationBacklog == 0);
+        assertEquals(status.replicationBacklog, 0);
     }
 
     @Test(enabled = true, timeOut = 30000)
@@ -723,7 +723,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producerField.setAccessible(true);
         @SuppressWarnings("unchecked")
         ProducerImpl<byte[]> replicatorProducer = (ProducerImpl<byte[]>) producerField.get(replicator);
-        assertEquals(replicatorProducer, null);
+        assertNull(replicatorProducer);
     }
 
     @Test(timeOut = 30000)

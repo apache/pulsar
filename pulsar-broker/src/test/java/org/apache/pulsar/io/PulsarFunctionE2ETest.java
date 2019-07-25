@@ -99,6 +99,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 /**
@@ -435,7 +436,7 @@ public class PulsarFunctionE2ETest {
 
         TopicStats topicStats = admin.topics().getStats(sinkTopic2);
         assertEquals(topicStats.publishers.size(), 2);
-        assertTrue(topicStats.publishers.get(0).metadata != null);
+        assertNotNull(topicStats.publishers.get(0).metadata);
         assertTrue(topicStats.publishers.get(0).metadata.containsKey("id"));
         assertEquals(topicStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, functionName));
 
@@ -774,7 +775,7 @@ public class PulsarFunctionE2ETest {
 
         TopicStats sourceStats = admin.topics().getStats(sinkTopic2);
         assertEquals(sourceStats.publishers.size(), 1);
-        assertTrue(sourceStats.publishers.get(0).metadata != null);
+        assertNotNull(sourceStats.publishers.get(0).metadata);
         assertTrue(sourceStats.publishers.get(0).metadata.containsKey("id"));
         assertEquals(sourceStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
 

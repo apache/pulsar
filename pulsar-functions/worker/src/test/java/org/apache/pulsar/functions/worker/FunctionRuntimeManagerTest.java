@@ -32,10 +32,8 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.KubernetesRuntime;
 import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -56,6 +54,10 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class FunctionRuntimeManagerTest {
@@ -123,25 +125,18 @@ public class FunctionRuntimeManagerTest {
 
         verify(functionRuntimeManager, times(2)).setAssignment(any(Function.Assignment.class));
         verify(functionRuntimeManager, times(0)).deleteAssignment(any(Function.Assignment.class));
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 2);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 2);
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.get("worker-2")
+        assertEquals(functionRuntimeManager.workerIdToAssignments.get("worker-2")
                 .get("test-tenant/test-namespace/func-2:0"), assignment2);
         verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
-        verify(functionActioner).startFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
-            @Override
-            public boolean matches(FunctionRuntimeInfo functionRuntimeInfo) {
-                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)) {
-                    return false;
-                }
-                return true;
-            }
-        }));
+        verify(functionActioner).startFunction(argThat(
+            functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)));
         verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
                 new FunctionRuntimeInfo().setFunctionInstance(
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
@@ -218,23 +213,16 @@ public class FunctionRuntimeManagerTest {
         verify(functionRuntimeManager, times(0)).setAssignment(any(Function.Assignment.class));
         verify(functionRuntimeManager, times(1)).deleteAssignment(any(String.class));
 
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-2:0"), assignment2);
 
         verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner, times(1)).terminateFunction(any(FunctionRuntimeInfo.class));
-        verify(functionActioner).terminateFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
-            @Override
-            public boolean matches(FunctionRuntimeInfo functionRuntimeInfo) {
-                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)) {
-                    return false;
-                }
-                return true;
-            }
-        }));
+        verify(functionActioner).terminateFunction(argThat(
+            functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)));
 
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
     }
 
     @Test
@@ -317,32 +305,18 @@ public class FunctionRuntimeManagerTest {
         // make sure terminate is not called since this is a update operation
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
-        verify(functionActioner).stopFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
-            @Override
-            public boolean matches(FunctionRuntimeInfo functionRuntimeInfo) {
-                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
-                    return false;
-                }
-                return true;
-            }
-        }));
+        verify(functionActioner).stopFunction(argThat(
+            functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)));
 
         verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
-        verify(functionActioner).startFunction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
-            @Override
-            public boolean matches(FunctionRuntimeInfo functionRuntimeInfo) {
-                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
-                    return false;
-                }
-                return true;
-            }
-        }));
+        verify(functionActioner).startFunction(argThat(
+            functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)));
 
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
+        assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
 
         reset(functionRuntimeManager);
@@ -365,20 +339,16 @@ public class FunctionRuntimeManagerTest {
         // make sure terminate is not called since this is a update operation
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
-        verify(functionActioner).stopFunction(argThat(functionRuntimeInfo -> {
-                if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
-                    return false;
-                }
-                return true;
-        }));
+        verify(functionActioner).stopFunction(argThat(functionRuntimeInfo ->
+            functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)));
 
         verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
 
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
+        assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment4);
 
     }
@@ -452,10 +422,10 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner, times(1)).stopFunction(any(FunctionRuntimeInfo.class));
 
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-1:0"), assignment2);
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), null);
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
+        assertNull(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"));
 
         /** Test transfer from other worker to me **/
         reset(functionRuntimeManager);
@@ -477,13 +447,13 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment3);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
-                .get("worker-2"), null);
+        assertNull(functionRuntimeManager.workerIdToAssignments
+            .get("worker-2"));
 
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), functionRuntimeInfo);
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), functionRuntimeInfo);
     }
 
     @Test
@@ -595,28 +565,18 @@ public class FunctionRuntimeManagerTest {
 
         functionRuntimeManager.initialize();
 
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
+        assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
         // Ideally this should be zero, but it will nevertheless be called with null runtimespawner which essentially
         // results in it being noop. We ensure that in the check below.
         verify(functionActioner, times(1)).stopFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
-        verify(functionActioner).startFunction(argThat(functionRuntimeInfo -> {
-                if (!functionRuntimeInfo.getFunctionInstance().equals(assignment1.getInstance())) {
-                    return false;
-                }
-                return true;
-        }));
-        verify(functionActioner).stopFunction(argThat(functionRuntimeInfo -> {
-                if (functionRuntimeInfo.getRuntimeSpawner() != null) {
-                    return false;
-                }
-                return true;
-        }));
+        verify(functionActioner).startFunction(argThat(functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().equals(assignment1.getInstance())));
+        verify(functionActioner).stopFunction(argThat(functionRuntimeInfo -> functionRuntimeInfo.getRuntimeSpawner() == null));
 
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
+        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
                 new FunctionRuntimeInfo().setFunctionInstance(
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
@@ -706,9 +666,9 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-1:0"), assignment2);
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), null);
+        assertNull(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"));
 
         /** Test transfer from other worker to me **/
 
@@ -725,29 +685,26 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
+        assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment3);
-        Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
-                .get("worker-2"), null);
+        assertNull(functionRuntimeManager.workerIdToAssignments
+            .get("worker-2"));
 
-        Assert.assertEquals(
+        assertEquals(
                 functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getFunctionInstance(),
                 functionRuntimeInfo.getFunctionInstance());
-        Assert.assertTrue(
-                functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner() != null);
+        assertNotNull(
+            functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner());
 
-        Assert.assertEquals(
+        assertEquals(
                 functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getInstanceConfig().getFunctionDetails(),
                 function1.getFunctionDetails());
-        Assert.assertEquals(
+        assertEquals(
                 functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getInstanceConfig().getInstanceId(),
                 instance.getInstanceId());
-        Assert.assertTrue(
+        assertTrue(
                 functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getRuntimeFactory() instanceof KubernetesRuntimeFactory);
-
-        Assert.assertTrue(
-                functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getRuntime() != null);
-
-        verify(kubernetesRuntime, times(1)).reinitialize();
+        assertNotNull(
+            functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getRuntime());
     }
 }

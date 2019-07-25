@@ -377,7 +377,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         log.info("Waiting for message listener to ack all messages");
-        assertEquals(latch.await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -410,7 +410,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < receiverQueueSize * 2; i++) producer.send(("my-message-" + i).getBytes());
 
         log.info("Waiting for message listener to ack " + receiverQueueSize + " messages");
-        assertEquals(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
 
         log.info("Giving message listener an opportunity to receive messages while paused");
         Thread.sleep(2000);     // hopefully this is long enough
@@ -421,7 +421,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.resume();
 
         log.info("Waiting for message listener to ack all messages");
-        assertEquals(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
 
         consumer.close();
         producer.close();
@@ -962,7 +962,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         retryStrategically((test) -> entryCache.getSize() == 0, 5, 100);
 
         // Verify: EntryCache should be cleared
-        assertTrue(entryCache.getSize() == 0);
+        assertEquals(entryCache.getSize(), 0);
         subscriber1.close();
         log.info("-- Exiting {} test --", methodName);
     }

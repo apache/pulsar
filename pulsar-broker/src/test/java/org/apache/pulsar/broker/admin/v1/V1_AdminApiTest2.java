@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -562,14 +563,14 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west2")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Lists.newArrayList("us-west2"));
-        assertEquals(admin.clusters().getCluster("us-west2").getPeerClusterNames(), null);
+        assertNull(admin.clusters().getCluster("us-west2").getPeerClusterNames());
         // update cluster with duplicate peer-clusters in the list
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(
                 Lists.newArrayList("us-west2", "us-east1", "us-west2", "us-east1", "us-west2", "us-east1")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
                 Lists.newArrayList("us-west2", "us-east1"));
         admin.clusters().updatePeerClusterNames("us-west1", null);
-        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), null);
+        assertNull(admin.clusters().getCluster("us-west1").getPeerClusterNames());
 
         // Check name validation
         try {

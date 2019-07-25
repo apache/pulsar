@@ -23,7 +23,6 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -237,7 +236,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         }
 
         log.info("Waiting for message listener to ack all messages");
-        assertEquals(latch.await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -723,7 +722,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         retryStrategically((test) -> entryCache.getSize() == 0, 5, 100);
 
         // Verify: EntryCache should be cleared
-        assertTrue(entryCache.getSize() == 0);
+        assertEquals(entryCache.getSize(), 0);
         subscriber1.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -879,14 +878,14 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             consumerMsgSet2.add(msg);
         }
 
-        consumerMsgSet1.stream().forEach(m -> {
+        consumerMsgSet1.forEach(m -> {
             try {
                 consumer2.acknowledge(m);
             } catch (PulsarClientException e) {
                 fail();
             }
         });
-        consumerMsgSet2.stream().forEach(m -> {
+        consumerMsgSet2.forEach(m -> {
             try {
                 consumer1.acknowledge(m);
             } catch (PulsarClientException e) {
@@ -1104,8 +1103,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     /**
      * Verify: Consumer1 which doesn't send ack will not impact Consumer2 which sends ack for consumed message.
      *
-     *
-     * @param batchMessageDelayMs
      * @throws Exception
      */
     @Test
@@ -1431,8 +1428,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     /**
      * Verify: Consumer2 sends ack of Consumer1 and consumer1 should be unblock if it is blocked due to unack-messages
      *
-     *
-     * @param batchMessageDelayMs
      * @throws Exception
      */
     @Test
