@@ -79,6 +79,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
@@ -563,6 +565,61 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(meta.numEntries(), numEntries);
         assertEquals(meta.status(), TxnStatus.COMMITTED);
         verifyEntries(ledger, copy, meta.getEntries());
+    }
+
+    @Test
+    public void testCommitMarker() throws Exception {
+        ManagedLedger ledger = factory.open("test_commit_ledger");
+        PersistentTransactionBuffer commitBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
+                                                                                   brokerService);
+        final int numEntries = 10;
+        List<ByteBuf> appendEntires = appendEntries(commitBuffer, txnID, numEntries, 0L);
+
+        TransactionMetaImpl meta = (TransactionMetaImpl) commitBuffer.getTransactionMeta(txnID).get();
+        assertEquals(meta.id(), txnID);
+        assertEquals(meta.numEntries(), numEntries);
+        assertEquals(meta.status(), TxnStatus.OPEN);
+
+        verifyEntries(ledger, appendEntires, meta.getEntries());
+
+        commitBuffer.commitTxn(txnID, 22L, 33L).get();
+        assertEquals(meta.id(), txnID);
+        assertEquals(meta.numEntries(), numEntries);
+        assertEquals(meta.status(), TxnStatus.COMMITTED);
+
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        Entry entry = getEntry(cursor, ledger.getLastConfirmedEntry());
+
+        boolean commitMarker = Markers.isTxnCommitMarker(Commands.parseMessageMetadata(entry.getDataBuffer()));
+        assertTrue(commitMarker);
+
+    }
+
+    @Test
+    public void testAbortMarker() throws Exception {
+        ManagedLedger ledger = factory.open("test_abort_ledger");
+        PersistentTransactionBuffer abortBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
+                                                                                   brokerService);
+        final int numEntries = 10;
+        List<ByteBuf> appendEntires = appendEntries(abortBuffer, txnID, numEntries, 0L);
+
+        TransactionMetaImpl meta = (TransactionMetaImpl) abortBuffer.getTransactionMeta(txnID).get();
+        assertEquals(meta.id(), txnID);
+        assertEquals(meta.numEntries(), numEntries);
+        assertEquals(meta.status(), TxnStatus.OPEN);
+
+        verifyEntries(ledger, appendEntires, meta.getEntries());
+
+        abortBuffer.abortTxn(txnID).get();
+        assertEquals(meta.id(), txnID);
+        assertEquals(meta.numEntries(), numEntries);
+        assertEquals(meta.status(), TxnStatus.ABORTED);
+
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        Entry entry = getEntry(cursor, ledger.getLastConfirmedEntry());
+
+        boolean abortMarker = Markers.isTxnAbortMarker(Commands.parseMessageMetadata(entry.getDataBuffer()));
+        assertTrue(abortMarker);
     }
 
     private void verifyEntries(ManagedLedger ledger, List<ByteBuf> appendEntries,
