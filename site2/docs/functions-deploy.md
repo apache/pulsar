@@ -22,6 +22,34 @@ Pulsar Functions are deployed and managed using the [`pulsar-admin functions`](r
 
 To learn more commands, refer to [`pulsar-admin functions`](reference-pulsar-admin.md#functions).
 
+### Default arguments
+
+When managing Pulsar Functions, you need to specify a variety of information about functions, including tenant, namespace, input and output topics, and so on. However, some parameters have default values if you do not specify values for them. The following table lists the default values.
+
+Parameter | Default
+:---------|:-------
+Function name | Whichever value is specified for the class name (minus org, library, etc.). The flag `--classname org.example.MyFunction`, for example, would give the function a name of `MyFunction`.
+Tenant | Derived from names of input topics. If the input topics are under the `marketing` tenant, which means the topic names have the form `persistent://marketing/{namespace}/{topicName}`, the tenant is `marketing`.
+Namespace | Derived from names of the input topics. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
+Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
+Subscription type | For at-least-once and at-most-once [processing guarantees](functions-guarantees.md), the [`SHARED`](concepts-messaging.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](concepts-messaging.md#failover) is applied
+Processing guarantees | [`ATLEAST_ONCE`](functions-guarantees.md)
+Pulsar service URL | `pulsar://localhost:6650`
+
+#### Example use of defaults
+
+Take the `create` command as an example.
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar my-pulsar-functions.jar \
+  --classname org.example.MyFunction \
+  --inputs my-function-input-topic1,my-function-input-topic2
+```
+
+The function has default values for the function name (`MyFunction`), tenant (`public`), namespace (`default`), subscription type (`SHARED`), processing guarantees (`ATLEAST_ONCE`), and Pulsar service URL (`pulsar://localhost:6650`).
+
+
 ## Local run mode
 
 If you run a Pulsar Function in **local run** mode, it runs on the machine from which you enter the commands (on your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, and so on). The following is a [`localrun`](reference-pulsar-admin.md#localrun) command example.
@@ -127,3 +155,58 @@ $ bin/pulsar-admin functions create \
 
 > #### Resources are *per instance*
 > The resources that you apply to a given Pulsar Function are applied to each [instance](#parallelism) of the function. For example, if you apply 8 GB of RAM to a function with a parallelism of 5, you are applying 40 GB of RAM for the function in total. Make sure that you take the parallelism (the number of instances) factor into your resource calculations.
+
+## Trigger Pulsar Functions
+
+If a Pulsar Function is running in [cluster mode](#cluster-mode), you can **trigger** it at any time using the command line. Triggering a function means that you send a message with a specific value to the function and get the function output (if any) via the command line.
+
+> Triggering a function is to invoke a function by producing a message on one of the input topics. With the [`pulsar-admin functions trigger`](reference-pulsar-admin.md#trigger) command, you can send messages to functions without using the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
+
+To learn how to trigger a function, you can start with [Python function](functions-api.md#functions-for-python) that returns a simple string based on the input.
+
+```python
+# myfunc.py
+def process(input):
+    return "This function has been triggered with a value of {0}".format(input)
+```
+
+You can run the function in [local run mode](functions-deploying.md#local-run-mode).
+
+```bash
+$ bin/pulsar-admin functions create \
+  --tenant public \
+  --namespace default \
+  --name myfunc \
+  --py myfunc.py \
+  --classname myfunc \
+  --inputs persistent://public/default/in \
+  --output persistent://public/default/out
+```
+
+Then assign a consumer to listen on the output topic for messages from the `myfunc` function with the [`pulsar-client consume`](reference-cli-tools.md#consume) command.
+
+```bash
+$ bin/pulsar-client consume persistent://public/default/out \
+  --subscription-name my-subscription
+  --num-messages 0 # Listen indefinitely
+```
+
+And then you can trigger the function.
+
+```bash
+$ bin/pulsar-admin functions trigger \
+  --tenant public \
+  --namespace default \
+  --name myfunc \
+  --trigger-value "hello world"
+```
+
+The consumer listening on the output topic will produce something as follows in the log.
+
+```
+----- got message -----
+This function has been triggered with a value of hello world
+```
+
+> #### Topic info not required
+> In the `trigger` command above, you may have noticed that you only need to specify basic information about the function (tenant, namespace, and name). To trigger the function, you do not need to know the function input topics.
