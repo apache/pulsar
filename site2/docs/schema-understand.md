@@ -63,17 +63,17 @@ Some of the primitive schema implementations can use `properties` to store imple
 
 The conversions between **Pulsar schema types** and **language-specific primitive types** are as below.
 
-| Schema Type | Java Type| Python Type |
-|---|---|---|
-| BOOLEAN | boolean | bool |
-| INT8 | byte | |
-| INT16 | short | | 
-| INT32 | int | |
-| INT64 | long | |
-| FLOAT | float | float |
-| DOUBLE | double | float |
-| BYTES | byte[], ByteBuffer, ByteBuf | bytes |
-| STRING | string | str |
+| Schema Type | Java Type| Python Type | Go Type |
+|---|---|---|---|
+| BOOLEAN | boolean | bool | bool |
+| INT8 | byte | | int8 |
+| INT16 | short | | int16 |
+| INT32 | int | | int32 |
+| INT64 | long | | int64 |
+| FLOAT | float | float | float32 |
+| DOUBLE | double | float | float64|
+| BYTES | byte[], ByteBuffer, ByteBuf | bytes | []byte |
+| STRING | string | str | string| 
 | TIMESTAMP | java.sql.Timestamp | |
 | TIME | java.sql.Time | |
 | DATE | java.util.Date | |
@@ -89,7 +89,7 @@ This example demonstrates how to use a string schema.
     producer.newMessage().value("Hello Pulsar!").send();
     ```
 
-2. Create a consumer with a string schema and receive messages.  
+1. Create a consumer with a string schema and receive messages.  
 
     ```text
     Consumer<String> consumer = client.newConsumer(Schema.STRING).create();
@@ -133,64 +133,64 @@ This example shows how to construct a key/value schema and then use it to produc
 
 1. Construct a key/value schema with `INLINE` encoding type.
 
-```text
-Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-Schema.INT32,
-Schema.STRING,
-KeyValueEncodingType.INLINE
-);
-```
+    ```text
+    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+    Schema.INT32,
+    Schema.STRING,
+    KeyValueEncodingType.INLINE
+    );
+    ```
 
 2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
 
-```text
-Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-Schema.INT32,
-Schema.STRING,
-KeyValueEncodingType.SEPARATED
-);
-```
+    ```text
+    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+    Schema.INT32,
+    Schema.STRING,
+    KeyValueEncodingType.SEPARATED
+    );
+    ```
 
 3. Produce messages using a key/value schema.
 
-```text
-Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-Schema.INT32,
-Schema.STRING,
-KeyValueEncodingType.SEPARATED
-);
+    ```text
+    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+    Schema.INT32,
+    Schema.STRING,
+    KeyValueEncodingType.SEPARATED
+    );
 
-Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
-    .topic(TOPIC)
-    .create();
+    Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
+        .topic(TOPIC)
+        .create();
 
-final int key = 100;
-final String value = "value-100”;
+    final int key = 100;
+    final String value = "value-100”;
 
-// send the key/value message
-producer.newMessage()
-.value(new KeyValue<>(key, value))
-.send();
-```
+    // send the key/value message
+    producer.newMessage()
+    .value(new KeyValue<>(key, value))
+    .send();
+    ```
 
 4. Consume messages using a key/value schema.
 
-```
-Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-Schema.INT32,
-Schema.STRING,
-KeyValueEncodingType.SEPARATED
-);
+    ```
+    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+    Schema.INT32,
+    Schema.STRING,
+    KeyValueEncodingType.SEPARATED
+    );
 
-Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
-    ...
-    .topic(TOPIC)
-    .subscriptionName(SubscriptionName).subscribe();
+    Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
+        ...
+        .topic(TOPIC)
+        .subscriptionName(SubscriptionName).subscribe();
 
-// receive key/value pair
-Message<KeyValue<Integer, String>> msg = consumer.receive();
-KeyValue<Integer, String> kv = msg.getValue();
-```
+    // receive key/value pair
+    Message<KeyValue<Integer, String>> msg = consumer.receive();
+    KeyValue<Integer, String> kv = msg.getValue();
+    ```
 
 #### struct
 
@@ -218,26 +218,26 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
-  ```text
-  public class User {
-      String name;
-      int age;
-  }
-  ```
+    ```text
+    public class User {
+        String name;
+        int age;
+    }
+    ```
 
 2. Create a producer with a `struct` schema and send messages.
 
-  ```text
-  Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
-  producer.newMessage().value(User.builder().userName("pulsar-user").userId(1L).build()).send();
-  ```
+    ```text
+    Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
+    producer.newMessage().value(User.builder().userName("pulsar-user").userId(1L).build()).send();
+    ```
 
 3. Create a consumer with a `struct` schema and receive messages
 
-  ```text
-  Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).create();
-  User user = consumer.receive();
-  ```
+    ```text
+    Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).create();
+    User user = consumer.receive();
+    ```
 
 ##### generic
 
@@ -249,21 +249,21 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
 
 1. Use `RecordSchemaBuilder` to build a schema.
 
-  ```text
-  RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
-  recordSchemaBuilder.field("intField").type(SchemaType.INT32);
-  SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+    ```text
+    RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
+    recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+    SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
 
-  Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
-  ```
+    Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+    ```
 
 2. Use `RecordBuilder` to build the struct records.
 
-  ```text
-  producer.newMessage().value(schema.newRecordBuilder()
-              .set("intField", 32)
-              .build()).send();
-  ```
+    ```text
+    producer.newMessage().value(schema.newRecordBuilder()
+                .set("intField", 32)
+                .build()).send();
+    ```
 
 ### Auto Schema
 
