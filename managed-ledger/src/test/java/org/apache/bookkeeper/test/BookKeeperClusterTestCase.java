@@ -24,7 +24,6 @@
 package org.apache.bookkeeper.test;
 
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.UnpooledByteBufAllocator;
 
 import java.io.File;
 import java.io.IOException;

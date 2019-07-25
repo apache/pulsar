@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import java.util.Objects;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;

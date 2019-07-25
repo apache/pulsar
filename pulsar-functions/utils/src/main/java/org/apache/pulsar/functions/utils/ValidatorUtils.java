@@ -31,7 +31,6 @@ import org.apache.pulsar.io.core.Source;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.utils.Reflections.createInstance;
 
 @Slf4j
 public class ValidatorUtils {

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.auth;
 
-import io.kubernetes.client.models.V1ServiceAccount;
 import io.kubernetes.client.models.V1StatefulSet;
 
 import java.util.Optional;

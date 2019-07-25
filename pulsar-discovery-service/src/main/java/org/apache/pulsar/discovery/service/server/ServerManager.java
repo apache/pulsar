@@ -19,7 +19,6 @@
 package org.apache.pulsar.discovery.service.server;
 
 import java.net.URI;
-import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;

@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;

@@ -26,7 +26,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.StampedLock;
-import java.util.function.BiFunction;
 
 import org.apache.pulsar.common.util.collections.LongPairSet.LongPairFunction;
 

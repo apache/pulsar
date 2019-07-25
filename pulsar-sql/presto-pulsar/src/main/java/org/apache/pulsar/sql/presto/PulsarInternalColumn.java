@@ -20,7 +20,6 @@ package org.apache.pulsar.sql.presto;
 
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.TimestampType;
-import com.facebook.presto.spi.type.TimestampWithTimeZoneType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
 import com.fasterxml.jackson.core.JsonProcessingException;

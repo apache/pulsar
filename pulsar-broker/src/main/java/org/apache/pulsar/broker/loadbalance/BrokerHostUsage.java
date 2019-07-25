@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import java.io.IOException;
-
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 
 /**

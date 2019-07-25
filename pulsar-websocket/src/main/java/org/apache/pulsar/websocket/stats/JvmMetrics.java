@@ -21,8 +21,6 @@ package org.apache.pulsar.websocket.stats;
 import static org.apache.pulsar.common.stats.Metrics.create;
 
 import java.lang.management.ManagementFactory;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -35,14 +33,8 @@ import org.apache.pulsar.websocket.WebSocketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import io.netty.buffer.PoolArenaMetric;
-import io.netty.buffer.PoolChunkListMetric;
-import io.netty.buffer.PoolChunkMetric;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.PooledByteBufAllocatorMetric;
 import io.netty.util.internal.PlatformDependent;
 
 public class JvmMetrics {

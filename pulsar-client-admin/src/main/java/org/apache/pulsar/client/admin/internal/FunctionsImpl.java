@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import io.netty.handler.codec.http.HttpHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;

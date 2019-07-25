@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.Set;
 
 import org.apache.pulsar.broker.BundleData;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**

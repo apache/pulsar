@@ -24,7 +24,6 @@ import io.prometheus.client.jetty.JettyStatisticsCollector;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;

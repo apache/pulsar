@@ -20,7 +20,6 @@
 package org.apache.pulsar.broker.authentication;
 
 import javax.naming.AuthenticationException;
-import javax.servlet.http.HttpServletRequest;
 
 import org.apache.pulsar.common.api.AuthData;
 

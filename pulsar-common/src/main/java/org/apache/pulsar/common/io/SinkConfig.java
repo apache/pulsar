@@ -20,7 +20,6 @@ package org.apache.pulsar.common.io;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.TreeMap;
 
 import lombok.*;
 import org.apache.pulsar.common.functions.ConsumerConfig;

@@ -24,7 +24,6 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.io.IOException;
 import java.util.List;

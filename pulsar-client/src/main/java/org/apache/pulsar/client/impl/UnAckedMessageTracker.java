@@ -32,7 +32,6 @@ import java.io.Closeable;
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;

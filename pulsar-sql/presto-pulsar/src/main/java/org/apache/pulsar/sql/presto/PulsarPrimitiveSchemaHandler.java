@@ -24,7 +24,6 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
 
-import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
