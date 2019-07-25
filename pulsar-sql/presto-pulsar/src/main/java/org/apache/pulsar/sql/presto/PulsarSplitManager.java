@@ -134,16 +134,6 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     }
 
     @VisibleForTesting
-    ManagedLedgerFactory getManagedLedgerFactory() throws Exception {
-        ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-                .setZkServers(this.pulsarConnectorConfig.getZookeeperUri())
-                .setClientTcpNoDelay(false)
-                .setStickyReadsEnabled(false)
-                .setUseV2WireProtocol(true);
-        return new ManagedLedgerFactoryImpl(bkClientConfiguration);
-    }
-
-    @VisibleForTesting
     Collection<PulsarSplit> getSplitsPartitionedTopic(int numSplits, TopicName topicName, PulsarTableHandle
             tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain) throws Exception {
         int numPartitions;
@@ -165,59 +155,40 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
         int splitRemainder = actualNumSplits % numPartitions;
 
-        ManagedLedgerFactory managedLedgerFactory = getManagedLedgerFactory();
+        ManagedLedgerFactory managedLedgerFactory = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig)
+                .getManagedLedgerFactory();
 
-        try {
-            List<PulsarSplit> splits = new LinkedList<>();
-            for (int i = 0; i < numPartitions; i++) {
+        List<PulsarSplit> splits = new LinkedList<>();
+        for (int i = 0; i < numPartitions; i++) {
 
-                int splitsForThisPartition = (splitRemainder > i) ? splitsPerPartition + 1 : splitsPerPartition;
-                splits.addAll(
-                        getSplitsForTopic(
-                                topicName.getPartition(i).getPersistenceNamingEncoding(),
-                                managedLedgerFactory,
-                                splitsForThisPartition,
-                                tableHandle,
-                                schemaInfo,
-                                topicName.getPartition(i).getLocalName(),
-                                tupleDomain)
-                );
-            }
-            return splits;
-        } finally {
-            if (managedLedgerFactory != null) {
-                try {
-                    managedLedgerFactory.shutdown();
-                } catch (Exception e) {
-                    log.error(e);
-                }
-            }
+            int splitsForThisPartition = (splitRemainder > i) ? splitsPerPartition + 1 : splitsPerPartition;
+            splits.addAll(
+                    getSplitsForTopic(
+                            topicName.getPartition(i).getPersistenceNamingEncoding(),
+                            managedLedgerFactory,
+                            splitsForThisPartition,
+                            tableHandle,
+                            schemaInfo,
+                            topicName.getPartition(i).getLocalName(),
+                            tupleDomain));
         }
+        return splits;
     }
 
     @VisibleForTesting
-    Collection<PulsarSplit> getSplitsNonPartitionedTopic(int numSplits, TopicName topicName, PulsarTableHandle
-            tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain) throws Exception {
-        ManagedLedgerFactory managedLedgerFactory = null;
-        try {
-            managedLedgerFactory = getManagedLedgerFactory();
+    Collection<PulsarSplit> getSplitsNonPartitionedTopic(int numSplits, TopicName topicName,
+            PulsarTableHandle tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain)
+            throws Exception {
+        ManagedLedgerFactory managedLedgerFactory = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig)
+                .getManagedLedgerFactory();
 
-            return getSplitsForTopic(
-                    topicName.getPersistenceNamingEncoding(),
-                    managedLedgerFactory,
-                    numSplits,
-                    tableHandle,
-                    schemaInfo,
-                    tableHandle.getTableName(), tupleDomain);
-        } finally {
-            if (managedLedgerFactory != null) {
-                try {
-                    managedLedgerFactory.shutdown();
-                } catch (Exception e) {
-                    log.error(e);
-                }
-            }
-        }
+        return getSplitsForTopic(
+                topicName.getPersistenceNamingEncoding(),
+                managedLedgerFactory,
+                numSplits,
+                tableHandle,
+                schemaInfo,
+                tableHandle.getTableName(), tupleDomain);
     }
 
     @VisibleForTesting
