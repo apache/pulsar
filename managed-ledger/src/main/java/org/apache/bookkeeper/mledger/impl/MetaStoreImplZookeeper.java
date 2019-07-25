@@ -327,6 +327,13 @@ public class MetaStoreImplZookeeper implements MetaStore {
     public void asyncUpdateSubscriptionPendingAckMessages(String ledgerName, String cursorName, String subName, Stat stat,
                                                           SubscriptionPendingAckMessages subscriptionPendingAckMessages,
                                                           MetaStoreCallback<Void> callback) {
+        internalAsyncUpdateSubscriptionPendingAckMessages(ledgerName, cursorName, subName, stat,
+                subscriptionPendingAckMessages, true, callback);
+    }
+
+    private void internalAsyncUpdateSubscriptionPendingAckMessages(String ledgerName, String cursorName, String subName, Stat stat,
+                                                           SubscriptionPendingAckMessages subscriptionPendingAckMessages,
+                                                           boolean createParentNode, MetaStoreCallback<Void> callback) {
         log.info("[{}] [{}] [{}] Updating subscription's pending ack messages",
                 ledgerName, cursorName, subName);
 
@@ -341,26 +348,31 @@ public class MetaStoreImplZookeeper implements MetaStore {
             zk.create(zkPath, data, Acl, CreateMode.PERSISTENT,
                     (rc, path, ctx, name) -> executor.executeOrdered(ledgerName, safeRun(() -> {
                         if (rc == Code.NONODE.intValue()) {
-                            // Try create parent ZNode id missing.
-                            log.info("Creating '{}{}'", prefix + ledgerName, cursorName);
+                            if (createParentNode) {
+                                // Try create parent ZNode id missing.
+                                log.info("Creating '{}{}'", prefix + ledgerName, cursorName);
 
-                            StringCallback createcb = (rc1, path1, ctx1, name1) -> {
-                                if (rc1 == Code.OK.intValue()) {
-                                    // Try UpdateSubscriptionPendingAckMessages again if create succeed.
-                                    asyncUpdateSubscriptionPendingAckMessages(ledgerName, cursorName, subName, stat,
-                                           subscriptionPendingAckMessages, callback);
-                                } else {
-                                    callback.operationFailed(
-                                            new MetaStoreException(KeeperException.create(Code.get(rc1))));
-                                }
-                            };
+                                StringCallback createcb = (rc1, path1, ctx1, name1) -> {
+                                    if (rc1 == Code.OK.intValue()) {
+                                        // Try UpdateSubscriptionPendingAckMessages again if create succeed.
+                                        internalAsyncUpdateSubscriptionPendingAckMessages(ledgerName, cursorName, subName, stat,
+                                                subscriptionPendingAckMessages, false, callback);
+                                    } else {
+                                        callback.operationFailed(
+                                                new MetaStoreException(KeeperException.create(Code.get(rc1))));
+                                    }
+                                };
 
-                            asyncCreateFullPathOptimistic(prefix + ledgerName, cursorName, new byte[0], Acl,
-                                    CreateMode.PERSISTENT, createcb);
+                                asyncCreateFullPathOptimistic(prefix + ledgerName, cursorName, new byte[0], Acl,
+                                        CreateMode.PERSISTENT, createcb);
+                            } else {
+                                callback.operationFailed(new ManagedLedgerException.MetadataNotFoundException(
+                                        KeeperException.create(Code.get(rc))));
+                            }
                         } else if (rc != Code.OK.intValue()) {
                             log.warn("[{}] [{}] [{}] Error creating path for subscription's pending ack messages " +
                                             "to meta-data store with {}: {}", ledgerName, cursorName, subName,
-                                            Code.get(rc), data);
+                                    Code.get(rc), data);
                             callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
                         } else {
                             if (log.isDebugEnabled()) {
@@ -374,7 +386,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
             ZKStat zkStat = (ZKStat) stat;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] [{}] Updating subscription's pending ack messages to meta-data store with {}",
-                                ledgerName, cursorName, subName,  data);
+                        ledgerName, cursorName, subName,  data);
             }
             zk.setData(zkPath, data, zkStat.getVersion(),
                     (rc, path, ctx, returnedStat) -> executor.executeOrdered(ledgerName, safeRun(() -> {

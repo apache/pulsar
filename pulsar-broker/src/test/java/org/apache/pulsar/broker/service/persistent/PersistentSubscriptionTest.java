@@ -199,6 +199,7 @@ public class PersistentSubscriptionTest {
         // Verify corresponding ledger method was called with expected args.
         verify(cursorMock, times(1)).asyncDelete(anyList(), any(), any());
         verify(cursorMock, times(1)).asyncMarkDelete(any(), anyMap(), anyObject(), any());
+        verify(cursorMock, times(2)).persistPendingAckPositionMetaInfo(any(), any(), any(), any());
     }
 
     @Test

@@ -921,7 +921,7 @@ public class PersistentTopicTest {
     @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
-        cursorMock = mock(ManagedCursor.class);
+        cursorMock = mock(ManagedCursorImpl.class);
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
@@ -1331,7 +1331,7 @@ public class PersistentTopicTest {
         Compactor compactor = pulsar.getCompactor();
         doReturn(compactPromise).when(compactor).compact(anyString());
 
-        ManagedCursor subCursor = mock(ManagedCursor.class);
+        ManagedCursor subCursor = mock(ManagedCursorImpl.class);
         doReturn(Lists.newArrayList(subCursor)).when(ledgerMock).getCursors();
         doReturn(Compactor.COMPACTION_SUBSCRIPTION).when(subCursor).getName();
 

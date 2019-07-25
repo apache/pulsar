@@ -62,6 +62,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -141,7 +142,7 @@ public class ServerCnxTest {
     private final String topicWithNonLocalCluster = "persistent://prop/usw/ns-abc/successTopic";
 
     private ManagedLedger ledgerMock = mock(ManagedLedger.class);
-    private ManagedCursor cursorMock = mock(ManagedCursor.class);
+    private ManagedCursor cursorMock = mock(ManagedCursorImpl.class);
 
     @BeforeMethod
     public void setup() throws Exception {

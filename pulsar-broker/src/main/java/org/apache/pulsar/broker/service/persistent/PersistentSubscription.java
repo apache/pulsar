@@ -979,19 +979,22 @@ public class PersistentSubscription implements Subscription {
     }
 
     /**
-     *
+     * Persist pending ack messages info to ledger meta store.
      */
     private void persistPendingAckPositions(MetaStoreCallback<Void> callback) {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-
         PendingAckMessageEntry.Builder pendingAckMessagesEntryBuilder = PendingAckMessageEntry.newBuilder();
         PositionList.Builder positionListBuilder = PositionList.newBuilder();
         PositionInfo.Builder positionInfoBuilder = PositionInfo.newBuilder();
         PositionInfo.Builder pendingCumulativeAckPositionInfoBuilder = PositionInfo.newBuilder();
         List<PendingAckMessageEntry> pendingAckMessagesEntryList = new ArrayList<>();
 
-        pendingCumulativeAckPositionInfoBuilder.setLedgerId(((PositionImpl) pendingCumulativeAckMessage).getLedgerId());
-        pendingCumulativeAckPositionInfoBuilder.setEntryId(((PositionImpl) pendingCumulativeAckMessage).getEntryId());
+        if (pendingCumulativeAckMessage != null) {
+            pendingCumulativeAckPositionInfoBuilder.setLedgerId(((PositionImpl) pendingCumulativeAckMessage).getLedgerId());
+            pendingCumulativeAckPositionInfoBuilder.setEntryId(((PositionImpl) pendingCumulativeAckMessage).getEntryId());
+        } else {
+            pendingCumulativeAckPositionInfoBuilder.setLedgerId(-1);
+            pendingCumulativeAckPositionInfoBuilder.setEntryId(-1);
+        }
         pendingAckMessagesMap.forEach((txnID, positionConcurrentOpenHashSet) -> {
             positionListBuilder.clear();
             List<PositionInfo> positionInfoList = new ArrayList<>();
@@ -1013,14 +1016,14 @@ public class PersistentSubscription implements Subscription {
     }
 
     /**
-     *
+     * Recover pending ack messages info from ledger meta store.
      */
     private void recoverPendingAckMessages() {
         ((ManagedCursorImpl) cursor).getPendingAckPositionMetaInfo(subName,
             new MetaStoreCallback<SubscriptionPendingAckMessages>() {
                 @Override
                 public void operationComplete(SubscriptionPendingAckMessages result, MetaStore.Stat stat) {
-                    if (result.getPendingAckMessagesList() != null) {
+                    if (result.getPendingAckMessagesList().size() > 0) {
                         pendingAckMessages = new ConcurrentOpenHashSet<>();
                         pendingAckMessagesMap = new ConcurrentOpenHashMap<>();
                         result.getPendingAckMessagesList().forEach(pendingAckMessageEntry -> {
@@ -1041,10 +1044,12 @@ public class PersistentSubscription implements Subscription {
                             }
                         });
                     }
-                    if (result.getPendingCumulativeAckMessagePosition() != null) {
+                    PositionInfo PendingCumulativeAckMessagePosition = result.getPendingCumulativeAckMessagePosition();
+                    if (PendingCumulativeAckMessagePosition.getLedgerId() > 0 &&
+                            PendingCumulativeAckMessagePosition.getEntryId() > 0) {
                         pendingCumulativeAckMessage = new PositionImpl(
-                                result.getPendingCumulativeAckMessagePosition().getLedgerId(),
-                                result.getPendingCumulativeAckMessagePosition().getLedgerId());
+                                PendingCumulativeAckMessagePosition.getLedgerId(),
+                                PendingCumulativeAckMessagePosition.getLedgerId());
                     }
                 }
 
