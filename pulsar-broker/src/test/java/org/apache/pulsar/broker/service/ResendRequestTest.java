@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
@@ -142,7 +143,7 @@ public class ResendRequestTest extends BrokerTestBase {
 
         // 9. Calling resend after acking all messages - expectin 0 messages
         consumer.redeliverUnacknowledgedMessages();
-        assertEquals(consumer.receive(2000, TimeUnit.MILLISECONDS), null);
+        assertNull(consumer.receive(2000, TimeUnit.MILLISECONDS));
 
         // 10. Checking message contents
         for (int i = 0; i < totalMessages; i++) {
@@ -711,8 +712,8 @@ public class ResendRequestTest extends BrokerTestBase {
 
         message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
         message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-        assertEquals(message1, null);
-        assertEquals(message2, null);
+        assertNull(message1);
+        assertNull(message2);
     }
 
     @SuppressWarnings("unchecked")

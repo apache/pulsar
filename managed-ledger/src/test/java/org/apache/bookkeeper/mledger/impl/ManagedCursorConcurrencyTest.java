@@ -19,7 +19,9 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -126,7 +128,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         counter.await();
 
-        assertEquals(gotException.get(), false);
+        assertFalse(gotException.get());
     }
 
     @Test
@@ -210,7 +212,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         counter.await();
 
-        assertEquals(gotException.get(), false);
+        assertFalse(gotException.get());
         assertEquals(closeFuture.get(), CLOSED);
     }
 
@@ -266,7 +268,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         counter.await();
 
-        assertEquals(gotException.get(), false);
+        assertFalse(gotException.get());
     }
 
     @Test(timeOut = 30000)
@@ -312,7 +314,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         counter.await();
 
-        assertEquals(gotException.get(), false);
+        assertFalse(gotException.get());
         assertEquals(cursor.getMarkDeletedPosition(), addedEntries.get(addedEntries.size() - 1));
     }
 
@@ -338,7 +340,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final CyclicBarrier barrier = new CyclicBarrier(numCursors);
         final CountDownLatch counter = new CountDownLatch(numCursors);
 
-        AtomicReference<String> result = new AtomicReference<String>();
+        AtomicReference<String> result = new AtomicReference<>();
 
         for (int i = 0; i < numCursors; i++) {
             final int cursorIndex = i;

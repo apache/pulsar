@@ -23,9 +23,7 @@ import io.netty.channel.ConnectTimeoutException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;

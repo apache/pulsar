@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import java.io.ByteArrayOutputStream;
 import java.util.List;
@@ -122,13 +123,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // There should be 1 metric aggregated per namespace
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_storage_write_latency_le_1");
         assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("topic"), null);
+        assertNull(cm.get(0).tags.get("topic"));
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_producers_count");
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(1).value, 2.0);
-        assertEquals(cm.get(1).tags.get("topic"), null);
+        assertNull(cm.get(1).tags.get("topic"));
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
         p1.close();

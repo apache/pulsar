@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -174,7 +175,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         ensemble = isolationPolicy.newEnsemble(1, 1, 1, Collections.emptyMap(), bookieToExclude).getResult();
         BookieSocketAddress chosenBookie = isolationPolicy.replaceBookie(1, 1, 1, Collections.emptyMap(),
                 ensemble, ensemble.get(0), new HashSet<>()).getResult();
-        assertTrue(chosenBookie.equals(new BookieSocketAddress(BOOKIE1)));
+        assertEquals(new BookieSocketAddress(BOOKIE1), chosenBookie);
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
     }

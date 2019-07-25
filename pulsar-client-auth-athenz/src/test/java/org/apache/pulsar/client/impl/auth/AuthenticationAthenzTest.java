@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
-import org.apache.pulsar.client.impl.auth.AuthenticationAthenz;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import static org.apache.pulsar.common.util.Codec.encode;
 import org.testng.Assert;
@@ -140,7 +139,7 @@ public class AuthenticationAthenzTest {
             Field field = authBase64.getClass().getDeclaredField("privateKey");
             field.setAccessible(true);
             PrivateKey key = (PrivateKey) field.get(authBase64);
-            assertTrue(privateKey.equals(key));
+            assertEquals(key, privateKey);
         } catch (Exception e) {
             Assert.fail();
         }
@@ -158,7 +157,7 @@ public class AuthenticationAthenzTest {
                     });
             String privateKeyContents = new String(Files.readAllBytes(Paths.get(authParamsMap.get("privateKey"))));
             authParamsMap.put("privateKey",
-                    "data:application/x-pem-file," + new String(encode(privateKeyContents).replace("+", "%20")));
+                    "data:application/x-pem-file," + encode(privateKeyContents).replace("+", "%20"));
 
             AuthenticationAthenz authEncode = new AuthenticationAthenz();
             authEncode.configure(jsonMapper.writeValueAsString(authParamsMap));
@@ -167,7 +166,7 @@ public class AuthenticationAthenzTest {
             Field field = authEncode.getClass().getDeclaredField("privateKey");
             field.setAccessible(true);
             PrivateKey key = (PrivateKey) field.get(authEncode);
-            assertTrue(privateKey.equals(key));
+            assertEquals(key, privateKey);
         } catch (Exception e) {
             Assert.fail();
         }

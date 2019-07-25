@@ -29,7 +29,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -170,11 +170,11 @@ public class PulsarSinkTest {
 
         try {
             Schema schema = pulsarSink.initializeSchema();
-            assertEquals(schema, (Schema)null);
+            assertNull(schema);
         } catch (Exception ex) {
             ex.printStackTrace();
-            assertEquals(ex, null);
-            assertTrue(false);
+            assertNull(ex);
+            fail();
         }
     }
 
@@ -193,7 +193,7 @@ public class PulsarSinkTest {
             assertTrue(ex.getMessage().startsWith("Inconsistent types found between function input type and serde type:"));
         } catch (Exception ex) {
             log.error("Exception: {}", ex, ex);
-            assertTrue(false);
+            fail();
         }
     }
 
