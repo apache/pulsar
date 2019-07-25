@@ -138,9 +138,9 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         consumers.forEach(c -> log.info("consumer: {}", c.getTopic()));
 
         IntStream.range(0, 6).forEach(index ->
-            assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
+            assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        assertTrue(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 3);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 3);
 
         consumer.unsubscribe();
         consumer.close();
@@ -524,7 +524,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         assertEquals(topics.size(), 3);
         assertEquals(consumers.size(), 3);
-        assertTrue(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 2);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 2);
 
         // 8. re-subscribe topic3
         CompletableFuture<Void> subFuture = ((MultiTopicsConsumerImpl<byte[]>)consumer).subscribeAsync(topicName3);
@@ -555,7 +555,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
-        assertTrue(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 3);
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 3);
 
         consumer.unsubscribe();
         consumer.close();

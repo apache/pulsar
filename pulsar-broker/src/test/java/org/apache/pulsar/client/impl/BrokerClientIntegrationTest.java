@@ -30,6 +30,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -211,14 +212,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         Thread.sleep(200);
 
         // producer1 must not be able to connect again
-        assertTrue(prod1.getClientCnx() == null);
-        assertTrue(prod1.getState().equals(State.Connecting));
+        assertNull(prod1.getClientCnx());
+        assertEquals(State.Connecting, prod1.getState());
         // consumer1 must not be able to connect again
-        assertTrue(cons1.getClientCnx() == null);
-        assertTrue(cons1.getState().equals(State.Connecting));
+        assertNull(cons1.getClientCnx());
+        assertEquals(State.Connecting, cons1.getState());
         // producer2 must have live connection
-        assertTrue(prod2.getClientCnx() != null);
-        assertTrue(prod2.getState().equals(State.Ready));
+        assertNotNull(prod2.getClientCnx());
+        assertEquals(State.Ready, prod2.getState());
 
         // unload ns-bundle2 as well
         pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2);
@@ -227,14 +228,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         verify(producer2, atLeastOnce()).connectionClosed(any());
 
         // producer1 must not be able to connect again
-        assertTrue(prod1.getClientCnx() == null);
-        assertTrue(prod1.getState().equals(State.Connecting));
+        assertNull(prod1.getClientCnx());
+        assertEquals(State.Connecting, prod1.getState());
         // consumer1 must not be able to connect again
-        assertTrue(cons1.getClientCnx() == null);
-        assertTrue(cons1.getState().equals(State.Connecting));
+        assertNull(cons1.getClientCnx());
+        assertEquals(State.Connecting, cons1.getState());
         // producer2 must not be able to connect again
-        assertTrue(prod2.getClientCnx() == null);
-        assertTrue(prod2.getState().equals(State.Connecting));
+        assertNull(prod2.getClientCnx());
+        assertEquals(State.Connecting, prod2.getState());
 
         producer1.close();
         producer2.close();
@@ -278,14 +279,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 && producer2.getClientCnx() == null), 5, 100);
         // [2] All clients must be disconnected and in connecting state
         // producer1 must not be able to connect again
-        assertTrue(producer1.getClientCnx() == null);
-        assertTrue(producer1.getState().equals(State.Connecting));
+        assertNull(producer1.getClientCnx());
+        assertEquals(State.Connecting, producer1.getState());
         // consumer1 must not be able to connect again
-        assertTrue(consumer1.getClientCnx() == null);
-        assertTrue(consumer1.getState().equals(State.Connecting));
+        assertNull(consumer1.getClientCnx());
+        assertEquals(State.Connecting, consumer1.getState());
         // producer2 must not be able to connect again
-        assertTrue(producer2.getClientCnx() == null);
-        assertTrue(producer2.getState().equals(State.Connecting));
+        assertNull(producer2.getClientCnx());
+        assertEquals(State.Connecting, producer2.getState());
 
         producer1.close();
         producer2.close();
@@ -417,7 +418,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                             received.add(msg);
                         }
                         consumer.acknowledge(msg);
-                        long publishTime = ((MessageImpl<?>) msg).getPublishTime();
+                        long publishTime = msg.getPublishTime();
                         log.info(" publish time is " + publishTime + "," + msg.getMessageId());
                         TimestampEntryCount timestampEntryCount = publishTimeIdMap.computeIfAbsent(publishTime,
                                 (k) -> new TimestampEntryCount(publishTime));
@@ -433,7 +434,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         log.info("warm up started for " + topicName.toString());
         // send warmup msgs
         byte[] msgBytes = new byte[1000];
-        for (Integer i = 0; i < warmup; i++) {
+        for (int i = 0; i < warmup; i++) {
             producer.send(msgBytes);
         }
         log.info("warm up finished.");
@@ -449,7 +450,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         // publish testSize num of msgs
         log.info("Sending more messages.");
-        for (Integer n = 0; n < testSize; n++) {
+        for (int n = 0; n < testSize; n++) {
             producer.send(msgBytes);
             Thread.sleep(1);
         }
@@ -560,7 +561,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
             latch.await(10, TimeUnit.SECONDS);
             // connection must be closed
-            assertTrue(failed.get() == 1);
+            assertEquals(failed.get(), 1);
             try {
                 pulsarClient.close();
                 pulsarClient2.close();

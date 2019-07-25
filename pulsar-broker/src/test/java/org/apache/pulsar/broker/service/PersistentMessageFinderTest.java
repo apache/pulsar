@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import io.netty.buffer.ByteBuf;
@@ -146,20 +148,20 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
         CompletableFuture<Void> future = findMessage(result, c1, timestamp);
         future.get();
-        assertEquals(result.exception, null);
-        assertTrue(result.position != null);
+        assertNull(result.exception);
+        assertNotNull(result.position);
         assertEquals(result.position, newPosition);
 
         result.reset();
         future = findMessage(result, c1, beginTimestamp);
         future.get();
-        assertEquals(result.exception, null);
+        assertNull(result.exception);
         assertEquals(result.position, c1.getFirstPosition());
 
         result.reset();
         future = findMessage(result, c1, endTimestamp);
         future.get();
-        assertEquals(result.exception, null);
+        assertNull(result.exception);
         assertNotEquals(result.position, null);
         assertEquals(result.position, lastPosition);
 

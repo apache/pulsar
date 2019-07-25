@@ -19,6 +19,9 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
@@ -83,7 +86,7 @@ public class RangeCacheTest {
         s1.release();
         s2.release();
 
-        assertEquals(cache.get(2), null);
+        assertNull(cache.get(2));
 
         cache.put(2, new RefString("2"));
         cache.put(8, new RefString("8"));
@@ -145,7 +148,7 @@ public class RangeCacheTest {
 
         RefString s0 = new RefString("zero");
         assertEquals(s0.refCnt(), 1);
-        assertEquals(cache.put(0, s0), true);
+        assertTrue(cache.put(0, s0));
         assertEquals(s0.refCnt(), 1);
 
         cache.put(1, new RefString("one"));
@@ -158,7 +161,7 @@ public class RangeCacheTest {
 
         RefString s1 = new RefString("uno");
         assertEquals(s1.refCnt(), 1);
-        assertEquals(cache.put(1, s1), false);
+        assertFalse(cache.put(1, s1));
         assertEquals(s1.refCnt(), 1);
         s1.release();
 
@@ -203,18 +206,18 @@ public class RangeCacheTest {
 
         assertEquals(cache.getNumberOfEntries(), 2);
         assertEquals(cache.getSize(), 8);
-        assertEquals(cache.get(0), null);
-        assertEquals(cache.get(1), null);
+        assertNull(cache.get(0));
+        assertNull(cache.get(1));
         assertEquals(cache.get(2).s, "two");
         assertEquals(cache.get(3).s, "three");
 
         assertEquals(cache.evictLeastAccessedEntries(100), Pair.of(2, (long) 8));
         assertEquals(cache.getNumberOfEntries(), 0);
         assertEquals(cache.getSize(), 0);
-        assertEquals(cache.get(0), null);
-        assertEquals(cache.get(1), null);
-        assertEquals(cache.get(2), null);
-        assertEquals(cache.get(3), null);
+        assertNull(cache.get(0));
+        assertNull(cache.get(1));
+        assertNull(cache.get(2));
+        assertNull(cache.get(3));
 
         try {
             cache.evictLeastAccessedEntries(0);

@@ -42,7 +42,7 @@ public class BackoffTest {
     @Test
     public void shouldBackoffTest() {
         // gives false
-        assertTrue(!Backoff.shouldBackoff(0L, TimeUnit.NANOSECONDS, 0));
+        assertFalse(Backoff.shouldBackoff(0L, TimeUnit.NANOSECONDS, 0));
         long currentTimestamp = System.nanoTime();
         // gives true
         assertTrue(Backoff.shouldBackoff(currentTimestamp, TimeUnit.NANOSECONDS, 100));
@@ -78,7 +78,7 @@ public class BackoffTest {
         backoff.reset();
         assertEquals(backoff.next(), 100);
         long diffBackOffTime = backoff.getFirstBackoffTimeInMillis() - firstBackOffTime;
-        assertTrue(diffBackOffTime == 300);
+        assertEquals(diffBackOffTime, 300);
     }
     
     @Test

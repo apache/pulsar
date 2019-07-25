@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.zookeeper;
 
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import java.io.Closeable;
@@ -115,7 +116,7 @@ public class ZooKeeperClientAspectJTest {
             assertNotEquals(chrootZkc.getState(), States.CONNECTEDREADONLY);
             chrootZkc.close();
 
-            assertTrue(localZkc.exists("/prefix", false) != null);
+            assertNotNull(localZkc.exists("/prefix", false));
         } finally {
             if (localZkc != null) {
                 localZkc.close();

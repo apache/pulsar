@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
@@ -36,11 +38,11 @@ public class BuildersTest {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().ioThreads(10)
                 .maxNumberOfRejectedRequestPerConnection(200).serviceUrl("pulsar://service:6650");
 
-        assertEquals(clientBuilder.conf.isUseTls(), false);
+        assertFalse(clientBuilder.conf.isUseTls());
         assertEquals(clientBuilder.conf.getServiceUrl(), "pulsar://service:6650");
 
         ClientBuilderImpl b2 = (ClientBuilderImpl) clientBuilder.clone();
-        assertTrue(b2 != clientBuilder);
+        assertNotSame(b2, clientBuilder);
 
         b2.serviceUrl("pulsar://other-broker:6650");
 
@@ -51,27 +53,27 @@ public class BuildersTest {
     @Test
     public void enableTlsTest() {
         ClientBuilderImpl builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar://service:6650");
-        assertEquals(builder.conf.isUseTls(), false);
+        assertFalse(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("http://service:6650");
-        assertEquals(builder.conf.isUseTls(), false);
+        assertFalse(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "http://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650");
-        assertEquals(builder.conf.isUseTls(), true);
+        assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar+ssl://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("https://service:6650");
-        assertEquals(builder.conf.isUseTls(), true);
+        assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "https://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar://service:6650").enableTls(true);
-        assertEquals(builder.conf.isUseTls(), true);
+        assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar://service:6650");
 
         builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar+ssl://service:6650").enableTls(false);
-        assertEquals(builder.conf.isUseTls(), true);
+        assertTrue(builder.conf.isUseTls());
         assertEquals(builder.conf.getServiceUrl(), "pulsar+ssl://service:6650");
     }
 
@@ -92,9 +94,7 @@ public class BuildersTest {
         conf.setAccessible(true);
         Object obj = conf.get(builder);
         assertTrue(obj instanceof ReaderConfigurationData);
-        if (obj instanceof ReaderConfigurationData) {
-            assertEquals(((ReaderConfigurationData) obj).getTopicName(), topicName);
-            assertEquals(((ReaderConfigurationData) obj).getStartMessageId(), messageId);
-        }
+        assertEquals(((ReaderConfigurationData) obj).getTopicName(), topicName);
+        assertEquals(((ReaderConfigurationData) obj).getStartMessageId(), messageId);
     }
 }

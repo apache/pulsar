@@ -19,6 +19,11 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
@@ -49,7 +54,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -152,8 +156,8 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         }
         FileUtils.deleteQuietly(kdcDir);
         FileUtils.deleteQuietly(kerberosWorkDir);
-        Assert.assertFalse(kdcDir.exists());
-        Assert.assertFalse(kerberosWorkDir.exists());
+        assertFalse(kdcDir.exists());
+        assertFalse(kerberosWorkDir.exists());
     }
 
     @BeforeMethod
@@ -257,19 +261,19 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         AuthData initData1 = dataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
         AuthData serverData1 = authState.authenticate(initData1);
         boolean complete = authState.isComplete();
-        Assert.assertEquals(complete, false);
+        assertFalse(complete);
 
         // second time auth, completed
         AuthData initData2 = dataProvider.authenticate(serverData1);
         AuthData serverData2 = authState.authenticate(initData2);
         complete = authState.isComplete();
-        Assert.assertEquals(complete, true);
-        Assert.assertEquals(serverData2.getBytes(), null);
+        assertTrue(complete);
+        assertNull(serverData2.getBytes());
 
         // if completed, server could not auth again.
         try {
             authState.authenticate(initData2);
-            Assert.fail("Expected fail because auth completed for authState");
+            fail("Expected fail because auth completed for authState");
         } catch (Exception e) {
             // expected
         }
@@ -278,7 +282,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         try {
             AuthenticationState authState2 = saslServer.newAuthState(null, null, null);
             AuthData serverData3 = authState2.authenticate(initData1);
-            Assert.fail("Expected fail. server is auth old client data");
+            fail("Expected fail. server is auth old client data");
         } catch (Exception e) {
             // expected
         }

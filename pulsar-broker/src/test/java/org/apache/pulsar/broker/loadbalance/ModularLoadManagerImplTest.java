@@ -26,7 +26,6 @@ import com.google.common.hash.Hashing;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.Map;
 import java.util.Optional;

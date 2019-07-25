@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.util.HashSet;
@@ -148,18 +149,18 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             lastMessage = message;
             hSet.add(new String(message.getData()));
             log.info("Consumer received " + new String(message.getData()));
-            log.info("Message ID details " + ((MessageIdImpl) message.getMessageId()).toString());
+            log.info("Message ID details " + message.getMessageId().toString());
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
         long size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, totalMessages);
         log.info("Comulative Ack sent for " + new String(lastMessage.getData()));
-        log.info("Message ID details " + ((MessageIdImpl) lastMessage.getMessageId()).toString());
+        log.info("Message ID details " + lastMessage.getMessageId().toString());
         consumer.acknowledgeCumulative(lastMessage);
         size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, 0);
         message = consumer.receive((int) (2 * ackTimeOutMillis), TimeUnit.MILLISECONDS);
-        assertEquals(message, null);
+        assertNull(message);
     }
 
     @Test(timeOut = testTimeout)
