@@ -32,7 +32,7 @@
 
 namespace pulsar {
 
-typedef std::function<void(Result, const Message& msg)> SendCallback;
+typedef std::function<void(Result, const MessageId& messageId)> SendCallback;
 typedef std::function<void(Result)> CloseCallback;
 
 struct ProducerConfigurationImpl;

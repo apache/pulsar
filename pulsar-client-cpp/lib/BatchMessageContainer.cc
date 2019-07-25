@@ -157,7 +157,7 @@ void BatchMessageContainer::batchMessageCallBack(Result r, MessageContainerListP
     for (MessageContainerList::iterator iter = messagesContainerListPtr->begin();
          iter != messagesContainerListPtr->end(); iter++) {
         // callback(result, message)
-        iter->sendCallback_(r, iter->message_);
+        iter->sendCallback_(r, iter->message_.getMessageId());
     }
     if (flushCallback) {
         flushCallback(ResultOk);
