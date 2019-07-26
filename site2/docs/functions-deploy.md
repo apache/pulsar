@@ -94,7 +94,7 @@ $ bin/pulsar-admin functions update \
 
 ### Parallelism
 
-Pulsar Functions run as processes or threads, which are called **instances**. When you run a Pulsar Function, it runs as a single instance by default. With one localrun command, you can only run a single instance of a function with one localrun command. If you want to run multiple instances, you can use localrun command multiple times. 
+Pulsar Functions run as processes or threads, which are called **instances**. When you run a Pulsar Function, it runs as a single instance by default. With one localrun command, you can only run a single instance of a function. If you want to run multiple instances, you can use localrun command multiple times. 
 
 When you create a function, you can specify the *parallelism* of a function (the number of instances to run). You can set the parallelism factor using the `--parallelism` flag of the [`create`](reference-pulsar-admin.md#functions-create) command. 
 
