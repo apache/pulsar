@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBuffer;
@@ -127,19 +128,23 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
         return txnCursor.getTxnMeta(txnID, false)
-                        .thenApply(meta -> createCommitMarker(meta))
+                        .thenApply(meta -> createCommitMarker(meta, committedAtLedgerId, committedAtEntryId))
                         .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
                         .thenCompose(position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID,
                                                                      position));
     }
 
-    private Marker createCommitMarker(TransactionMeta meta) {
+    private Marker createCommitMarker(TransactionMeta meta, long committedAtLedgerId, long committedAtEntryId) {
         if (log.isDebugEnabled()) {
             log.debug("Transaction {} create a commit marker", meta.id());
         }
         long sequenceId = meta.lastSequenceId() + 1;
+        MessageIdData messageIdData = MessageIdData.newBuilder()
+                                                   .setLedgerId(committedAtLedgerId)
+                                                   .setEntryId(committedAtEntryId)
+                                                   .build();
         ByteBuf commitMarker = Markers.newTxnCommitMarker(sequenceId, meta.id().getMostSigBits(),
-                                                          meta.id().getLeastSigBits());
+                                                          meta.id().getLeastSigBits(), messageIdData);
         Marker marker = Marker.builder().sequenceId(sequenceId).marker(commitMarker).build();
         return marker;
     }

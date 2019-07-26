@@ -19,10 +19,12 @@
 package org.apache.pulsar.transaction.buffer.impl;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -62,7 +64,11 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
     @Override
     public CompletableFuture<List<TransactionEntry>> readNext(int numEntries) {
-        return meta.readEntries(numEntries, currentSequenceId).thenCompose(this::readEntry);
+        return meta.readEntries(numEntries, currentSequenceId)
+                   .thenCompose(this::readEntry)
+                   .thenApply(entries -> entries.stream()
+                                                .sorted(Comparator.comparingLong(entry -> entry.sequenceId()))
+                                                .collect(Collectors.toList()));
     }
 
     private CompletableFuture<List<TransactionEntry>> readEntry(SortedMap<Long, Position> entries) {
