@@ -920,7 +920,8 @@ public abstract class TestPulsarConnector {
             }
         });
 
-        doReturn(managedLedgerFactory).when(this.pulsarSplitManager).getManagedLedgerFactory();
+        PulsarConnectorCache.instance = mock(PulsarConnectorCache.class);
+        when(PulsarConnectorCache.instance.getManagedLedgerFactory()).thenReturn(managedLedgerFactory);
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
 
