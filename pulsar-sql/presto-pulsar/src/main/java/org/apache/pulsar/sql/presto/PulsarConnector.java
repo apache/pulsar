@@ -87,11 +87,6 @@ public class PulsarConnector implements Connector {
             log.error(e, "Failed to close pulsar connector");
         }
         try {
-            PulsarConnectorCache.shutdown();
-        } catch (Exception e) {
-            log.error("Failed to shutdown pulsar connector cache");
-        }
-        try {
             lifeCycleManager.stop();
         } catch (Exception e) {
             log.error(e, "Error shutting down connector");
