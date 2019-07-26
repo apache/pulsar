@@ -632,9 +632,11 @@ public class FunctionConfigUtils {
         } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
             doGolangChecks(functionConfig);
             return null;
-        } else {
+        } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON){
             doPythonChecks(functionConfig);
             return null;
+        } else {
+            throw new IllegalArgumentException("Function language runtime is either not set or cannot be determined");
         }
     }
 
