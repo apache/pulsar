@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -46,7 +47,11 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages.PendingAckMessageEntry;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -155,6 +160,57 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    public void testCanRecoverPendingAckMessages() throws TransactionConflictException {
+        clearInvocations(cursorMock);
+        // Faking pending ack messages read from meta store.
+        PositionInfo.Builder positionBuilder = PositionInfo.newBuilder()
+                .setLedgerId(1)
+                .setEntryId(2);
+        SubscriptionPendingAckMessages.PositionList.Builder positionListBuilder =
+                SubscriptionPendingAckMessages.PositionList.newBuilder()
+                .addPositions(positionBuilder.build());
+        SubscriptionPendingAckMessages.PendingAckMessageEntry.Builder messageEntryBuilder =
+                SubscriptionPendingAckMessages.PendingAckMessageEntry.newBuilder()
+                .setTxnId("3,4")
+                .setPositionList(positionListBuilder.build());
+        SubscriptionPendingAckMessages subscriptionPendingAckMessages =
+                SubscriptionPendingAckMessages.newBuilder()
+                .addAllPendingAckMessages(Arrays.asList(messageEntryBuilder.build()))
+                .setPendingCumulativeAckMessagePosition(positionBuilder.setLedgerId(-1).setEntryId(-1).build())
+                .build();
+        doAnswer(invocation -> {
+            Object[] args = invocation.getArguments();
+            MetaStoreCallback<SubscriptionPendingAckMessages> callback = (MetaStoreCallback)args[1];
+            callback.operationComplete(subscriptionPendingAckMessages, null);
+            return null;
+        }).when(cursorMock).getPendingAckPositionMetaInfo(any(String.class), any(MetaStoreCallback.class));
+
+        // Recover pending ack messages
+        PersistentSubscription recoveredSubscription = new PersistentSubscription(topic, subName, cursorMock, false);
+
+        verify(cursorMock, times(1)).getPendingAckPositionMetaInfo(any(String.class), any(MetaStoreCallback.class));
+
+        TxnID txnID = new TxnID(3,4);
+        List<Position> positions = new ArrayList<>();
+        positions.add(new PositionImpl(1, 2));
+
+        // Can not single ack message already acked before recover for same txnID.
+        try {
+            recoveredSubscription.acknowledgeMessage(txnID, positions, AckType.Individual);
+            fail("Single acknowledge for transaction should fail. ");
+        } catch (TransactionConflictException e) {
+            assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
+                    "Transaction:3,4 try to ack message:1:2 in pending ack status.");
+        }
+
+        positions.clear();
+        positions.add(new PositionImpl(1, 100));
+
+        // Cumulative ack should succeed as recovered meta data doesn't have cumulative ack message.
+        recoveredSubscription.acknowledgeMessage(txnID, positions, AckType.Cumulative);
+    }
+
+    @Test
     public void testCanAcknowledgeAndCommitForTransaction() throws TransactionConflictException {
         List<Position> expectedSinglePositions = new ArrayList<>();
         expectedSinglePositions.add(new PositionImpl(1, 1));
@@ -180,11 +236,49 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(1, 3));
         positions.add(new PositionImpl(1, 5));
 
+        // Assert what will be persist is what txn has acknowledged.
+        doAnswer(invocation -> {
+            Object[] args = invocation.getArguments();
+            PositionInfo.Builder pendingCumulativeAckPositionInfoBuilder = (PositionInfo.Builder)args[0];
+            List<PendingAckMessageEntry> pendingAckMessageEntryBuilderList = (List<PendingAckMessageEntry>)args[1];
+            assertEquals(-1, pendingCumulativeAckPositionInfoBuilder.getLedgerId());
+            assertEquals(-1, pendingCumulativeAckPositionInfoBuilder.getLedgerId());
+            assertEquals(1,pendingAckMessageEntryBuilderList.size());
+            assertEquals("1,1", pendingAckMessageEntryBuilderList.get(0).getTxnId());
+            List<PositionInfo> positionInfoList = pendingAckMessageEntryBuilderList.get(0).getPositionList().getPositionsList();
+            Position[] expectedPositions = {new PositionImpl(1, 1),
+                    new PositionImpl(1, 3), new PositionImpl(1, 5)};
+            List<Position> positionList = new ArrayList<>();
+            positionInfoList.forEach(positionInfo -> positionList.add(new PositionImpl(positionInfo.getLedgerId(),
+                                                                                        positionInfo.getEntryId())));
+            assertTrue(positionList.containsAll(Arrays.asList(expectedPositions)));
+            return null;
+        }).when(cursorMock).persistPendingAckPositionMetaInfo(any(), any(), any(), any());
+
         // Single ack for txn
         persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Individual);
 
         positions.clear();
         positions.add(new PositionImpl(3, 100));
+
+        // Assert what will be persist is what txn has acknowledged.
+        doAnswer(invocation -> {
+            Object[] args = invocation.getArguments();
+            PositionInfo.Builder pendingCumulativeAckPositionInfoBuilder = (PositionInfo.Builder)args[0];
+            List<PendingAckMessageEntry> pendingAckMessageEntryBuilderList = (List<PendingAckMessageEntry>)args[1];
+            assertEquals(3, pendingCumulativeAckPositionInfoBuilder.getLedgerId());
+            assertEquals(100, pendingCumulativeAckPositionInfoBuilder.getEntryId());
+            assertEquals(1,pendingAckMessageEntryBuilderList.size());
+            assertEquals("1,1", pendingAckMessageEntryBuilderList.get(0).getTxnId());
+            List<PositionInfo> positionInfoList = pendingAckMessageEntryBuilderList.get(0).getPositionList().getPositionsList();
+            Position[] expectedPositions = {new PositionImpl(1, 1),
+                    new PositionImpl(1, 3), new PositionImpl(1, 5)};
+            List<Position> positionList = new ArrayList<>();
+            positionInfoList.forEach(positionInfo -> positionList.add(new PositionImpl(positionInfo.getLedgerId(),
+                    positionInfo.getEntryId())));
+            assertTrue(positionList.containsAll(Arrays.asList(expectedPositions)));
+            return null;
+        }).when(cursorMock).persistPendingAckPositionMetaInfo(any(), any(), any(), any());
 
         // Cumulative ack for txn
         persistentSubscription.acknowledgeMessage(txnID1, positions, AckType.Cumulative);
@@ -193,8 +287,8 @@ public class PersistentSubscriptionTest {
         persistentSubscription.commitTxn(txnID1, Collections.emptyMap());
 
         // Verify corresponding ledger method was called with expected args.
-        verify(cursorMock, times(1)).asyncDelete(anyList(), any(), any());
-        verify(cursorMock, times(1)).asyncMarkDelete(any(), anyMap(), anyObject(), any());
+        verify(cursorMock, times(1)).asyncDelete(any(List.class), any(), any());
+        verify(cursorMock, times(1)).asyncMarkDelete(any(), any(Map.class), any(), any());
         verify(cursorMock, times(2)).persistPendingAckPositionMetaInfo(any(), any(), any(), any());
     }
 

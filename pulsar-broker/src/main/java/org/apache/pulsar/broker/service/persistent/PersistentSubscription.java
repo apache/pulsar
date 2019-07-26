@@ -992,6 +992,7 @@ public class PersistentSubscription implements Subscription {
             pendingCumulativeAckPositionInfoBuilder.setLedgerId(((PositionImpl) pendingCumulativeAckMessage).getLedgerId());
             pendingCumulativeAckPositionInfoBuilder.setEntryId(((PositionImpl) pendingCumulativeAckMessage).getEntryId());
         } else {
+            // Special marker if no pending cumulative ack message.
             pendingCumulativeAckPositionInfoBuilder.setLedgerId(-1);
             pendingCumulativeAckPositionInfoBuilder.setEntryId(-1);
         }
