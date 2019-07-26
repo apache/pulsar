@@ -450,8 +450,3 @@ Pulsar Functions that use the [Pulsar Functions SDK](#the-pulsar-functions-sdk) 
 ## State storage
 
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. All Pulsar installations, including local standalone installations, include a deployment of BookKeeper bookies.
-
-## Thread mode and process mode
-You can run Pulsar Functions in both thread mode and process mode. The differences of the two modes are:   
-- Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with Functions worker.   
-- Process mode: when a function runs in process mode, it runs on the same machine that Functions worker runs.
