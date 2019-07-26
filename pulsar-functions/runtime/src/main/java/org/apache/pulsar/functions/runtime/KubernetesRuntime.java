@@ -135,6 +135,8 @@ public class KubernetesRuntime implements Runtime {
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private int percentMemoryPadding;
+    private double cpuOverCommitRatio;
+    private double memoryOverCommitRatio;
     private final KubernetesFunctionAuthProvider functionAuthDataCacheProvider;
     private final AuthenticationConfig authConfig;
 
@@ -161,6 +163,8 @@ public class KubernetesRuntime implements Runtime {
                       SecretsProviderConfigurator secretsProviderConfigurator,
                       Integer expectedMetricsCollectionInterval,
                       int percentMemoryPadding,
+                      double cpuOverCommitRatio,
+                      double memoryOverCommitRatio,
                       KubernetesFunctionAuthProvider functionAuthDataCacheProvider,
                       boolean authenticationEnabled) throws Exception {
         this.appsClient = appsClient;
@@ -176,6 +180,8 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
+        this.cpuOverCommitRatio = cpuOverCommitRatio;
+        this.memoryOverCommitRatio = memoryOverCommitRatio;
         this.authenticationEnabled = authenticationEnabled;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
@@ -945,18 +951,31 @@ public class KubernetesRuntime implements Runtime {
 
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
-        final Map<String, Quantity> requests = new HashMap<>();
+        final Map<String, Quantity> resourceLimit = new HashMap<>();
+        final Map<String, Quantity> resourceRequest = new HashMap<>();
+
 
         long ram = resource != null && resource.getRam() != 0 ? resource.getRam() : 1073741824;
 
         // add memory padding
         long padding = Math.round(ram * (percentMemoryPadding / 100.0));
         long ramWithPadding = ram + padding;
+        long ramRequest =  (long) (ramWithPadding / memoryOverCommitRatio);
 
-        requests.put("memory", Quantity.fromString(Long.toString(ramWithPadding)));
-        requests.put("cpu", Quantity.fromString(Double.toString(resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1)));
-        resourceRequirements.setRequests(requests);
-        resourceRequirements.setLimits(requests);
+        // for cpu overcommiting
+        double cpuLimit = resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1;
+        double cpuRequest = cpuLimit / cpuOverCommitRatio;
+
+        // set resource limits
+        resourceLimit.put("memory", Quantity.fromString(Long.toString(ramWithPadding)));
+        resourceLimit.put("cpu", Quantity.fromString(Double.toString(cpuLimit)));
+
+        // set resource requests
+        resourceRequest.put("cpu", Quantity.fromString(Double.toString(cpuRequest)));
+        resourceRequest.put("memory", Quantity.fromString(Long.toString(ramRequest)));
+
+        resourceRequirements.setRequests(resourceRequest);
+        resourceRequirements.setLimits(resourceLimit);
         container.setResources(resourceRequirements);
 
         // set container ports
