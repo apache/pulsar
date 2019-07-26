@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.ByteBuf;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -117,12 +118,13 @@ public class MarkersTest {
     }
 
     @Test
-    public void testTxnCommitMarker() {
+    public void testTxnCommitMarker() throws IOException {
         long sequenceId = 1L;
         long mostBits = 1234L;
         long leastBits = 2345L;
 
-        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits);
+        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits,
+                                                 MessageIdData.newBuilder().setLedgerId(10).setEntryId(11).build());
 
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
@@ -130,6 +132,10 @@ public class MarkersTest {
         assertEquals(msgMetadata.getSequenceId(), sequenceId);
         assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
+
+        PulsarMarkers.TxnCommitMarker marker = Markers.parseCommitMarker(buf);
+        assertEquals(marker.getMessageId().getLedgerId(), 10);
+        assertEquals(marker.getMessageId().getEntryId(), 11);
     }
 
     @Test
