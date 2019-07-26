@@ -49,7 +49,29 @@ To upgrade an Apache Pulsar cluster, follow the upgrade sequence.
 - Rolling upgrade: rollout the upgraded version to all proxies in the cluster after you have determined a version is safe after canary.
 
 ## Upgrade ZooKeeper (optional)
+While upgrading ZooKeeper servers, you can do canary test first, and then upgrade all ZooKeeper servers in the cluster.
 
+### Canary test
+
+You can test an upgraded version in one of ZooKeeper servers before upgrading all ZooKeeper servers in your cluster.
+
+To upgrade ZooKeeper server to a new version, complete the following steps:
+
+1. Stop a ZooKeeper server.
+2. Upgrade the binary and configuration files.
+3. Start the ZooKeeper server with the new binary files.
+4. Use `pulsar zookeeper-shell` to connect to the newly upgraded ZooKeeper server and run a few commands to verify if it works as expected.
+5. Run the ZooKeeper server for a few days, observe and make sure the ZooKeeper cluster runs well.
+
+#### Canary rollback
+
+If issues occur during canary test, you can shut down the problematic ZooKeeper node, revert the binary and configuration, and restart the ZooKeeper with the reverted binary.
+
+### Upgrade all ZooKeeper servers
+
+After canary test to upgrade one ZooKeeper in your cluster, you can upgrade all ZooKeeper servers in your cluster. 
+
+You can upgrade all ZooKeeper servers one by one by following steps in canary test.
 
 ## Upgrade bookies
 
