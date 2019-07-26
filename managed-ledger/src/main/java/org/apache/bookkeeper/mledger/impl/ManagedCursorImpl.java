@@ -2023,11 +2023,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void persistPendingAckPositionMetaInfo(PositionInfo.Builder pendingCumulativeAckMessagePositionBuilder,
                                                   List<PendingAckMessageEntry> pendingAckMessageEntryBuilderList,
                                                   String subName, MetaStoreCallback<Void> callback) {
-        if (state == State.Closed) {
-            ledger.getExecutor().execute(safeRun(() -> {
-                callback.operationFailed(new MetaStoreException(
-                        new ManagedLedgerException.CursorAlreadyClosedException(name + " cursor already closed")));
-            }));
+        if (isClosed()) {
+            callback.operationFailed(new MetaStoreException(
+                    new ManagedLedgerException.CursorAlreadyClosedException(name + " cursor already closed")));
             return;
         }
 
@@ -2055,6 +2053,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     public void getPendingAckPositionMetaInfo(String subName,
                                               MetaStoreCallback<SubscriptionPendingAckMessages> callback) {
+        if (isClosed()) {
+            callback.operationFailed(new MetaStoreException(
+                    new ManagedLedgerException.CursorAlreadyClosedException(name + " cursor already closed")));
+            return;
+        }
+
         ledger.getStore().asyncGetSubscriptionPendingAckMessages(ledger.getName(), name, subName,
                 new MetaStoreCallback<SubscriptionPendingAckMessages>() {
             @Override
