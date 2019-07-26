@@ -83,6 +83,7 @@ import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 
 /**
  * Kubernetes based runtime for running functions.
@@ -962,16 +963,18 @@ public class KubernetesRuntime implements Runtime {
         long ramWithPadding = ram + padding;
         long ramRequest =  (long) (ramWithPadding / memoryOverCommitRatio);
 
-        // for cpu overcommiting
+        // set resource limits
         double cpuLimit = resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1;
+        // for cpu overcommiting
         double cpuRequest = cpuLimit / cpuOverCommitRatio;
 
-        // set resource limits
+        // round cpu to 3 decimal places as it is the finest cpu precision allowed
+        resourceLimit.put("cpu", Quantity.fromString(Double.toString(roundDecimal(cpuLimit, 3))));
         resourceLimit.put("memory", Quantity.fromString(Long.toString(ramWithPadding)));
-        resourceLimit.put("cpu", Quantity.fromString(Double.toString(cpuLimit)));
 
         // set resource requests
-        resourceRequest.put("cpu", Quantity.fromString(Double.toString(cpuRequest)));
+        // round cpu to 3 decimal places as it is the finest cpu precision allowed
+        resourceRequest.put("cpu", Quantity.fromString(Double.toString(roundDecimal(cpuRequest, 3))));
         resourceRequest.put("memory", Quantity.fromString(Long.toString(ramRequest)));
 
         resourceRequirements.setRequests(resourceRequest);
