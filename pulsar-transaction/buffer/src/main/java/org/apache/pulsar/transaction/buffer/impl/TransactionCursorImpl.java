@@ -35,8 +35,8 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 public class TransactionCursorImpl implements TransactionCursor {
 
 
-    private ConcurrentMap<TxnID, TransactionMetaImpl> txnIndex;
-    private Map<Long, Set<TxnID>> committedLedgerTxnIndex;
+    private final ConcurrentMap<TxnID, TransactionMetaImpl> txnIndex;
+    private final Map<Long, Set<TxnID>> committedLedgerTxnIndex;
 
     TransactionCursorImpl() {
         this.txnIndex = new ConcurrentHashMap<>();

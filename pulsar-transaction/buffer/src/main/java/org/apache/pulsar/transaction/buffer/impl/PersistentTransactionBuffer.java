@@ -78,12 +78,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         }
     }
 
-    @Builder
-    final static class Marker {
-        long sequenceId;
-        ByteBuf marker;
-    }
-
     public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService)
         throws BrokerServiceException.NamingException, ManagedLedgerException {
         super(topic, ledger, brokerService);
@@ -124,16 +118,22 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         return createReaderFuture;
     }
 
+    @Builder
+    final static class Marker {
+        long sequenceId;
+        ByteBuf marker;
+    }
+
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
         return txnCursor.getTxnMeta(txnID, false)
-                        .thenCompose(meta -> createCommitMarker(meta))
+                        .thenApply(meta -> createCommitMarker(meta))
                         .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
                         .thenCompose(position -> txnCursor.commitTxn(committedAtLedgerId, committedAtEntryId, txnID,
                                                                      position));
     }
 
-    private CompletableFuture<Marker> createCommitMarker(TransactionMeta meta) {
+    private Marker createCommitMarker(TransactionMeta meta) {
         if (log.isDebugEnabled()) {
             log.debug("Transaction {} create a commit marker", meta.id());
         }
@@ -141,18 +141,18 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf commitMarker = Markers.newTxnCommitMarker(sequenceId, meta.id().getMostSigBits(),
                                                           meta.id().getLeastSigBits());
         Marker marker = Marker.builder().sequenceId(sequenceId).marker(commitMarker).build();
-        return CompletableFuture.completedFuture(marker);
+        return marker;
     }
 
     @Override
     public CompletableFuture<Void> abortTxn(TxnID txnID) {
         return txnCursor.getTxnMeta(txnID, false)
-                        .thenCompose(meta -> createAbortMarker(meta))
+                        .thenApply(meta -> createAbortMarker(meta))
                         .thenCompose(marker -> publishMessage(txnID, marker.marker, marker.sequenceId))
                         .thenCompose(position -> txnCursor.abortTxn(txnID));
     }
 
-    private CompletableFuture<Marker> createAbortMarker(TransactionMeta meta) {
+    private Marker createAbortMarker(TransactionMeta meta) {
         if (log.isDebugEnabled()) {
             log.debug("Transaction {} create a abort marker", meta.id());
         }
@@ -160,7 +160,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf abortMarker = Markers.newTxnAbortMarker(sequenceId, meta.id().getMostSigBits(),
                                                         meta.id().getLeastSigBits());
         Marker marker = Marker.builder().sequenceId(sequenceId).marker(abortMarker).build();
-        return CompletableFuture.completedFuture(marker);
+        return marker;
     }
 
 
@@ -240,7 +240,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         retentionCursor.asyncMarkDelete(position, new AsyncCallbacks.MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
-                log.debug("Success delete transaction `{}` entry on position {}", txnID, position);
+                if (log.isDebugEnabled()) {
+                    log.debug("Success delete transaction `{}` entry on position {}", txnID, position);
+                }
                 deleteFuture.complete(null);
             }
 

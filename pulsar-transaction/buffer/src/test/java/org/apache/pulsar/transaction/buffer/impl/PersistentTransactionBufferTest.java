@@ -100,6 +100,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.apache.zookeeper.txn.Txn;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -209,18 +210,15 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks()
         throws BrokerServiceException.NamingException, ManagedLedgerException, InterruptedException {
-//        ledgerMock = factory.open("hello");
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursor.class);
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
-        // doNothing().when(cursorMock).asyncClose(new CloseCallback() {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                // return closeFuture.get();
                 return closeFuture.complete(null);
             }
         })
@@ -318,7 +316,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService);
     }
 
-        @AfterMethod
+    @AfterMethod
     public void teardown() throws Exception {
         brokerService.getTopics().clear();
         brokerService.close(); //to clear pulsarStats
@@ -334,30 +332,42 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     private PersistentTransactionBuffer buffer;
 
     @Test
-    public void testGetANonExistTxn() {
-        buffer.getTransactionMeta(txnID).whenComplete(((meta, throwable) -> {
-            assertTrue(throwable instanceof TransactionNotFoundException);
-        }));
+    public void testGetANonExistTxn() throws InterruptedException {
+        try {
+            buffer.getTransactionMeta(txnID).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof TransactionNotFoundException);
+        }
     }
 
     @Test
-    public void testOpenReaderOnNonExistentTxn() throws Exception {
-        buffer.openTransactionBufferReader(txnID, 0L).whenComplete((transactionBufferReader, throwable) -> {
-            assertTrue(throwable instanceof TransactionNotFoundException);
-        });
+    public void testOpenReaderOnNonExistentTxn() throws InterruptedException{
+        try {
+            buffer.openTransactionBufferReader(txnID, 0L).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof TransactionNotFoundException);
+        }
     }
 
     @Test
-    public void testOpenReadOnAnOpenTxn() throws ExecutionException, InterruptedException {
+    public void testOpenReadOnAnOpenTxn() throws InterruptedException {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
-        TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
+        TransactionMeta meta = null;
+        try {
+            meta = buffer.getTransactionMeta(txnID).get();
+        } catch (ExecutionException e) {
+            fail("Should not failed at here");
+        }
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
 
-        buffer.openTransactionBufferReader(txnID, 0L).whenComplete((transactionBufferReader, throwable) -> {
-            assertTrue(throwable instanceof TransactionNotSealedException);
-        });
+        try {
+            buffer.openTransactionBufferReader(txnID, 0L).get();
+            fail("Should failed");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof TransactionNotSealedException);
+        }
     }
 
     @Test
@@ -375,19 +385,13 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.COMMITTED, meta.status());
 
         try (TransactionBufferReader reader = buffer.openTransactionBufferReader(txnID, 0L).get()) {
-            reader.readNext(numEntries).whenComplete((transactionEntries, throwable) -> {
-                if (null != throwable) {
-                    fail("Should not fail to read entries");
-                } else {
-                    verifyAndReleaseEntries(transactionEntries, txnID, 0L, numEntries);
-                }
-            });
+            List<TransactionEntry> entries = reader.readNext(numEntries).get();
+            verifyAndReleaseEntries(entries, txnID, 0L, numEntries);
 
-            reader.readNext(1).whenComplete((transactionEntries, throwable) -> {
-                assertNotNull(throwable);
-                assertTrue(throwable instanceof EndOfTransactionException);
-            });
+            reader.readNext(1).get();
 
+        } catch (ExecutionException ee) {
+            assertTrue(ee.getCause() instanceof EndOfTransactionException);
         }
 
     }
@@ -525,10 +529,11 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.COMMITTED, meta3.status());
 
         // purge a non exist ledger.
-        buffer.purgeTxns(Lists.newArrayList(Long.valueOf(1L))).whenComplete((ignore, error) -> {
-            assertNotNull(error);
-            assertTrue(error instanceof NoTxnsCommittedAtLedgerException);
-        });
+        try {
+            buffer.purgeTxns(Lists.newArrayList(Long.valueOf(1L))).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof NoTxnsCommittedAtLedgerException);
+        }
 
         verifyTxnNotExist(txnId2);
 
