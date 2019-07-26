@@ -13,8 +13,7 @@ To deploy and manage Pulsar Functions, you need to have a Pulsar cluster running
 
 If you run a non-[standalone](reference-terminology.md#standalone) cluster, you need to obtain the service URL for the cluster. How you obtain the service URL depends on how you deploy your Pulsar cluster.
 
-If you want to deploy and trigger python user-defined functions, you need to install [the pulsar python client](http://pulsar.apache.org/docs/en/client-libraries-python/) first.
-
+If you want to deploy and trigger Python user-defined functions, you need to install [the pulsar python client](http://pulsar.apache.org/docs/en/client-libraries-python/) first.
 
 ## Command-line interface
 
@@ -28,15 +27,15 @@ When managing Pulsar Functions, you need to specify a variety of information abo
 
 Parameter | Default
 :---------|:-------
-Function name | Whichever value is specified for the class name (minus org, library, etc.). The flag `--classname org.example.MyFunction`, for example, would give the function a name of `MyFunction`.
-Tenant | Derived from names of input topics. If the input topics are under the `marketing` tenant, which means the topic names have the form `persistent://marketing/{namespace}/{topicName}`, the tenant is `marketing`.
-Namespace | Derived from names of the input topics. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
-Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
-Subscription type | For at-least-once and at-most-once [processing guarantees](functions-guarantees.md), the [`SHARED`](concepts-messaging.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](concepts-messaging.md#failover) is applied
+Function name | You can specify any value for the class name (except org, library, or similar class names). For example, when you specify the flag `--classname org.example.MyFunction`, the function name is `MyFunction`.
+Tenant | Derived from names of the input topics. If the input topics are under the `marketing` tenant, which means the topic names have the form `persistent://marketing/{namespace}/{topicName}`, the tenant is `marketing`.
+Namespace | Derived from names of the input topics. If the input topics are under the `asia` namespace under the `marketing` tenant, which means the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace is `asia`.
+Output topic | `{input topic}-{function name}-output`. For example, if an input topic name of a function is `incoming`, and the function name is `exclamation`, then the name of the output topic is `incoming-exclamation-output`.
+Subscription type | For `at-least-once` and `at-most-once` [processing guarantees](functions-guarantees.md), the [`SHARED`](concepts-messaging.md#shared) mode is applied by default; for `effectively-once` guarantees, the [`FAILOVER`](concepts-messaging.md#failover) mode is applied.
 Processing guarantees | [`ATLEAST_ONCE`](functions-guarantees.md)
 Pulsar service URL | `pulsar://localhost:6650`
 
-#### Example use of defaults
+### Example of default arguments
 
 Take the `create` command as an example.
 
@@ -48,7 +47,6 @@ $ bin/pulsar-admin functions create \
 ```
 
 The function has default values for the function name (`MyFunction`), tenant (`public`), namespace (`default`), subscription type (`SHARED`), processing guarantees (`ATLEAST_ONCE`), and Pulsar service URL (`pulsar://localhost:6650`).
-
 
 ## Local run mode
 
@@ -72,7 +70,7 @@ $ bin/pulsar-admin functions localrun \
 
 ## Cluster mode
 
-When you run a Pulsar Function in **cluster mode**, the function code is uploaded to a Pulsar broker and runs *alongside the broker* rather than in your [local environment](#local-run-mode). You can run a function in cluster mode using the [`create`](reference-pulsar-admin.md#create-1) command. 
+When you run a Pulsar Function in **cluster** mode, the function code is uploaded to a Pulsar broker and runs *alongside the broker* rather than in your [local environment](#local-run-mode). You can run a function in cluster mode using the [`create`](reference-pulsar-admin.md#create-1) command. 
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -96,7 +94,7 @@ $ bin/pulsar-admin functions update \
 
 ### Parallelism
 
-Pulsar Functions run as processes called **instances**. When you run a Pulsar Function, it runs as a single instance by default. In [local run mode](#local-run-mode), you can *only* run a single instance of a function.
+Pulsar Functions run as processes, which is called **instances**. When you run a Pulsar Function, it runs as a single instance by default. In [local run mode](#local-run-mode), you can *only* run a single instance of a function.
 
 When you create a function, you can specify the *parallelism* of a function (the number of instances to run). You can set the parallelism factor using the `--parallelism` flag of the [`create`](reference-pulsar-admin.md#functions-create) command. 
 
@@ -136,9 +134,9 @@ $ bin/pulsar-admin functions update \
 
 When you run Pulsar Functions in [cluster mode](#cluster-mode), you can specify the resources that are assigned to each function [instance](#parallelism).
 
-Resource | Specified as... | Runtimes
+Resource | Specified as | Runtimes
 :--------|:----------------|:--------
-CPU | The number of cores | Docker (coming soon)
+CPU | The number of cores | Kubernetes
 RAM | The number of bytes | Process, Docker
 Disk space | The number of bytes | Docker
 
@@ -201,12 +199,12 @@ $ bin/pulsar-admin functions trigger \
   --trigger-value "hello world"
 ```
 
-The consumer listening on the output topic will produce something as follows in the log.
+The consumer listening on the output topic produces something as follows in the log.
 
 ```
 ----- got message -----
 This function has been triggered with a value of hello world
 ```
 
-> #### Topic info not required
-> In the `trigger` command above, you may have noticed that you only need to specify basic information about the function (tenant, namespace, and name). To trigger the function, you do not need to know the function input topics.
+> #### Topic info is not required
+> In the `trigger` command, you only need to specify basic information about the function (tenant, namespace, and name). To trigger the function, you do not need to know the function input topics.
