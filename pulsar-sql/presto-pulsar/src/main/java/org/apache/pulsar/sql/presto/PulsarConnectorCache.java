@@ -39,11 +39,14 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
+
 public class PulsarConnectorCache {
 
     private static final Logger log = Logger.get(PulsarConnectorCache.class);
 
-    private static PulsarConnectorCache instance;
+    @VisibleForTesting
+    static PulsarConnectorCache instance;
 
     private final ManagedLedgerFactory managedLedgerFactory;
 
