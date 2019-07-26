@@ -27,7 +27,6 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
@@ -272,9 +271,9 @@ public class PulsarSourceBuilder<T> {
     public SourceFunction<T> build() throws PulsarClientException{
         Preconditions.checkArgument(StringUtils.isNotBlank(this.clientConfigurationData.getServiceUrl()),
                 "a service url is required");
-        Preconditions.checkArgument((this.consumerConfigurationData.getTopicNames() != null &&
-                        !this.consumerConfigurationData.getTopicNames().isEmpty()) ||
-                        this.consumerConfigurationData.getTopicsPattern() != null,
+        Preconditions.checkArgument((this.consumerConfigurationData.getTopicNames() != null
+                && !this.consumerConfigurationData.getTopicNames().isEmpty())
+                || this.consumerConfigurationData.getTopicsPattern() != null,
                 "At least one topic or topics pattern is required");
         Preconditions.checkArgument(StringUtils.isNotBlank(this.consumerConfigurationData.getSubscriptionName()),
                 "a subscription name is required");
@@ -290,8 +289,9 @@ public class PulsarSourceBuilder<T> {
 
     private void setAuth() throws PulsarClientException{
         if (StringUtils.isBlank(this.clientConfigurationData.getAuthPluginClassName())
-                || StringUtils.isBlank(this.clientConfigurationData.getAuthParams()))
+                || StringUtils.isBlank(this.clientConfigurationData.getAuthParams())) {
             return;
+        }
 
         clientConfigurationData.setAuthentication(
                 AuthenticationFactory.create(

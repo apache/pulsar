@@ -178,7 +178,7 @@ public class FlinkPulsarProducer<IN>
     // ----------------------------------- Sink Methods --------------------------
 
     @SuppressWarnings("unchecked")
-    private static final <T> PulsarKeyExtractor<T> getOrNullKeyExtractor(PulsarKeyExtractor<T> extractor) {
+    private static <T> PulsarKeyExtractor<T> getOrNullKeyExtractor(PulsarKeyExtractor<T> extractor) {
         if (null == extractor) {
             return PulsarKeyExtractor.NULL;
         } else {

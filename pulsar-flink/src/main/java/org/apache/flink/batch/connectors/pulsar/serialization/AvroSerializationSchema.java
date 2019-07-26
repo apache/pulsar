@@ -49,7 +49,7 @@ public class AvroSerializationSchema<T extends SpecificRecord> implements Serial
         Encoder encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
         arrayOutputStream.reset();
         try {
-            writer.write(t,encoder);
+            writer.write(t, encoder);
             encoder.flush();
         } catch (IOException e) {
             throw new RuntimeException("Error while serializing the record to Avro", e);
