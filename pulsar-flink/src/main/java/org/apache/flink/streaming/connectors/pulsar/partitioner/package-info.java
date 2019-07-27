@@ -16,23 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.flink.streaming.connectors.pulsar.partitioner;
-
-import java.io.Serializable;
-
 /**
- * Extract key from a value.
+ * Classes for implementing key extractors.
  */
-public interface PulsarKeyExtractor<T> extends Serializable {
-
-    PulsarKeyExtractor NULL = in -> null;
-
-    /**
-     * Retrieve a key from the value.
-     *
-     * @param in the value to extract a key.
-     * @return key.
-     */
-    String getKey(T in);
-
-}
+package org.apache.flink.streaming.connectors.pulsar.partitioner;

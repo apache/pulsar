@@ -36,7 +36,8 @@ public class PulsarCsvOutputFormat<T extends Tuple> extends BasePulsarOutputForm
         this.serializationSchema = new CsvSerializationSchema<>();
     }
 
-    public PulsarCsvOutputFormat(ClientConfigurationData clientConfigurationData, ProducerConfigurationData producerConfigurationData) {
+    public PulsarCsvOutputFormat(ClientConfigurationData clientConfigurationData,
+        ProducerConfigurationData producerConfigurationData) {
         super(clientConfigurationData, producerConfigurationData);
         this.serializationSchema = new CsvSerializationSchema<>();
     }
