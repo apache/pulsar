@@ -4784,7 +4784,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "401" : {
@@ -8634,13 +8634,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -8664,10 +8664,10 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "cpu" : {
+        "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "directMemory" : {
+        "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         }
       }
