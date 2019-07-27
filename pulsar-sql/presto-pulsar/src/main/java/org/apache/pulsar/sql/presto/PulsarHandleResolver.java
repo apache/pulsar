@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
+
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorHandleResolver;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
 
 public class PulsarHandleResolver implements ConnectorHandleResolver {
     @Override
@@ -57,8 +57,8 @@ public class PulsarHandleResolver implements ConnectorHandleResolver {
 
     static PulsarColumnHandle convertColumnHandle(ColumnHandle columnHandle) {
         requireNonNull(columnHandle, "columnHandle is null");
-        checkArgument(columnHandle instanceof PulsarColumnHandle, "columnHandle is not an instance of " +
-                "PulsarColumnHandle");
+        checkArgument(columnHandle instanceof PulsarColumnHandle, "columnHandle is not an instance of "
+            + "PulsarColumnHandle");
         return (PulsarColumnHandle) columnHandle;
     }
 
@@ -70,8 +70,8 @@ public class PulsarHandleResolver implements ConnectorHandleResolver {
 
     static PulsarTableLayoutHandle convertLayout(ConnectorTableLayoutHandle layout) {
         requireNonNull(layout, "layout is null");
-        checkArgument(layout instanceof PulsarTableLayoutHandle, "layout is not an instance of " +
-                "PulsarTableLayoutHandle");
+        checkArgument(layout instanceof PulsarTableLayoutHandle, "layout is not an instance of "
+            + "PulsarTableLayoutHandle");
         return (PulsarTableLayoutHandle) layout;
     }
 

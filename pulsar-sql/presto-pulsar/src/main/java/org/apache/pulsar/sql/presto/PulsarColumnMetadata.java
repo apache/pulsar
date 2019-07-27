@@ -20,9 +20,7 @@ package org.apache.pulsar.sql.presto;
 
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.type.Type;
-
 import java.util.Arrays;
-import java.util.List;
 
 public class PulsarColumnMetadata extends ColumnMetadata {
 
@@ -60,25 +58,37 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
     @Override
     public String toString() {
-        return "PulsarColumnMetadata{" +
-                "isInternal=" + isInternal +
-                ", nameWithCase='" + nameWithCase + '\'' +
-                ", fieldNames=" + Arrays.toString(fieldNames) +
-                ", positionIndices=" + Arrays.toString(positionIndices) +
-                '}';
+        return "PulsarColumnMetadata{"
+            + "isInternal=" + isInternal
+            + ", nameWithCase='" + nameWithCase + '\''
+            + ", fieldNames=" + Arrays.toString(fieldNames)
+            + ", positionIndices=" + Arrays.toString(positionIndices)
+            + '}';
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        if (!super.equals(o)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
 
         PulsarColumnMetadata that = (PulsarColumnMetadata) o;
 
-        if (isInternal != that.isInternal) return false;
-        if (nameWithCase != null ? !nameWithCase.equals(that.nameWithCase) : that.nameWithCase != null) return false;
-        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) return false;
+        if (isInternal != that.isInternal) {
+            return false;
+        }
+        if (nameWithCase != null ? !nameWithCase.equals(that.nameWithCase) : that.nameWithCase != null) {
+            return false;
+        }
+        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) {
+            return false;
+        }
         return Arrays.deepEquals(positionIndices, that.positionIndices);
     }
 

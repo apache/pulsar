@@ -20,16 +20,13 @@ package org.apache.pulsar.sql.presto;
 
 import com.dslplatform.json.DslJson;
 import com.facebook.presto.spi.type.Type;
-
 import io.airlift.log.Logger;
-
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
 
 public class JSONSchemaHandler implements SchemaHandler {
 
@@ -84,7 +81,7 @@ public class JSONSchemaHandler implements SchemaHandler {
             if (field == null) {
                 return null;
             }
-            for (int i = 1; i < fieldNames.length ; i++) {
+            for (int i = 1; i < fieldNames.length; i++) {
                 field = ((Map) field).get(fieldNames[i]);
                 if (field == null) {
                     return null;
@@ -101,7 +98,7 @@ public class JSONSchemaHandler implements SchemaHandler {
 
             return field;
         } catch (Exception ex) {
-            log.debug(ex,"%s", ex);
+            log.debug(ex, "%s", ex);
         }
         return null;
     }

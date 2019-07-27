@@ -18,24 +18,22 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.util.Objects.requireNonNull;
+
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.TimestampType;
-import com.facebook.presto.spi.type.TimestampWithTimeZoneType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import org.apache.pulsar.common.api.raw.RawMessage;
-
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static java.util.Objects.requireNonNull;
+import org.apache.pulsar.common.api.raw.RawMessage;
 
 public abstract class PulsarInternalColumn {
 
