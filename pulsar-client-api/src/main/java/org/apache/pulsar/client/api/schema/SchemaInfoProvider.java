@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -31,14 +32,14 @@ public interface SchemaInfoProvider {
      * @param schemaVersion schema version
      * @return schema info of the provided <tt>schemaVersion</tt>
      */
-    SchemaInfo getSchemaByVersion(byte[] schemaVersion);
+    CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion);
 
     /**
      * Retrieve the latest schema info.
      *
      * @return the latest schema
      */
-    SchemaInfo getLatestSchema();
+    CompletableFuture<SchemaInfo> getLatestSchema();
 
     /**
      * Retrieve the topic name.
