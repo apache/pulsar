@@ -1061,8 +1061,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch latch = new CountDownLatch(1);
 
-        ((ManagedCursorImpl)cursor).persistPendingAckPositionMetaInfo(positionBuilder,
-                Arrays.asList(messageEntryBuilder.build()), "subscription", new MetaStoreCallback<Void>() {
+        ((ManagedCursorImpl)cursor).persistPendingAckPositionMetaInfo(positionBuilder.build(), "1, 2",
+                Arrays.asList(messageEntryBuilder.build()), new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
                         latch.countDown();

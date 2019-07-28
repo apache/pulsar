@@ -107,12 +107,36 @@ public interface MetaStore {
     void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat version,
             MetaStoreCallback<Void> callback);
 
-    void asyncGetSubscriptionPendingAckMessages(String ledgerName, String cursorName, String subName,
+    /**
+     * Get pending ack messages info for a cursor. It's for supporting transaction.
+     *
+     * @param ledgerName
+     *              the name of the ManagedLedger
+     * @param cursorName
+     *              the name of cursor
+     * @param callback
+     *              callback object
+     */
+    void asyncGetSubscriptionPendingAckMessages(String ledgerName, String cursorName,
                                                  MetaStoreCallback<SubscriptionPendingAckMessages> callback);
 
-    void asyncUpdateSubscriptionPendingAckMessages(String ledgerName, String cursorName, String subName, Stat stat,
+    /**
+     * Update pending ack messages info for a cursor. It's for supporting transaction.
+     *
+     * @param ledgerName
+     *              the name of the ManagedLedger
+     * @param cursorName
+     *              the name of cursor
+     * @param stat
+     *              meta data for metastore
+     * @param subscriptionPendingAckMessages
+     *              pending ack messages need to be persisted
+     * @param callback
+     *             callback object
+     */
+    void asyncUpdateSubscriptionPendingAckMessages(String ledgerName, String cursorName, Stat stat,
                                                    SubscriptionPendingAckMessages subscriptionPendingAckMessages,
-                                                   MetaStoreCallback<Void> callback);
+                                                   MetaStoreCallback<SubscriptionPendingAckMessages> callback);
 
     /**
      * Drop the persistent state of a consumer from the metadata store.

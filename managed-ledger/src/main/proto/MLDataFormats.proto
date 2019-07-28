@@ -113,6 +113,8 @@ message SubscriptionPendingAckMessages {
         required PositionList positionList  = 2;
     }
 
-    repeated PendingAckMessageEntry pendingAckMessages         = 1;
+    repeated PendingAckMessageEntry pendingAckMessages          = 1;
     optional PositionInfo pendingCumulativeAckMessagePosition   = 2;
+    optional string                   pendingCumulativeAckTxnId = 3;
+    required int64                        pendingAckMsgLedgerId = 4;
 }

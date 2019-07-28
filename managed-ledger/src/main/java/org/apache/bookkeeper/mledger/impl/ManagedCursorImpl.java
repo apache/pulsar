@@ -53,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -132,6 +133,10 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     // Current ledger used to append the mark-delete position
     private volatile LedgerHandle cursorLedger;
+
+    // Ledger used to append pending ack messages info for this cursor.
+    private volatile LedgerHandle cursorPendingAckMsgLedger;
+
     // Stat of the cursor z-node
     private volatile Stat cursorLedgerStat;
     private volatile Stat pendingAckMessagesStoreStat;
@@ -182,7 +187,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
     @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
-    private long lastLedgerSwitchTimestamp;
+    private volatile long lastLedgerSwitchTimestamp;
+    private static final AtomicLongFieldUpdater<ManagedCursorImpl> LAST_LEDGER_SWITCH_TIMESTAMP_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(ManagedCursorImpl.class, "lastLedgerSwitchTimestamp");
+    private volatile long lastPendingAckMsgLedgerSwitchTimestamp;
+    private static final AtomicLongFieldUpdater<ManagedCursorImpl> LAST_PENDING_ACK_MSG_LEDGER_SWITCH_TIMESTAMP_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(ManagedCursorImpl.class, "lastPendingAckMsgLedgerSwitchTimestamp");
     private final Clock clock;
 
     // The last active time (Unix time, milliseconds) of the cursor
@@ -201,6 +211,18 @@ public class ManagedCursorImpl implements ManagedCursor {
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
     protected volatile State state = null;
 
+    private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> PENDING_ACK_MSG_LEDGER_STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "pendingAckMsgLedgerState");
+
+    // State about if this cursor has ledger to persist pending ack message info for ongoing transactions.
+    protected volatile State pendingAckMsgLedgerState = null;
+
+    private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, SubscriptionPendingAckMessages> PENDING_ACK_MSG_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, SubscriptionPendingAckMessages.class,
+                    "pendingAckMessages");
+
+    protected volatile SubscriptionPendingAckMessages pendingAckMessages = null;
+
     @SuppressWarnings("checkstyle:javadoctype")
     public interface VoidCallback {
         void operationComplete();
@@ -218,6 +240,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 : new LongPairRangeSet.DefaultRangeSet<>(positionRangeConverter);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         STATE_UPDATER.set(this, State.Uninitialized);
+        PENDING_ACK_MSG_LEDGER_STATE_UPDATER.set(this, State.NoLedger);
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.set(this, 0);
         PENDING_READ_OPS_UPDATER.set(this, 0);
         RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, FALSE);
@@ -225,7 +248,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.clock = config.getClock();
         this.lastActive = this.clock.millis();
         this.lastLedgerSwitchTimestamp = this.clock.millis();
-
+        this.lastPendingAckMsgLedgerSwitchTimestamp = this.clock.millis();
         if (config.getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(config.getThrottleMarkDelete());
         } else {
@@ -255,7 +278,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 if (info.getCursorsLedgerId() == -1L) {
                     // There is no cursor ledger to read the last position from. It means the cursor has been properly
-                    // closed and the last mark-delete position is stored in the ManagedCursorInfo itself.s
+                    // closed and the last mark-delete position is stored in the ManagedCursorInfo itself.
                     PositionImpl recoveredPosition = new PositionImpl(info.getMarkDeleteLedgerId(),
                             info.getMarkDeleteEntryId());
                     if (info.getIndividualDeletedMessagesCount() > 0) {
@@ -427,6 +450,85 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void operationFailed(ManagedLedgerException exception) {
                 callback.operationFailed(exception);
+            }
+        });
+    }
+
+    public void recoverPendingAckPosition(CompletableFuture<SubscriptionPendingAckMessages> future) {
+        // Read the meta-data ledgerId from the store
+        log.info("[{}] Recovering pending ack messages from bookkeeper ledger cursor: {}", ledger.getName(), name);
+        ledger.getStore().asyncGetSubscriptionPendingAckMessages(ledger.getName(), name, new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+            @Override
+            public void operationComplete(SubscriptionPendingAckMessages subscriptionPendingAckMessages, Stat stat) {
+
+                pendingAckMessagesStoreStat = stat;
+
+                if (subscriptionPendingAckMessages.getPendingAckMsgLedgerId() == -1L) {
+                    // Pending ack messages info is stored in ledger meta store.
+                    future.complete(subscriptionPendingAckMessages);
+                    startCreateNewPendingAckMsgLedger();
+                    return;
+                } else {
+                    // Pending ack message info is stored in ledger.
+                    ledger.mbean.startCursorLedgerOpenOp();
+                    long ledgerId = subscriptionPendingAckMessages.getPendingAckMsgLedgerId();
+                    bookkeeper.asyncOpenLedger(ledgerId, digestType, config.getPassword(), (rc, lh, ctx) -> {
+                        if (isBkErrorNotRecoverable(rc)) {
+                            log.error("[{}] Cursor {} fail to open pending ack message ledger {} for recover",
+                                    ledger.getName(), name, ledgerId);
+                            startCreateNewPendingAckMsgLedger();
+                            future.completeExceptionally(createManagedLedgerException(rc));
+                            return;
+                        } else if (rc != BKException.Code.OK) {
+                            log.error("[{}] Cursor {} fail to open pending ack message ledger {} for recover",
+                                    ledger.getName(), name, ledgerId);
+                            startCreateNewPendingAckMsgLedger();
+                            future.completeExceptionally(createManagedLedgerException(rc));
+                            return;
+                        }
+
+                        // Read the last entry in the pending ack message ledger
+                        long lastEntryInLedger = lh.getLastAddConfirmed();
+
+                        if (lastEntryInLedger < 0) {
+                            log.warn("[{}] Cursor {} fail to read from pending ack message ledger {} for recover: " +
+                                            "No entries in ledger", ledger.getName(), ledgerId, name);
+                            // Rewind to last cursor snapshot available
+                            startCreateNewPendingAckMsgLedger();
+                            future.completeExceptionally(new ManagedLedgerException("No entries in pending ack position ledger"));
+                            return;
+                        }
+
+                        lh.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
+                            if (isBkErrorNotRecoverable(rc1)) {
+                                log.error("[{}] Error reading pending ack message from ledger {} for consumer {}: {}", ledger.getName(),
+                                        ledgerId, name, BKException.getMessage(rc1));
+                                startCreateNewPendingAckMsgLedger();
+                                future.completeExceptionally(new ManagedLedgerException(createManagedLedgerException(rc1)));
+                                return;
+                            } else if (rc1 != BKException.Code.OK) {
+                                log.error("[{}] Error reading pending ack message from ledger {} for consumer {}: {}", ledger.getName(),
+                                        ledgerId, name, BKException.getMessage(rc1));
+                                startCreateNewPendingAckMsgLedger();
+                                future.completeExceptionally(new ManagedLedgerException(createManagedLedgerException(rc1)));
+                                return;
+                            }
+
+                            try {
+                                future.complete(SubscriptionPendingAckMessages.parseFrom(seq.nextElement().getEntry()));
+                            } catch (InvalidProtocolBufferException e) {
+                                future.completeExceptionally(e);
+                            }
+                            startCreateNewPendingAckMsgLedger();
+                        }, null);
+                    }, null);
+                }
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                startCreateNewPendingAckMsgLedger();
+                future.completeExceptionally(e);
             }
         });
     }
@@ -1604,6 +1706,62 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public void asyncUpdatePendingAckPosition(PositionInfo pendingCumulativeAckMessagePosition,
+                                              String pendingCumulativeAckTxnId,
+                                              List<PendingAckMessageEntry> pendingAckMessageEntryList,
+                                              AsyncCallbacks.PersistPendingAckPositionCallback callback,
+                                              Object ctx) {
+        if (cursorPendingAckMsgLedger != null && PENDING_ACK_MSG_LEDGER_STATE_UPDATER.get(ManagedCursorImpl.this) == State.Open) {
+            SubscriptionPendingAckMessages subscriptionPendingAckMessages = SubscriptionPendingAckMessages.newBuilder()
+                    .setPendingAckMsgLedgerId(cursorLedger.getId())
+                    .setPendingCumulativeAckMessagePosition(pendingCumulativeAckMessagePosition)
+                    .setPendingCumulativeAckTxnId(pendingCumulativeAckTxnId)
+                    .addAllPendingAckMessages(pendingAckMessageEntryList)
+                    .build();
+
+            persistPendingAckPositionToLedger(cursorPendingAckMsgLedger, subscriptionPendingAckMessages,
+                    new VoidCallback() {
+                        @Override
+                        public void operationComplete() {
+                            log.info("[{}] Cursor {} Persisted pending ack messages to ledger {}", ledger.getName(), name,
+                                    cursorPendingAckMsgLedger.getId());
+                            PENDING_ACK_MSG_UPDATER.set(ManagedCursorImpl.this, subscriptionPendingAckMessages);
+                            callback.persistPendingAckPositionComplete(ctx);
+                        }
+
+                        @Override
+                        public void operationFailed(ManagedLedgerException exception) {
+                            log.error("[{}] Cursor {} Failed to persist pending ack messages to ledger {}", ledger.getName(), name,
+                                    cursorPendingAckMsgLedger.getId());
+                            callback.persistPendingAckPositionFailed(exception, ctx);
+                        }
+                    });
+        } else {
+            if (PENDING_ACK_MSG_LEDGER_STATE_UPDATER.get(ManagedCursorImpl.this) == State.NoLedger) {
+                startCreateNewPendingAckMsgLedger();
+            }
+            persistPendingAckPositionMetaStore(-1, pendingCumulativeAckMessagePosition,
+                    pendingCumulativeAckTxnId, pendingAckMessageEntryList,
+                    new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+                        @Override
+                        public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
+                            log.info("[{}] Cursor {} Persisted pending ack messages to ledger meta store", ledger.getName(), name);
+                            // At this point the position had already been safely stored in the cursor z-node
+                            PENDING_ACK_MSG_UPDATER.set(ManagedCursorImpl.this, result);
+                            callback.persistPendingAckPositionComplete(ctx);
+                        }
+
+                        @Override
+                        public void operationFailed(MetaStoreException e) {
+                            log.error("[{}] Cursor {} Failed to persist pending ack messages to ledger meta store",
+                                    ledger.getName(), name, cursorPendingAckMsgLedger.getId());
+                            callback.persistPendingAckPositionFailed(e, ctx);
+                        }
+                    });
+        }
+    }
+
+    @Override
     public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {
         checkNotNull(positions);
 
@@ -1973,6 +2131,56 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    /**
+     * Persist pending ack messages before closing cursor. Whenever possible persist to pending ack messages ledger,
+     * else persist to ledger meta store.
+     *
+     * @param subscriptionPendingAckMessages
+     * @param callback
+     * @param ctx
+     */
+    private void persistPendingAckPosition(SubscriptionPendingAckMessages subscriptionPendingAckMessages,
+                                           AsyncCallbacks.CloseCallback callback, Object ctx) {
+        if (cursorPendingAckMsgLedger != null && PENDING_ACK_MSG_LEDGER_STATE_UPDATER.get(ManagedCursorImpl.this) == State.Open) {
+            persistPendingAckPositionToLedger(cursorPendingAckMsgLedger, subscriptionPendingAckMessages,
+                new VoidCallback() {
+                    @Override
+                    public void operationComplete() {
+                        log.info("[{}] Cursor {} Persisted pending ack messages to ledger {}", ledger.getName(), name,
+                                cursorPendingAckMsgLedger.getId());
+                        callback.closeComplete(ctx);
+                    }
+
+                    @Override
+                    public void operationFailed(ManagedLedgerException exception) {
+                        log.error("[{}] Cursor {} Failed to persist pending ack messages to ledger {}", ledger.getName(), name,
+                                cursorPendingAckMsgLedger.getId());
+                        callback.closeFailed(exception, ctx);
+                    }
+            });
+        } else {
+            persistPendingAckPositionMetaStore(-1, subscriptionPendingAckMessages.getPendingCumulativeAckMessagePosition(),
+                subscriptionPendingAckMessages.getPendingCumulativeAckTxnId(),
+                subscriptionPendingAckMessages.getPendingAckMessagesList(),
+                new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+                    @Override
+                    public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
+                        log.info("[{}] Cursor {} Persisted pending ack messages to ledger meta store", ledger.getName(), name);
+                        // At this point the position had already been safely stored in the cursor z-node
+                        callback.closeComplete(ctx);
+                        asyncDeleteLedger(cursorPendingAckMsgLedger);
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        log.error("[{}] Cursor {} Failed to persist pending ack messages to ledger meta store",
+                                ledger.getName(), name, cursorPendingAckMsgLedger.getId());
+                        callback.closeFailed(e, ctx);
+                    }
+            });
+        }
+    }
+
     private boolean shouldPersistUnackRangesToLedger() {
         return cursorLedger != null && config.getMaxUnackedRangesToPersist() > 0
                 && individualDeletedMessages.size() > config.getMaxUnackedRangesToPersistInZk();
@@ -2020,27 +2228,47 @@ public class ManagedCursorImpl implements ManagedCursor {
                 });
     }
 
-    public void persistPendingAckPositionMetaInfo(PositionInfo.Builder pendingCumulativeAckMessagePositionBuilder,
-                                                  List<PendingAckMessageEntry> pendingAckMessageEntryBuilderList,
-                                                  String subName, MetaStoreCallback<Void> callback) {
+    /**
+     * Persist pending ack messages to ledger meta store.
+     * @param ledgerId
+     *           ledger handler id.
+     * @param pendingCumulativeAckMessagePosition
+     *          pending cumulative ack message position.
+     * @param pendingCumulativeAckTxnId
+     *          pending cumulative ack message txnId.
+     * @param pendingAckMessageEntryList
+     *          pending ack messages entries.
+     * @param callback
+     */
+    private void persistPendingAckPositionMetaStore(long ledgerId,
+                                                    PositionInfo pendingCumulativeAckMessagePosition,
+                                                    String pendingCumulativeAckTxnId,
+                                                    List<PendingAckMessageEntry> pendingAckMessageEntryList,
+                                                    MetaStoreCallback<SubscriptionPendingAckMessages> callback) {
         if (isClosed()) {
             callback.operationFailed(new MetaStoreException(
                     new ManagedLedgerException.CursorAlreadyClosedException(name + " cursor already closed")));
             return;
         }
 
-        SubscriptionPendingAckMessages.Builder subscriptionPendingAckMessageBuilder = SubscriptionPendingAckMessages.newBuilder()
-                    .setPendingCumulativeAckMessagePosition(pendingCumulativeAckMessagePositionBuilder)
-                    .addAllPendingAckMessages(pendingAckMessageEntryBuilderList);
+        SubscriptionPendingAckMessages subscriptionPendingAckMessage = SubscriptionPendingAckMessages.newBuilder()
+                    .setPendingAckMsgLedgerId(ledgerId)
+                    .setPendingCumulativeAckMessagePosition(pendingCumulativeAckMessagePosition)
+                    .setPendingCumulativeAckTxnId(pendingCumulativeAckTxnId)
+                    .addAllPendingAckMessages(pendingAckMessageEntryList)
+                    .build();
 
-        log.debug("[{}] [{}] [{}] Persisting subscription's pending ack messages to meta-data store",
-                ledger.getName(), name, subName);
-        ledger.getStore().asyncUpdateSubscriptionPendingAckMessages(ledger.getName(), name, subName,
-                pendingAckMessagesStoreStat, subscriptionPendingAckMessageBuilder.build(),
-                new MetaStoreCallback<Void>() {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Persisting cursor pending ack messages: {} to meta-data store", ledger.getName(), name,
+                    subscriptionPendingAckMessage);
+        }
+        ledger.getStore().asyncUpdateSubscriptionPendingAckMessages(ledger.getName(), name,
+                pendingAckMessagesStoreStat, subscriptionPendingAckMessage,
+                new MetaStoreCallback<SubscriptionPendingAckMessages>() {
                     @Override
-                    public void operationComplete(Void result, Stat stat) {
+                    public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
                         pendingAckMessagesStoreStat = stat;
+                        PENDING_ACK_MSG_UPDATER.set(ManagedCursorImpl.this, subscriptionPendingAckMessage);
                         callback.operationComplete(result, stat);
                     }
 
@@ -2049,28 +2277,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                         callback.operationFailed(e);
                     }
                 });
-    }
-
-    public void getPendingAckPositionMetaInfo(String subName,
-                                              MetaStoreCallback<SubscriptionPendingAckMessages> callback) {
-        if (isClosed()) {
-            callback.operationFailed(new MetaStoreException(
-                    new ManagedLedgerException.CursorAlreadyClosedException(name + " cursor already closed")));
-            return;
-        }
-
-        ledger.getStore().asyncGetSubscriptionPendingAckMessages(ledger.getName(), name, subName,
-                new MetaStoreCallback<SubscriptionPendingAckMessages>() {
-            @Override
-            public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
-                callback.operationComplete(result, stat);
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                callback.operationFailed(e);
-            }
-        });
     }
 
     @Override
@@ -2082,6 +2288,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
         persistPosition(-1, lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, callback, ctx);
+        persistPendingAckPosition(pendingAckMessages, callback, ctx);
+
         STATE_UPDATER.set(this, State.Closed);
     }
 
@@ -2156,6 +2364,120 @@ public class ManagedCursorImpl implements ManagedCursor {
         pendingMarkDeleteOps.clear();
 
         internalMarkDelete(lastEntry);
+    }
+
+
+    void startCreateNewPendingAckMsgLedger() {
+        State oldState = PENDING_ACK_MSG_LEDGER_STATE_UPDATER.getAndSet(ManagedCursorImpl.this, State.SwitchingLedger);
+        if (oldState == State.SwitchingLedger) {
+            // Ignore double request
+            return;
+        } else {
+            createNewPendingAckMsgLedger(new VoidCallback() {
+                @Override
+                public void operationComplete() {
+                    PENDING_ACK_MSG_LEDGER_STATE_UPDATER.compareAndSet(ManagedCursorImpl.this,
+                            State.SwitchingLedger, State.Open);
+                }
+
+                @Override
+                public void operationFailed(ManagedLedgerException exception) {
+                    PENDING_ACK_MSG_LEDGER_STATE_UPDATER.compareAndSet(ManagedCursorImpl.this,
+                            State.SwitchingLedger, State.NoLedger);
+                }
+            });
+        }
+    }
+
+    /**
+     * Create a new ledger to store pending ack messages for ongoing transactions.
+     * If there's already an old pending ack messages ledger. Then need to persist latest pending ack message to new
+     * ledger for failure recover before closing old ledger.
+     * Also need to update ledger id in pending ack message meta info stored in meta store.
+     *
+     * If any of these operation fails, set state to {@link State#NoLedger}, and will try to persist pending ack message
+     * for incoming request to ledger meta store before new ledger is successfully created and meta info successfully updated.
+     *
+     * @param callback
+     */
+    void createNewPendingAckMsgLedger(final VoidCallback callback) {
+        ledger.mbean.startCursorLedgerCreateOp();
+        ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
+
+            // Create ledger operation failed.
+            if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+                log.error("[{}] Timeouted creating pending ack message ledger for cursor {}", ledger.getName(), name);
+                callback.operationFailed(createManagedLedgerException(rc));
+                return;
+            }
+
+            ledger.getExecutor().execute(safeRun(() -> {
+                ledger.mbean.endCursorLedgerCreateOp();
+                if (rc != BKException.Code.OK) {
+                    log.error("[{}] Error creating pending ack message ledger for cursor {}: {}", ledger.getName(),
+                                                                                    name, BKException.getMessage(rc));
+                    callback.operationFailed(new ManagedLedgerException(BKException.getMessage(rc)));
+                    return;
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Created ledger {} for cursor {}", ledger.getName(), lh.getId(), name);
+                    }
+
+                    // We're switching to new ledger, persist latest pending ack messages to new ledger before closing old ledger.
+                    if (cursorPendingAckMsgLedger != null) {
+                        // Use in memory updated copy.
+                        SubscriptionPendingAckMessages subscriptionPendingAckMessages = PENDING_ACK_MSG_UPDATER.get(ManagedCursorImpl.this);
+                        persistPendingAckPositionToLedger(lh, subscriptionPendingAckMessages, new VoidCallback() {
+                                    @Override
+                                    public void operationComplete() {
+                                        // Try to persist the new pending ack messages ledgerid in the metadata store.
+                                        persistPendingAckPositionMetaStore(lh.getId(), pendingAckMessages.getPendingCumulativeAckMessagePosition(),
+                                                pendingAckMessages.getPendingCumulativeAckTxnId(), pendingAckMessages.getPendingAckMessagesList(),
+                                                new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+                                                    @Override
+                                                    public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
+                                                        // Switch to new pending ack msg ledger.
+                                                        LedgerHandle oldLh = cursorPendingAckMsgLedger;
+                                                        cursorPendingAckMsgLedger = lh;
+                                                        callback.operationComplete();
+                                                        asyncDeleteLedger(oldLh);
+                                                    }
+
+                                                    @Override
+                                                    public void operationFailed(MetaStoreException e) {
+                                                        // persist the new pending ack messages ledger di in the metadata store,
+                                                        // it should be deleted to prevent leak
+                                                        ledger.mbean.startCursorLedgerDeleteOp();
+                                                        bookkeeper.asyncDeleteLedger(lh.getId(), (int rc, Object ctx) -> {
+                                                            ledger.mbean.endCursorLedgerDeleteOp();
+                                                            if (rc != BKException.Code.OK) {
+                                                                log.warn("[{}] Failed to delete orphan ledger {}", ledger.getName(),
+                                                                        lh.getId());
+                                                            }
+                                                        }, null);
+                                                        callback.operationFailed(new ManagedLedgerException(BKException.getMessage(rc)));
+                                                    }
+                                                });
+                                    }
+
+                                    @Override
+                                    public void operationFailed(ManagedLedgerException exception) {
+                                        log.warn("[{}] Cursor {} failed to persist pending ack messages to newly created ledger",
+                                                ledger.getName(), name, lh.getId());
+                                        ledger.mbean.startCursorLedgerDeleteOp();
+                                        bookkeeper.asyncDeleteLedger(lh.getId(), (int rc, Object ctx) -> {
+                                            ledger.mbean.endCursorLedgerDeleteOp();
+                                        }, null);
+                                        callback.operationFailed(exception);
+                                    }
+                        });
+                    } else {
+                        cursorPendingAckMsgLedger = lh;
+                        callback.operationComplete();
+                    }
+                }
+            }));
+        }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name));
     }
 
     void createNewMetadataLedger(final VoidCallback callback) {
@@ -2272,6 +2594,70 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    /**
+     * Persist pending ack messages to ledger.
+     * @param lh
+     *         ledger handler for persisting pending ack messages.
+     * @param subscriptionPendingAckMessage
+     *          pending ack messages meta info.
+     * @param callback
+     */
+    void persistPendingAckPositionToLedger(final LedgerHandle lh, SubscriptionPendingAckMessages subscriptionPendingAckMessage,
+                                           VoidCallback callback) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Cursor {} appending pending ack messages:{} to ledger={} ", ledger.getName(), name,
+                    subscriptionPendingAckMessage, lh.getId());
+        }
+
+        checkNotNull(lh);
+        lh.asyncAddEntry(subscriptionPendingAckMessage.toByteArray(), (rc, lh1, entryId, ctx) -> {
+            if (rc == BKException.Code.OK) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Cursor {} appended pending ack messages:{} to ledger={} ", ledger.getName(),
+                            name, subscriptionPendingAckMessage, lh1.getId());
+                }
+
+                if (shouldCloseLedger(lh1, LAST_PENDING_ACK_MSG_LEDGER_SWITCH_TIMESTAMP_UPDATER)) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Cursor {} needs to create new pending ack message ledger .", ledger.getName(), name);
+                    }
+                    startCreateNewPendingAckMsgLedger();
+                }
+
+                callback.operationComplete();
+            } else {
+                log.warn("[{}] Cursor {} error Appended cursor pending ack messages:{} to ledger={}: {}", ledger.getName(),
+                        name, subscriptionPendingAckMessage, lh1.getId(), BKException.getMessage(rc));
+                // If we've had a write error, the ledger will be automatically closed, we need to create a new one.
+                PENDING_ACK_MSG_LEDGER_STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
+
+                persistPendingAckPositionMetaStore(-1, subscriptionPendingAckMessage.getPendingCumulativeAckMessagePosition(),
+                        subscriptionPendingAckMessage.getPendingCumulativeAckTxnId(),
+                        subscriptionPendingAckMessage.getPendingAckMessagesList(), new MetaStoreCallback<SubscriptionPendingAckMessages>() {
+                            @Override
+                            public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug(
+                                            "[{}] Cursor {} appended pending ack messages:{} to meta store after " +
+                                                    "previous failure in ledger",
+                                            ledger.getName(), name, subscriptionPendingAckMessage);
+                                }
+                                callback.operationComplete();
+                            }
+
+                            @Override
+                            public void operationFailed(MetaStoreException e) {
+                                log.warn("[{}] Cursor {} fail to appended cursor pending ack messages to meta store after previous " +
+                                                "failure to put in ledger: {}",
+                                        ledger.getName(), name, e.getMessage());
+                                callback.operationFailed(createManagedLedgerException(rc));
+                            }
+                });
+            }
+        }, null);
+    }
+
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
         PositionImpl position = mdEntry.newPosition;
         PositionInfo pi = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
@@ -2293,7 +2679,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             lh1.getId());
                 }
 
-                if (shouldCloseLedger(lh1)) {
+                if (shouldCloseLedger(lh1, LAST_LEDGER_SWITCH_TIMESTAMP_UPDATER)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Need to create new metadata ledger for consumer {}", ledger.getName(), name);
                     }
@@ -2331,14 +2717,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         }, null);
     }
 
-    boolean shouldCloseLedger(LedgerHandle lh) {
+    boolean shouldCloseLedger(LedgerHandle lh, AtomicLongFieldUpdater lastSwitchTimeStampUpdater) {
         long now = clock.millis();
         if ((lh.getLastAddConfirmed() >= config.getMetadataMaxEntriesPerLedger()
-                || lastLedgerSwitchTimestamp < (now - config.getLedgerRolloverTimeout() * 1000))
+                || lastSwitchTimeStampUpdater.get(ManagedCursorImpl.this) < (now - config.getLedgerRolloverTimeout() * 1000))
                 && (STATE_UPDATER.get(this) != State.Closed && STATE_UPDATER.get(this) != State.Closing)) {
             // It's safe to modify the timestamp since this method will be only called from a callback, implying that
             // calls will be serialized on one single thread
-            lastLedgerSwitchTimestamp = now;
+            lastSwitchTimeStampUpdater.set(ManagedCursorImpl.this, now);
             return true;
         } else {
             return false;

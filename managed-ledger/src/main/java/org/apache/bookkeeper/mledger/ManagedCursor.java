@@ -30,6 +30,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.PersistPendingAckPositionCallback;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.SubscriptionPendingAckMessages.PendingAckMessageEntry;
 
 /**
  * A ManangedCursor is a persisted cursor inside a ManagedLedger.
@@ -247,6 +250,20 @@ public interface ManagedCursor {
     void asyncMarkDelete(Position position, Map<String, Long> properties, MarkDeleteCallback callback, Object ctx);
 
     /**
+     *
+     * @param pendingCumulativeAckMessagePosition
+     * @param pendingCumulativeAckTxnId
+     * @param pendingAckMessageEntryList
+     * @param callback
+     * @param ctx
+     */
+    void asyncUpdatePendingAckPosition(PositionInfo pendingCumulativeAckMessagePosition,
+                                       String pendingCumulativeAckTxnId,
+                                       List<PendingAckMessageEntry> pendingAckMessageEntryList,
+                                       PersistPendingAckPositionCallback callback,
+                                       Object ctx);
+
+    /**
      * Delete a single message.
      *
      * <p/>Mark a single message for deletion. When all the previous messages are all deleted, then markDelete() will be
@@ -306,7 +323,7 @@ public interface ManagedCursor {
      * The deletion of the messages is not persisted into the durable storage and cannot be recovered upon the reopening
      * of the ManagedLedger
      *
-     * @param positions
+     * @param position
      *            the positions of the messages to be deleted
      * @param callback
      *            callback object

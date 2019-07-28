@@ -89,6 +89,12 @@ public interface AsyncCallbacks {
         void markDeleteFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    interface PersistPendingAckPositionCallback {
+        void persistPendingAckPositionComplete(Object ctx);
+
+        void persistPendingAckPositionFailed(ManagedLedgerException exception, Object ctx);
+    }
+
     interface ClearBacklogCallback {
         void clearBacklogComplete(Object ctx);
 
