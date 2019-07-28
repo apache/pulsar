@@ -727,7 +727,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 cursor.initializeCursorPosition(initialPosition == InitialPosition.Latest ? getLastPositionAndCounter()
                         : getFirstPositionAndCounter());
 
-                synchronized (this) {
+                synchronized (ManagedLedgerImpl.this) {
                     cursors.add(cursor);
                     uninitializedCursors.remove(cursorName).complete(cursor);
                 }
@@ -738,7 +738,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationFailed(ManagedLedgerException exception) {
                 log.warn("[{}] Failed to open cursor: {}", name, cursor);
 
-                synchronized (this) {
+                synchronized (ManagedLedgerImpl.this) {
                     uninitializedCursors.remove(cursorName).completeExceptionally(exception);
                 }
                 callback.openCursorFailed(exception, ctx);
