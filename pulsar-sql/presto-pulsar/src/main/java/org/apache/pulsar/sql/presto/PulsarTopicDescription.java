@@ -26,6 +26,9 @@ import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Represents the basic information about a pulsar topic.
+ */
 public class PulsarTopicDescription {
     private final String tableName;
     private final String topicName;

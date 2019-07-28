@@ -28,6 +28,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Schema handler for payload in the JSON format.
+ */
 public class JSONSchemaHandler implements SchemaHandler {
 
     private static final Logger log = Logger.get(JSONSchemaHandler.class);

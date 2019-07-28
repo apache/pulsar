@@ -27,6 +27,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Arrays;
 
+/**
+ * This class represents the basic information about a presto column.
+ */
 public class PulsarColumnHandle implements ColumnHandle {
 
     private final String connectorId;

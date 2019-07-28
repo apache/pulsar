@@ -32,6 +32,9 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 
+/**
+ * Schema handler for payload in the Avro format.
+ */
 public class AvroSchemaHandler implements SchemaHandler {
 
     private final DatumReader<GenericRecord> datumReader;

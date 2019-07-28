@@ -31,6 +31,9 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
 import java.util.Map;
 
+/**
+ * The factory class which helps to build the presto connector.
+ */
 public class PulsarConnectorFactory implements ConnectorFactory {
 
     private static final Logger log = Logger.get(PulsarConnectorFactory.class);

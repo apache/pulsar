@@ -143,7 +143,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             }
 
             throw new RuntimeException("Failed to get metadata for partitioned topic "
-                    + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(),e);
+                + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
         int actualNumSplits = Math.max(numPartitions, numSplits);

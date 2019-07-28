@@ -84,6 +84,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+/**
+ * This connector helps to work with metadata.
+ */
 public class PulsarMetadata implements ConnectorMetadata {
 
     private final String connectorId;

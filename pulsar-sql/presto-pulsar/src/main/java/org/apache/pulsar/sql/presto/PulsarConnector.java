@@ -32,6 +32,9 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 import javax.inject.Inject;
 
+/**
+ * This file contains implementation of the connector to the Presto engine.
+ */
 public class PulsarConnector implements Connector {
 
     private static final Logger log = Logger.get(PulsarConnector.class);

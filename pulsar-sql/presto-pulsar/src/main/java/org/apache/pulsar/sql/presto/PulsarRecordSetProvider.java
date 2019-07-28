@@ -51,7 +51,6 @@ public class PulsarRecordSetProvider implements ConnectorRecordSetProvider {
             handles.add((PulsarColumnHandle) handle);
         }
 
-
         return new PulsarRecordSet(pulsarSplit, handles.build(), this.pulsarConnectorConfig);
     }
 }
