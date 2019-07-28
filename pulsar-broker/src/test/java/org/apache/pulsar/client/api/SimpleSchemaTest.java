@@ -245,8 +245,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         getSchemaVersionFromMessages(true);
     }
 
-    @Test
-    public void getSchemaVersionFromMessages(boolean batching) throws Exception {
+    private void getSchemaVersionFromMessages(boolean batching) throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))

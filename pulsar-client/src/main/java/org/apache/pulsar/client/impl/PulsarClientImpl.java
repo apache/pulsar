@@ -746,6 +746,7 @@ public class PulsarClientImpl implements PulsarClient {
                                 "No latest schema found for topic " + topicName));
                     }
                     try {
+                        log.info("Configuring schema for topic {} : {}", topicName, schemaInfo);
                         schema.configureSchemaInfo(topicName, "topic", schemaInfo);
                     } catch (RuntimeException re) {
                         return FutureUtil.failedFuture(re);
