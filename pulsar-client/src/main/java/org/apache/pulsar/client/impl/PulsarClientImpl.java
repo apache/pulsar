@@ -60,7 +60,6 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
@@ -70,7 +69,6 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
@@ -79,7 +77,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -727,6 +724,7 @@ public class PulsarClientImpl implements PulsarClient {
         return schemaProviderLoadingCache;
     }
 
+    @SuppressWarnings("unchecked")
     protected CompletableFuture<Void> preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl,
                                                                       Schema schema,
                                                                       String topicName) {
@@ -739,20 +737,19 @@ public class PulsarClientImpl implements PulsarClient {
                 return FutureUtil.failedFuture(e.getCause());
             }
 
-            if (schema instanceof AutoConsumeSchema) {
+            if (schema.requireFetchingSchemaInfo()) {
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
-                    if (schemaInfo.getType() != SchemaType.AVRO && schemaInfo.getType() != SchemaType.JSON){
+                    if (null == schemaInfo) {
+                        // no schema info is found
                         return FutureUtil.failedFuture(
-                            new RuntimeException("Currently schema detection only works"
-                                + " for topics with avro or json schemas"));
+                            new PulsarClientException.NotFoundException(
+                                "No latest schema found for topic " + topicName));
                     }
-
-                    // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
-                    // to decode the messages.
-                    GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
-                    log.info("Auto detected schema for topic {} : {}",
-                            topicName, schemaInfo.getSchemaDefinition());
-                    ((AutoConsumeSchema) schema).setSchema(genericSchema);
+                    try {
+                        schema.configureSchemaInfo(topicName, "topic", schemaInfo);
+                    } catch (RuntimeException re) {
+                        return FutureUtil.failedFuture(re);
+                    }
                     schema.setSchemaInfoProvider(schemaInfoProvider);
                     return CompletableFuture.completedFuture(null);
                 });
