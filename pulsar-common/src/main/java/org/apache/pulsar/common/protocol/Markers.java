@@ -310,6 +310,7 @@ public class Markers {
             PulsarMarkers.TxnCommitMarker commitMarker =
                 PulsarMarkers.TxnCommitMarker.newBuilder().setMessageId(messageIdData.get()).build();
             int size = commitMarker.getSerializedSize();
+            payload.release();
             payload = PooledByteBufAllocator.DEFAULT.buffer(size);
             ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
             commitMarker.writeTo(outStream);
