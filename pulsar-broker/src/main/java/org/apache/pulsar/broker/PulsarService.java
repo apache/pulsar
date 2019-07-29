@@ -787,6 +787,7 @@ public class PulsarService implements AutoCloseable {
                 try {
                     return offloaderFactory.create(
                         conf.getProperties(),
+                        null,
                         ImmutableMap.of(
                             LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
                             LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()

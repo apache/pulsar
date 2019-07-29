@@ -42,20 +42,6 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
     boolean isDriverSupported(String driverName);
 
     /**
-     * Create a ledger offloader with the provided configuration, user-metadata and scheduler.
-     *
-     * @param properties service configuration
-     * @param userMetadata user metadata
-     * @param scheduler scheduler
-     * @return the offloader instance
-     * @throws IOException when fail to create an offloader
-     */
-    T create(Properties properties,
-             Map<String, String> userMetadata,
-             OrderedScheduler scheduler)
-        throws IOException;
-
-    /**
      * Create a ledger offloader with the provided configuration, offload policies, user-metadata and scheduler.
      *
      * @param properties service configuration

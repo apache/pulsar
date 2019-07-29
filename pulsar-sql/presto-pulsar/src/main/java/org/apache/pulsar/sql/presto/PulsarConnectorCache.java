@@ -142,12 +142,13 @@ public class PulsarConnectorCache {
 
                 try {
                     return offloaderFactory.create(
-                        PulsarConnectorUtils.getProperties(offloaderProperties),
-                        ImmutableMap.of(
-                            LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
-                            LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
-                        ),
-                        getOffloaderScheduler(conf));
+                            PulsarConnectorUtils.getProperties(offloaderProperties),
+                            null,
+                            ImmutableMap.of(
+                                    LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
+                                    LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
+                            ),
+                            getOffloaderScheduler(conf));
                 } catch (IOException ioe) {
                     log.error("Failed to create offloader: ", ioe);
                     throw new RuntimeException(ioe.getMessage(), ioe.getCause());
