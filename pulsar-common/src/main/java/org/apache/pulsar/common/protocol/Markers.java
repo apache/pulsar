@@ -305,15 +305,17 @@ public class Markers {
 
         MessageMetadata msgMetadata = msgMetadataBuilder.build();
 
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer();
+        ByteBuf payload;
         if (messageIdData.isPresent()) {
-            PulsarMarkers.TxnCommitMarker commitMarker =
-                PulsarMarkers.TxnCommitMarker.newBuilder().setMessageId(messageIdData.get()).build();
+            PulsarMarkers.TxnCommitMarker commitMarker = PulsarMarkers.TxnCommitMarker.newBuilder()
+                                                                                      .setMessageId(messageIdData.get())
+                                                                                      .build();
             int size = commitMarker.getSerializedSize();
-            payload.release();
             payload = PooledByteBufAllocator.DEFAULT.buffer(size);
             ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(payload);
             commitMarker.writeTo(outStream);
+        } else {
+            payload = PooledByteBufAllocator.DEFAULT.buffer();
         }
 
         try {
