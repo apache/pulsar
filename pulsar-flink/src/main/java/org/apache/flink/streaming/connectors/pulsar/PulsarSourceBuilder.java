@@ -18,6 +18,11 @@
  */
 package org.apache.flink.streaming.connectors.pulsar;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -27,15 +32,8 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.TreeSet;
-import java.util.regex.Pattern;
-import java.util.Map;
 
 /**
  * A class for building a pulsar source.
@@ -117,7 +115,7 @@ public class PulsarSourceBuilder<T> {
     }
 
     /**
-     * Use topic pattern to config sets of topics to consumer
+     * Use topic pattern to config sets of topics to consumer.
      *
      * <p>Topic names (https://pulsar.apache.org/docs/latest/getting-started/ConceptsAndArchitecture/#Topics)
      * are in the following format:
@@ -128,13 +126,14 @@ public class PulsarSourceBuilder<T> {
      */
     public PulsarSourceBuilder<T> topicsPattern(Pattern topicsPattern) {
         Preconditions.checkArgument(topicsPattern != null, "Param topicsPattern cannot be null");
-        Preconditions.checkArgument(this.consumerConfigurationData.getTopicsPattern() == null, "Pattern has already been set.");
+        Preconditions.checkArgument(this.consumerConfigurationData.getTopicsPattern() == null,
+            "Pattern has already been set.");
         this.consumerConfigurationData.setTopicsPattern(topicsPattern);
         return this;
     }
 
     /**
-     * Use topic pattern to config sets of topics to consumer
+     * Use topic pattern to config sets of topics to consumer.
      *
      * <p>Topic names (https://pulsar.apache.org/docs/latest/getting-started/ConceptsAndArchitecture/#Topics)
      * are in the following format:
@@ -145,7 +144,8 @@ public class PulsarSourceBuilder<T> {
      */
     public PulsarSourceBuilder<T> topicsPatternString(String topicsPattern) {
         Preconditions.checkArgument(StringUtils.isNotBlank(topicsPattern), "Topics pattern string cannot be blank");
-        Preconditions.checkArgument(this.consumerConfigurationData.getTopicsPattern() == null, "Pattern has already been set.");
+        Preconditions.checkArgument(this.consumerConfigurationData.getTopicsPattern() == null,
+            "Pattern has already been set.");
         this.consumerConfigurationData.setTopicsPattern(Pattern.compile(topicsPattern));
         return this;
     }
@@ -164,13 +164,14 @@ public class PulsarSourceBuilder<T> {
     }
 
     /**
-     * Sets the subscription initial position for the topic consumer. Default is {@link SubscriptionInitialPosition#Latest}
+     * Sets the subscription initial position for the topic consumer.
+     * Default is {@link SubscriptionInitialPosition#Latest}
      *
      * @param initialPosition the subscription initial position.
      * @return this builder
      */
     public PulsarSourceBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition initialPosition) {
-        Preconditions.checkNotNull(initialPosition,"subscription initial position cannot be null");
+        Preconditions.checkNotNull(initialPosition, "subscription initial position cannot be null");
         this.consumerConfigurationData.setSubscriptionInitialPosition(initialPosition);
         return this;
     }
@@ -187,7 +188,8 @@ public class PulsarSourceBuilder<T> {
             acknowledgementBatchSize = size;
             return this;
         }
-        throw new IllegalArgumentException("acknowledgementBatchSize can only take values > 0 and <= " + MAX_ACKNOWLEDGEMENT_BATCH_SIZE);
+        throw new IllegalArgumentException(
+            "acknowledgementBatchSize can only take values > 0 and <= " + MAX_ACKNOWLEDGEMENT_BATCH_SIZE);
     }
 
     /**
@@ -204,7 +206,7 @@ public class PulsarSourceBuilder<T> {
     }
 
     /**
-     * Configure the authentication provider to use in the Pulsar client instance
+     * Configure the authentication provider to use in the Pulsar client instance.
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin to use
@@ -220,7 +222,8 @@ public class PulsarSourceBuilder<T> {
                 "Authentication-Plugin class name can not be blank");
         Preconditions.checkArgument(StringUtils.isNotBlank(authParamsString),
                 "Authentication-Plugin parameters can not be blank");
-        this.clientConfigurationData.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
+        this.clientConfigurationData
+            .setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
         return this;
     }
 
@@ -240,7 +243,7 @@ public class PulsarSourceBuilder<T> {
             throws PulsarClientException.UnsupportedAuthenticationException {
         Preconditions.checkArgument(StringUtils.isNotBlank(authPluginClassName),
                 "Authentication-Plugin class name can not be blank");
-        Preconditions.checkArgument((authParams != null && authParams.isEmpty() == false),
+        Preconditions.checkArgument((authParams != null && !authParams.isEmpty()),
                 "parameters to authentication plugin can not be null/empty");
         this.clientConfigurationData.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
         return this;
@@ -272,9 +275,9 @@ public class PulsarSourceBuilder<T> {
     public SourceFunction<T> build() throws PulsarClientException{
         Preconditions.checkArgument(StringUtils.isNotBlank(this.clientConfigurationData.getServiceUrl()),
                 "a service url is required");
-        Preconditions.checkArgument((this.consumerConfigurationData.getTopicNames() != null &&
-                        !this.consumerConfigurationData.getTopicNames().isEmpty()) ||
-                        this.consumerConfigurationData.getTopicsPattern() != null,
+        Preconditions.checkArgument((this.consumerConfigurationData.getTopicNames() != null
+                && !this.consumerConfigurationData.getTopicNames().isEmpty())
+                || this.consumerConfigurationData.getTopicsPattern() != null,
                 "At least one topic or topics pattern is required");
         Preconditions.checkArgument(StringUtils.isNotBlank(this.consumerConfigurationData.getSubscriptionName()),
                 "a subscription name is required");
@@ -290,8 +293,9 @@ public class PulsarSourceBuilder<T> {
 
     private void setAuth() throws PulsarClientException{
         if (StringUtils.isBlank(this.clientConfigurationData.getAuthPluginClassName())
-                || StringUtils.isBlank(this.clientConfigurationData.getAuthParams()))
+                || StringUtils.isBlank(this.clientConfigurationData.getAuthParams())) {
             return;
+        }
 
         clientConfigurationData.setAuthentication(
                 AuthenticationFactory.create(
