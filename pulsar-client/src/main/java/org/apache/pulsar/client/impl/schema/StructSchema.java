@@ -29,6 +29,7 @@ import com.google.common.cache.LoadingCache;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -138,6 +139,26 @@ public abstract class StructSchema<T> implements Schema<T> {
      * @return the schema reader for decoding messages encoded by the provided schema version.
      */
     protected abstract SchemaReader<T> loadReader(byte[] schemaVersion);
+
+    /**
+     * TODO: think about how to make this async
+     */
+    protected SchemaInfo getSchemaInfoByVersion(byte[] schemaVersion) {
+        try {
+            return schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SerializationException(
+                "Interrupted at fetching schema info for " + SchemaUtils.getStringSchemaVersion(schemaVersion),
+                e
+            );
+        } catch (ExecutionException e) {
+            throw new SerializationException(
+                "Failed at fetching schema info for " + SchemaUtils.getStringSchemaVersion(schemaVersion),
+                e.getCause()
+            );
+        }
+    }
 
     protected void setWriter(SchemaWriter<T> writer) {
         this.writer = writer;

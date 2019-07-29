@@ -328,12 +328,8 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        try {
-            preProcessSchemaBeforeSubscribe(this, schema, conf.getSingleTopic());
-        } catch (Throwable t) {
-            return FutureUtil.failedFuture(t);
-        }
-        return doSingleTopicSubscribeAsync(conf, schema, interceptors);
+        return preProcessSchemaBeforeSubscribe(this, schema, conf.getSingleTopic())
+            .thenCompose(ignored -> doSingleTopicSubscribeAsync(conf, schema, interceptors));
     }
 
     private <T> CompletableFuture<Consumer<T>> doSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
@@ -444,13 +440,10 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
-        try {
-            preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName());
-        } catch (Throwable t) {
-            return FutureUtil.failedFuture(t);
-        }
-        return doCreateReaderAsync(conf, schema);
+        return preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName())
+            .thenCompose(ignored -> doCreateReaderAsync(conf, schema));
     }
+
     <T> CompletableFuture<Reader<T>> doCreateReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
@@ -734,33 +727,40 @@ public class PulsarClientImpl implements PulsarClient {
         return schemaProviderLoadingCache;
     }
 
-    protected void preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl, Schema schema, String topicName) throws Throwable {
+    protected CompletableFuture<Void> preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl,
+                                                                      Schema schema,
+                                                                      String topicName) {
         if (schema != null && schema.supportSchemaVersioning()) {
-            SchemaInfoProvider schemaInfoProvider = null;
+            final SchemaInfoProvider schemaInfoProvider;
             try {
                 schemaInfoProvider = pulsarClientImpl.getSchemaProviderLoadingCache().get(topicName);
             } catch (ExecutionException e) {
                 log.error("Failed to load schema info provider for topic {}", topicName, e);
-                throw e.getCause();
+                return FutureUtil.failedFuture(e.getCause());
             }
 
             if (schema instanceof AutoConsumeSchema) {
-                SchemaInfo schemaInfo = schemaInfoProvider.getLatestSchema();
-                if (schemaInfo.getType() != SchemaType.AVRO && schemaInfo.getType() != SchemaType.JSON){
-                    throw new RuntimeException("Currently schema detection only works for topics with avro schemas");
-                }
+                return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
+                    if (schemaInfo.getType() != SchemaType.AVRO && schemaInfo.getType() != SchemaType.JSON){
+                        return FutureUtil.failedFuture(
+                            new RuntimeException("Currently schema detection only works"
+                                + " for topics with avro or json schemas"));
+                    }
 
-                // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
-                // to decode the messages.
-                GenericSchema genericSchema = GenericSchemaImpl.of(
-                    schemaInfoProvider.getLatestSchema(), false /*useProvidedSchemaAsReaderSchema*/);
-                log.info("Auto detected schema for topic {} : {}",
-                        topicName, schemaInfo.getSchemaDefinition());
-                ((AutoConsumeSchema) schema).setSchema(genericSchema);
+                    // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
+                    // to decode the messages.
+                    GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
+                    log.info("Auto detected schema for topic {} : {}",
+                            topicName, schemaInfo.getSchemaDefinition());
+                    ((AutoConsumeSchema) schema).setSchema(genericSchema);
+                    schema.setSchemaInfoProvider(schemaInfoProvider);
+                    return CompletableFuture.completedFuture(null);
+                });
+            } else {
+                schema.setSchemaInfoProvider(schemaInfoProvider);
             }
-            schema.setSchemaInfoProvider(schemaInfoProvider);
         }
-
+        return CompletableFuture.completedFuture(null);
     }
 
 }

@@ -48,7 +48,7 @@ class GenericJsonSchema extends GenericSchemaImpl {
 
     @Override
     protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
-        SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+        SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion);
         if (schemaInfo != null) {
             log.info("Load schema reader for version({}), schema is : {}",
                 SchemaUtils.getStringSchemaVersion(schemaVersion),
