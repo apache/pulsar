@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -63,7 +64,7 @@ public class GenericSchemaImplTest {
         genericSchema.setSchemaInfoProvider(multiVersionGenericSchemaProvider);
         decodeSchema.setSchema(genericSchema);
         when(multiVersionGenericSchemaProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(genericSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(genericSchema.getSchemaInfo()));
 
         testAUTOEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
@@ -78,7 +79,7 @@ public class GenericSchemaImplTest {
         decodeSchema.setSchema(genericSchema);
         GenericSchema genericAvroSchema = GenericSchemaImpl.of(Schema.AVRO(Foo.class).getSchemaInfo());
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(genericAvroSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(genericAvroSchema.getSchemaInfo()));
         testAUTOEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
