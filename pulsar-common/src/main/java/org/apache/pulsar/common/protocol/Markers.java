@@ -286,7 +286,7 @@ public class Markers {
         try {
             builder = PulsarMarkers.TxnCommitMarker.newBuilder();
             return builder.mergeFrom(inStream, null).build();
-        }finally {
+        } finally {
             builder.recycle();
             inStream.recycle();
         }
