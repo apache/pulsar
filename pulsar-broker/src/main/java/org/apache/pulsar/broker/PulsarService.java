@@ -841,28 +841,17 @@ public class PulsarService implements AutoCloseable {
             tenants.sort(null);
             Map<NamespaceName, LedgerOffloader> namespacesOffloaders = Maps.newHashMap();
             for (String tenantName: tenants) {
-                // this will return a cluster in v1 and a namespace in v2
-                for (String clusterOrNamespace : this.getZkClient().getChildren(path(POLICIES, tenantName), false)) {
-                    // Then get the list of namespaces
+                for (String namespace : this.getZkClient().getChildren(path(POLICIES, tenantName), false)) {
                     try {
-                        final List<String> children = this.getZkClient().getChildren(path(POLICIES, tenantName, clusterOrNamespace), false);
-                        if (children == null || children.isEmpty()) {
-                            NamespaceName namespaceName = NamespaceName.get(tenantName, clusterOrNamespace);
-                            // if the length is 0 then this is probably a leftover cluster from namespace created
-                            // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
-                            if (this.getZkClient().getData(path(POLICIES, namespaceName.toString()), false, null).length != 0) {
+                        final List<String> children = this.getZkClient().getChildren(path(POLICIES, tenantName, namespace), false);
+                        children.forEach(ns -> {
+                            NamespaceName namespaceName = NamespaceName.get(tenantName, namespace, ns);
+                            try {
                                 namespacesOffloaders.put(namespaceName, createManagedLedgerOffloader(this.config, getNamespacePolicies(namespaceName).offload_policies));
+                            } catch (PulsarServerException e) {
+                                LOG.error("Error during create managedLedgerOffloader for {}", namespaceName, e);
                             }
-                        } else {
-                            children.forEach(ns -> {
-                                NamespaceName namespaceName = NamespaceName.get(tenantName, clusterOrNamespace, ns);
-                                try {
-                                    namespacesOffloaders.put(namespaceName, createManagedLedgerOffloader(this.config, getNamespacePolicies(namespaceName).offload_policies));
-                                } catch (PulsarServerException e) {
-                                    LOG.error("Error during create managedLedgerOffloader for {}", namespaceName, e);
-                                }
-                            });
-                        }
+                        });
                     } catch (KeeperException.NoNodeException e) {
                         // A cluster was deleted between the 2 getChildren() calls, ignoring
                     }
