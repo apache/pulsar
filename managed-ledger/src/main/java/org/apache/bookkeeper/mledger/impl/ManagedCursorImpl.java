@@ -2131,56 +2131,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    /**
-     * Persist pending ack messages before closing cursor. Whenever possible persist to pending ack messages ledger,
-     * else persist to ledger meta store.
-     *
-     * @param subscriptionPendingAckMessages
-     * @param callback
-     * @param ctx
-     */
-    private void persistPendingAckPosition(SubscriptionPendingAckMessages subscriptionPendingAckMessages,
-                                           AsyncCallbacks.CloseCallback callback, Object ctx) {
-        if (cursorPendingAckMsgLedger != null && PENDING_ACK_MSG_LEDGER_STATE_UPDATER.get(ManagedCursorImpl.this) == State.Open) {
-            persistPendingAckPositionToLedger(cursorPendingAckMsgLedger, subscriptionPendingAckMessages,
-                new VoidCallback() {
-                    @Override
-                    public void operationComplete() {
-                        log.info("[{}] Cursor {} Persisted pending ack messages to ledger {}", ledger.getName(), name,
-                                cursorPendingAckMsgLedger.getId());
-                        callback.closeComplete(ctx);
-                    }
-
-                    @Override
-                    public void operationFailed(ManagedLedgerException exception) {
-                        log.error("[{}] Cursor {} Failed to persist pending ack messages to ledger {}", ledger.getName(), name,
-                                cursorPendingAckMsgLedger.getId());
-                        callback.closeFailed(exception, ctx);
-                    }
-            });
-        } else {
-            persistPendingAckPositionMetaStore(-1, subscriptionPendingAckMessages.getPendingCumulativeAckMessagePosition(),
-                subscriptionPendingAckMessages.getPendingCumulativeAckTxnId(),
-                subscriptionPendingAckMessages.getPendingAckMessagesList(),
-                new MetaStoreCallback<SubscriptionPendingAckMessages>() {
-                    @Override
-                    public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
-                        log.info("[{}] Cursor {} Persisted pending ack messages to ledger meta store", ledger.getName(), name);
-                        // At this point the position had already been safely stored in the cursor z-node
-                        callback.closeComplete(ctx);
-                        asyncDeleteLedger(cursorPendingAckMsgLedger);
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.error("[{}] Cursor {} Failed to persist pending ack messages to ledger meta store",
-                                ledger.getName(), name, cursorPendingAckMsgLedger.getId());
-                        callback.closeFailed(e, ctx);
-                    }
-            });
-        }
-    }
-
     private boolean shouldPersistUnackRangesToLedger() {
         return cursorLedger != null && config.getMaxUnackedRangesToPersist() > 0
                 && individualDeletedMessages.size() > config.getMaxUnackedRangesToPersistInZk();
@@ -2275,7 +2225,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
         persistPosition(-1, lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, callback, ctx);
-        persistPendingAckPosition(pendingAckMessages, callback, ctx);
 
         STATE_UPDATER.set(this, State.Closed);
     }
