@@ -2263,20 +2263,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     subscriptionPendingAckMessage);
         }
         ledger.getStore().asyncUpdateSubscriptionPendingAckMessages(ledger.getName(), name,
-                pendingAckMessagesStoreStat, subscriptionPendingAckMessage,
-                new MetaStoreCallback<SubscriptionPendingAckMessages>() {
-                    @Override
-                    public void operationComplete(SubscriptionPendingAckMessages result, Stat stat) {
-                        pendingAckMessagesStoreStat = stat;
-                        PENDING_ACK_MSG_UPDATER.set(ManagedCursorImpl.this, subscriptionPendingAckMessage);
-                        callback.operationComplete(result, stat);
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        callback.operationFailed(e);
-                    }
-                });
+                pendingAckMessagesStoreStat, subscriptionPendingAckMessage, callback);
     }
 
     @Override
@@ -2643,6 +2630,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                                     "previous failure in ledger",
                                             ledger.getName(), name, subscriptionPendingAckMessage);
                                 }
+                                PENDING_ACK_MSG_UPDATER.set(ManagedCursorImpl.this, result);
                                 callback.operationComplete();
                             }
 
