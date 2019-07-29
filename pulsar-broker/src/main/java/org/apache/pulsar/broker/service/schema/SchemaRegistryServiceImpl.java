@@ -225,7 +225,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList -> {
             HashCode newHash = hashFunction.hashBytes(schemaData.getData());
             for (SchemaAndMetadata schemaAndMetadata:schemaAndMetadataList) {
-                if ( Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(), newHash.asBytes())) {
+                if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(), newHash.asBytes())) {
                     return completedFuture(((LongSchemaVersion)schemaStorage
                             .versionFromBytes(schemaAndMetadata.version.bytes())).getVersion());
                 }

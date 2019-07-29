@@ -113,6 +113,7 @@ public class SchemasResource extends AdminResource {
         @ApiResponse(code = 403, message = "Client is not authenticated"),
         @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
         @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+        @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void getSchema(
         @PathParam("tenant") String tenant,
@@ -141,6 +142,7 @@ public class SchemasResource extends AdminResource {
         @ApiResponse(code = 403, message = "Client is not authenticated"),
         @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
         @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+        @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void getSchema(
         @PathParam("tenant") String tenant,
@@ -173,6 +175,7 @@ public class SchemasResource extends AdminResource {
             @ApiResponse(code = 403, message = "Client is not authenticated"),
             @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
             @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void getAllSchemas(
             @PathParam("tenant") String tenant,
@@ -202,13 +205,7 @@ public class SchemasResource extends AdminResource {
                 response.resume(
                     Response.ok()
                         .encoding(MediaType.APPLICATION_JSON)
-                        .entity(GetSchemaResponse.builder()
-                            .version(getLongSchemaVersion(schema.version))
-                            .type(schema.schema.getType())
-                            .timestamp(schema.schema.getTimestamp())
-                            .data(new String(schema.schema.getData(), UTF_8))
-                            .properties(schema.schema.getProps())
-                            .build()
+                        .entity(convertSchemaAndMetadataToGetSchemaResponse(schema)
                         ).build()
                 );
             }
@@ -223,20 +220,13 @@ public class SchemasResource extends AdminResource {
         if (isNull(error)) {
             if (isNull(schemas)) {
                 response.resume(Response.status(Response.Status.NOT_FOUND).build());
-            } else if (schemas.size() == 0) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
             } else {
                 response.resume(
                         Response.ok()
                                 .encoding(MediaType.APPLICATION_JSON)
                                 .entity(GetAllVersionsSchemaResponse.builder().getSchemaResponses(
-                                        schemas.stream().map(schemaAndMetadata -> GetSchemaResponse.builder()
-                                                .version(getLongSchemaVersion(schemaAndMetadata.version))
-                                                .type(schemaAndMetadata.schema.getType())
-                                                .timestamp(schemaAndMetadata.schema.getTimestamp())
-                                                .data(new String(schemaAndMetadata.schema.getData(), UTF_8))
-                                                .properties(schemaAndMetadata.schema.getProps())
-                                                .build()).collect(Collectors.toList())
+                                        schemas.stream().map(SchemasResource::convertSchemaAndMetadataToGetSchemaResponse)
+                                                .collect(Collectors.toList())
                                         ).build()
                                 ).build()
                 );
@@ -256,6 +246,7 @@ public class SchemasResource extends AdminResource {
         @ApiResponse(code = 403, message = "Client is not authenticated"),
         @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
         @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+        @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void deleteSchema(
         @PathParam("tenant") String tenant,
@@ -297,6 +288,7 @@ public class SchemasResource extends AdminResource {
         @ApiResponse(code = 409, message = "Incompatible schema"),
         @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
         @ApiResponse(code = 422, message = "Invalid schema data"),
+        @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void postSchema(
         @PathParam("tenant") String tenant,
@@ -365,7 +357,7 @@ public class SchemasResource extends AdminResource {
             @ApiResponse(code = 403, message = "Client is not authenticated"),
             @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
             @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
-            @ApiResponse(code = 422, message = "Invalid schema data"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void testCompatibility(
             @PathParam("tenant") String tenant,
@@ -389,7 +381,7 @@ public class SchemasResource extends AdminResource {
 
         String schemaId = buildSchemaId(tenant, namespace, topic);
 
-        SchemaCompatibilityStrategy schemaCompatibilityStrategy =SchemaCompatibilityStrategy
+        SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy
                 .fromAutoUpdatePolicy(getNamespacePolicies(NamespaceName.get(tenant, namespace))
                         .schema_auto_update_compatibility_strategy);
 
@@ -426,6 +418,7 @@ public class SchemasResource extends AdminResource {
             @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
             @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
             @ApiResponse(code = 422, message = "Invalid schema data"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
     })
     public void getVersionBySchema(
             @PathParam("tenant") String tenant,
@@ -467,7 +460,15 @@ public class SchemasResource extends AdminResource {
         });
     }
 
-
+    private static GetSchemaResponse convertSchemaAndMetadataToGetSchemaResponse(SchemaAndMetadata schemaAndMetadata) {
+        return GetSchemaResponse.builder()
+                .version(getLongSchemaVersion(schemaAndMetadata.version))
+                .type(schemaAndMetadata.schema.getType())
+                .timestamp(schemaAndMetadata.schema.getTimestamp())
+                .data(new String(schemaAndMetadata.schema.getData(), UTF_8))
+                .properties(schemaAndMetadata.schema.getProps())
+                .build();
+    }
 
     private String buildSchemaId(String tenant, String namespace, String topic) {
         TopicName topicName = TopicName.get("persistent", tenant, namespace, topic);

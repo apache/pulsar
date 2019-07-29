@@ -83,7 +83,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public void createSchema(String topic, SchemaInfo schemaInfo) throws PulsarAdminException {
 
-        createSchema(topic, converSchemaInfoToPostSchemaPayload(schemaInfo));
+        createSchema(topic, convertSchemaInfoToPostSchemaPayload(schemaInfo));
     }
 
     @Override
@@ -120,7 +120,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public IsCompatibilityResponse testCompatibility(String topic, SchemaInfo schemaInfo) throws PulsarAdminException {
         try {
             return request(compatibilityPath(TopicName.get(topic)))
-                    .post(Entity.json(converSchemaInfoToPostSchemaPayload(schemaInfo)), IsCompatibilityResponse.class);
+                    .post(Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)), IsCompatibilityResponse.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -130,7 +130,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public Long getVersionBySchema(String topic, SchemaInfo schemaInfo) throws PulsarAdminException {
         try {
             return request(versionPath(TopicName.get(topic)))
-                    .post(Entity.json(converSchemaInfoToPostSchemaPayload(schemaInfo)), LongSchemaVersionResponse.class).getVersion();
+                    .post(Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)), LongSchemaVersionResponse.class).getVersion();
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -204,7 +204,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
         return new String(schemaData, UTF_8);
     }
 
-    static PostSchemaPayload converSchemaInfoToPostSchemaPayload(SchemaInfo schemaInfo) {
+    static PostSchemaPayload convertSchemaInfoToPostSchemaPayload(SchemaInfo schemaInfo) {
         PostSchemaPayload payload = new PostSchemaPayload();
         payload.setType(schemaInfo.getType().name());
         payload.setProperties(schemaInfo.getProperties());
