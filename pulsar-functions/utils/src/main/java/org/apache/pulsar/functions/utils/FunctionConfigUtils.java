@@ -369,6 +369,20 @@ public class FunctionConfigUtils {
 
     private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
 
+        try {
+            Class functionClass = clsLoader.loadClass(functionConfig.getClassName());
+
+            if (!org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass)
+                    && !java.util.function.Function.class.isAssignableFrom(functionClass)) {
+                throw new IllegalArgumentException(
+                        String.format("Function class %s does not implement the correct interface",
+                                functionClass.getName()));
+            }
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(
+                    String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
+        }
+
         Class<?>[] typeArgs;
         try {
             typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
