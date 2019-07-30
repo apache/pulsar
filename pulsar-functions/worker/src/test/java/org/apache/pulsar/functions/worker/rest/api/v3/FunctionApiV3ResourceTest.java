@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -106,6 +107,13 @@ public class FunctionApiV3ResourceTest {
         @Override
         public String process(String input, Context context) {
             return input;
+        }
+    }
+
+    private static final class WrongFunction implements Consumer<String> {
+        @Override
+        public void accept(String s) {
+
         }
     }
 
@@ -432,6 +440,27 @@ public class FunctionApiV3ResourceTest {
                 className,
                 parallelism,
                 "http://localhost:1234/test");
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function class .*. does not implement the correct interface")
+    public void testRegisterFunctionImplementWrongInterface() {
+        try {
+            testRegisterFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    WrongFunction.class.getName(),
+                    parallelism,
+                    null);
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
