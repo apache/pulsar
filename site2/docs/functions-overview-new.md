@@ -187,8 +187,3 @@ $ bin/pulsar-admin functions update \
   --processing-guarantees ATMOST_ONCE \
   # Other function configs
 ```
-
-## Thread mode and process mode
-You can run Pulsar Functions in both thread mode and process mode. The differences of the two modes are:   
-- Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with Functions worker.   
-- Process mode: when a function runs in process mode, it runs on the same machine that Functions worker runs.
