@@ -115,12 +115,12 @@ public abstract class StructSchema<T> implements Schema<T> {
         }
     }
 
-    protected static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
+    public static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
         final Parser parser = new Parser();
         return parser.parse(schemaJson);
     }
 
-    protected static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
+    public static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
         return SchemaInfo.builder()
                 .schema(createAvroSchema(schemaDefinition).toString().getBytes(UTF_8))
                 .properties(schemaDefinition.getProperties())

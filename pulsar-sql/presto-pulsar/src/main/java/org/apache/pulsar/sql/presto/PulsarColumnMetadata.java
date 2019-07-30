@@ -22,7 +22,6 @@ import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.type.Type;
 
 import java.util.Arrays;
-import java.util.List;
 
 public class PulsarColumnMetadata extends ColumnMetadata {
 

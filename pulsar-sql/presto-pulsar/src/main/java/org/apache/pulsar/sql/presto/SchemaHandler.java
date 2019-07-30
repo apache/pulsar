@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.netty.buffer.ByteBuf;
+import org.apache.pulsar.common.api.raw.RawMessage;
 
 public interface SchemaHandler {
 
-    Object deserialize(ByteBuf payload);
+    Object deserialize(RawMessage rawMessage);
 
     Object extractField(int index, Object currentRecord);
 

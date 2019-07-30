@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
 
-import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -43,8 +42,8 @@ public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
     }
 
     @Override
-    public Object deserialize(ByteBuf byteBuf) {
-        byte[] data = ByteBufUtil.getBytes(byteBuf);
+    public Object deserialize(RawMessage rawMessage) {
+        byte[] data = ByteBufUtil.getBytes(rawMessage.getData());
         Object currentRecord = schema.decode(data);
         switch (schemaInfo.getType()) {
             case DATE:
