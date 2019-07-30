@@ -101,11 +101,11 @@ In the `pulsar_jaas.conf` file above
     and the location of the keytab where the principal is stored. It allows the broker to use the keytab specified in this section.
 2. `PulsarClient` is a section name in the JASS file used by each client. This section tells the client which principal to use inside Kerberos
     and the location of the keytab where the principal is stored. It allows the client to use the keytab specified in this section.
-    In the following example, this `PulsarClient` section will also be reused in both the Pulsar internal admin configuration and in cli command of `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`. You can also add different section for different use case.
+    In the following example, this `PulsarClient` section will also be reused in both the Pulsar internal admin configuration and in CLI command of `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`. You can also add different sections for different use cases.
 
 You can have 2 separate JAAS configuration files: 
-* the file for broker will have sections of both `PulsarBroker` and `PulsarClient`; 
-* the file for client only have `PulsarClient` section.
+* the file for a broker has sections of both `PulsarBroker` and `PulsarClient`; 
+* the file for a client only has a `PulsarClient` section.
 
 
 ### Kerberos configuration for Brokers
@@ -121,7 +121,7 @@ You can have 2 separate JAAS configuration files:
  
  To make Pulsar internal admin client work properly, you need to set the configuration in the `broker.conf` file as below: 
  - Set `brokerClientAuthenticationPlugin` to client plugin `AuthenticationSasl`;
- - Set `brokerClientAuthenticationParameters` to value in Json string `{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}`, in which `PulsarClient` is the section name in above `pulsar_jaas.conf` file, and `"serverType":"broker"` indicate that internal admin client will connect to a Pulsar Broker;
+ - Set `brokerClientAuthenticationParameters` to value in JSON string `{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}`, in which `PulsarClient` is the section name in above `pulsar_jaas.conf` file, and `"serverType":"broker"` indicate that internal admin client will connect to a Pulsar Broker;
 
  Here is an example:
 
@@ -196,7 +196,7 @@ java -cp -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.s
 
 Make sure that the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file are reachable by the operating system user who is starting pulsar client.
 
-#### configure CLI tools
+#### Configure CLI tools
 
 If you are using a command-line tool (such as `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`), you need to preform the following steps:
 
@@ -207,13 +207,13 @@ authParams={"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}
 ```
 
 
-Step 2.  Set JVM parameters for JAAS configuration file and krb5 configuration file with additional options.
+Step 2. Set JVM parameters for JAAS configuration file and krb5 configuration file with additional options.
 ```shell
    -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf 
 ```
 
 You can add this at the end of `PULSAR_EXTRA_OPTS` in the file [`pulsar_tools_env.sh`](https://github.com/apache/pulsar/blob/master/conf/pulsar_tools_env.sh),
-Or add this line `OPTS="$OPTS -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf "` directly in to the CLI tool script.
+or add this line `OPTS="$OPTS -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf "` directly to the CLI tool script.
 
 The meaning of configurations is the same as that in Java client section.
 
@@ -377,7 +377,7 @@ Pulsar Broker acts as a Kerberos client when authenticating with Bookie. Accordi
 bookkeeperClientAuthenticationPlugin=org.apache.bookkeeper.sasl.SASLClientProviderFactory
 ```
 
-In this setting, `SASLClientProviderFactory` will create a BookKeeper SASL client in Broker, and Broker use created SASL client to authenticate with a Bookie node.
+In this setting, `SASLClientProviderFactory` creates a BookKeeper SASL client in a Broker, and the Broker uses the created SASL client to authenticate with a Bookie node.
 
 And add a section of `BookKeeper` configurations in the `pulsar_jaas.conf` that used by Pulsar Broker:
 
