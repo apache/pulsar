@@ -270,7 +270,11 @@ public class MessageImpl<T> implements Message<T> {
                     return schema.decode(getData(), schemaVersion);
                 }
             } else {
-                return schema.decode(getData());
+                if (getData().length == 0) {
+                    return null;
+                } else {
+                    return schema.decode(getData());
+                }
             }
         }
     }
