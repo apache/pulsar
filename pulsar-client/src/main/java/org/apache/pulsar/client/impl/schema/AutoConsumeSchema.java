@@ -18,18 +18,22 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-
 import static com.google.common.base.Preconditions.checkState;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Auto detect schema.
  */
+@Slf4j
 public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private Schema<GenericRecord> schema;
@@ -80,6 +84,27 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         return schema.getSchemaInfo();
     }
 
+    @Override
+    public boolean requireFetchingSchemaInfo() {
+        return true;
+    }
+
+    @Override
+    public void configureSchemaInfo(String topicName,
+                                    String componentName,
+                                    SchemaInfo schemaInfo) {
+        if (schemaInfo.getType() != SchemaType.AVRO
+            && schemaInfo.getType() != SchemaType.JSON) {
+            throw new RuntimeException("Currently auto consume only works for topics with avro or json schemas");
+        }
+        // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
+        // to decode the messages.
+        GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
+        setSchema(genericSchema);
+        log.info("Configure {} schema for topic {} : {}",
+            componentName, topicName, schemaInfo.getSchemaDefinition());
+    }
+
     public static Schema<?> getSchema(SchemaInfo schemaInfo) {
         switch (schemaInfo.getType()) {
             case INT8:
@@ -106,11 +131,15 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 return TimeSchema.of();
             case TIMESTAMP:
                 return TimestampSchema.of();
-            case KEY_VALUE:
-                return KeyValueSchema.kvBytes();
             case JSON:
             case AVRO:
                 return GenericSchemaImpl.of(schemaInfo);
+            case KEY_VALUE:
+                KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo =
+                    KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
+                Schema<?> keySchema = getSchema(kvSchemaInfo.getKey());
+                Schema<?> valueSchema = getSchema(kvSchemaInfo.getValue());
+                return KeyValueSchema.of(keySchema, valueSchema);
             default:
                 throw new IllegalArgumentException("Retrieve schema instance from schema info for type '"
                     + schemaInfo.getType() + "' is not supported yet");

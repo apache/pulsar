@@ -59,7 +59,7 @@ public class GenericAvroSchema extends GenericSchemaImpl {
          if (schemaInfo != null) {
              log.info("Load schema reader for version({}), schema is : {}",
                  SchemaUtils.getStringSchemaVersion(schemaVersion),
-                 schemaInfo.getSchemaDefinition());
+                 schemaInfo);
              Schema writerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
              Schema readerSchema = useProvidedSchemaAsReaderSchema ? schema : writerSchema;
              return new GenericAvroReader(
@@ -69,7 +69,7 @@ public class GenericAvroSchema extends GenericSchemaImpl {
          } else {
              log.warn("No schema found for version({}), use latest schema : {}",
                  SchemaUtils.getStringSchemaVersion(schemaVersion),
-                 this.schemaInfo.getSchemaDefinition());
+                 this.schemaInfo);
              return reader;
          }
     }

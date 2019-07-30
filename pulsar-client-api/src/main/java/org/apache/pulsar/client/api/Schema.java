@@ -117,6 +117,28 @@ public interface Schema<T> {
     SchemaInfo getSchemaInfo();
 
     /**
+     * Check if this schema requires fetching schema info to configure the schema.
+     *
+     * @return true if the schema requires fetching schema info to configure the schema,
+     *         otherwise false.
+     */
+    default boolean requireFetchingSchemaInfo() {
+        return false;
+    }
+
+    /**
+     * Configure the schema to use the provided schema info.
+     *
+     * @param topic topic name
+     * @param componentName component name
+     * @param schemaInfo schema info
+     */
+    default void configureSchemaInfo(String topic, String componentName,
+                                     SchemaInfo schemaInfo) {
+        // no-op
+    }
+
+    /**
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.
      */
     Schema<byte[]> BYTES = DefaultImplementation.newBytesSchema();
