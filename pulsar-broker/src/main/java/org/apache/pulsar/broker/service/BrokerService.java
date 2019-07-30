@@ -27,6 +27,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -69,15 +70,15 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.*;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -121,6 +122,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -939,6 +941,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             serviceConfig.getDefaultRetentionSizeInMB())
             );
 
+            OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElseGet(
+                    () -> new OffloadPolicies(serviceConfig.getDefaultOffloadDriver(),
+                            serviceConfig.getDefaultOffloadEndpoint(),
+                            serviceConfig.getDefaultOffloadBucket(),
+                            serviceConfig.getDefaultOffloadMaxBlockSizeInBytes(),
+                            serviceConfig.getDefaultOffloadReadBufferSizeInBytes())
+            );
+
             ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
             managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
             managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
@@ -981,7 +991,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
-            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader());
             policies.ifPresent(p -> {
                     long lag = serviceConfig.getManagedLedgerOffloadDeletionLagMs();
                     if (p.offload_deletion_lag_ms != null) {
@@ -995,10 +1004,46 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     managedLedgerConfig.setOffloadAutoTriggerSizeThresholdBytes(bytes);
                 });
 
+
+            try {
+                managedLedgerConfig.setLedgerOffloader(createManagedLedgerOffloader(serviceConfig, offloadPolicies));
+            } catch (PulsarServerException e) {
+                log.error("Can't create managed ledger offloader for {} due to {}.", namespace, e);
+                future.completeExceptionally(e);
+            }
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
 
         return future;
+    }
+
+    private synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf, OffloadPolicies offloadPolicies)
+            throws PulsarServerException {
+        try {
+            if (StringUtils.isNotBlank(offloadPolicies.getDriver())) {
+                checkNotNull(conf.getOffloadersDirectory(),
+                        "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
+                        conf.getDefaultOffloadDriver());
+                LedgerOffloaderFactory offloaderFactory = OffloaderUtils.searchForOffloaders(conf.getOffloadersDirectory()).getOffloaderFactory(offloadPolicies.getDriver());
+                try {
+                    return offloaderFactory.create(
+                            conf.getProperties(),
+                            offloadPolicies,
+                            ImmutableMap.of(
+                                    LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
+                                    LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
+                            ),
+                            pulsar.getOffloaderScheduler(conf));
+                } catch (IOException ioe) {
+                    throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
+                }
+            } else {
+                log.info("No ledger offloader configured, using NULL instance");
+                return NullLedgerOffloader.INSTANCE;
+            }
+        } catch (Throwable t) {
+            throw new PulsarServerException(t);
+        }
     }
 
     private void addTopicToStatsMaps(TopicName topicName, Topic topic) {

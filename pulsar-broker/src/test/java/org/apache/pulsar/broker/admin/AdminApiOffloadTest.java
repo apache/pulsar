@@ -71,8 +71,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         LedgerOffloader offloader = mock(LedgerOffloader.class);
         when(offloader.getOffloadDriverName()).thenReturn("mock");
 
-        doReturn(offloader).when(pulsar).getManagedLedgerOffloader();
-
         CompletableFuture<Void> promise = new CompletableFuture<>();
         doReturn(promise).when(offloader).offload(any(), any(), any());
 

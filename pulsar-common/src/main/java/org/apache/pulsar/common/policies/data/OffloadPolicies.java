@@ -18,7 +18,15 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.collect.ImmutableMap;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.common.naming.NamespaceName;
+
+import java.io.IOException;
 import java.util.Objects;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  */

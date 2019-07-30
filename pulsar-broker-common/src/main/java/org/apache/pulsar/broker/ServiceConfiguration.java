@@ -1352,7 +1352,31 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_OFFLOADING,
         doc = "Driver to use to offload old data to long term storage"
     )
-    private String managedLedgerOffloadDriver = null;
+    private String defaultOffloadDriver = null;
+
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "Endpoint to use to offload old data to long term storage"
+    )
+    private String defaultOffloadEndpoint = null;
+
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "Bucket to use to offload old data to long term storage"
+    )
+    private String defaultOffloadBucket = null;
+
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "Max block size in bytes to use to offload old data to long term storage"
+    )
+    private Long defaultOffloadMaxBlockSizeInBytes = null;
+
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
+        doc = "Read buffer size in bytes to use to offload old data to long term storage"
+    )
+    private Long defaultOffloadReadBufferSizeInBytes = null;
 
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,

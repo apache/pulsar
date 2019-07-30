@@ -160,8 +160,6 @@ public class PulsarService implements AutoCloseable {
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
     private Offloaders offloaderManager = new Offloaders();
-    private LedgerOffloader defaultOffloader;
-    private Map<NamespaceName, LedgerOffloader> namespacesOffloaders;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
@@ -402,9 +400,6 @@ public class PulsarService implements AutoCloseable {
 
             // needs load management service
             this.startNamespaceService();
-
-            this.defaultOffloader = createManagedLedgerOffloader(this.getConfiguration());
-            this.namespacesOffloaders = createNamespacesOffloaders();
 
             brokerService.start();
 
@@ -835,33 +830,8 @@ public class PulsarService implements AutoCloseable {
         }
     }
 
-    public Map<NamespaceName, LedgerOffloader> createNamespacesOffloaders() {
-        try {
-            List<String> tenants = this.getZkClient().getChildren(path(POLICIES), false);
-            tenants.sort(null);
-            Map<NamespaceName, LedgerOffloader> namespacesOffloaders = Maps.newHashMap();
-            for (String tenantName: tenants) {
-                for (String namespace : this.getZkClient().getChildren(path(POLICIES, tenantName), false)) {
-                    try {
-                        final List<String> children = this.getZkClient().getChildren(path(POLICIES, tenantName, namespace), false);
-                        children.forEach(ns -> {
-                            NamespaceName namespaceName = NamespaceName.get(tenantName, namespace, ns);
-                            try {
-                                namespacesOffloaders.put(namespaceName, createManagedLedgerOffloader(this.config, getNamespacePolicies(namespaceName).offload_policies));
-                            } catch (PulsarServerException e) {
-                                LOG.error("Error during create managedLedgerOffloader for {}", namespaceName, e);
-                            }
-                        });
-                    } catch (KeeperException.NoNodeException e) {
-                        // A cluster was deleted between the 2 getChildren() calls, ignoring
-                    }
-                }
-            }
-            return namespacesOffloaders;
-        } catch (Exception e) {
-            LOG.error("Failed to get tenants list", e);
-            throw new RestException(e);
-        }
+    public Offloaders getOffloaderManager() {
+        return offloaderManager;
     }
 
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
@@ -949,7 +919,7 @@ public class PulsarService implements AutoCloseable {
         return this.compactor;
     }
 
-    protected synchronized OrderedScheduler getOffloaderScheduler(ServiceConfiguration conf) {
+    public synchronized OrderedScheduler getOffloaderScheduler(ServiceConfiguration conf) {
         if (this.offloaderScheduler == null) {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(conf.getManagedLedgerOffloadMaxThreads())
