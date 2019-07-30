@@ -510,4 +510,3 @@ Pulsar Functions that use [Pulsar Functions SDK](#the-pulsar-functions-sdk) can 
 
 ## State storage
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Pulsar installation, including the local standalone installation, includes deployment of BookKeeper bookies.
-
