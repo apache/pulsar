@@ -63,6 +63,16 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
+    public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
+        return this.service.trimDeletedSchemaAndGetList(schemaId);
+    }
+
+    @Override
+    public CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData) {
+        return this.service.findSchemaVersion(schemaId, schemaData);
+    }
+
+    @Override
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId,
                                                               SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {

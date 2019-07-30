@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 public interface SchemaRegistryService extends SchemaRegistry {
     String CreateMethodName = "create";
     Logger log = LoggerFactory.getLogger(SchemaRegistryService.class);
+    long NO_SCHEMA_VERSION = -1L;
 
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
         Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();

@@ -34,6 +34,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -220,6 +221,19 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .isCompatible(existingSchema.schema, newSchema, strategy);
     }
 
+    public CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData) {
+        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList -> {
+            HashCode newHash = hashFunction.hashBytes(schemaData.getData());
+            for (SchemaAndMetadata schemaAndMetadata:schemaAndMetadataList) {
+                if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(), newHash.asBytes())) {
+                    return completedFuture(((LongSchemaVersion)schemaStorage
+                            .versionFromBytes(schemaAndMetadata.version.bytes())).getVersion());
+                }
+            }
+            return completedFuture(NO_SCHEMA_VERSION);
+        });
+    }
+
     private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
                                                                     SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId)
@@ -241,7 +255,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             );
     }
 
-    private CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
+    public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
         return getAllSchemas(schemaId).thenCompose(FutureUtils::collect).thenApply(list -> {
             // Trim the prefix of schemas before the latest delete.
             int lastIndex = list.size() - 1;
