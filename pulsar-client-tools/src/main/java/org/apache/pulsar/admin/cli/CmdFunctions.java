@@ -107,10 +107,10 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The function's tenant")
+        @Parameter(names = "--tenant", description = "The tenant of functions")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The function's namespace")
+        @Parameter(names = "--namespace", description = "The namespace of functions")
         protected String namespace;
 
         @Override
@@ -132,13 +132,13 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
         protected String fqfn;
 
-        @Parameter(names = "--tenant", description = "The function's tenant")
+        @Parameter(names = "--tenant", description = "The tenant of functions")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The function's namespace")
+        @Parameter(names = "--namespace", description = "The namespace of functions")
         protected String namespace;
 
-        @Parameter(names = "--name", description = "The function's name")
+        @Parameter(names = "--name", description = "The name of functions")
         protected String functionName;
 
         @Override
@@ -184,18 +184,18 @@ public class CmdFunctions extends CmdBase {
     abstract class FunctionDetailsCommand extends BaseCommand {
         @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
         protected String fqfn;
-        @Parameter(names = "--tenant", description = "The function's tenant")
+        @Parameter(names = "--tenant", description = "The tenant of functions")
         protected String tenant;
-        @Parameter(names = "--namespace", description = "The function's namespace")
+        @Parameter(names = "--namespace", description = "The namespace of functions")
         protected String namespace;
-        @Parameter(names = "--name", description = "The function's name")
+        @Parameter(names = "--name", description = "The name of functions")
         protected String functionName;
         // for backwards compatibility purposes
-        @Parameter(names = "--className", description = "The function's class name", hidden = true)
+        @Parameter(names = "--className", description = "The class name of functions", hidden = true)
         protected String DEPRECATED_className;
-        @Parameter(names = "--classname", description = "The function's class name")
+        @Parameter(names = "--classname", description = "The class name of functions")
         protected String className;
-        @Parameter(names = "--jar", description = "Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the JAR file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
         @Parameter(
                 names = "--py",
@@ -207,7 +207,7 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to the main Go executable binary for the function (if the function is written in Go)")
         protected String goFile;
         @Parameter(names = {"-i",
-                "--inputs"}, description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
+                "--inputs"}, description = "The input topic or topics (multiple topics can be specified as a comma-separated list) of functions")
         protected String inputs;
         // for backwards compatibility purposes
         @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)", hidden = true)
@@ -215,12 +215,12 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)")
         protected String topicsPattern;
 
-        @Parameter(names = {"-o", "--output"}, description = "The function's output topic (If none is specified, no output is written)")
+        @Parameter(names = {"-o", "--output"}, description = "The functions output topic (If none is specified, no output is written)")
         protected String output;
         // for backwards compatibility purposes
-        @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced", hidden = true)
+        @Parameter(names = "--logTopic", description = "The topic to which the functions logs are produced", hidden = true)
         protected String DEPRECATED_logTopic;
-        @Parameter(names = "--log-topic", description = "The topic to which the function's logs are produced")
+        @Parameter(names = "--log-topic", description = "The topic to which the functions logs are produced")
         protected String logTopic;
 
         @Parameter(names = {"-st", "--schema-type"}, description = "The builtin schema type or custom schema class name to be used for messages output by the function")
@@ -239,9 +239,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--output-serde-classname", description = "The SerDe class to be used for messages output by the function")
         protected String outputSerdeClassName;
         // for backwards compatibility purposes
-        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the function's configuration", hidden = true)
+        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the functions configuration", hidden = true)
         protected String DEPRECATED_fnConfigFile;
-        @Parameter(names = "--function-config-file", description = "The path to a YAML config file specifying the function's configuration")
+        @Parameter(names = "--function-config-file", description = "The path to a YAML config file specifying the functions configuration")
         protected String fnConfigFile;
         // for backwards compatibility purposes
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the function", hidden = true)
