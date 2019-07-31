@@ -4,6 +4,7 @@ title: Understand schema
 sidebar_label: Understand schema
 ---
 
+
 ## SchemaInfo
 
 Pulsar schema is defined in a data structure called `SchemaInfo`. 
@@ -55,7 +56,7 @@ Currently, Pulsar supports the following primitive types:
 | `DOUBLE` | A double-precision (64-bit) IEEE 754 floating-point number |
 | `BYTES` | A sequence of 8-bit unsigned bytes |
 | `STRING` | A Unicode character sequence |
-| `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value | 
+| `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br>It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value | 
 
 For primitive types, Pulsar does not store any schema data in `SchemaInfo`. The `type` in `SchemaInfo` is used to determine how to serialize and deserialize the data. 
 
@@ -332,11 +333,108 @@ GenericRecord record = msg.getValue();
 
 Each `SchemaInfo` stored with a topic has a version. Schema version manages schema changes happening within a topic. 
 
-Messages produced with a given `SchemaInfo` is tagged with the schema version, so when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding schema information, and then use the schema information to deserialize data.
+Messages produced with a given `SchemaInfo` is tagged with a schema version, so when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding schema information and then use the schema information to deserialize data.
 
-## How does Schema work
+Schemas are versioned in succession. Schema storage happens in a broker that handles the associated topics so that version assignments can be made. 
 
-Schema works on the producer side and the consumer side.
+Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.
+
+**Example**
+
+The following example illustrates how the schema version works.
+
+Suppose that a Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begins to send messages:
+
+```text
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://localhost:6650")
+        .build();
+
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-data")
+        .sendTimeout(3, TimeUnit.SECONDS)
+        .create();
+```
+
+The table below lists the possible scenarios when this connection attempt occurs and what happens in each scenario:
+
+<table class="table">
+    
+<tr>
+
+<th>Scenario</th>
+
+<th>What happens</th>
+
+</tr>
+
+<tr>
+    
+<td> 
+
+* No schema exists for the topic. 
+ 
+</td>
+    
+<td> 
+    
+(1) The producer is created using the given schema.
+
+(2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored.
+
+(3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.
+
+</td>
+
+</tr>
+
+<tr>
+    
+<td> 
+
+* A schema already exists. 
+  
+* The producer connects using the same schema that is already stored.
+
+</td>
+    
+<td> 
+
+(1) The schema is transmitted to the broker. 
+
+(2) The broker determines that the schema is compatible. 
+
+(3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages. 
+
+</td>
+
+<tr>
+
+<td> 
+
+* A schema already exists. 
+
+* The producer connects using a new schema that is compatible.
+ 
+</td>
+    
+<td> 
+    
+(1) The schema is transmitted to the broker. 
+
+(2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).
+
+</td>
+
+</tr>
+
+</table>
+
+## How does schema work
+
+Pulsar schemas are applied and enforced at the **topic** level (schemas cannot be applied at the namespace or tenant level). 
+
+Producers and consumers upload schemas to brokers, so Pulsar schemas work on the producer side and the consumer side.
 
 ### Producer side
 
@@ -386,4 +484,6 @@ This diagram illustrates how does Schema work on the consumer side.
    
 7. If the schema is incompatible, the consumer will be disconnected.
 
-8. The consumer receives the messages from the broker. If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer will fetch the schema info of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.
+8. The consumer receives the messages from the broker. 
+
+    If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the  `SchemaInfo` of the version tagged in messages, and use the passed-in schema and the schema tagged in messages to decode the messages.
