@@ -259,7 +259,7 @@ public class CmdFunctions extends CmdBase {
         protected Boolean retainOrdering;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
-        @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
+        @Parameter(names = "--parallelism", description = "The parallelism factor of function (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
         protected Double cpu;
@@ -288,9 +288,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--sliding-interval-duration-ms", description = "The time duration after which the window slides")
         protected Long slidingIntervalDurationMs;
         // for backwards compatibility purposes
-        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowledge messages", hidden = true)
+        @Parameter(names = "--autoAck", description = "Whether or not the framework acknowledges messages automatically", hidden = true)
         protected Boolean DEPRECATED_autoAck = null;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowledge messages", arity = 1)
+        @Parameter(names = "--auto-ack", description = "Whether or not the framework acknowledges messages automatically", arity = 1)
         protected Boolean autoAck;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
@@ -299,7 +299,7 @@ public class CmdFunctions extends CmdBase {
         protected Long timeoutMs;
         @Parameter(names = "--max-message-retries", description = "How many times should we try to process a message before giving up")
         protected Integer maxMessageRetries;
-        @Parameter(names = "--dead-letter-topic", description = "The topic where all messages which could not be processed successfully are sent")
+        @Parameter(names = "--dead-letter-topic", description = "The topic where messages that are not processed successfully are sent to")
         protected String deadLetterTopic;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
@@ -543,19 +543,19 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Run the Pulsar Function locally (rather than deploying it to the Pulsar cluster)")
+    @Parameters(commandDescription = "Run Pulsar Functions locally, rather than deploy to the Pulsar cluster)")
     class LocalRunner extends FunctionDetailsCommand {
 
-        // TODO: this should become bookkeeper url and it should be fetched from pulsar client.
+        // TODO: this should become BookKeeper URL and it should be fetched from Pulsar client.
         // for backwards compatibility purposes
-        @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)", hidden = true)
+        @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (the default is Apache BookKeeper)", hidden = true)
         protected String DEPRECATED_stateStorageServiceUrl;
-        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (by default Apache BookKeeper)")
+        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (the default is Apache BookKeeper)")
         protected String stateStorageServiceUrl;
         // for backwards compatibility purposes
-        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
+        @Parameter(names = "--brokerServiceUrl", description = "The URL for Pulsar broker", hidden = true)
         protected String DEPRECATED_brokerServiceUrl;
-        @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
+        @Parameter(names = "--broker-service-url", description = "The URL for Pulsar broker")
         protected String brokerServiceUrl;
         // for backwards compatibility purposes
         @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
@@ -628,7 +628,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create a Pulsar Function in cluster mode (i.e. deploy it on a Pulsar cluster)")
+    @Parameters(commandDescription = "Create a Pulsar Function in cluster mode (deploy it on a Pulsar cluster)")
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
@@ -655,7 +655,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Check the current status of a Pulsar Function")
     class GetFunctionStatus extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId (Get-status of all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id", description = "The function instanceId (Get-status of all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -671,7 +671,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Get the current stats of a Pulsar Function")
     class GetFunctionStats extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId (Get-stats of all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id", description = "The function instanceId (Get-stats of all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -688,7 +688,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Restart function instance")
     class RestartFunction extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId (restart all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id", description = "The function instanceId (restart all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -709,7 +709,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Stops function instance")
     class StopFunction extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId (stop all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id", description = "The function instanceId (stop all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -730,7 +730,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Starts a stopped function instance")
     class StartFunction extends FunctionCommand {
 
-        @Parameter(names = "--instance-id", description = "The function instanceId (start all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id", description = "The function instanceId (start all instances if instance-id is not provided)")
         protected String instanceId;
 
         @Override
@@ -748,7 +748,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Delete a Pulsar Function that's running on a Pulsar cluster")
+    @Parameters(commandDescription = "Delete a Pulsar Function that is running on a Pulsar cluster")
     class DeleteFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
@@ -757,7 +757,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update a Pulsar Function that's been deployed to a Pulsar cluster")
+    @Parameters(commandDescription = "Update a Pulsar Function that has been deployed to a Pulsar cluster")
     class UpdateFunction extends FunctionDetailsCommand {
 
         @Parameter(names = "--update-auth-data", description = "Whether or not to update the auth data")
@@ -794,7 +794,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "List all of the Pulsar Functions running under a specific tenant and namespace")
+    @Parameters(commandDescription = "List all Pulsar Functions running under a specific tenant and namespace")
     class ListFunctions extends NamespaceCommand {
         @Override
         void runCmd() throws Exception {
@@ -849,7 +849,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Triggers the specified Pulsar Function with a supplied value")
+    @Parameters(commandDescription = "Trigger the specified Pulsar Function with a supplied value")
     class TriggerFunction extends FunctionCommand {
         // for backward compatibility purposes
         @Parameter(names = "--triggerValue", description = "The value with which you want to trigger the function", hidden = true)
@@ -857,9 +857,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--trigger-value", description = "The value with which you want to trigger the function")
         protected String triggerValue;
         // for backward compatibility purposes
-        @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you'd like to trigger the function", hidden = true)
+        @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you want to trigger the function", hidden = true)
         protected String DEPRECATED_triggerFile;
-        @Parameter(names = "--trigger-file", description = "The path to the file that contains the data with which you'd like to trigger the function")
+        @Parameter(names = "--trigger-file", description = "The path to the file that contains the data with which you want to trigger the function")
         protected String triggerFile;
         @Parameter(names = "--topic", description = "The specific topic name that the function consumes from that you want to inject the data to")
         protected String topic;
@@ -921,17 +921,17 @@ public class CmdFunctions extends CmdBase {
         // for backward compatibility purposes
         @Parameter(
                 names = "--destinationFile",
-                description = "The file where downloaded contents need to be stored",
+                description = "The file to store downloaded content",
                 listConverter = StringConverter.class, hidden = true)
         protected String DEPRECATED_destinationFile;
         @Parameter(
                 names = "--destination-file",
-                description = "The file where downloaded contents need to be stored",
+                description = "The file to store downloaded content",
                 listConverter = StringConverter.class)
         protected String destinationFile;
         @Parameter(
                 names = "--path",
-                description = "Path where the contents are to be stored",
+                description = "Path to store the content",
                 listConverter = StringConverter.class, required = false, hidden = true)
         protected String path;
 
