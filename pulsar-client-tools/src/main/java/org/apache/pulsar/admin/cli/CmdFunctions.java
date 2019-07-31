@@ -107,10 +107,10 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The tenant of functions")
+        @Parameter(names = "--tenant", description = "The tenant of a Pulsar Function")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The namespace of functions")
+        @Parameter(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
 
         @Override
@@ -132,13 +132,13 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
         protected String fqfn;
 
-        @Parameter(names = "--tenant", description = "The tenant of functions")
+        @Parameter(names = "--tenant", description = "The tenant of a Pulsar Function")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The namespace of functions")
+        @Parameter(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
 
-        @Parameter(names = "--name", description = "The name of functions")
+        @Parameter(names = "--name", description = "The name of a Pulsar Function")
         protected String functionName;
 
         @Override
@@ -184,16 +184,16 @@ public class CmdFunctions extends CmdBase {
     abstract class FunctionDetailsCommand extends BaseCommand {
         @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
         protected String fqfn;
-        @Parameter(names = "--tenant", description = "The tenant of functions")
+        @Parameter(names = "--tenant", description = "The tenant of a Pulsar Function")
         protected String tenant;
-        @Parameter(names = "--namespace", description = "The namespace of functions")
+        @Parameter(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
-        @Parameter(names = "--name", description = "The name of functions")
+        @Parameter(names = "--name", description = "The name of a Pulsar Function")
         protected String functionName;
         // for backwards compatibility purposes
-        @Parameter(names = "--className", description = "The class name of functions", hidden = true)
+        @Parameter(names = "--className", description = "The class name of a Pulsar Function", hidden = true)
         protected String DEPRECATED_className;
-        @Parameter(names = "--classname", description = "The class name of functions")
+        @Parameter(names = "--classname", description = "The class name of a Pulsar Function")
         protected String className;
         @Parameter(names = "--jar", description = "Path to the JAR file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
