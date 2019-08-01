@@ -150,7 +150,7 @@ public class KafkaProducerSimpleConsumerTest extends ProducerConsumerBase {
         List<TopicMetadata> metaData = resp.topicsMetadata();
         PartitionMetadata part = metaData.get(0).partitionsMetadata().get(0);
         
-        long readOffset = 0;
+        long readOffset = kafka.api.OffsetRequest.EarliestTime();
         FetchRequest fReq = new FetchRequestBuilder()
                 .clientId("c1")
                 .addFetch(topicName, partition, readOffset, 100000)

@@ -101,7 +101,7 @@ public class LowLevelConsumerExample {
         properties.put(SimpleConsumer.HTTP_SERVICE_URL, arguments.httpServiceUrl);
         SimpleConsumer consumer = new SimpleConsumer(arguments.serviceUrl, 0, 0, 0, "clientId", properties);
 
-        long readOffset = 0;
+        long readOffset = kafka.api.OffsetRequest.EarliestTime();
         kafka.api.FetchRequest fReq = new FetchRequestBuilder().clientId("c1")
                 .addFetch(arguments.topicName, arguments.partitionIndex, readOffset, 100000).build();
         FetchResponse fetchResponse = consumer.fetch(fReq);
