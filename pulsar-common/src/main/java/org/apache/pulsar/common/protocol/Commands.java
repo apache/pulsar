@@ -58,6 +58,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
@@ -89,6 +90,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -412,13 +414,25 @@ public class Commands {
         return res;
     }
 
-    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages, ChecksumType checksumType,
+    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
+                                      MessageMetadata messageMetadata, ByteBuf payload) {
+        return newSend(producerId, sequenceId, numMessaegs, 0, 0, checksumType, messageMetadata, payload);
+    }
+
+    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages,
+                                      long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
             MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
         sendBuilder.setSequenceId(sequenceId);
         if (numMessages > 1) {
             sendBuilder.setNumMessages(numMessages);
+        }
+        if (txnIdLeastBits > 0) {
+            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
+        }
+        if (txnIdMostBits > 0) {
+            sendBuilder.setTxnidMostBits(txnIdMostBits);
         }
         CommandSend send = sendBuilder.build();
 
@@ -968,6 +982,22 @@ public class Commands {
             .setType(Type.GET_SCHEMA_RESPONSE)
             .setGetSchemaResponse(schemaResponse.build()));
         schemaResponse.recycle();
+        return res;
+    }
+
+    public static ByteBuf newTxnEndOnPartition(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
+                                               TxnAction txnAction) {
+        CommandEndTxnOnPartition.Builder txnEndOnPartition = CommandEndTxnOnPartition.newBuilder();
+
+        txnEndOnPartition.setRequestId(requestId)
+                         .setTxnidLeastBits(txnIdLeastBits)
+                         .setTxnidMostBits(txnIdMostBits)
+                         .setTopic(topic)
+                         .setTxnAction(txnAction);
+
+        ByteBuf res = serializeWithSize(
+            BaseCommand.newBuilder().setType(Type.END_TXN_ON_PARTITION).setEndTxnOnPartition(txnEndOnPartition));
+        txnEndOnPartition.recycle();
         return res;
     }
 

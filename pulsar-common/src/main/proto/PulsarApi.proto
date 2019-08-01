@@ -377,9 +377,11 @@ message CommandProducer {
 }
 
 message CommandSend {
-	required uint64 producer_id   = 1;
-	required uint64 sequence_id   = 2;
+	required uint64 producer_id = 1;
+	required uint64 sequence_id = 2;
 	optional int32 num_messages = 3 [default = 1];
+	optional uint64 txnid_least_bits = 4 [default = 0];
+	optional uint64 txnid_most_bits = 5 [default = 0];
 }
 
 message CommandSendReceipt {
@@ -599,6 +601,21 @@ message CommandGetSchemaResponse {
 	optional bytes schema_version   = 5;
 }
 
+/// --- transaction related ---
+
+enum TxnAction {
+	COMMIT = 0;
+	ABORT = 1;
+}
+
+message CommandEndTxnOnPartition {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional string topic = 4;
+	optional TxnAction txn_action = 5;
+}
+
 message BaseCommand {
 	enum Type {
 		CONNECT     = 2;
@@ -657,6 +674,9 @@ message BaseCommand {
 
 		AUTH_CHALLENGE = 36;
 		AUTH_RESPONSE = 37;
+
+		// transaction related
+		END_TXN_ON_PARTITION = 38;
 	}
 
 
@@ -713,4 +733,6 @@ message BaseCommand {
 	optional CommandAuthChallenge authChallenge = 36;
 	optional CommandAuthResponse authResponse = 37;
 
+	// transaction related
+	optional CommandEndTxnOnPartition endTxnOnPartition = 38;
 }
