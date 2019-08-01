@@ -42,5 +42,6 @@
     <module>pulsar-client-kafka-shaded</module>
     <module>pulsar-client-kafka-shaded_0_8</module>
     <module>pulsar-client-kafka-tests</module>
+    <module>pulsar-client-kafka-tests_0_8</module>
   </modules>
 </project>

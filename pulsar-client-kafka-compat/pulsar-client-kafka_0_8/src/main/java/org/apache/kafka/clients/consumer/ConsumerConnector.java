@@ -218,8 +218,8 @@ public class ConsumerConnector {
                 consumer.seek(MessageId.latest);
             }
         } catch (PulsarClientException e) {
-            log.warn("Failed to reset offeset for consumer {} to {}, {}", consumer.getTopic(), strategy,
-                    e.getMessage());
+            log.warn("Failed to reset offset for consumer {} to {}, {}", consumer.getTopic(), strategy,
+                    e.getMessage(), e);
         }
     }
 

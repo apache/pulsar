@@ -72,6 +72,7 @@ public class PulsarKafkaSimpleConsumer extends SimpleConsumer {
     private final Map<TopicGroup, Consumer<byte[]>> topicConsumerMap;
     private final SubscriptionType subscriptionType;
     public static final String SUBSCRIPTION_TYPE = "pulsar.subscription.type";
+    public static final String HTTP_SERVICE_URL = "pulsar.http.service.url";
 
     public PulsarKafkaSimpleConsumer(String host, int port, int soTimeout, int bufferSize, String clientId) {
         this(host, port, soTimeout, bufferSize, clientId, new Properties());
@@ -105,7 +106,8 @@ public class PulsarKafkaSimpleConsumer extends SimpleConsumer {
             throw new RuntimeException("Failed to create pulsar client " + host, e);
         }
         try {
-            admin = PulsarClientKafkaConfig.getAdminBuilder(host, properties).build();
+            String url = properties.getProperty(HTTP_SERVICE_URL, host);
+            admin = PulsarClientKafkaConfig.getAdminBuilder(url, properties).build();
         } catch (PulsarClientException e) {
             log.warn("Failed to create pulsar admin for {} and properties {}", host, properties);
             throw new RuntimeException("Failed to create pulsar admin " + host, e);

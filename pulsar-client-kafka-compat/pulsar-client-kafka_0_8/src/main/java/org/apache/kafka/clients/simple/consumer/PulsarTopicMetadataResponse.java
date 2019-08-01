@@ -48,9 +48,9 @@ public class PulsarTopicMetadataResponse extends TopicMetadataResponse {
     @Override
     public List<TopicMetadata> topicsMetadata() {
         List<TopicMetadata> metadataList = Lists.newArrayList();
-        topics.stream().forEach(topic -> {
-            int partitions;
+        topics.forEach(topic -> {
             try {
+                int partitions;
                 partitions = admin.topics().getPartitionedTopicMetadata(topic).partitions;
                 if (partitions > 0) {
                     for (int partition = 0; partition < partitions; partition++) {

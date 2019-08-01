@@ -149,8 +149,6 @@ public class KafkaProducerSimpleConsumerTest extends ProducerConsumerBase {
         
         List<TopicMetadata> metaData = resp.topicsMetadata();
         PartitionMetadata part = metaData.get(0).partitionsMetadata().get(0);
-        String broker = part.leader().host();
-        System.out.println("broker = "+broker);
         
         long readOffset = 0;
         FetchRequest fReq = new FetchRequestBuilder()
@@ -164,7 +162,6 @@ public class KafkaProducerSimpleConsumerTest extends ProducerConsumerBase {
         for (MessageAndOffset messageAndOffset : fetchResponse.messageSet(topicName, partition)) {
             long currentOffset = messageAndOffset.offset();
             if (currentOffset < readOffset) {
-                System.out.println("Found an old offset: " + currentOffset + " Expecting: " + readOffset);
                 continue;
             }
             offset = ((PulsarMsgAndOffset)messageAndOffset).getFullOffset();
@@ -173,11 +170,9 @@ public class KafkaProducerSimpleConsumerTest extends ProducerConsumerBase {
 
             byte[] bytes = new byte[payload.limit()];
             payload.get(bytes);
-            System.out.println(String.valueOf(messageAndOffset.offset()) + ": " + new String(bytes, "UTF-8"));
             received.add(new String(bytes, "UTF-8"));
         }
         lastOffset -= 1;
-        System.out.println(fetchResponse.hasError());
         
         assertEquals(published.size(), received.size());
         published.removeAll(received);
