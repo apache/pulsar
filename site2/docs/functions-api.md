@@ -23,9 +23,9 @@ You could use Pulsar Functions, for example, to set up the following processing 
 * A [Java](#functions-for-java) function listens on the `sanitized-sentences` topic, counts the number of times each word appears within a specified time window, and publishes the results to a `results` topic
 * Finally, a Python function listens on the `results` topic and writes the results to a MySQL table
 
-### Example function
+### Function example
 
-Here's an example "input sanitizer" function written in Python and stored in a `sanitizer.py` file:
+The following "input sanitizer" function is written in Python and stored in a `sanitizer.py` file.
 
 ```python
 def clean_string(s):
@@ -35,14 +35,14 @@ def process(input):
     return clean_string(input)
 ```
 
-Some things to note about this Pulsar Function:
+**Note**
 
-* There is no client, producer, or consumer object involved. All message "plumbing" is already taken care of for you, enabling you to worry only about processing logic.
-* No topics, subscription types, tenants, or namespaces are specified in the function logic itself. Instead, topics are specified upon [deployment](#example-deployment). This means that you can use and re-use Pulsar Functions across topics, tenants, and namespaces without needing to hard-code those attributes.
+* In the example, no client, producer, or consumer object is involved. All message "plumbing" are already done, so you only need to deal with processing logic.
+* No topics, subscription types, tenants, or namespaces are specified in the function logic. Instead, topics are specified upon [deployment](#example-deployment). This means that you can use and re-use Pulsar Functions across topics, tenants, and namespaces without needing to hard-code those attributes.
 
 ### Example deployment
 
-Deploying Pulsar Functions is handled by the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, in particular the [`functions`](reference-pulsar-admin.md#functions) command. Here's an example command that would run our [sanitizer](#example-function) function from above in [local run](functions-deploying.md#local-run-mode) mode:
+Deploying Pulsar Functions is handled by the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, in particular the [`functions`](reference-pulsar-admin.md#functions) command. The following example runs [sanitizer](#example-function) function in [local run](functions-deploying.md#local-run-mode) mode:
 
 ```bash
 $ bin/pulsar-admin functions localrun \
