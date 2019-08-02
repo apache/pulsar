@@ -169,7 +169,7 @@ enum ServerError {
     InvalidTopicName = 17; // The topic name is not valid
 
     IncompatibleSchema = 18; // Specified schema was incompatible with topic schema
-	ConsumerAssignError = 19; // Dispatcher assign consumer error
+    ConsumerAssignError = 19; // Dispatcher assign consumer error
 }
 
 enum AuthMethod {
@@ -604,12 +604,12 @@ message CommandGetSchema {
 }
 
 message CommandGetSchemaResponse {
-	required uint64 request_id      = 1;
-	optional ServerError error_code = 2;
+    required uint64 request_id      = 1;
+    optional ServerError error_code = 2;
     optional string error_message   = 3;
 
-	optional Schema schema          = 4;
-	optional bytes schema_version   = 5;
+    optional Schema schema          = 4;
+    optional bytes schema_version   = 5;
 }
 
 /// --- transaction related ---
@@ -652,9 +652,9 @@ message Subscription {
 	required string subscription = 2;
 }
 message CommandAddSubscriptionToTxn {
-	required uint64 request_id = 1;
-	optional uint64 txnid_least_bits = 2 [default = 0];
-	optional uint64 txnid_most_bits = 3 [default = 0];
+    required uint64 request_id = 1;
+    optional uint64 txnid_least_bits = 2 [default = 0];
+    optional uint64 txnid_most_bits = 3 [default = 0];
     repeated Subscription subscription = 4;
 }
 
@@ -667,9 +667,9 @@ message CommandAddSubscriptionToTxnResponse {
 }
 
 message CommandEndTxn {
-	required uint64 request_id = 1;
-	optional uint64 txnid_least_bits = 2 [default = 0];
-	optional uint64 txnid_most_bits = 3 [default = 0];
+    required uint64 request_id = 1;
+    optional uint64 txnid_least_bits = 2 [default = 0];
+    optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
 }
 
@@ -852,7 +852,7 @@ message BaseCommand {
 	optional CommandAckResponse ackResponse = 38;
 
 	// transaction related
-    optional CommandNewTxn newTxn = 50;
+        optional CommandNewTxn newTxn = 50;
 	optional CommandNewTxnResponse newTxnResponse = 51;
 	optional CommandAddPartitionToTxn addPartitionToTxn= 52;
 	optional CommandAddPartitionToTxnResponse addPartitionToTxnResponse = 53;
@@ -863,5 +863,5 @@ message BaseCommand {
 	optional CommandEndTxnOnPartition endTxnOnPartition = 58;
 	optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
 	optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
-    optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+        optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
 }
