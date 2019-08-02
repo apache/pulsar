@@ -30,6 +30,8 @@
 #include <thread>
 #include "LogUtils.h"
 #include "PulsarFriend.h"
+#include <unistd.h>
+#include <functional>
 #include "ConsumerTest.h"
 #include "HttpHelper.h"
 DECLARE_LOG_OBJECT();
@@ -54,6 +56,8 @@ static void sendCallBack(Result r, const Message& msg) {
     globalTestBatchMessagesCounter++;
     LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
 }
+
+static void sendFailCallBack(Result r, Result expect_result) { EXPECT_EQ(r, expect_result); }
 
 static int globalPublishCountSuccess = 0;
 static int globalPublishCountQueueFull = 0;
@@ -913,4 +917,34 @@ TEST(BatchMessageTest, testPartitionedTopics) {
 
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages - globalPublishCountQueueFull);
+}
+
+TEST(ProducerTest, producerFailureResult) {
+    std::string testName = std::to_string(epochTime) + "testCumulativeAck";
+
+    ClientConfiguration clientConfig;
+    clientConfig.setStatsIntervalInSeconds(100);
+
+    Client client(lookupUrl, clientConfig);
+    std::string topicName = "persistent://public/default/" + testName;
+    std::string subName = "subscription-name";
+    Producer producer;
+
+    int batchSize = 100;
+    int numOfMessages = 10000;
+    ProducerConfiguration conf;
+
+    conf.setCompressionType(CompressionZLib);
+    conf.setBatchingMaxMessages(batchSize);
+    conf.setBatchingEnabled(true);
+    conf.setBatchingMaxPublishDelayMs(50000);
+    conf.setBlockIfQueueFull(false);
+    conf.setMaxPendingMessages(10);
+
+    Result res = Result::ResultBrokerMetadataError;
+
+    client.createProducer(topicName, conf, producer);
+    Message msg = MessageBuilder().setContent("test").build();
+    producer.sendAsync(msg, std::bind(&sendFailCallBack, std::placeholders::_1, res));
+    PulsarFriend::producerFailMessages(producer, res);
 }
