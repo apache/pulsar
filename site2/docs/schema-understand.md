@@ -13,12 +13,97 @@ The `SchemaInfo` is stored and enforced on a per-topic basis and cannot be store
 
 A `SchemaInfo` consists of the following fields:
 
-| Field | Description |
-|---|---|
-| `name` | Schema name (a string). |
-| `type` | Schema type, which determines how to interpret the schema data. |
-| `schema` | Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific. |
-| `properties` | A map of string key/value pairs, which is application-specific. |
+<table style="table">
+
+<tr>
+
+<th>
+
+Field
+
+</th>
+
+<th>
+
+Description
+
+</th>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`name` 
+
+</td> 
+
+<td> 
+
+Schema name (a string).
+
+</td>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`type` 
+
+</td> 
+
+<td> 
+
+Schema type, which determines how to interpret the schema data.
+
+* Predefined schema: see [here](schema-undstand.md#schema-type).
+
+* Customized schema: it is left as an empty string.
+
+</td>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`schema`（`payload`)  
+
+</td> 
+
+<td> 
+
+Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific. 
+
+</td>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`properties` 
+
+</td> 
+
+<td> 
+
+It is a user defined properties as a string/string map. 
+
+Applications can use this bag for carrying any application specific logics. 
+
+Possible properties might be the Git hash associated with the schema, an environment string like `dev` or `prod`.
+
+</td>
+
+</tr>
+
+</table>
 
 **Example**
 
@@ -90,7 +175,7 @@ This example demonstrates how to use a string schema.
     producer.newMessage().value("Hello Pulsar!").send();
     ```
 
-1. Create a consumer with a string schema and receive messages.  
+2. Create a consumer with a string schema and receive messages.  
 
     ```text
     Consumer<String> consumer = client.newConsumer(Schema.STRING).create();
@@ -215,7 +300,7 @@ You can predefine the `struct` schema, and it can be a POJO in Java, a `struct` 
 
 **Example** 
 
-Pulsar gets the schema definition from the predefined `struct` using an Avro library. The schema definition is the schema data stored as a part of the schema info.
+Pulsar gets the schema definition from the predefined `struct` using an Avro library. The schema definition is the schema data stored as a part of the `SchemaInfo`.
 
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
@@ -333,7 +418,7 @@ GenericRecord record = msg.getValue();
 
 Each `SchemaInfo` stored with a topic has a version. Schema version manages schema changes happening within a topic. 
 
-Messages produced with a given `SchemaInfo` is tagged with a schema version, so when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding schema information and then use the schema information to deserialize data.
+Messages produced with a given `SchemaInfo` is tagged with a schema version, so when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding `SchemaInfo` and then use the `SchemaInfo` to deserialize data.
 
 Schemas are versioned in succession. Schema storage happens in a broker that handles the associated topics so that version assignments can be made. 
 
@@ -446,9 +531,9 @@ This diagram illustrates how does schema work on the Producer side.
 
     The schema instance defines the schema for the data being produced using the producer instance. 
 
-    Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the schema info that the producer needs to pass to a broker when it connects.
+    Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the `SchemaInfo` that the producer needs to pass to a broker when it connects.
 
-2. The producer connects to the broker with the schema info extracted from the passed-in schema instance.
+2. The producer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    
 3. The broker looks up the schema in the schema storage to check if it is already a registered schema. 
    
@@ -466,13 +551,13 @@ This diagram illustrates how does schema work on the Producer side.
 
 This diagram illustrates how does Schema work on the consumer side. 
 
-[diagram placeholder]
+![Schema works at the consumer side](assets/schema-consumer.png)
 
 1. The application uses a schema instance to construct a consumer instance.
    
     The schema instance defines the schema that the consumer uses for decoding messages received from a broker.
 
-2. The consumer connects to the broker with schema info extracted from the passed-in schema instance.
+2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    
 3. The broker looks up the schema in the schema storage to check if it is already a registered schema. 
    
