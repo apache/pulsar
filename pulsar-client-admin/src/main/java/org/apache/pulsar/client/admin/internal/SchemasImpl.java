@@ -208,8 +208,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
         byte[] schema;
         if (response.getType() == SchemaType.KEY_VALUE) {
             JsonObject json = SchemaUtils.toJsonObject(response.getData());
-            byte[] keyBytes = ((JsonObject)json.get("key")).toString().getBytes(UTF_8);
-            byte[] valueBytes = ((JsonObject)json.get("value")).toString().getBytes(UTF_8);
+            byte[] keyBytes = json.get("key").toString().getBytes(UTF_8);
+            byte[] valueBytes = json.get("value").toString().getBytes(UTF_8);
             int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
             schema = new byte[dataLength];
             //record the key value schema respective length
