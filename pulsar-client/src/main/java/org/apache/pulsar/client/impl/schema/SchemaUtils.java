@@ -42,6 +42,7 @@ import java.util.TreeMap;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
@@ -199,6 +200,21 @@ public final class SchemaUtils {
         return gsonBuilder.create().toJson(schemaInfo);
     }
 
+    /**
+     * Jsonify the schema info with verison.
+     *
+     * @param schemaInfoWithVersion the schema info
+     * @return the jsonified schema info with version
+     */
+    public static String jsonifySchemaInfoWithVersion(SchemaInfoWithVersion schemaInfoWithVersion) {
+        GsonBuilder gsonBuilder = new GsonBuilder()
+                .setPrettyPrinting()
+                .registerTypeHierarchyAdapter(SchemaInfo.class, SCHEMAINFO_ADAPTER)
+                .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
+
+        return gsonBuilder.create().toJson(schemaInfoWithVersion);
+    }
+
     private static class SchemaPropertiesSerializer implements JsonSerializer<Map<String, String>> {
 
         @Override
@@ -271,7 +287,7 @@ public final class SchemaUtils {
         }
     }
 
-    private static JsonObject toJsonObject(String json) {
+    public static JsonObject toJsonObject(String json) {
         JsonParser parser = new JsonParser();
         return parser.parse(json).getAsJsonObject();
     }

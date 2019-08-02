@@ -22,9 +22,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
+
+import com.google.gson.JsonObject;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -34,6 +39,8 @@ import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
 import org.apache.pulsar.common.protocol.schema.LongSchemaVersionResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
+import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -53,6 +60,17 @@ public class SchemasImpl extends BaseResource implements Schemas {
             TopicName tn = TopicName.get(topic);
             GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
             return convertGetSchemaResponseToSchemaInfo(tn, response);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public SchemaInfoWithVersion getSchemaInfoWithVersion(String topic) throws PulsarAdminException {
+        try {
+            TopicName tn = TopicName.get(topic);
+            GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
+            return convertGetSchemaResponseToSchemaInfoWithVersion(tn, response);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -187,12 +205,38 @@ public class SchemasImpl extends BaseResource implements Schemas {
     static SchemaInfo convertGetSchemaResponseToSchemaInfo(TopicName tn,
                                                            GetSchemaResponse response) {
         SchemaInfo info = new SchemaInfo();
-        info.setSchema(response.getData().getBytes(UTF_8));
+        byte[] schema;
+        if (response.getType() == SchemaType.KEY_VALUE) {
+            JsonObject json = SchemaUtils.toJsonObject(response.getData());
+            byte[] keyBytes = ((JsonObject)json.get("key")).toString().getBytes(UTF_8);
+            byte[] valueBytes = ((JsonObject)json.get("value")).toString().getBytes(UTF_8);
+            int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
+            schema = new byte[dataLength];
+            //record the key value schema respective length
+            ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer(dataLength);
+            byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
+            byteBuf.readBytes(schema);
+        } else {
+            schema = response.getData().getBytes(UTF_8);
+        }
+        info.setSchema(schema);
         info.setType(response.getType());
         info.setProperties(response.getProperties());
         info.setName(tn.getLocalName());
         return info;
     }
+
+    static SchemaInfoWithVersion convertGetSchemaResponseToSchemaInfoWithVersion(TopicName tn,
+                                                           GetSchemaResponse response) {
+
+        return  SchemaInfoWithVersion
+                .builder()
+                .schemaInfo(convertGetSchemaResponseToSchemaInfo(tn, response))
+                .version(response.getVersion())
+                .build();
+    }
+
+
 
 
     // the util function exists for backward compatibility concern

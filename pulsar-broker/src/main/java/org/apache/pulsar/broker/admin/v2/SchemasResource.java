@@ -25,6 +25,9 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import com.google.gson.JsonObject;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -58,6 +61,7 @@ import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -461,11 +465,28 @@ public class SchemasResource extends AdminResource {
     }
 
     private static GetSchemaResponse convertSchemaAndMetadataToGetSchemaResponse(SchemaAndMetadata schemaAndMetadata) {
+        String schemaData;
+        if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
+            ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer().writeBytes(schemaAndMetadata.schema.getData());
+            int keyLength = byteBuf.readInt();
+            byte[] keyBytes = new byte[keyLength];
+            byteBuf.readBytes(keyBytes);
+            int valueLength = byteBuf.readInt();
+            byte[] valueBytes = new byte[valueLength];
+            byteBuf.readBytes(valueBytes);
+
+            JsonObject json = new JsonObject();
+            json.add("key", SchemaUtils.toJsonObject(new String(keyBytes, UTF_8)));
+            json.add("value", SchemaUtils.toJsonObject(new String(valueBytes, UTF_8)));
+            schemaData = json.toString();
+        } else {
+            schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+        }
         return GetSchemaResponse.builder()
                 .version(getLongSchemaVersion(schemaAndMetadata.version))
                 .type(schemaAndMetadata.schema.getType())
                 .timestamp(schemaAndMetadata.schema.getTimestamp())
-                .data(new String(schemaAndMetadata.schema.getData(), UTF_8))
+                .data(schemaData)
                 .properties(schemaAndMetadata.schema.getProps())
                 .build();
     }
