@@ -46,19 +46,17 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--version" }, description = "version", required = false)
+        @Parameter(names = { "-v", "--version" }, description = "version", required = false)
         private Long version;
 
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            SchemaInfo schemaInfo;
             if (version == null) {
-                schemaInfo = admin.schemas().getSchemaInfo(topic);
+                System.out.println(admin.schemas().getSchemaInfoWithVersion(topic));
             } else {
-                schemaInfo = admin.schemas().getSchemaInfo(topic, version);
+                System.out.println(admin.schemas().getSchemaInfo(topic, version));
             }
-            System.out.println(schemaInfo);
         }
     }
 

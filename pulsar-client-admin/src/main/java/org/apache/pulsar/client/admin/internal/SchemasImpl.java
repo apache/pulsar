@@ -34,6 +34,7 @@ import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
 import org.apache.pulsar.common.protocol.schema.LongSchemaVersionResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -53,6 +54,21 @@ public class SchemasImpl extends BaseResource implements Schemas {
             TopicName tn = TopicName.get(topic);
             GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
             return convertGetSchemaResponseToSchemaInfo(tn, response);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public SchemaInfoWithVersion getSchemaInfoWithVersion(String topic) throws PulsarAdminException {
+        try {
+        TopicName tn = TopicName.get(topic);
+        GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
+        return SchemaInfoWithVersion
+                .builder()
+                .schemaInfo(convertGetSchemaResponseToSchemaInfo(tn, response))
+                .version(response.getVersion())
+                .build();
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -192,6 +208,16 @@ public class SchemasImpl extends BaseResource implements Schemas {
         info.setProperties(response.getProperties());
         info.setName(tn.getLocalName());
         return info;
+    }
+
+    static SchemaInfoWithVersion convertGetSchemaResponseToSchemaInfoWithVersion(TopicName tn,
+                                                           GetSchemaResponse response) {
+
+        return SchemaInfoWithVersion
+                .builder()
+                .version(response.getVersion())
+                .schemaInfo(convertGetSchemaResponseToSchemaInfo(tn, response))
+                .build();
     }
 
 
