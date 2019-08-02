@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
@@ -2765,7 +2766,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     PositionImpl getFirstPosition() {
         Long ledgerId = ledgers.firstKey();
-        return ledgerId == null ? null : new PositionImpl(ledgerId, -1);
+        if (ledgerId == null) {
+            return null;
+        }
+        if (ledgerId > lastConfirmedEntry.getLedgerId()) {
+            checkState(ledgers.get(ledgerId).getEntries() == 0);
+            ledgerId = lastConfirmedEntry.getLedgerId();
+        }
+        return new PositionImpl(ledgerId, -1);
     }
 
     PositionImpl getLastPosition() {
