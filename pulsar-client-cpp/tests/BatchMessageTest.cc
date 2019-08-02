@@ -919,7 +919,7 @@ TEST(BatchMessageTest, testPartitionedTopics) {
     ASSERT_EQ(i, numOfMessages - globalPublishCountQueueFull);
 }
 
-TEST(ProducerTest, producerFailureResult) {
+TEST(BatchMessageTest, producerFailureResult) {
     std::string testName = std::to_string(epochTime) + "testCumulativeAck";
 
     ClientConfiguration clientConfig;
