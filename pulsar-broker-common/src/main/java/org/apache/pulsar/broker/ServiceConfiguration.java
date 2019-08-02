@@ -676,7 +676,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
-        doc = "Service Principal, for login context name. Default value is \"Broker\"."
+        doc = "Service Principal, for login context name. Default value is \"PulsarBroker\"."
     )
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
 
