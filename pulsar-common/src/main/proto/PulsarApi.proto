@@ -734,5 +734,5 @@ message BaseCommand {
 	optional CommandAuthResponse authResponse = 37;
 
 	// transaction related
-	optional CommandEndTxnOnPartition endTxnOnPartition = 38;
+	optional CommandEndTxnOnPartition endTxnOnPartition = 50;
 }

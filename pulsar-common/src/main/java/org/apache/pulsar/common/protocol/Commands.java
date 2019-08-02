@@ -985,7 +985,7 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newTxnEndOnPartition(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
+    public static ByteBuf newEndTxnOnPartition(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
                                                TxnAction txnAction) {
         CommandEndTxnOnPartition.Builder txnEndOnPartition = CommandEndTxnOnPartition.newBuilder();
 
