@@ -1465,7 +1465,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void asyncReadEntry(PositionImpl position, ReadEntryCallback callback, Object ctx) {
+    public void asyncReadEntry(PositionImpl position, ReadEntryCallback callback, Object ctx) {
         LedgerHandle currentLedger = this.currentLedger;
         if (log.isDebugEnabled()) {
             log.debug("[{}] Reading entry ledger {}: {}", name, position.getLedgerId(), position.getEntryId());
