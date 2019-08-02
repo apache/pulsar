@@ -207,7 +207,7 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to the main Go executable binary for the function (if the function is written in Go)")
         protected String goFile;
         @Parameter(names = {"-i",
-                "--inputs"}, description = "The input topic or topics (multiple topics can be specified as a comma-separated list) of functions")
+                "--inputs"}, description = "The input topic or topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function")
         protected String inputs;
         // for backwards compatibility purposes
         @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)", hidden = true)
@@ -215,7 +215,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)")
         protected String topicsPattern;
 
-        @Parameter(names = {"-o", "--output"}, description = "The functions output topic (If none is specified, no output is written)")
+        @Parameter(names = {"-o", "--output"}, description = "The output topic of a Pulsar Function (If none is specified, no output is written)")
         protected String output;
         // for backwards compatibility purposes
         @Parameter(names = "--logTopic", description = "The topic to which the functions logs are produced", hidden = true)
