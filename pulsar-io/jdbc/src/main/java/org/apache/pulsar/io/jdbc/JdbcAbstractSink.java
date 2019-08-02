@@ -182,18 +182,29 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 // bind each record value
                 for (Record<T> record : swapList) {
                     String action = record.getProperties().get(ACTION);
-                    if (action != null && action.equals(DELETE)) {
-                        bindValue(deleteStatment, record, action);
-                        count += 1;
-                        deleteStatment.execute();
-                    } else if (action != null && action.equals(UPDATE)) {
-                        bindValue(updateStatment, record, action);
-                        count += 1;
-                        updateStatment.execute();
-                    } else if (action != null && action.equals(INSERT)){
-                        bindValue(insertStatement, record, action);
-                        count += 1;
-                        insertStatement.execute();
+                    if (action == null) {
+                        action = INSERT;
+                    }
+                    switch (action) {
+                        case DELETE:
+                            bindValue(deleteStatment, record, action);
+                            count += 1;
+                            deleteStatment.execute();
+                            break;
+                        case UPDATE:
+                            bindValue(updateStatment, record, action);
+                            count += 1;
+                            updateStatment.execute();
+                            break;
+                        case INSERT:
+                            bindValue(insertStatement, record, action);
+                            count += 1;
+                            insertStatement.execute();
+                            break;
+                        default:
+                            String msg = String.format("Unsupported action %s, can be one of %s, or not set which indicate %s",
+                                                       action, Arrays.asList(INSERT, UPDATE, DELETE), INSERT);
+                            throw new IllegalArgumentException(msg);
                     }
                 }
                 connection.commit();
