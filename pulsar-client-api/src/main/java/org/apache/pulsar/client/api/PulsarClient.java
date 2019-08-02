@@ -221,6 +221,8 @@ public interface PulsarClient extends Closeable {
      */
     <T> ReaderBuilder<T> newReader(Schema<T> schema);
 
+    TransactionBuilder newTransaction();
+
     /**
      * Update the service URL this client is using.
      * <p>

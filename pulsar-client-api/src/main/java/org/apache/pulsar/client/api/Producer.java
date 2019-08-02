@@ -108,6 +108,22 @@ public interface Producer<T> extends Closeable {
     TypedMessageBuilder<T> newMessage();
 
     /**
+     * Create a new message builder with transaction
+     *
+     * This message builder allows to specified a related transaction to send. For example:
+     *
+     * <pre>
+     *     producer.newMessage(txn)
+     *             .key(messageKey)
+     *             .value(myValue)
+     *             .property("user-defined-property", "value")
+     *             .send();
+     * </pre>
+     * @param transaction to specified a related transaction
+     * @return a typed message builder that can be used to construct the message to be sent through this producer
+     */
+    TypedMessageBuilder<T> newMessage(Transaction transaction);
+    /**
      * Get the last sequence id that was published by this producer.
      * <p>
      * This represent either the automatically assigned or custom sequence id (set on the {@link MessageBuilder}) that
