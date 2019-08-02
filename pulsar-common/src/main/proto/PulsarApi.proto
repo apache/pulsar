@@ -428,6 +428,17 @@ message CommandAck {
 
 	optional ValidationError validation_error = 4;
 	repeated KeyLongValue properties = 5;
+
+	optional uint64 txnid_least_bits = 6 [default = 0];
+	optional uint64 txnid_most_bits = 7 [default = 0];
+}
+
+message CommandAckResponse {
+	required uint64 consumer_id = 1;
+	optional uint64 txnid_least_bits  = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional ServerError error = 4;
+	optional string message = 5;
 }
 
 // changes on active consumer
@@ -608,12 +619,98 @@ enum TxnAction {
 	ABORT = 1;
 }
 
+message CommandNewTxn {
+	required uint64 request_id = 1;
+	optional uint64 txn_ttl_seconds = 2 [default = 0];
+}
+
+message CommandNewTxnResponse {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional ServerError error = 4;
+	optional string message = 5;
+}
+
+message CommandAddPartitionToTxn {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+    repeated string partitions = 4;
+}
+
+message CommandAddPartitionToTxnResponse {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional ServerError error = 4;
+	optional string message = 5;
+}
+
+message Subscription {
+	required string topic = 1;
+	required string subscription = 2;
+}
+message CommandAddSubscriptionToTxn {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+    repeated Subscription subscription = 4;
+}
+
+message CommandAddSubscriptionToTxnResponse {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional ServerError error = 4;
+	optional string message = 5;
+}
+
+message CommandEndTxn {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+    optional TxnAction txn_action = 4;
+}
+
+message CommandEndTxnResponse {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional ServerError error = 4;
+	optional string message = 5;
+}
+
 message CommandEndTxnOnPartition {
 	required uint64 request_id = 1;
 	optional uint64 txnid_least_bits = 2 [default = 0];
 	optional uint64 txnid_most_bits = 3 [default = 0];
 	optional string topic = 4;
 	optional TxnAction txn_action = 5;
+}
+
+message CommandEndTxnOnPartitionResponse {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional ServerError error = 4;
+	optional string message = 5;
+}
+
+message CommandEndTxnOnSubscription {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional Subscription subscription= 4;
+	optional TxnAction txn_action = 5;
+}
+
+message CommandEndTxnOnSubscriptionResponse {
+	required uint64 request_id = 1;
+	optional uint64 txnid_least_bits = 2 [default = 0];
+	optional uint64 txnid_most_bits = 3 [default = 0];
+	optional ServerError error = 4;
+	optional string message = 5;
 }
 
 message BaseCommand {
@@ -675,8 +772,27 @@ message BaseCommand {
 		AUTH_CHALLENGE = 36;
 		AUTH_RESPONSE = 37;
 
+		ACK_RESPONSE = 38;
+
 		// transaction related
-		END_TXN_ON_PARTITION = 38;
+		NEW_TXN = 50;
+		NEW_TXN_RESPONSE = 51;
+
+		ADD_PARTITION_TO_TXN = 52;
+		ADD_PARTITION_TO_TXN_RESPONSE = 53;
+
+		ADD_SUBSCRIPTION_TO_TXN = 54;
+		ADD_SUBSCRIPTION_TO_TXN_RESPONSE = 55;
+
+		END_TXN = 56;
+		END_TXN_RESPONSE = 57;
+
+		END_TXN_ON_PARTITION = 58;
+		END_TXN_ON_PARTITION_RESPONSE = 59;
+
+		END_TXN_ON_SUBSCRIPTION = 60;
+		END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
+
 	}
 
 
@@ -733,6 +849,19 @@ message BaseCommand {
 	optional CommandAuthChallenge authChallenge = 36;
 	optional CommandAuthResponse authResponse = 37;
 
+	optional CommandAckResponse ackResponse = 38;
+
 	// transaction related
-	optional CommandEndTxnOnPartition endTxnOnPartition = 50;
+    optional CommandNewTxn newTxn = 50;
+	optional CommandNewTxnResponse newTxnResponse = 51;
+	optional CommandAddPartitionToTxn addPartitionToTxn= 52;
+	optional CommandAddPartitionToTxnResponse addPartitionToTxnResponse = 53;
+	optional CommandAddSubscriptionToTxn addSubscriptionToTxn = 54;
+	optional CommandAddSubscriptionToTxnResponse addSubscriptionToTxnResponse = 55;
+	optional CommandEndTxn endTxn = 56;
+	optional CommandEndTxnResponse endTxnResponse = 57;
+	optional CommandEndTxnOnPartition endTxnOnPartition = 58;
+	optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
+	optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
+    optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
 }
