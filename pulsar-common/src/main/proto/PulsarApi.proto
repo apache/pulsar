@@ -851,6 +851,7 @@ message BaseCommand {
 
     optional CommandAckResponse ackResponse = 38;
 
+<<<<<<< HEAD
     // transaction related
     optional CommandNewTxn newTxn = 50;
     optional CommandNewTxnResponse newTxnResponse = 51;
@@ -864,4 +865,19 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+=======
+	// transaction related
+        optional CommandNewTxn newTxn = 50;
+	optional CommandNewTxnResponse newTxnResponse = 51;
+	optional CommandAddPartitionToTxn addPartitionToTxn= 52;
+	optional CommandAddPartitionToTxnResponse addPartitionToTxnResponse = 53;
+	optional CommandAddSubscriptionToTxn addSubscriptionToTxn = 54;
+	optional CommandAddSubscriptionToTxnResponse addSubscriptionToTxnResponse = 55;
+	optional CommandEndTxn endTxn = 56;
+	optional CommandEndTxnResponse endTxnResponse = 57;
+	optional CommandEndTxnOnPartition endTxnOnPartition = 58;
+	optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
+	optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
+        optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+>>>>>>> 47009db9a2782b2499fb681c6653f476414b302c
 }
