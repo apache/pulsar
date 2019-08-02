@@ -49,7 +49,6 @@ import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 
 @SuppressWarnings("unchecked")
@@ -359,19 +358,6 @@ public class DefaultImplementation {
             () -> (String) getStaticMethod("org.apache.pulsar.client.impl.schema.SchemaUtils",
                 "jsonifySchemaInfo", SchemaInfo.class
             ).invoke(null, schemaInfo));
-    }
-
-    /**
-     * Jsonify the schema info with version.
-     *
-     * @param schemaInfoWithVersion the schema info with version
-     * @return the jsonified schema info with version
-     */
-    public static String jsonifySchemaInfoWithVersion(SchemaInfoWithVersion schemaInfoWithVersion) {
-        return catchExceptions(
-                () -> (String) getStaticMethod("org.apache.pulsar.client.impl.schema.SchemaUtils",
-                        "jsonifySchemaInfoWithVersion", SchemaInfoWithVersion.class
-                ).invoke(null, schemaInfoWithVersion));
     }
 
     /**
