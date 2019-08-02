@@ -2327,7 +2327,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
     consConfig.setConsumerType(ConsumerExclusive);
     consConfig.setReceiverQueueSize(2);
     ASSERT_FALSE(consConfig.hasMessageListener());
-    Consumer consumer[numberOfPartitions];
+    std::vector<Consumer> consumer(numberOfPartitions);
+    // Consumer consumer[numberOfPartitions];
     Result subscribeResult;
     for (int i = 0; i < numberOfPartitions; i++) {
         std::stringstream partitionedTopicName;
@@ -2539,7 +2540,8 @@ TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     consConfig.setConsumerType(ConsumerExclusive);
     consConfig.setReceiverQueueSize(2);
     ASSERT_FALSE(consConfig.hasMessageListener());
-    Consumer consumer[numberOfPartitions];
+    std::vector<Consumer> consumer(numberOfPartitions);
+    // Consumer consumer[numberOfPartitions];
     Result subscribeResult;
     for (int i = 0; i < numberOfPartitions; i++) {
         std::stringstream partitionedTopicName;
