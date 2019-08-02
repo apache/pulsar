@@ -142,7 +142,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+    public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
             this.getLedgerHandle(position.getLedgerId()).thenAccept((ledger) -> {
                 asyncReadEntry(ledger, position, callback, ctx);
             }).exceptionally((ex) -> {
