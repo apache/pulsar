@@ -38,11 +38,6 @@ DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
 
-void PulsarFriend::producerFailMessages(Producer producer, Result result) {
-    ProducerImpl* producerImpl = static_cast<ProducerImpl*>(producer.impl_.get());
-    producerImpl->failPendingMessages(result);
-}
-
 static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static std::string lookupUrl = "pulsar://localhost:6650";

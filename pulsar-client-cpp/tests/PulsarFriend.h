@@ -56,7 +56,9 @@ class PulsarFriend {
         return *producerImpl;
     }
 
-    static void producerFailMessages(Producer producer, Result result);
+    static void producerFailMessages(Producer producer, Result result) {
+        producer.producerFailMessages(result);
+    }
 
     static ConsumerImpl& getConsumerImpl(Consumer consumer) {
         ConsumerImpl* consumerImpl = static_cast<ConsumerImpl*>(consumer.impl_.get());
