@@ -57,6 +57,7 @@ import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.sql.presto.PulsarInternalColumn.PartitionColumn;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -91,6 +92,7 @@ public class PulsarRecordCursor implements RecordCursor {
     // are empty or not
     private final long splitSize;
     private long entriesProcessed = 0;
+    private int partition = -1;
 
 
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
@@ -127,6 +129,7 @@ public class PulsarRecordCursor implements RecordCursor {
         PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
         this.columnHandles = columnHandles;
         this.pulsarSplit = pulsarSplit;
+        this.partition = TopicName.getPartitionIndex(pulsarSplit.getTableName());
         this.pulsarConnectorConfig = pulsarConnectorConfig;
         this.maxBatchSize = pulsarConnectorConfig.getMaxEntryReadBatchSize();
         this.messageQueue = new SpscArrayQueue<>(pulsarConnectorConfig.getMaxSplitMessageQueueSize());
@@ -426,7 +429,11 @@ public class PulsarRecordCursor implements RecordCursor {
         if (pulsarColumnHandle.isInternal()) {
             String fieldName = this.columnHandles.get(fieldIndex).getName();
             PulsarInternalColumn pulsarInternalColumn = this.internalColumnMap.get(fieldName);
-            data = pulsarInternalColumn.getData(this.currentMessage);
+            if (pulsarInternalColumn instanceof PartitionColumn) {
+                data = this.partition;
+            } else {
+                data = pulsarInternalColumn.getData(this.currentMessage);
+            }
         } else {
             data = this.schemaHandler.extractField(fieldIndex, this.currentRecord);
         }
