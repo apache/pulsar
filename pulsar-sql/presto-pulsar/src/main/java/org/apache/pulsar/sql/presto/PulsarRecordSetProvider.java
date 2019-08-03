@@ -30,6 +30,9 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import javax.inject.Inject;
 
+/**
+ * Implementation of the provider for record sets.
+ */
 public class PulsarRecordSetProvider implements ConnectorRecordSetProvider {
 
     private final PulsarConnectorConfig pulsarConnectorConfig;

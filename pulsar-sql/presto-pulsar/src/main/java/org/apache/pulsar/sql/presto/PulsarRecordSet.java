@@ -26,6 +26,9 @@ import com.facebook.presto.spi.type.Type;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 
+/**
+ * Implementation of a record set.
+ */
 public class PulsarRecordSet implements RecordSet {
 
     private final List<PulsarColumnHandle> columnHandles;

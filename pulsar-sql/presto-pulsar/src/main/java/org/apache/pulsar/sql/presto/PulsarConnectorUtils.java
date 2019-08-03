@@ -27,6 +27,9 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
 
+/**
+ * A helper class containing repeatable logic used in the other classes.
+ */
 public class PulsarConnectorUtils {
 
     public static Schema parseSchema(String schemaJson) {

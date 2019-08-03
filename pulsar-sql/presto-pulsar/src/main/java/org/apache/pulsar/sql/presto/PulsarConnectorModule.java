@@ -32,6 +32,9 @@ import com.google.inject.Module;
 import com.google.inject.Scopes;
 import javax.inject.Inject;
 
+/**
+ * This class defines binding of classes in the Presto connector.
+ */
 public class PulsarConnectorModule implements Module {
 
     private final String connectorId;
@@ -57,6 +60,9 @@ public class PulsarConnectorModule implements Module {
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);
     }
 
+    /**
+     * A wrapper to deserialize the Presto types.
+     */
     public static final class TypeDeserializer
             extends FromStringDeserializer<Type> {
         private static final long serialVersionUID = 1L;

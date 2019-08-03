@@ -33,6 +33,9 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+/**
+ * This class represents information for a split.
+ */
 public class PulsarSplit implements ConnectorSplit {
 
     private final long splitId;

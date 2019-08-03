@@ -20,6 +20,9 @@ package org.apache.pulsar.sql.presto;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Unique identifier of a connector.
+ */
 public class PulsarConnectorId {
     private final String id;
 

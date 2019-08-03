@@ -28,6 +28,9 @@ import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
+/**
+ * This class helps to resolve classes for the Presto connector.
+ */
 public class PulsarHandleResolver implements ConnectorHandleResolver {
     @Override
     public Class<? extends ConnectorTableHandle> getTableHandleClass() {

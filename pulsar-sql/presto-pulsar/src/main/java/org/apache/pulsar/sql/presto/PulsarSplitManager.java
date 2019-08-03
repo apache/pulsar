@@ -60,6 +60,9 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+/**
+ * The class helping to manage splits.
+ */
 public class PulsarSplitManager implements ConnectorSplitManager {
 
     private final String connectorId;

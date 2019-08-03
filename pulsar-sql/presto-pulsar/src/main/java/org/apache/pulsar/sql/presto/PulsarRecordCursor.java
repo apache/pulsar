@@ -60,6 +60,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
+/**
+ * Implementation of a cursor to read records.
+ */
 public class PulsarRecordCursor implements RecordCursor {
 
     private List<PulsarColumnHandle> columnHandles;

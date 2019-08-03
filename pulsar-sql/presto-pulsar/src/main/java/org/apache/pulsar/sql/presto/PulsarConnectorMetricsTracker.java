@@ -25,6 +25,9 @@ import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 
+/**
+ * This class helps to track metrics related to the connector.
+ */
 public class PulsarConnectorMetricsTracker implements AutoCloseable{
 
     private final StatsLogger statsLogger;

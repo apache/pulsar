@@ -39,6 +39,9 @@ import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 
+/**
+ * Implementation of a cache for the Pulsar connector.
+ */
 public class PulsarConnectorCache {
 
     private static final Logger log = Logger.get(PulsarConnectorCache.class);

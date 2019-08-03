@@ -27,6 +27,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
+/**
+ * This class handles the table layout.
+ */
 public class PulsarTableLayoutHandle implements ConnectorTableLayoutHandle {
     private final PulsarTableHandle table;
     private final TupleDomain<ColumnHandle> tupleDomain;
