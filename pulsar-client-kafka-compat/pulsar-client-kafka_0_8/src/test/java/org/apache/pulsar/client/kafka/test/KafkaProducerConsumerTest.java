@@ -189,4 +189,59 @@ public class KafkaProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
+    
+    @Test
+    public void testProducerConsumerWithoutSerializer() throws Exception {
+        final String serviceUrl = lookupUrl.toString();
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
+        // (1) Create consumer
+        Properties properties = new Properties();
+        properties.put("zookeeper.connect", serviceUrl);
+        properties.put("group.id", "group1");
+        properties.put("consumer.id", "cons1");
+        properties.put("auto.commit.enable", "true");
+        properties.put("auto.commit.interval.ms", "100");
+        properties.put("queued.max.message.chunks", "100");
+
+        ConsumerConfig conSConfig = new ConsumerConfig(properties);
+        ConsumerConnector connector = new ConsumerConnector(conSConfig);
+        Map<String, Integer> topicCountMap = Collections.singletonMap(topicName, 2);
+        Map<String, List<PulsarKafkaStream<byte[], byte[]>>> streams = connector.createMessageStreams(topicCountMap);
+
+        // (2) Create producer
+        Properties properties2 = new Properties();
+        properties2.put(BROKER_URL, serviceUrl);
+        properties2.put(PRODUCER_TYPE, "sync");
+        properties2.put(PARTITIONER_CLASS, TestPartitioner.class.getName());
+        properties2.put(COMPRESSION_CODEC, "gzip"); // compression: ZLIB
+        properties2.put(QUEUE_ENQUEUE_TIMEOUT_MS, "-1"); // block queue if full => -1 = true
+        properties2.put(QUEUE_BUFFERING_MAX_MESSAGES, "6000"); // queue max message
+        properties2.put(QUEUE_BUFFERING_MAX_MS, "100"); // batch delay
+        properties2.put(BATCH_NUM_MESSAGES, "500"); // batch msg
+        properties2.put(CLIENT_ID, "test");
+        ProducerConfig config = new ProducerConfig(properties2);
+        PulsarKafkaProducer<byte[], byte[]> producer = new PulsarKafkaProducer<>(config);
+
+        String name = "user";
+        String msg = "Hello World!";
+        int total = 10;
+        for (int i = 0; i < total; i++) {
+            String sendMessage = msg + i;
+            KeyedMessage<byte[], byte[]> message = new KeyedMessage<>(topicName, name.getBytes(), sendMessage.getBytes());
+            producer.send(message);
+        }
+        int count = 0;
+        while (count < total) {
+            for (int i = 0; i < streams.size(); i++) {
+                List<PulsarKafkaStream<byte[], byte[]>> kafkaStreams = streams.get(topicName);
+                assertEquals(kafkaStreams.size(), 2);
+                for (PulsarKafkaStream<byte[], byte[]> kafkaStream : kafkaStreams) {
+                    for (PulsarMessageAndMetadata<byte[], byte[]> record : kafkaStream) {
+                        count++;
+                        System.out.println(new String(record.message()));
+                    }
+                }
+            }
+        }
+    }
 }

@@ -47,6 +47,7 @@ public class ConsumerIterator<K, V> implements Iterator<PulsarMessageAndMetadata
     private final Optional<Decoder<V>> valueDeSerializer;
     private final boolean isAutoCommit;
     private volatile MessageId lastConsumedMessageId;
+    private static final kafka.serializer.DefaultDecoder DEFAULT_DECODER = new kafka.serializer.DefaultDecoder(null);
 
     public ConsumerIterator(Consumer<byte[]> consumer, ConcurrentLinkedQueue<Message<byte[]>> receivedMessages,
             Optional<Decoder<K>> keyDeSerializer, Optional<Decoder<V>> valueDeSerializer, boolean isAutoCommit) {
@@ -104,13 +105,13 @@ public class ConsumerIterator<K, V> implements Iterator<PulsarMessageAndMetadata
             } else {
                 byte[] decodedBytes = Base64.getDecoder().decode(key);
                 desKey = keyDeSerializer.isPresent() ? keyDeSerializer.get().fromBytes(decodedBytes)
-                        : SerializationUtils.deserialize(decodedBytes);
+                        : (K) DEFAULT_DECODER.fromBytes(decodedBytes);
             }
         }
 
         if (value != null) {
             desValue = valueDeSerializer.isPresent() ? valueDeSerializer.get().fromBytes(msg.getData())
-                    : SerializationUtils.deserialize(msg.getData());
+                    : (V) DEFAULT_DECODER.fromBytes(msg.getData());
         }
 
         PulsarMessageAndMetadata<K, V> msgAndMetadata = new PulsarMessageAndMetadata<>(consumer.getTopic(), partition,

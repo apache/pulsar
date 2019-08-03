@@ -101,8 +101,8 @@ public class PulsarKafkaProducerTest {
         properties.put(PARTITIONER_CLASS, TestPartitioner.class.getName());
         ProducerConfig config = new ProducerConfig(properties);
         PulsarKafkaProducer<byte[], byte[]> producer = new PulsarKafkaProducer<>(config);
-        assertEquals(producer.getKeySerializer().get().getClass(), TestEncoder.class);
-        assertEquals(producer.getValueSerializer().get().getClass(), TestEncoder.class);
+        assertEquals(producer.getKeySerializer().getClass(), TestEncoder.class);
+        assertEquals(producer.getValueSerializer().getClass(), TestEncoder.class);
         assertEquals(producer.getPartitioner().getClass(), TestPartitioner.class);
 
     }

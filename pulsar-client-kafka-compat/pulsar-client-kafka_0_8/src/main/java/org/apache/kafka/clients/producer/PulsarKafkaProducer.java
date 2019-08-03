@@ -18,6 +18,8 @@
  */
 package org.apache.kafka.clients.producer;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.util.Base64;
@@ -63,8 +65,8 @@ public class PulsarKafkaProducer<K, V> extends Producer<K, V> {
     private final PulsarClient client;
     private final ProducerBuilder<byte[]> pulsarProducerBuilder;
     private final Partitioner partitioner;
-    private final Optional<Encoder<K>> keySerializer;
-    private final Optional<Encoder<V>> valueSerializer;
+    private final Encoder<K> keySerializer;
+    private final Encoder<V> valueSerializer;
     private final boolean isSendAsync;
 
     public static String KAFKA_KEY_MAX_QUEUE_BUFFERING_TIME_MS = "queue.buffering.max.ms";
@@ -80,8 +82,11 @@ public class PulsarKafkaProducer<K, V> extends Producer<K, V> {
         partitioner = config.partitionerClass() != null
                 ? newInstance(config.partitionerClass(), Partitioner.class, config.props())
                 : new DefaultPartitioner(config.props());
-        keySerializer = Optional.ofNullable(newInstance(config.keySerializerClass(), Encoder.class, config.props()));
-        valueSerializer = Optional.ofNullable(newInstance(config.serializerClass(), Encoder.class, config.props()));
+        // kafka-config returns default serializer if client doesn't configure it
+        checkNotNull(config.keySerializerClass(), "key-serializer class can't be null");
+        checkNotNull(config.serializerClass(), "value-serializer class can't be null");
+        keySerializer = newInstance(config.keySerializerClass(), Encoder.class, config.props());
+        valueSerializer = newInstance(config.serializerClass(), Encoder.class, config.props());
 
         Properties properties = config.props() != null && config.props().props() != null ? config.props().props()
                 : new Properties();
@@ -185,18 +190,16 @@ public class PulsarKafkaProducer<K, V> extends Producer<K, V> {
             builder.key(key);
         }
 
-        byte[] value = valueSerializer.isPresent() ? valueSerializer.get().toBytes(message.message())
-                : SerializationUtils.serialize((Serializable) message.message());
+        byte[] value = valueSerializer.toBytes(message.message());
         builder.value(value);
     }
 
     private String getKey(String topic, K key) {
         // If key is a String, we can use it as it is, otherwise, serialize to byte[] and encode in base64
-        if (keySerializer.isPresent() && keySerializer.get() instanceof StringEncoder) {
+        if (keySerializer!=null && keySerializer instanceof StringEncoder) {
             return (String) key;
         } else {
-            byte[] keyBytes = keySerializer.isPresent() ? keySerializer.get().toBytes(key)
-                    : SerializationUtils.serialize((Serializable) key);
+            byte[] keyBytes = keySerializer.toBytes(key);
             return Base64.getEncoder().encodeToString(keyBytes);
         }
     }
@@ -289,12 +292,12 @@ public class PulsarKafkaProducer<K, V> extends Producer<K, V> {
     }
 
     @VisibleForTesting
-    public Optional<Encoder<K>> getKeySerializer() {
+    public Encoder<K> getKeySerializer() {
         return keySerializer;
     }
 
     @VisibleForTesting
-    public Optional<Encoder<V>> getValueSerializer() {
+    public Encoder<V> getValueSerializer() {
         return valueSerializer;
     }
 }
