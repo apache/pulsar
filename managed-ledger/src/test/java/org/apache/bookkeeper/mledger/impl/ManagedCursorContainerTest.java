@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -302,6 +303,16 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void setThrottleMarkDelete(double throttleMarkDelete) {
+        }
+
+        @Override
+        public void asyncAddEntry(byte[] entry, AsyncCallbacks.AddEntryCallback callback, Object ctx) {
+
+        }
+
+        @Override
+        public LedgerHandle getCurrentCursorLedger() {
+            return null;
         }
 
         @Override

@@ -23,6 +23,7 @@ import com.google.common.base.Predicate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
@@ -587,4 +588,22 @@ public interface ManagedCursor {
      */
     void setThrottleMarkDelete(double throttleMarkDelete);
 
+    /**
+     * Add entry to the cursor ledger.
+     *
+     * @param entry
+     *          the added entry
+     * @param callback
+     *          callback object returning the added entry position
+     * @param ctx
+     *          opaque context
+     */
+    void asyncAddEntry(byte[] entry, AsyncCallbacks.AddEntryCallback callback, Object ctx);
+
+    /**
+     * Get the cursor current using ledger.
+     *
+     * @return the current ledger
+     */
+    LedgerHandle getCurrentCursorLedger();
 }

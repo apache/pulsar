@@ -2581,5 +2581,25 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    @Override
+    public void asyncAddEntry(byte[] entry, AsyncCallbacks.AddEntryCallback callback, Object ctx) {
+        cursorLedger.asyncAddEntry(entry, (rc, lh, entryId, addCtx) -> {
+            if (rc == BKException.Code.OK) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Add entry to cursor {} ledger id: {}, entyr id: {}", ledger.getName(), name,
+                              lh.getId(), entryId);
+                }
+                callback.addComplete(new PositionImpl(lh.getId(), entryId), addCtx);
+            } else {
+                callback.addFailed(createManagedLedgerException(rc), addCtx);
+            }
+        }, ctx);
+    }
+
+    @Override
+    public LedgerHandle getCurrentCursorLedger() {
+        return cursorLedger;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
 }
