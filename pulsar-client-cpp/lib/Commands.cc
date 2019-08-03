@@ -129,7 +129,9 @@ SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId)
     std::lock_guard<std::mutex> lock(mutex);
     cmd.set_type(BaseCommand::CONSUMER_STATS);
     CommandConsumerStats* consumerStats = cmd.mutable_consumerstats();
-    consumerStats->set_consumer_id(consumerId); consumerStats->set_request_id(requestId); const SharedBuffer buffer = writeMessageWithSize(cmd);
+    consumerStats->set_consumer_id(consumerId);
+    consumerStats->set_request_id(requestId);
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_consumerstats();
     return buffer;
 }
@@ -559,11 +561,11 @@ std::string Commands::messageType(BaseCommand_Type type) {
             return "END_TXN_ON_PARTITION_RESPONSE";
             break;
         case BaseCommand::END_TXN_ON_SUBSCRIPTION:
-             return "END_TXN_ON_SUBSCRIPTION";
-             break;
+            return "END_TXN_ON_SUBSCRIPTION";
+            break;
         case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
-             return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
-             break;
+            return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
+            break;
     };
 }
 
