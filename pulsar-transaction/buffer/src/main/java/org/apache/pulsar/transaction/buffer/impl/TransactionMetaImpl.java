@@ -23,6 +23,9 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
@@ -31,6 +34,8 @@ import org.apache.pulsar.transaction.buffer.exceptions.UnexpectedTxnStatusExcept
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
+@AllArgsConstructor
+@Getter
 public class TransactionMetaImpl implements TransactionMeta {
 
     private final TxnID txnID;
@@ -160,4 +165,9 @@ public class TransactionMetaImpl implements TransactionMeta {
         }
         return true;
     }
+
+    public boolean isCommitted() {
+        return committedAtLedgerId != -1L && committedAtEntryId != -1L;
+    }
+
 }

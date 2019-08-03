@@ -51,6 +51,8 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 @Slf4j
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 
+    static final String TXN_CURSOR_NAME = "pulsar.transaction";
+
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
 
@@ -80,9 +82,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService)
-        throws BrokerServiceException.NamingException, ManagedLedgerException {
+        throws BrokerServiceException.NamingException, ManagedLedgerException, InterruptedException {
         super(topic, ledger, brokerService);
-        this.txnCursor = new TransactionCursorImpl();
+        this.txnCursor = new TransactionCursorImpl(ledger);
         this.retentionCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
     }
 
