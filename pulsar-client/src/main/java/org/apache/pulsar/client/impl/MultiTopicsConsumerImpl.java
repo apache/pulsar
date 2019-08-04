@@ -745,7 +745,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         List<CompletableFuture<Consumer<T>>> futureList;
-        if (numPartitions > 1) {
+        if (numPartitions > 0) {
             this.topics.putIfAbsent(topicName, numPartitions);
             allTopicPartitionsNumber.addAndGet(numPartitions);
 
