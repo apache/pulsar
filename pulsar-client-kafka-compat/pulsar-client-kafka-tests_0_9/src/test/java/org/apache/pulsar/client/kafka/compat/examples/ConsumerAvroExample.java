@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.kafka.compat.examples;
 
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.IntegerSerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.kafka.compat.examples.utils.Bar;
@@ -30,17 +30,20 @@ import org.apache.pulsar.client.kafka.compat.examples.utils.Foo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Properties;
 
-public class ProducerAvroExample {
+public class ConsumerAvroExample {
+
     public static void main(String[] args) {
         String topic = "persistent://public/default/test-avro";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", "pulsar://localhost:6650");
-
-        props.put("key.serializer", IntegerSerializer.class.getName());
-        props.put("value.serializer", StringSerializer.class.getName());
+        props.put("group.id", "my-subscription-name");
+        props.put("enable.auto.commit", "false");
+        props.put("key.deserializer", IntegerDeserializer.class.getName());
+        props.put("value.deserializer", StringDeserializer.class.getName());
 
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
@@ -53,17 +56,20 @@ public class ProducerAvroExample {
         foo.setField2("field2");
         foo.setField3(3);
 
+        @SuppressWarnings("resource")
+        Consumer<Foo, Bar> consumer = new KafkaConsumer<>(props, fooSchema, barSchema);
+        consumer.subscribe(Arrays.asList(topic));
 
-        Producer<Foo, Bar> producer = new KafkaProducer<>(props, fooSchema, barSchema);
+        while (true) {
+            ConsumerRecords<Foo, Bar> records = consumer.poll(100);
+            records.forEach(record -> {
+                log.info("Received record: {}", record);
+            });
 
-        for (int i = 0; i < 10; i++) {
-            producer.send(new ProducerRecord<Foo, Bar>(topic, i, foo, bar));
-            log.info("Message {} sent successfully", i);
+            // Commit last offset
+            consumer.commitSync();
         }
-
-        producer.flush();
-        producer.close();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ProducerExample.class);
+    private static final Logger log = LoggerFactory.getLogger(ConsumerExample.class);
 }

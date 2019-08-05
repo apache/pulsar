@@ -26,22 +26,45 @@
 
   <parent>
     <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar</artifactId>
+    <artifactId>pulsar-client-kafka-compat</artifactId>
     <version>2.5.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-client-kafka-compat</artifactId>
-  <name>Pulsar Kafka compatibility</name>
+  <artifactId>pulsar-client-kafka_0_9-tests</artifactId>
+  <name>Pulsar Kafka compatibility 0.9 :: Tests</name>
 
-  <packaging>pom</packaging>
+  <description>Tests to verify the correct shading configuration for the pulsar-client-kafka wrapper</description>
 
-  <modules>
-    <module>pulsar-client-kafka</module>
-    <module>pulsar-client-kafka_0_9</module>
-    <module>pulsar-client-kafka-shaded</module>
-    <module>pulsar-client-kafka-shaded_0_9</module>
-    <module>pulsar-client-kafka-tests</module>
-    <module>pulsar-client-kafka-tests_0_9</module>
-  </modules>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-kafka_0_9</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger-original</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
+  </dependencies>
+
 </project>

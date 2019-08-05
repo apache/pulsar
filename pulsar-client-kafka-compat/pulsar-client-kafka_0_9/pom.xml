@@ -26,22 +26,46 @@
 
   <parent>
     <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar</artifactId>
+    <artifactId>pulsar-client-kafka-compat</artifactId>
     <version>2.5.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-client-kafka-compat</artifactId>
-  <name>Pulsar Kafka compatibility</name>
+  <properties>
+    <kafka_0_9.version>0.9.0.1</kafka_0_9.version>
+  </properties>
 
-  <packaging>pom</packaging>
+  <artifactId>pulsar-client-kafka_0_9-original</artifactId>
+  <name>Pulsar Kafka compatibility 0.9 :: API (original)</name>
 
-  <modules>
-    <module>pulsar-client-kafka</module>
-    <module>pulsar-client-kafka_0_9</module>
-    <module>pulsar-client-kafka-shaded</module>
-    <module>pulsar-client-kafka-shaded_0_9</module>
-    <module>pulsar-client-kafka-tests</module>
-    <module>pulsar-client-kafka-tests_0_9</module>
-  </modules>
+  <description>Kafka client library that publishes and consumes messages on Pulsar topics</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>${kafka_0_9.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>net.jpountz.lz4</groupId>
+          <artifactId>lz4</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.lz4</groupId>
+          <artifactId>lz4-java</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.xerial.snappy</groupId>
+          <artifactId>snappy-java</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
+
 </project>
