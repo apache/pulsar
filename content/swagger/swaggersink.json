@@ -25,22 +25,13 @@
         "produces" : [ "application/json" ],
         "responses" : {
           "200" : {
-            "description" : "successful operation",
+            "description" : "Get builtin sinks successfully.",
             "schema" : {
               "type" : "array",
               "items" : {
                 "type" : "object"
               }
             }
-          },
-          "400" : {
-            "description" : "Invalid request"
-          },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
-          "408" : {
-            "description" : "Request timeout"
           }
         }
       }
@@ -56,11 +47,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         } ],
@@ -72,10 +65,16 @@
             }
           },
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid list request"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+          "401" : {
+            "description" : "The client is not authorized to perform this operation"
+          },
+          "500" : {
+            "description" : "Internal server error (failed to authorize, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -91,16 +90,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         } ],
@@ -114,14 +116,11 @@
           "400" : {
             "description" : "Invalid request"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "The sink does not exist"
           },
-          "408" : {
-            "description" : "Request timeout"
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       },
@@ -135,31 +134,48 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting a sink config playload. All available configuration options are:  \nclassname  \n   The sink's class name if archive is file-url-path (file://)  \nsourceSubscriptionName  \n   Pulsar source subscription name if user wants a specific  \n   subscription-name for input-topic consumer  \ninputs  \n   The sink's input topic or topics (specified as a JSON array)  \ntopicsPattern  \n   TopicsPattern to consume from list of topics under a namespace that    match the pattern. [input] and [topicsPattern] are mutually    exclusive. Add SerDe class name for a pattern in customSerdeInputs    (supported for java fun only)topicToSerdeClassName  \n   The map of input topics to SerDe class names (specified as a JSON object)  \ntopicToSchemaType  \n   The map of input topics to Schema types or class names (specified as a JSON object)  \ninputSpecs  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \nconfigs  \n   The map of configs (specified as a JSON object)  \nsecrets  \n   a map of secretName(aka how the secret is going to be \n   accessed in the function via context) to an object that \n   encapsulates how the secret is fetched by the underlying \n   secrets provider. The type of an value here can be found by the \n   SecretProviderConfigurator.getSecretObjectType() method. (specified as a JSON object)  \nparallelism  \n   The sink's parallelism factor (i.e. the number of sink instances to run \nprocessingGuarantees  \n   The processing guarantees (aka delivery semantics) applied to the sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"  \nretainOrdering  \n   Boolean denotes whether sink consumes and sinks messages in order  \nresources  \n   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores), RAM (in bytes) and disk (in bytes) that needs to be allocated per sink instance (applicable only to Docker runtime)  \nautoAck  \n   Boolean denotes whether or not the framework will automatically acknowledge messages  \ntimeoutMs  \n   Long denotes the message timeout in milliseconds  \ncleanupSubscription  \n   Boolean denotes whether the subscriptions the functions created/used should be deleted when the functions is deleted  \nruntimeFlags  \n   Any flags that you want to pass to the runtime as a single string  \n",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/SinkConfig"
+          },
+          "x-examples" : {
+            "application/json" : "{  \n\t\"classname\": \"org.example.MySinkTest\",\n\t\"inputs\": [\"persistent://public/default/sink-input\"],\n\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n\t\"parallelism\": 10\n}"
+          }
         } ],
         "responses" : {
           "200" : {
-            "description" : "Pulsar Function successfully created"
+            "description" : "Pulsar Sink successfully created"
           },
           "400" : {
-            "description" : "Invalid request (function already exists, etc.)"
+            "description" : "Invalid request (sink already exists, etc.)"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+          "401" : {
+            "description" : "Client is not authorized to perform operation"
           },
-          "408" : {
-            "description" : "Request timeout"
+          "500" : {
+            "description" : "Internal server error (failed to authorize, failed to get tenant data, failed to process package, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       },
@@ -173,28 +189,67 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "URL of sink's archive",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting a sink config playload. All available configuration options are:  \nclassname  \n   The sink's class name if archive is file-url-path (file://)  \nsourceSubscriptionName  \n   Pulsar source subscription name if user wants a specific  \n   subscription-name for input-topic consumer  \ninputs  \n   The sink's input topic or topics (specified as a JSON array)  \ntopicsPattern  \n   TopicsPattern to consume from list of topics under a namespace that    match the pattern. [input] and [topicsPattern] are mutually    exclusive. Add SerDe class name for a pattern in customSerdeInputs    (supported for java fun only)topicToSerdeClassName  \n   The map of input topics to SerDe class names (specified as a JSON object)  \ntopicToSchemaType  \n   The map of input topics to Schema types or class names (specified as a JSON object)  \ninputSpecs  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \nconfigs  \n   The map of configs (specified as a JSON object)  \nsecrets  \n   a map of secretName(aka how the secret is going to be \n   accessed in the function via context) to an object that \n   encapsulates how the secret is fetched by the underlying \n   secrets provider. The type of an value here can be found by the \n   SecretProviderConfigurator.getSecretObjectType() method. (specified as a JSON object)  \nparallelism  \n   The sink's parallelism factor (i.e. the number of sink instances to run \nprocessingGuarantees  \n   The processing guarantees (aka delivery semantics) applied to the sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"  \nretainOrdering  \n   Boolean denotes whether sink consumes and sinks messages in order  \nresources  \n   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores), RAM (in bytes) and disk (in bytes) that needs to be allocated per sink instance (applicable only to Docker runtime)  \nautoAck  \n   Boolean denotes whether or not the framework will automatically acknowledge messages  \ntimeoutMs  \n   Long denotes the message timeout in milliseconds  \ncleanupSubscription  \n   Boolean denotes whether the subscriptions the functions created/used should be deleted when the functions is deleted  \nruntimeFlags  \n   Any flags that you want to pass to the runtime as a single string  \n",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/SinkConfig"
+          },
+          "x-examples" : {
+            "application/json" : "{  \n\t\"classname\": \"org.example.SinkStressTest\",  \n\t\"inputs\": [\"persistent://public/default/sink-input\"],\n\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n\t\"parallelism\": 5\n}"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Update options for sink",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/UpdateOptions"
+          }
         } ],
         "responses" : {
           "200" : {
-            "description" : "Pulsar Function successfully updated"
+            "description" : "Pulsar Sink successfully updated"
           },
           "400" : {
-            "description" : "Invalid request (function doesn't exist, etc.)"
+            "description" : "Invalid request (sink doesn't exist, update contains no change, etc.)"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+          "401" : {
+            "description" : "Client is not authorized to perform operation"
+          },
+          "404" : {
+            "description" : "The sink does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error (failed to authorize, failed to process package, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       },
@@ -208,34 +263,43 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "200" : {
-            "description" : "The function was successfully deleted"
+            "description" : "The sink was successfully deleted"
           },
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid deregister request"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+          "401" : {
+            "description" : "Client is not authorized to perform operation"
           },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "The sink does not exist"
           },
           "408" : {
-            "description" : "Request timeout"
+            "description" : "Got InterruptedException while deregistering the sink"
+          },
+          "500" : {
+            "description" : "Internal server error (failed to authorize, failed to deregister, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -251,28 +315,37 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid restart request"
+          },
+          "401" : {
+            "description" : "The client is not authorized to perform this operation"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The sink does not exist"
           },
           "500" : {
-            "description" : "Internal server error"
+            "description" : "Internal server error (failed to restart the sink, failed to authorize, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -288,28 +361,37 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid start request"
+          },
+          "401" : {
+            "description" : "The client is not authorized to perform this operation"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The sink does not exist"
           },
           "500" : {
-            "description" : "Internal server error"
+            "description" : "Internal server error (failed to start the sink, failed to authorize, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -325,16 +407,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         } ],
@@ -346,13 +431,16 @@
             }
           },
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid get status request"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+          "401" : {
+            "description" : "The client is not authorized to perform this operation"
           },
           "404" : {
-            "description" : "The sink doesn't exist"
+            "description" : "The sink does not exist"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -368,28 +456,37 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid stop request"
+          },
+          "401" : {
+            "description" : "The client is not authorized to perform this operation"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The sink does not exist"
           },
           "500" : {
-            "description" : "Internal server error"
+            "description" : "Internal server error (failed to stop the sink, failed to authorize, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -405,33 +502,43 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The sink instanceId",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid restart request"
+          },
+          "401" : {
+            "description" : "The client is not authorized to perform this operation"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The sink does not exist"
           },
           "500" : {
-            "description" : "Internal server error"
+            "description" : "Internal server error (failed to restart the sink instance, failed to authorize, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -447,33 +554,43 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The sink instanceId",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid start request"
+          },
+          "401" : {
+            "description" : "The client is not authorized to perform this operation"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The sink does not exist"
           },
           "500" : {
-            "description" : "Internal server error"
+            "description" : "Internal server error (failed to start the sink, failed to authorize, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -489,21 +606,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The sink instanceId",
           "required" : true,
           "type" : "string"
         } ],
@@ -515,13 +636,16 @@
             }
           },
           "400" : {
-            "description" : "Invalid request"
-          },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+            "description" : "The sink instance does not exist"
           },
           "404" : {
-            "description" : "The sink doesn't exist"
+            "description" : "The sink does not exist"
+          },
+          "500" : {
+            "description" : "Internal Server Error (got exception while getting status, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -537,33 +661,43 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The sink's tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The sink's namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sinkName",
           "in" : "path",
+          "description" : "The sink's name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The sink instanceId",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "400" : {
-            "description" : "Invalid request"
+            "description" : "Invalid stop request"
+          },
+          "401" : {
+            "description" : "The client is not authorized to perform this operation"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The sink instance does not exist"
           },
           "500" : {
-            "description" : "Internal server error"
+            "description" : "Internal server error (failed to stop the sink, failed to authorize, etc.)"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -786,6 +920,16 @@
           }
         }
       }
+    },
+    "UpdateOptions" : {
+      "type" : "object",
+      "properties" : {
+        "update-auth-data" : {
+          "type" : "boolean",
+          "description" : "Whether or not to update the auth data"
+        }
+      },
+      "description" : "Options while updating the sink"
     }
   }
 }

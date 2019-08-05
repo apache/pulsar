@@ -159,10 +159,10 @@
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "A JSON value presenting functions configuration payload. An example of the expected functions can be found here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ntenant  \n  The tenant of functions.  \nnamespace  \n  The namespace of functions.  \nname  \n  The name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n  A generalized way of specifying inputs.  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in --custom-serde-inputs (supported for java fun only)  \nuserConfig  \n  User-defined config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+          "description" : "A JSON value presenting functions configuration payload. An example of the expected functions can be found here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (specified as a JSON object).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (specified as a JSON object).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [input] and [topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in customSerdeInputs (supported for java fun only)  \nuserConfig  \n  A map of user-defined configurations (specified as a JSON object).  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
           "required" : false,
           "schema" : {
-            "type" : "string"
+            "$ref" : "#/definitions/FunctionConfig"
           },
           "x-examples" : {
             "application/json" : "{\n  \"inputs\": persistent://public/default/input-topic,\n  \"parallelism\": 4\n  \"output\": persistent://public/default/output-topic\n  \"log-topic\": persistent://public/default/log-topic\n  \"classname\": org.example.test.ExclamationFunction\n  \"jar\": java-function-1.0-SNAPSHOT.jar\n}"
@@ -211,10 +211,10 @@
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ntenant  \n  The tenant of functions.  \nnamespace  \n  The namespace of functions.  \nname  \n  The name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n  A generalized way of specifying inputs.  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in --custom-serde-inputs (supported for java fun only)  \nuserConfig  \n  User-defined config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+          "description" : "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (specified as a JSON object).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (specified as a JSON object).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [input] and [topicsPattern] are mutually exclusive. Add SerDe class name for a   pattern in customSerdeInputs (supported for java fun only)  \nuserConfig  \n  A map of user-defined configurations (specified as a JSON object).  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
           "required" : false,
           "schema" : {
-            "type" : "string"
+            "$ref" : "#/definitions/FunctionConfig"
           },
           "x-examples" : {
             "application/json" : "{\n  \"inputs\": persistent://public/default/input-topic,\n  \"parallelism\": 4\n  \"output\": persistent://public/default/output-topic\n  \"log-topic\": persistent://public/default/log-topic\n  \"classname\": org.example.test.ExclamationFunction\n  \"jar\": java-function-1.0-SNAPSHOT.jar\n}"
@@ -1348,9 +1348,19 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "redeliveryCount" : {
+        "replicated" : {
+          "type" : "boolean"
+        },
+        "publishTime" : {
           "type" : "integer",
-          "format" : "int32"
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "producerName" : {
+          "type" : "string"
         },
         "messageId" : {
           "$ref" : "#/definitions/MessageId"
@@ -1358,6 +1368,16 @@
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "replicatedFrom" : {
+          "type" : "string"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1369,6 +1389,10 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
@@ -1376,26 +1400,8 @@
             "format" : "byte"
           }
         },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "topicName" : {
           "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
         },
         "data" : {
           "type" : "array",
@@ -1441,10 +1447,12 @@
     "UpdateOptions" : {
       "type" : "object",
       "properties" : {
-        "updateAuthData" : {
-          "type" : "boolean"
+        "update-auth-data" : {
+          "type" : "boolean",
+          "description" : "Whether or not to update the auth data"
         }
-      }
+      },
+      "description" : "Options while updating the sink"
     },
     "WindowConfig" : {
       "type" : "object",

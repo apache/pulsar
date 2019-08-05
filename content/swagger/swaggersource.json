@@ -41,6 +41,9 @@
           },
           "408" : {
             "description" : "Request timeout"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -56,11 +59,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         } ],
@@ -74,8 +79,14 @@
           "400" : {
             "description" : "Invalid request"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
+          },
+          "500" : {
+            "description" : "Internal Server Error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -91,16 +102,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         } ],
@@ -114,14 +128,11 @@
           "400" : {
             "description" : "Invalid request"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "Not Found(The source doesn't exist)"
           },
-          "408" : {
-            "description" : "Request timeout"
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       },
@@ -135,31 +146,48 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of source",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/SourceConfig"
+          },
+          "x-examples" : {
+            "application/json" : "{\n  \"tenant\": public\n  \"namespace\": default\n  \"name\": pulsar-io-mysql\n  \"className\": TestSourceMysql\n  \"topicName\": pulsar-io-mysql\n  \"parallelism\": 1\n  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n  \"schemaType\": avro\n}"
+          }
         } ],
         "responses" : {
           "200" : {
             "description" : "Pulsar Function successfully created"
           },
           "400" : {
-            "description" : "Invalid request (function already exists, etc.)"
+            "description" : "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
           },
-          "408" : {
-            "description" : "Request timeout"
+          "500" : {
+            "description" : "Internal Server Error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       },
@@ -173,28 +201,70 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of source",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "URL of sources' archive",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/SourceConfig"
+          },
+          "x-examples" : {
+            "application/json" : "{\n  \"tenant\": public\n  \"namespace\": default\n  \"name\": pulsar-io-mysql\n  \"className\": TestSourceMysql\n  \"topicName\": pulsar-io-mysql\n  \"parallelism\": 1\n  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n  \"schemaType\": avro\n}"
+          }
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Update options for source",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/UpdateOptions"
+          }
         } ],
         "responses" : {
           "200" : {
             "description" : "Pulsar Function successfully updated"
           },
           "400" : {
-            "description" : "Invalid request (function doesn't exist, etc.)"
+            "description" : "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"
+          },
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
           },
           "403" : {
             "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "Not Found(The source doesn't exist)"
+          },
+          "500" : {
+            "description" : "Internal Server Error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       },
@@ -208,16 +278,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         } ],
@@ -228,14 +301,20 @@
           "400" : {
             "description" : "Invalid request"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
           },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "Not Found(The source doesn't exist)"
           },
           "408" : {
             "description" : "Request timeout"
+          },
+          "500" : {
+            "description" : "Internal Server Error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -251,16 +330,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         } ],
@@ -268,11 +350,17 @@
           "400" : {
             "description" : "Invalid request"
           },
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
+          },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "Not Found(The source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -288,16 +376,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         } ],
@@ -305,11 +396,17 @@
           "400" : {
             "description" : "Invalid request"
           },
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
+          },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "Not Found(The source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -325,16 +422,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         } ],
@@ -345,14 +445,11 @@
               "$ref" : "#/definitions/SourceStatus"
             }
           },
-          "400" : {
-            "description" : "Invalid request"
+          "500" : {
+            "description" : "Internal Server Error"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
-          "404" : {
-            "description" : "The source doesn't exist"
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -368,16 +465,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         } ],
@@ -385,11 +485,17 @@
           "400" : {
             "description" : "Invalid request"
           },
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
+          },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "Not Found(The source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -405,21 +511,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
           "required" : true,
           "type" : "string"
         } ],
@@ -427,11 +537,17 @@
           "400" : {
             "description" : "Invalid request"
           },
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
+          },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "Not Found(The source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -447,21 +563,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
           "required" : true,
           "type" : "string"
         } ],
@@ -469,11 +589,17 @@
           "400" : {
             "description" : "Invalid request"
           },
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
+          },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "Not Found(The source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -489,21 +615,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
           "required" : true,
           "type" : "string"
         } ],
@@ -514,14 +644,11 @@
               "$ref" : "#/definitions/SourceInstanceStatusData"
             }
           },
-          "400" : {
-            "description" : "Invalid request"
+          "500" : {
+            "description" : "Internal Server Error"
           },
-          "403" : {
-            "description" : "The requester doesn't have admin permissions"
-          },
-          "404" : {
-            "description" : "The source doesn't exist"
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -537,21 +664,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "The name of tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "The name of namespace",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
+          "description" : "The name of name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
+          "description" : "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
           "required" : true,
           "type" : "string"
         } ],
@@ -559,11 +690,17 @@
           "400" : {
             "description" : "Invalid request"
           },
+          "401" : {
+            "description" : "Client is not authorize to perform operation"
+          },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "Not Found(The source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
           }
         }
       }
@@ -734,6 +871,16 @@
           }
         }
       }
+    },
+    "UpdateOptions" : {
+      "type" : "object",
+      "properties" : {
+        "update-auth-data" : {
+          "type" : "boolean",
+          "description" : "Whether or not to update the auth data"
+        }
+      },
+      "description" : "Options while updating the sink"
     }
   }
 }
