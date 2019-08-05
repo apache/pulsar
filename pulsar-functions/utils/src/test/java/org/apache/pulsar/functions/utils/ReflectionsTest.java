@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.functions.utils.Reflections.createInstance;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
@@ -156,13 +157,13 @@ public class ReflectionsTest {
     @Test
     public void testClassInJarImplementsIface() {
         assertTrue(Reflections.classImplementsIface(aImplementation.class.getName(), aInterface.class));
-        assertTrue(!Reflections.classImplementsIface(aImplementation.class.getName(), bInterface.class));
+        assertFalse(Reflections.classImplementsIface(aImplementation.class.getName(), bInterface.class));
     }
 
     @Test
     public void testClassExists() {
         assertTrue(Reflections.classExists(String.class.getName()));
-        assertTrue(!Reflections.classExists("com.fake.class"));
+        assertFalse(Reflections.classExists("com.fake.class"));
     }
 
     @Test

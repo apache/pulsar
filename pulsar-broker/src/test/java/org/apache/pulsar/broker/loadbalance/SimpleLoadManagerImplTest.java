@@ -351,7 +351,7 @@ public class SimpleLoadManagerImplTest {
         rd1.put("bandwidthIn", new ResourceUsage(550 * 1024, 1024 * 1024));
         rd1.put("bandwidthOut", new ResourceUsage(850 * 1024, 1024 * 1024));
 
-        assertTrue(rd.compareTo(rd1) == 1);
+        assertEquals(rd.compareTo(rd1), 1);
         assertTrue(rd1.calculateRank() > rd.calculateRank());
 
         SimpleLoadCalculatorImpl calc = new SimpleLoadCalculatorImpl();
@@ -477,12 +477,12 @@ public class SimpleLoadManagerImplTest {
         nsb2.msgRateIn = 5000;
         nsb2.msgThroughputIn = 110000.0;
         nsb2.msgThroughputOut = 110000.0;
-        assertTrue(nsb1.compareTo(nsb2) == -1);
-        assertTrue(nsb1.compareByMsgRate(nsb2) == -1);
-        assertTrue(nsb1.compareByTopicConnections(nsb2) == -1);
-        assertTrue(nsb1.compareByCacheSize(nsb2) == -1);
-        assertTrue(nsb1.compareByBandwidthOut(nsb2) == -1);
-        assertTrue(nsb1.compareByBandwidthIn(nsb2) == -1);
+        assertEquals(-1, nsb1.compareTo(nsb2));
+        assertEquals(-1, nsb1.compareByMsgRate(nsb2));
+        assertEquals(-1, nsb1.compareByTopicConnections(nsb2));
+        assertEquals(-1, nsb1.compareByCacheSize(nsb2));
+        assertEquals(-1, nsb1.compareByBandwidthOut(nsb2));
+        assertEquals(-1, nsb1.compareByBandwidthIn(nsb2));
     }
 
     @Test

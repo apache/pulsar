@@ -730,19 +730,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void subscribeTopicPartitions(CompletableFuture<Void> subscribeResult, String topicName, int numPartitions) {
+        client.preProcessSchemaBeforeSubscribe(client, schema, topicName).whenComplete((ignored, cause) -> {
+            if (null == cause) {
+                doSubscribeTopicPartitions(subscribeResult, topicName, numPartitions);
+            } else {
+                subscribeResult.completeExceptionally(cause);
+            }
+        });
+    }
+
+    private void doSubscribeTopicPartitions(CompletableFuture<Void> subscribeResult, String topicName, int numPartitions) {
         if (log.isDebugEnabled()) {
             log.debug("Subscribe to topic {} metadata.partitions: {}", topicName, numPartitions);
         }
 
         List<CompletableFuture<Consumer<T>>> futureList;
-
-        try {
-            client.preProcessSchemaBeforeSubscribe(client, schema, topicName);
-        } catch (Throwable t) {
-            subscribeResult.completeExceptionally(t);
-            return;
-        }
-
         if (numPartitions > 1) {
             this.topics.putIfAbsent(topicName, numPartitions);
             allTopicPartitionsNumber.addAndGet(numPartitions);

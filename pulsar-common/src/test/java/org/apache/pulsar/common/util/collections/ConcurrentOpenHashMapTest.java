@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -37,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -86,8 +86,8 @@ public class ConcurrentOpenHashMapTest {
 
         assertEquals(map.remove("1"), "one");
         assertEquals(map.size(), 2);
-        assertEquals(map.get("1"), null);
-        assertEquals(map.get("5"), null);
+        assertNull(map.get("1"));
+        assertNull(map.get("5"));
         assertEquals(map.size(), 2);
 
         assertNull(map.put("1", "one"));
@@ -276,14 +276,14 @@ public class ConcurrentOpenHashMapTest {
         int bucket2 = ConcurrentOpenHashMap.signSafeMod(ConcurrentOpenHashMap.hash(key2), Buckets);
         assertEquals(bucket1, bucket2);
 
-        assertEquals(map.put(key1, "value-1"), null);
-        assertEquals(map.put(key2, "value-2"), null);
+        assertNull(map.put(key1, "value-1"));
+        assertNull(map.put(key2, "value-2"));
         assertEquals(map.size(), 2);
 
         assertEquals(map.remove(key1), "value-1");
         assertEquals(map.size(), 1);
 
-        assertEquals(map.put(key1, "value-1-overwrite"), null);
+        assertNull(map.put(key1, "value-1-overwrite"));
         assertEquals(map.size(), 2);
 
         assertEquals(map.remove(key1), "value-1-overwrite");
@@ -300,7 +300,7 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void testPutIfAbsent() {
         ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>();
-        assertEquals(map.putIfAbsent(1l, "one"), null);
+        assertNull(map.putIfAbsent(1l, "one"));
         assertEquals(map.get(1l), "one");
 
         assertEquals(map.putIfAbsent(1l, "uno"), "one");
@@ -357,8 +357,8 @@ public class ConcurrentOpenHashMapTest {
         T t2 = new T(2);
 
         assertEquals(t1, t1_b);
-        assertFalse(t1.equals(t2));
-        assertFalse(t1_b.equals(t2));
+        assertNotEquals(t2, t1);
+        assertNotEquals(t2, t1_b);
 
         assertNull(map.put(t1, "t1"));
         assertEquals(map.get(t1), "t1");

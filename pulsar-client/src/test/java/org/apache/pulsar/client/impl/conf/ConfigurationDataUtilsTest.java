@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl.conf;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -63,7 +65,7 @@ public class ConfigurationDataUtilsTest {
         confData.setBatcherBuilder(BatcherBuilder.DEFAULT);
         confData = ConfigurationDataUtils.loadData(config, confData, ProducerConfigurationData.class);
         assertEquals("test-producer", confData.getProducerName());
-        assertEquals(false, confData.isBatchingEnabled());
+        assertFalse(confData.isBatchingEnabled());
         assertEquals(1234, confData.getBatchingMaxMessages());
     }
 
@@ -121,9 +123,9 @@ public class ConfigurationDataUtilsTest {
         clientConfig.setStatsIntervalSeconds(80);
 
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
-        assertTrue(pulsarClient != null, "Pulsar client built using config should not be null");
+        assertNotNull(pulsarClient, "Pulsar client built using config should not be null");
 
-        assertTrue(pulsarClient.getConfiguration().getServiceUrl().equals("pulsar://unknown:6650"));
+        assertEquals(pulsarClient.getConfiguration().getServiceUrl(), "pulsar://unknown:6650");
         assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(), 1, "builder default not set properly");
         assertEquals(pulsarClient.getConfiguration().getStatsIntervalSeconds(), 80,
                 "builder default should overrite if set explicitly");

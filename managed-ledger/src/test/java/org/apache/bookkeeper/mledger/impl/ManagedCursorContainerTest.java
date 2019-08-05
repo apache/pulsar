@@ -18,7 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
@@ -309,7 +313,7 @@ public class ManagedCursorContainerTest {
     @Test
     void simple() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
-        assertEquals(container.getSlowestReaderPosition(), null);
+        assertNull(container.getSlowestReaderPosition());
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         container.add(cursor1);
@@ -350,7 +354,7 @@ public class ManagedCursorContainerTest {
         assertFalse(container.isEmpty());
 
         container.removeCursor(cursor4.getName());
-        assertEquals(container.getSlowestReaderPosition(), null);
+        assertNull(container.getSlowestReaderPosition());
 
         assertTrue(container.isEmpty());
 
@@ -409,7 +413,7 @@ public class ManagedCursorContainerTest {
 
         assertEquals(container, Lists.newArrayList(cursor1, cursor3));
 
-        assertEquals(container.get("test2"), null);
+        assertNull(container.get("test2"));
 
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(1, 1));
 

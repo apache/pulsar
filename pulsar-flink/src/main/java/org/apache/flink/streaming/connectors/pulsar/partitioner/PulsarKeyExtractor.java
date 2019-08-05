@@ -23,7 +23,7 @@ import java.io.Serializable;
 /**
  * Extract key from a value.
  */
-public interface PulsarKeyExtractor<IN> extends Serializable {
+public interface PulsarKeyExtractor<T> extends Serializable {
 
     PulsarKeyExtractor NULL = in -> null;
 
@@ -33,6 +33,6 @@ public interface PulsarKeyExtractor<IN> extends Serializable {
      * @param in the value to extract a key.
      * @return key.
      */
-    String getKey(IN in);
+    String getKey(T in);
 
 }

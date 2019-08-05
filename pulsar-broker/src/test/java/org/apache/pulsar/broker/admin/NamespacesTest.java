@@ -634,7 +634,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces.deleteNamespace(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), false);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        assertEquals(responseCaptor.getValue().getStatus(), Status.OK.getStatusCode());
+        assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
 
         testNs = this.testLocalNamespaces.get(0);
         // setup ownership to localhost
@@ -644,7 +644,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces.deleteNamespace(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        assertEquals(responseCaptor.getValue().getStatus(), Status.OK.getStatusCode());
+        assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
         List<String> nsList = Lists.newArrayList(this.testLocalNamespaces.get(1).toString(),
                 this.testLocalNamespaces.get(2).toString());
         nsList.sort(null);
@@ -660,7 +660,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces.deleteNamespace(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        assertEquals(responseCaptor.getValue().getStatus(), Status.OK.getStatusCode());
+        assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
     }
 
     @Test
@@ -761,7 +761,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces.unloadNamespace(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName());
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(captor.capture());
-        assertEquals(captor.getValue().getStatus(), Status.OK.getStatusCode());
+        assertEquals(captor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
     }
 
     @Test
@@ -786,10 +786,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // verify split bundles
             BundlesData bundlesData = namespaces.getBundlesData(testTenant, testLocalCluster, bundledNsLocal);
             assertNotNull(bundlesData);
-            assertTrue(bundlesData.boundaries.size() == 3);
-            assertTrue(bundlesData.boundaries.get(0).equals("0x00000000"));
-            assertTrue(bundlesData.boundaries.get(1).equals("0x7fffffff"));
-            assertTrue(bundlesData.boundaries.get(2).equals("0xffffffff"));
+            assertEquals(bundlesData.boundaries.size(), 3);
+            assertEquals(bundlesData.boundaries.get(0), "0x00000000");
+            assertEquals(bundlesData.boundaries.get(1), "0x7fffffff");
+            assertEquals(bundlesData.boundaries.get(2), "0xffffffff");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }

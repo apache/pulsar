@@ -24,6 +24,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -32,6 +35,14 @@ import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 public class SimpleSchemaTest extends ProducerConsumerBase {
+
+    @DataProvider(name = "batchingModes")
+    public static Object[][] batchingModes() {
+        return new Object[][] {
+            { true },
+            { false }
+        };
+    }
 
     @DataProvider(name = "schemaValidationModes")
     public static Object[][] schemaValidationModes() {
@@ -50,6 +61,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         conf.setSchemaValidationEnforced(schemaValidationEnforced);
+        this.isTcpLookup = true;
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -252,4 +264,126 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             assertEquals(data.getValue(), new V1Data(1));
         }
     }
+
+    @Test(dataProvider = "batchingModes")
+    public void testAutoConsume(boolean batching) throws Exception {
+        String topic = "my-property/my-ns/schema-test-auto-consume-" + batching;
+
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+             .topic(topic)
+             .enableBatching(batching)
+             .create();
+             Consumer<GenericRecord> c = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+             .topic(topic)
+             .subscriptionName("sub1")
+             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+             .subscribe()) {
+
+            int numMessages = 10;
+
+            for (int i = 0; i < numMessages; i++) {
+                p.sendAsync(new V1Data(i));
+            }
+            p.flush();
+
+            for (int i = 0; i < numMessages; i++) {
+                Message<GenericRecord> data = c.receive();
+                assertNotNull(data.getSchemaVersion());
+                assertEquals(data.getValue().getField("i"), i);
+            }
+        }
+    }
+
+    @Test(dataProvider = "batchingModes")
+    public void testAutoKeyValueConsume(boolean batching) throws Exception {
+        String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-" + batching;
+
+        Schema<KeyValue<V1Data, V1Data>> pojoSchema = Schema.KeyValue(
+            Schema.AVRO(V1Data.class),
+            Schema.AVRO(V1Data.class),
+            KeyValueEncodingType.SEPARATED);
+
+        try (Producer<KeyValue<V1Data, V1Data>> p = pulsarClient.newProducer(pojoSchema)
+             .topic(topic)
+             .enableBatching(batching)
+             .create();
+             Consumer<KeyValue<GenericRecord, GenericRecord>> c1 = pulsarClient.newConsumer(
+                 Schema.KeyValue(
+                     Schema.AUTO_CONSUME(),
+                     Schema.AUTO_CONSUME(),
+                     KeyValueEncodingType.SEPARATED))
+             .topic(topic)
+             .subscriptionName("sub1")
+             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+             .subscribe();
+             Consumer<KeyValue<V1Data, V1Data>> c2 = pulsarClient.newConsumer(
+                 Schema.KeyValue(
+                     Schema.AVRO(V1Data.class),
+                     Schema.AVRO(V1Data.class),
+                     KeyValueEncodingType.SEPARATED))
+             .topic(topic)
+             .subscriptionName("sub2")
+             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+             .subscribe();
+             Consumer<KeyValue<GenericRecord, V1Data>> c3 = pulsarClient.newConsumer(
+                 Schema.KeyValue(
+                     Schema.AUTO_CONSUME(),
+                     Schema.AVRO(V1Data.class),
+                     KeyValueEncodingType.SEPARATED))
+             .topic(topic)
+             .subscriptionName("sub3")
+             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+             .subscribe();
+             Consumer<KeyValue<V1Data, GenericRecord>> c4 = pulsarClient.newConsumer(
+                 Schema.KeyValue(
+                     Schema.AVRO(V1Data.class),
+                     Schema.AUTO_CONSUME(),
+                     KeyValueEncodingType.SEPARATED))
+             .topic(topic)
+             .subscriptionName("sub4")
+             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+             .subscribe()
+        ) {
+
+            int numMessages = 10;
+
+            for (int i = 0; i < numMessages; i++) {
+                p.sendAsync(new KeyValue<>(new V1Data(i * 100), new V1Data(i * 1000)));
+            }
+            p.flush();
+
+            // verify c1
+            for (int i = 0; i < numMessages; i++) {
+                Message<KeyValue<GenericRecord, GenericRecord>> data = c1.receive();
+                assertNotNull(data.getSchemaVersion());
+                assertEquals(data.getValue().getKey().getField("i"), i * 100);
+                assertEquals(data.getValue().getValue().getField("i"), i * 1000);
+            }
+
+            // verify c2
+            for (int i = 0; i < numMessages; i++) {
+                Message<KeyValue<V1Data, V1Data>> data = c2.receive();
+                assertNotNull(data.getSchemaVersion());
+                assertEquals(data.getValue().getKey().i, i * 100);
+                assertEquals(data.getValue().getValue().i, i * 1000);
+            }
+
+            // verify c3
+            for (int i = 0; i < numMessages; i++) {
+                Message<KeyValue<GenericRecord, V1Data>> data = c3.receive();
+                assertNotNull(data.getSchemaVersion());
+                assertEquals(data.getValue().getKey().getField("i"), i * 100);
+                assertEquals(data.getValue().getValue().i, i * 1000);
+            }
+
+            // verify c4
+            for (int i = 0; i < numMessages; i++) {
+                Message<KeyValue<V1Data, GenericRecord>> data = c4.receive();
+                assertNotNull(data.getSchemaVersion());
+                assertEquals(data.getValue().getKey().i, i * 100);
+                assertEquals(data.getValue().getValue().getField("i"), i * 1000);
+            }
+        }
+    }
+
 }

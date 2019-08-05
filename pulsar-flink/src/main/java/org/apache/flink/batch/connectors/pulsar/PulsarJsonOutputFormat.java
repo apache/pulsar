@@ -35,7 +35,8 @@ public class PulsarJsonOutputFormat<T> extends BasePulsarOutputFormat<T> {
         this.serializationSchema = new JsonSerializationSchema();
     }
 
-    public PulsarJsonOutputFormat(ClientConfigurationData clientConfigurationData, ProducerConfigurationData producerConfigurationData) {
+    public PulsarJsonOutputFormat(ClientConfigurationData clientConfigurationData,
+        ProducerConfigurationData producerConfigurationData) {
         super(clientConfigurationData, producerConfigurationData);
         this.serializationSchema = new JsonSerializationSchema();
     }

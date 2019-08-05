@@ -27,7 +27,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import java.util.LinkedList;
@@ -48,7 +50,6 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.functions.proto.Function;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class MembershipManagerTest {
@@ -191,7 +192,7 @@ public class MembershipManagerTest {
 
         verify(schedulerManager, times(0)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
-        Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
+        assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
     }
 
     @Test
@@ -258,9 +259,9 @@ public class MembershipManagerTest {
 
         verify(schedulerManager, times(0)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
-        Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
+        assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
         Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0).build();
-        Assert.assertTrue(membershipManager.unsignedFunctionDurations.get(instance) != null);
+        assertNotNull(membershipManager.unsignedFunctionDurations.get(instance));
 
         membershipManager.unsignedFunctionDurations.put(instance,
                 membershipManager.unsignedFunctionDurations.get(instance) - 30001);
@@ -336,9 +337,9 @@ public class MembershipManagerTest {
 
         verify(schedulerManager, times(0)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
-        Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
+        assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
         Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0).build();
-        Assert.assertTrue(membershipManager.unsignedFunctionDurations.get(instance) != null);
+        assertNotNull(membershipManager.unsignedFunctionDurations.get(instance));
 
         membershipManager.unsignedFunctionDurations.put(instance,
                 membershipManager.unsignedFunctionDurations.get(instance) - 30001);
@@ -420,7 +421,7 @@ public class MembershipManagerTest {
 
         verify(schedulerManager, times(0)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
-        Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
+        assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
     }
 
 }
