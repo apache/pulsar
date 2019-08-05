@@ -495,7 +495,7 @@ A byte array of the schema definition data, which is encoded in UTF 8 charset.
 
 Here is an example of `SchemaInfo`:
 
-```text
+```java
 PulsarAdmin admin = …;
 
 SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic"); 
