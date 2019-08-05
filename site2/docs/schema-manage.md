@@ -221,7 +221,7 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 
 **Example 1**
 
-```text
+```json
 {
     "type": "JSON",
     "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.foo\",\"fields\":[{\"name\":\"file1\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"file2\",\"type\":\"string\",\"default\":null},{\"name\":\"file3\",\"type\":[\"null\",\"string\"],\"default\":\"dfdf\"}]}",
@@ -231,7 +231,7 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 
 **Example 2**
 
-```text
+```json
 {
     "type": "STRING",
     "schema": "",
@@ -761,7 +761,7 @@ public interface SchemaStorage {
 
 The `SchemaStorageFactory` interface has the following method:
 
-```text
+```java
 public interface SchemaStorageFactory {
     @NotNull
     SchemaStorage create(PulsarService pulsar) throws Exception;
