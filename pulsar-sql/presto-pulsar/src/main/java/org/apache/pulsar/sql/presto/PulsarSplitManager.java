@@ -113,11 +113,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         String.format("Failed to get pulsar topic schema for topic %s/%s: Unauthorized",
                                 namespace, tableHandle.getTableName()));
             } else if (e.getStatusCode() == 404) {
-                schemaInfo = SchemaInfo.builder()
-                        .type(SchemaType.BYTES)
-                        .schema(new byte[0])
-                        .name(String.format("%s/%s", namespace, tableHandle.getTableName()))
-                        .build();
+                schemaInfo = PulsarSchemaHandlers
+                        .defaultSchema(String.format("%s/%s", namespace, tableHandle.getTableName()));
             } else {
                 throw new RuntimeException("Failed to get pulsar topic schema for topic "
                         + String.format("%s/%s", namespace, tableHandle.getTableName())

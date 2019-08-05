@@ -311,12 +311,9 @@ public class PulsarMetadata implements ConnectorMetadata {
                     String.format("%s/%s", namespace, schemaTableName.getTableName()));
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
-                // to indicate that we can't read from topic because there is no schema
-                schemaInfo = SchemaInfo.builder()
-                        .type(SchemaType.BYTES)
-                        .schema(new byte[0])
-                        .name(String.format("%s/%s", namespace, schemaTableName.getTableName()))
-                        .build();
+                // use default schema because there is no schema
+                schemaInfo = PulsarSchemaHandlers
+                        .defaultSchema(String.format("%s/%s", namespace, schemaTableName.getTableName()));
             } else if (e.getStatusCode() == 401) {
                 throw new PrestoException(QUERY_REJECTED,
                         String.format("Failed to get pulsar topic schema information for topic %s/%s: Unauthorized",
