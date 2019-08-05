@@ -147,6 +147,9 @@ class PULSAR_PUBLIC Producer {
     friend class PulsarWrapper;
 
     ProducerImplBasePtr impl_;
+
+    // For unit test case BatchMessageTest::producerFailureResult only
+    void producerFailMessages(Result result);
 };
 }  // namespace pulsar
 

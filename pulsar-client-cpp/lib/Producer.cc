@@ -97,4 +97,11 @@ void Producer::flushAsync(FlushCallback callback) {
 
     impl_->flushAsync(callback);
 }
+
+void Producer::producerFailMessages(Result result) {
+    if (impl_) {
+        ProducerImpl* producerImpl = static_cast<ProducerImpl*>(impl_.get());
+        producerImpl->failPendingMessages(result);
+    }
+}
 }  // namespace pulsar
