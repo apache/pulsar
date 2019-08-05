@@ -64,14 +64,12 @@ public class PersistentTopicsTest  extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicsTest.class);
 
-    private final String myTenant = "my-tenant";
-    private final String myNamespace = myTenant + "/" + "my-namespace";
-    private final String myTopic = "persistent://" + myNamespace + "/my-topic";
-
     private PersistentTopics persistentTopics;
     private final String testTenant = "my-tenant";
     private final String testLocalCluster = "use";
     private final String testNamespace = "my-namespace";
+    private final String myNamespace = testTenant + "/" + testNamespace;
+    private final String myTopic = "persistent://" + myNamespace + "/my-topic";
     protected Field uriField;
     protected UriInfo uriInfo;
     private NonPersistentTopics nonPersistentTopic;
@@ -123,8 +121,6 @@ public class PersistentTopicsTest  extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testLocalCluster, "test"));
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Collections.singleton("test"));
-        admin.tenants().createTenant(myTenant, tenantInfo);
-        admin.namespaces().createNamespace(myNamespace, Collections.singleton("test"));
         admin.topics().createPartitionedTopic(myTopic, 2);
     }
 
@@ -276,6 +272,8 @@ public class PersistentTopicsTest  extends MockedPulsarServiceBaseTest {
     @Test
     public void testSetBacklogQuota() throws PulsarAdminException {
 
+        conf.setTopicLevelPolicyEnable(true);
+
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, myTopic);
 
@@ -296,6 +294,8 @@ public class PersistentTopicsTest  extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRemoveBacklogQuota() throws PulsarAdminException {
+
+        conf.setTopicLevelPolicyEnable(true);
 
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, myTopic);
@@ -323,5 +323,30 @@ public class PersistentTopicsTest  extends MockedPulsarServiceBaseTest {
 
         admin.topics().deletePartitionedTopic(myTopic, true);
 
+    }
+
+    @Test
+    public void testBacklogQuotaDisabled(){
+        conf.setTopicLevelPolicyEnable(false);
+        BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, myTopic);
+
+        try {
+            admin.topics().setBacklogQuota(myTopic, backlogQuota);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().removeBacklogQuota(myTopic);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getBacklogQuotaMap(myTopic);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
     }
 }

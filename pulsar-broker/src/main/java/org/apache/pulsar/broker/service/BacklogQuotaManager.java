@@ -46,8 +46,10 @@ public class BacklogQuotaManager {
     private static final Logger log = LoggerFactory.getLogger(BacklogQuotaManager.class);
     private final BacklogQuota defaultQuota;
     private final ZooKeeperDataCache<Policies> zkCache;
+    private final boolean isTopicLevelPolicyEnable;
 
     public BacklogQuotaManager(PulsarService pulsar) {
+        this.isTopicLevelPolicyEnable = pulsar.getConfiguration().isTopicLevelPolicyEnable();
         this.defaultQuota = new BacklogQuota(
                 pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
                 pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy());
@@ -71,11 +73,12 @@ public class BacklogQuotaManager {
     }
 
     public BacklogQuota getBacklogQuota(TopicName topicName) {
-        String policyPath = AdminResource.path(POLICIES, topicName.getNamespace(), topicName.getLocalName());
+        String policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
         try {
             try {
-                if (!zkCache.get(policyPath).isPresent()) {
-                    policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
+                if (isTopicLevelPolicyEnable && zkCache.get(AdminResource.path(POLICIES, topicName.getNamespace(),
+                        topicName.getLocalName())).isPresent()) {
+                    policyPath = AdminResource.path(POLICIES, topicName.getNamespace(), topicName.getLocalName());
                 }
             } catch (KeeperException.NoNodeException ignore) {
                 policyPath = AdminResource.path(POLICIES, topicName.getNamespace());

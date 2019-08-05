@@ -542,6 +542,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Max number of snapshot to be cached per subscription.")
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable topic level policy, default is disabled.")
+    private boolean topicLevelPolicyEnable = false;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,

@@ -1423,6 +1423,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (backlogQuotaType == null) {
             backlogQuotaType = BacklogQuotaType.destination_storage;
         }
+        checkTopicLevelPolicyEnable();
         try {
             Stat nodeStat = new Stat();
             String path = path(POLICIES, namespaceName.toString(), topicName.getLocalName());
@@ -1495,6 +1496,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (backlogQuotaType == null) {
             backlogQuotaType = BacklogQuotaType.destination_storage;
         }
+        checkTopicLevelPolicyEnable();
         try {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, namespaceName.toString(), topicName.getLocalName());

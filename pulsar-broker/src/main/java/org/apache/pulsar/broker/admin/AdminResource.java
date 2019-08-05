@@ -413,6 +413,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
     protected Policies getTopicPolicies(TopicName topicName) {
         try {
+            checkTopicLevelPolicyEnable();
             return policiesCache().get(AdminResource.path(POLICIES, topicName.getNamespace(), topicName.getLocalName()))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic policy does not exist"));
         } catch (RestException re) {
@@ -420,6 +421,13 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (Exception e) {
             log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
             throw new RestException(e);
+        }
+    }
+
+    protected void checkTopicLevelPolicyEnable() {
+        if (!config().isTopicLevelPolicyEnable()) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Topic level policy is disabled, to enable the topic level policy and retry.");
         }
     }
 

@@ -1013,7 +1013,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/backlogQuotaMap")
     @ApiOperation(value = "Get backlog quota map on a topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic policy does not exist") })
+            @ApiResponse(code = 404, message = "Topic policy does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry")})
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
                                                                   @PathParam("namespace") String namespace,
                                                                   @PathParam("topic") @Encoded String encodedTopic) {
@@ -1028,6 +1029,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 412, message = "Specified backlog quota exceeds retention quota. Increase retention quota and retry request") })
     public void setBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                 @PathParam("topic") @Encoded String encodedTopic,
@@ -1041,6 +1043,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Remove a backlog quota policy from a topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void removeBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic,
