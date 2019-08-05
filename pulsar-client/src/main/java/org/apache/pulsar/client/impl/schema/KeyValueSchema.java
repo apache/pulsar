@@ -19,13 +19,20 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.concurrent.CompletableFuture;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -41,6 +48,8 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     private final Schema<K> keySchema;
     @Getter
     private final Schema<V> valueSchema;
+
+    private static final byte[] KEY_VALUE_SCHEMA_IS_PRIMITIVE = new byte[0];
 
     @Getter
     private final KeyValueEncodingType keyValueEncodingType;
@@ -235,5 +244,37 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                 return "value-schema";
             }
         });
+    }
+
+
+    public static String getKeyValueSchemaString(SchemaData schemaData) {
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer().writeBytes(schemaData.getData());
+        int keyLength = byteBuf.readInt();
+        byte[] keyBytes = new byte[keyLength];
+        byteBuf.readBytes(keyBytes);
+        int valueLength = byteBuf.readInt();
+        byte[] valueBytes = new byte[valueLength];
+        byteBuf.readBytes(valueBytes);
+
+        JsonObject json = new JsonObject();
+        json.add("key", keyBytes.length == 0 ? null : SchemaUtils.toJsonObject(new String(keyBytes, UTF_8)));
+        json.add("value", valueBytes.length == 0 ? null : SchemaUtils.toJsonObject(new String(valueBytes, UTF_8)));
+        return json.toString();
+    }
+
+    private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {
+        return jsonElement.isJsonNull() ? KEY_VALUE_SCHEMA_IS_PRIMITIVE : jsonElement.toString().getBytes(UTF_8);
+    }
+
+    public static byte[] decodeKeyValueJsonToBytes(JsonObject json) {
+        byte[] keyBytes = KeyValueSchema.getKeyOrValueSchemaBytes(json.get("key"));
+        byte[] valueBytes = KeyValueSchema.getKeyOrValueSchemaBytes(json.get("value"));
+        int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
+        byte[] schema = new byte[dataLength];
+        //record the key value schema respective length
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer(dataLength);
+        byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
+        byteBuf.readBytes(schema);
+        return schema;
     }
 }

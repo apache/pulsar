@@ -23,12 +23,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 
-import com.google.gson.JsonObject;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ErrorData;
@@ -207,15 +205,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
         SchemaInfo info = new SchemaInfo();
         byte[] schema;
         if (response.getType() == SchemaType.KEY_VALUE) {
-            JsonObject json = SchemaUtils.toJsonObject(response.getData());
-            byte[] keyBytes = json.get("key").toString().getBytes(UTF_8);
-            byte[] valueBytes = json.get("value").toString().getBytes(UTF_8);
-            int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
-            schema = new byte[dataLength];
-            //record the key value schema respective length
-            ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer(dataLength);
-            byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
-            byteBuf.readBytes(schema);
+            schema = KeyValueSchema.decodeKeyValueJsonToBytes(SchemaUtils.toJsonObject(response.getData()));
         } else {
             schema = response.getData().getBytes(UTF_8);
         }
