@@ -205,6 +205,10 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                     }),
                     discreteValues -> {},
                     allOrNone -> {});
+            } else {
+                for (int i = 0; i < numPartitions; i++) {
+                    predicatePartitions.add(i);
+                }
             }
         } else {
             for (int i = 0; i < numPartitions; i++) {
