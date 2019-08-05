@@ -59,21 +59,7 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import com.google.common.base.Predicate;
-
-import javax.inject.Inject;
-import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-
-import static com.facebook.presto.spi.StandardErrorCode.QUERY_REJECTED;
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
-import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
-import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 
 /**
  * The class helping to manage splits.
@@ -152,6 +138,37 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     Collection<PulsarSplit> getSplitsPartitionedTopic(int numSplits, TopicName topicName, PulsarTableHandle
             tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain) throws Exception {
 
+        List<Integer> predicatedPartitions = getPredicatedPartitions(topicName, tupleDomain);
+        if (log.isDebugEnabled()) {
+            log.debug("Partition filter result %s", predicatedPartitions);
+        }
+
+        int actualNumSplits = Math.max(predicatedPartitions.size(), numSplits);
+
+        int splitsPerPartition = actualNumSplits / predicatedPartitions.size();
+
+        int splitRemainder = actualNumSplits % predicatedPartitions.size();
+
+        ManagedLedgerFactory managedLedgerFactory = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig)
+                .getManagedLedgerFactory();
+
+        List<PulsarSplit> splits = new LinkedList<>();
+        for (int i = 0; i < predicatedPartitions.size(); i++) {
+            int splitsForThisPartition = (splitRemainder > i) ? splitsPerPartition + 1 : splitsPerPartition;
+            splits.addAll(
+                getSplitsForTopic(
+                    topicName.getPartition(predicatedPartitions.get(i)).getPersistenceNamingEncoding(),
+                    managedLedgerFactory,
+                    splitsForThisPartition,
+                    tableHandle,
+                    schemaInfo,
+                    topicName.getPartition(predicatedPartitions.get(i)).getLocalName(),
+                    tupleDomain));
+        }
+        return splits;
+    }
+
+    private List<Integer> getPredicatedPartitions(TopicName topicName, TupleDomain<ColumnHandle> tupleDomain) {
         int numPartitions;
         try {
             numPartitions = (getPulsarAdmin().topics().getPartitionedTopicMetadata(topicName.toString())).partitions;
@@ -164,7 +181,6 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             throw new RuntimeException("Failed to get metadata for partitioned topic "
                 + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(),e);
         }
-
         List<Integer> predicatePartitions = new ArrayList<>();
         if (tupleDomain.getDomains().isPresent()) {
             Domain domain = tupleDomain.getDomains().get().get(PulsarInternalColumn.PARTITION
@@ -195,34 +211,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 predicatePartitions.add(i);
             }
         }
-
-        if (log.isDebugEnabled()) {
-            log.debug("Partition filter result %s", predicatePartitions);
-        }
-
-        int actualNumSplits = Math.max(predicatePartitions.size(), numSplits);
-
-        int splitsPerPartition = actualNumSplits / predicatePartitions.size();
-
-        int splitRemainder = actualNumSplits % predicatePartitions.size();
-
-        ManagedLedgerFactory managedLedgerFactory = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig)
-                .getManagedLedgerFactory();
-
-        List<PulsarSplit> splits = new LinkedList<>();
-        for (int i = 0; i < predicatePartitions.size(); i++) {
-            int splitsForThisPartition = (splitRemainder > i) ? splitsPerPartition + 1 : splitsPerPartition;
-            splits.addAll(
-                getSplitsForTopic(
-                    topicName.getPartition(predicatePartitions.get(i)).getPersistenceNamingEncoding(),
-                    managedLedgerFactory,
-                    splitsForThisPartition,
-                    tableHandle,
-                    schemaInfo,
-                    topicName.getPartition(predicatePartitions.get(i)).getLocalName(),
-                    tupleDomain));
-        }
-        return splits;
+        return predicatePartitions;
     }
 
     @VisibleForTesting
