@@ -200,7 +200,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
                 pulsarTableHandle);
-        assertEquals(tableMetadata.getColumns().size(), 0);
+        assertEquals(tableMetadata.getColumns().size(), PulsarInternalColumn.getInternalFields().size() + 1);
     }
 
     @Test(dataProvider = "rewriteNamespaceDelimiter")
