@@ -118,7 +118,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         SchemaInfo schemaInfo;
 
         try {
-            schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(
+            schemaInfo = getPulsarAdmin().schemas().getSchemaInfo(
                     String.format("%s/%s", namespace, tableHandle.getTableName()));
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 401) {
@@ -134,7 +134,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
         Collection<PulsarSplit> splits;
         try {
-            if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
+            if (!PulsarConnectorUtils.isPartitionedTopic(topicName, getPulsarAdmin())) {
                 splits = getSplitsNonPartitionedTopic(numSplits, topicName, tableHandle, schemaInfo, tupleDomain);
                 log.debug("Splits for non-partitioned topic %s: %s", topicName, splits);
             } else {
@@ -152,6 +152,19 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     Collection<PulsarSplit> getSplitsPartitionedTopic(int numSplits, TopicName topicName, PulsarTableHandle
             tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain) throws Exception {
 
+        int numPartitions;
+        try {
+            numPartitions = (getPulsarAdmin().topics().getPartitionedTopicMetadata(topicName.toString())).partitions;
+        } catch (PulsarAdminException e) {
+            if (e.getStatusCode() == 401) {
+                throw new PrestoException(QUERY_REJECTED,
+                    String.format("Failed to get metadata for partitioned topic %s: Unauthorized", topicName));
+            }
+
+            throw new RuntimeException("Failed to get metadata for partitioned topic "
+                + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(),e);
+        }
+
         List<Integer> predicatePartitions = new ArrayList<>();
         if (tupleDomain.getDomains().isPresent()) {
             Domain domain = tupleDomain.getDomains().get().get(PulsarInternalColumn.PARTITION
@@ -160,7 +173,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 domain.getValues().getValuesProcessor().consume(
                     ranges -> domain.getValues().getRanges().getOrderedRanges().forEach(range -> {
                         Integer low = 0;
-                        Integer high = 0;
+                        Integer high = numPartitions;
                         if (!range.getLow().isLowerUnbounded() && range.getLow().getValueBlock().isPresent()) {
                             low = range.getLow().getValueBlock().get().getInt(0, 0);
                         }
@@ -168,28 +181,16 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                             high = range.getHigh().getValueBlock().get().getInt(0, 0);
                         }
                         while (low <= high) {
-                            predicatePartitions.add(low);
+                            if (!predicatePartitions.contains(low)) {
+                                predicatePartitions.add(low);
+                            }
                             low++;
                         }
                     }),
                     discreteValues -> {},
                     allOrNone -> {});
             }
-        }
-
-        if (predicatePartitions.size() == 0) {
-            int numPartitions;
-            try {
-                numPartitions = (this.pulsarAdmin.topics().getPartitionedTopicMetadata(topicName.toString())).partitions;
-            } catch (PulsarAdminException e) {
-                if (e.getStatusCode() == 401) {
-                    throw new PrestoException(QUERY_REJECTED,
-                        String.format("Failed to get metadata for partitioned topic %s: Unauthorized", topicName));
-                }
-
-                throw new RuntimeException("Failed to get metadata for partitioned topic "
-                    + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
-            }
+        } else {
             for (int i = 0; i < numPartitions; i++) {
                 predicatePartitions.add(i);
             }
@@ -436,5 +437,9 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 return false;
             }
         });
+    }
+
+    public PulsarAdmin getPulsarAdmin() {
+        return pulsarAdmin;
     }
 }

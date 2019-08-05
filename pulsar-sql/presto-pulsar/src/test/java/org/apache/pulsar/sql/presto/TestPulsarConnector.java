@@ -129,6 +129,14 @@ public abstract class TestPulsarConnector {
     protected static final TopicName TOPIC_4 = TopicName.get("persistent", NAMESPACE_NAME_3, "topic-1");
     protected static final TopicName TOPIC_5 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-1");
     protected static final TopicName TOPIC_6 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-2");
+    protected static final TopicName TOPIC_7 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-3");
+    protected static final TopicName TOPIC_7_PARTITION_0 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-3-partition-0");
+    protected static final TopicName TOPIC_7_PARTITION_1 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-3-partition-1");
+    protected static final TopicName TOPIC_7_PARTITION_2 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-3-partition-2");
+    protected static final TopicName TOPIC_7_PARTITION_3 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-3-partition-3");
+    protected static final TopicName TOPIC_7_PARTITION_4 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-3-partition-4");
+
+
 
     protected static final TopicName PARTITIONED_TOPIC_1 = TopicName.get("persistent", NAMESPACE_NAME_1,
             "partitioned-topic-1");
@@ -207,6 +215,11 @@ public abstract class TestPulsarConnector {
             topicNames.add(TOPIC_4);
             topicNames.add(TOPIC_5);
             topicNames.add(TOPIC_6);
+            topicNames.add(TOPIC_7_PARTITION_0);
+            topicNames.add(TOPIC_7_PARTITION_1);
+            topicNames.add(TOPIC_7_PARTITION_2);
+            topicNames.add(TOPIC_7_PARTITION_3);
+            topicNames.add(TOPIC_7_PARTITION_4);
 
             partitionedTopicNames = new LinkedList<>();
             partitionedTopicNames.add(PARTITIONED_TOPIC_1);
@@ -231,6 +244,13 @@ public abstract class TestPulsarConnector {
             topicsToSchemas.put(TOPIC_4.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
             topicsToSchemas.put(TOPIC_5.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
             topicsToSchemas.put(TOPIC_6.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(TOPIC_7.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(TOPIC_7_PARTITION_0.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(TOPIC_7_PARTITION_1.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(TOPIC_7_PARTITION_2.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(TOPIC_7_PARTITION_3.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+            topicsToSchemas.put(TOPIC_7_PARTITION_4.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
+
 
             topicsToSchemas.put(PARTITIONED_TOPIC_1.getSchemaName(), Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
             topicsToSchemas.put(PARTITIONED_TOPIC_2.getSchemaName(), Schema.AVRO(TestPulsarMetadata.Foo.class).getSchemaInfo());
@@ -270,6 +290,13 @@ public abstract class TestPulsarConnector {
             topicsToNumEntries.put(TOPIC_4.getSchemaName(), 12345L);
             topicsToNumEntries.put(TOPIC_5.getSchemaName(), 8000L);
             topicsToNumEntries.put(TOPIC_6.getSchemaName(), 1L);
+            topicsToNumEntries.put(TOPIC_7.getSchemaName(), 40000L);
+            topicsToNumEntries.put(TOPIC_7_PARTITION_0.getSchemaName(), 8000L);
+            topicsToNumEntries.put(TOPIC_7_PARTITION_1.getSchemaName(), 8000L);
+            topicsToNumEntries.put(TOPIC_7_PARTITION_2.getSchemaName(), 8000L);
+            topicsToNumEntries.put(TOPIC_7_PARTITION_3.getSchemaName(), 8000L);
+            topicsToNumEntries.put(TOPIC_7_PARTITION_4.getSchemaName(), 8000L);
+
             topicsToNumEntries.put(PARTITIONED_TOPIC_1.getSchemaName(), 1233L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_2.getSchemaName(), 8000L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_3.getSchemaName(), 100L);

@@ -267,7 +267,8 @@ public class TestPulsarMetadata extends TestPulsarConnector {
                 NAMESPACE_NAME_3.toString()), Arrays.asList(expectedTopics1));
 
         SchemaTableName[] expectedTopics2 = {new SchemaTableName(TOPIC_5.getNamespace(), TOPIC_5.getLocalName()),
-                new SchemaTableName(TOPIC_6.getNamespace(), TOPIC_6.getLocalName())};
+                new SchemaTableName(TOPIC_6.getNamespace(), TOPIC_6.getLocalName()),
+            new SchemaTableName(TOPIC_7.getNamespace(), TOPIC_7.getLocalName())};
         assertEquals(new HashSet<>(this.pulsarMetadata.listTables(mock(ConnectorSession.class),
                 NAMESPACE_NAME_4.toString())), new HashSet<>(Arrays.asList(expectedTopics2)));
     }
