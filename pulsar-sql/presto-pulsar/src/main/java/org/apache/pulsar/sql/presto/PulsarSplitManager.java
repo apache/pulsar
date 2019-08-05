@@ -104,7 +104,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         SchemaInfo schemaInfo;
 
         try {
-            schemaInfo = getPulsarAdmin().schemas().getSchemaInfo(
+            schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(
                     String.format("%s/%s", namespace, tableHandle.getTableName()));
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 401) {
@@ -120,7 +120,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
         Collection<PulsarSplit> splits;
         try {
-            if (!PulsarConnectorUtils.isPartitionedTopic(topicName, getPulsarAdmin())) {
+            if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
                 splits = getSplitsNonPartitionedTopic(numSplits, topicName, tableHandle, schemaInfo, tupleDomain);
                 log.debug("Splits for non-partitioned topic %s: %s", topicName, splits);
             } else {
@@ -171,7 +171,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     private List<Integer> getPredicatedPartitions(TopicName topicName, TupleDomain<ColumnHandle> tupleDomain) {
         int numPartitions;
         try {
-            numPartitions = (getPulsarAdmin().topics().getPartitionedTopicMetadata(topicName.toString())).partitions;
+            numPartitions = (this.pulsarAdmin.topics().getPartitionedTopicMetadata(topicName.toString())).partitions;
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 401) {
                 throw new PrestoException(QUERY_REJECTED,
@@ -196,10 +196,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         if (!range.getHigh().isLowerUnbounded() && range.getHigh().getValueBlock().isPresent()) {
                             high = range.getHigh().getValueBlock().get().getInt(0, 0);
                         }
-                        while (low <= high) {
-                            if (!predicatePartitions.contains(low)) {
-                                predicatePartitions.add(low);
-                            }
+                        for (int i = low; i <= high; i++) {
+                            predicatePartitions.add(i);
                             low++;
                         }
                     }),
@@ -430,9 +428,5 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 return false;
             }
         });
-    }
-
-    public PulsarAdmin getPulsarAdmin() {
-        return pulsarAdmin;
     }
 }
