@@ -18,20 +18,22 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
+import static java.util.Objects.requireNonNull;
+
 import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.Objects;
 
-import static com.google.common.base.MoreObjects.toStringHelper;
-import static java.util.Objects.requireNonNull;
-
+/**
+ * Description of basic metadata of a table.
+ */
 public class PulsarTableHandle implements ConnectorTableHandle {
 
     /**
-     * connector id
+     * Connector id.
      */
     private final String connectorId;
 
