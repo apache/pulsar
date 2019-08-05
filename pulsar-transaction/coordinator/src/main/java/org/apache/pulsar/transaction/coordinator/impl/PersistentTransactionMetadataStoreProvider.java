@@ -18,22 +18,65 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.statelib.StateStores;
+import org.apache.distributedlog.DistributedLogConfiguration;
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.transaction.common.utils.CoordinatorUtils;
+import org.apache.pulsar.transaction.configuration.CoordinatorConfiguration;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorMetadataStoreException;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * A provider provides {@link TransactionMetadataStore} that will persist
+ * meta data to durable storage and able to recover from machine failure.
+ */
+@RequiredArgsConstructor
+@Slf4j
 public class PersistentTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
+
+    @NonNull
+    PulsarAdmin pulsarAdmin;
+
+    @NonNull
+    CoordinatorConfiguration coordinatorConfiguration;
+
     @Override
     public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId) {
         CompletableFuture<TransactionMetadataStore> future = new CompletableFuture<>();
+        InternalConfigurationData internalConf;
         try {
-            future.complete(new PersistentTransactionMetadataStore(transactionCoordinatorId));
+            internalConf = pulsarAdmin.brokers().getInternalConfigurationData();
+            URI dlNameSpace = CoordinatorUtils.initializeDLNamespace(internalConf.getZookeeperServers(),
+                                                                       internalConf.getLedgersRootPath());
+
+            DistributedLogConfiguration dlConf = CoordinatorUtils.getDLConf(coordinatorConfiguration);
+
+            Namespace namespace = NamespaceBuilder.newBuilder()
+                    .conf(dlConf)
+                    .clientId("transaction-coordinator" + transactionCoordinatorId)
+                    .uri(dlNameSpace)
+                    .build();
+
+            future.complete(new PersistentTransactionMetadataStore(transactionCoordinatorId, StateStores.kvAsyncStoreSupplier(() -> namespace)));
         } catch (IOException e) {
-            e.printStackTrace();
-            future.completeExceptionally(e);
+            log.error("Exception open transaction meta store:", e);
+            future.completeExceptionally(new CoordinatorMetadataStoreException(e));
+        } catch (PulsarAdminException e) {
+            log.error("Exception open transaction meta store:", e);
+            future.completeExceptionally(new CoordinatorMetadataStoreException(e));
         }
         return future;
     }
