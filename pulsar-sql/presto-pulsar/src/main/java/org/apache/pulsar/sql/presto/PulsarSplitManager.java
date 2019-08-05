@@ -60,6 +60,7 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * The class helping to manage splits.
@@ -111,11 +112,17 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 throw new PrestoException(QUERY_REJECTED,
                         String.format("Failed to get pulsar topic schema for topic %s/%s: Unauthorized",
                                 namespace, tableHandle.getTableName()));
+            } else if (e.getStatusCode() == 404) {
+                schemaInfo = SchemaInfo.builder()
+                        .type(SchemaType.BYTES)
+                        .schema(new byte[0])
+                        .name(String.format("%s/%s", namespace, tableHandle.getTableName()))
+                        .build();
+            } else {
+                throw new RuntimeException("Failed to get pulsar topic schema for topic "
+                        + String.format("%s/%s", namespace, tableHandle.getTableName())
+                        + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
             }
-
-            throw new RuntimeException("Failed to get pulsar topic schema for topic "
-                    + String.format("%s/%s", namespace, tableHandle.getTableName())
-                    + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
         Collection<PulsarSplit> splits;
