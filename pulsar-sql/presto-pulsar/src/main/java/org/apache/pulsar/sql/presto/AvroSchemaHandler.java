@@ -19,11 +19,12 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.io.IOException;
+import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -31,9 +32,9 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 
-import java.io.IOException;
-import java.util.List;
-
+/**
+ * Schema handler for payload in the Avro format.
+ */
 public class AvroSchemaHandler implements SchemaHandler {
 
     private final DatumReader<GenericRecord> datumReader;
@@ -64,7 +65,7 @@ public class AvroSchemaHandler implements SchemaHandler {
 
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(heapBuffer.array(), heapBuffer.arrayOffset(),
                     heapBuffer.readableBytes(), decoderFromCache);
-            if (decoderFromCache==null) {
+            if (decoderFromCache == null) {
                 decoders.set(decoder);
             }
             return this.datumReader.read(null, decoder);
@@ -87,7 +88,7 @@ public class AvroSchemaHandler implements SchemaHandler {
                 return null;
             }
             if (positionIndices.length > 0) {
-                for (int i = 1 ; i < positionIndices.length; i++) {
+                for (int i = 1; i < positionIndices.length; i++) {
                     curr = ((GenericRecord) curr).get(positionIndices[i]);
                     if (curr == null) {
                         return null;
@@ -96,7 +97,7 @@ public class AvroSchemaHandler implements SchemaHandler {
             }
             return curr;
         } catch (Exception ex) {
-            log.debug(ex,"%s", ex);
+            log.debug(ex, "%s", ex);
         }
         return null;
     }

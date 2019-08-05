@@ -16,13 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto;
-
-import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-
 /**
- * A handle for transactions.
+ * Implementation of the connector to the Presto engine.
  */
-public enum PulsarTransactionHandle implements ConnectorTransactionHandle {
-    INSTANCE
-}
+package org.apache.pulsar.sql.presto;
