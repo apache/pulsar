@@ -192,7 +192,13 @@ module.exports = {
         forum_link: 'https://debezium.io/blog',
         title: 'Tutorial for Using Debezium Connectors With Apache Pulsar',
         link: 'https://debezium.io/blog/2019/05/23/tutorial-using-debezium-connectors-with-apache-pulsar/'
-    }
+    },
+    {
+     	forum: 'Pulsar in Action',
+     	forum_link: 'https://www.manning.com/books/pulsar-in-action',
+     	title: "Pulsar in Action",
+     	link: 'https://www.manning.com/books/pulsar-in-action'
+     }
   ],
   presentations: [
     {
