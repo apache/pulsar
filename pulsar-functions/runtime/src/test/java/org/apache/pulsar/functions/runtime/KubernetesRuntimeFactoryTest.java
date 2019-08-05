@@ -135,6 +135,8 @@ public class KubernetesRuntimeFactoryTest {
             extraDepsDir,
             null,
                 0,
+                1.0,
+                1.0,
                 pulsarServiceUrl,
             pulsarAdminUrl,
             stateStorageServiceUrl,
