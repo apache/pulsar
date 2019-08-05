@@ -36,6 +36,7 @@ import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
 import org.apache.pulsar.common.protocol.schema.LongSchemaVersionResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -230,9 +231,13 @@ public class SchemasImpl extends BaseResource implements Schemas {
 
 
     // the util function exists for backward compatibility concern
-    static String convertSchemaDataToStringLegacy(byte[] schemaData) {
+    static String convertSchemaDataToStringLegacy(byte[] schemaData, SchemaType schemaType) {
         if (null == schemaData) {
             return "";
+        }
+
+        if (schemaType == SchemaType.KEY_VALUE) {
+            return KeyValueSchema.getKeyValueSchemaString(SchemaData.builder().data(schemaData).build());
         }
 
         return new String(schemaData, UTF_8);
@@ -244,7 +249,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
         payload.setProperties(schemaInfo.getProperties());
         // for backward compatibility concern, we convert `bytes` to `string`
         // we can consider fixing it in a new version of rest endpoint
-        payload.setSchema(convertSchemaDataToStringLegacy(schemaInfo.getSchema()));
+        payload.setSchema(convertSchemaDataToStringLegacy(schemaInfo.getSchema(), schemaInfo.getType()));
         return payload;
     }
 }

@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.util.Codec.decode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 
+import com.google.gson.JsonObject;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -60,6 +61,8 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -311,11 +314,16 @@ public class SchemasResource extends AdminResource {
         @Suspended final AsyncResponse response
     ) {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
-
+        byte[] data;
+        if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
+            data = KeyValueSchema.decodeKeyValueJsonToBytes(SchemaUtils.toJsonObject(payload.getSchema()));
+        } else {
+            data = payload.getSchema().getBytes(Charsets.UTF_8);
+        }
         pulsar().getSchemaRegistryService().putSchemaIfAbsent(
             buildSchemaId(tenant, namespace, topic),
             SchemaData.builder()
-                .data(payload.getSchema().getBytes(Charsets.UTF_8))
+                .data(data)
                 .isDeleted(false)
                 .timestamp(clock.millis())
                 .type(SchemaType.valueOf(payload.getType()))

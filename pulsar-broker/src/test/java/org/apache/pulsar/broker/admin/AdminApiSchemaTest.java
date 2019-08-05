@@ -155,4 +155,14 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, readSi.getVersion());
 
     }
+
+    @Test
+    public void createKeyValueSchema() throws Exception {
+        String topicName = "schematest/test/test-key-value-schema";
+        Schema keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
+        admin.schemas().createSchema(topicName,
+                keyValueSchema.getSchemaInfo());
+        SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
+        assertEquals(schemaInfo, keyValueSchema.getSchemaInfo());
+    }
 }
