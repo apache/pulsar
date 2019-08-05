@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static com.facebook.presto.spi.StandardErrorCode.QUERY_REJECTED;
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
+import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
+import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
+
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplitSource;
@@ -30,14 +36,20 @@ import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.Range;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicate;
 import io.airlift.log.Logger;
+import java.sql.Timestamp;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import javax.inject.Inject;
 import lombok.Data;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -47,22 +59,10 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import com.google.common.base.Predicate;
-import org.apache.bookkeeper.conf.ClientConfiguration;
 
-import javax.inject.Inject;
-import java.sql.Timestamp;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-
-import static com.facebook.presto.spi.StandardErrorCode.QUERY_REJECTED;
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
-import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
-import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
-
+/**
+ * The class helping to manage splits.
+ */
 public class PulsarSplitManager implements ConnectorSplitManager {
 
     private final String connectorId;
@@ -146,7 +146,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             }
 
             throw new RuntimeException("Failed to get metadata for partitioned topic "
-                    + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(),e);
+                + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
         int actualNumSplits = Math.max(numPartitions, numSplits);
@@ -342,15 +342,15 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                             // Just use a close bound since presto can always filter out the extra entries even if
                             // the bound
                             // should be open or a mixture of open and closed
-                            com.google.common.collect.Range<PositionImpl> posRange
-                                    = com.google.common.collect.Range.range(overallStartPos,
+                            com.google.common.collect.Range<PositionImpl> posRange =
+                                com.google.common.collect.Range.range(overallStartPos,
                                     com.google.common.collect.BoundType.CLOSED,
                                     overallEndPos, com.google.common.collect.BoundType.CLOSED);
 
                             long numOfEntries = readOnlyCursor.getNumberOfEntries(posRange) - 1;
 
-                            PredicatePushdownInfo predicatePushdownInfo
-                                    = new PredicatePushdownInfo(overallStartPos, overallEndPos, numOfEntries);
+                            PredicatePushdownInfo predicatePushdownInfo =
+                                new PredicatePushdownInfo(overallStartPos, overallEndPos, numOfEntries);
                             log.debug("Predicate pushdown optimization calculated: %s", predicatePushdownInfo);
                             return predicatePushdownInfo;
                         }
