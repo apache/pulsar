@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static java.util.Objects.requireNonNull;
+
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplit;
@@ -25,12 +27,12 @@ import com.facebook.presto.spi.RecordSet;
 import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.google.common.collect.ImmutableList;
-
-import javax.inject.Inject;
 import java.util.List;
+import javax.inject.Inject;
 
-import static java.util.Objects.requireNonNull;
-
+/**
+ * Implementation of the provider for record sets.
+ */
 public class PulsarRecordSetProvider implements ConnectorRecordSetProvider {
 
     private final PulsarConnectorConfig pulsarConnectorConfig;
@@ -51,7 +53,6 @@ public class PulsarRecordSetProvider implements ConnectorRecordSetProvider {
         for (ColumnHandle handle : columns) {
             handles.add((PulsarColumnHandle) handle);
         }
-
 
         return new PulsarRecordSet(pulsarSplit, handles.build(), this.pulsarConnectorConfig);
     }

@@ -31,7 +31,20 @@
       "functions-metrics",
       "functions-worker",
       "functions-runtime",
+      "functions-deploying",
       "functions-debugging"
+    ],
+    "Pulsar Functions（New）": [
+      "functions-overview-new",
+      "functions-worker",
+      "functions-runtime",
+      "functions-develop",
+      "functions-debug",
+      "functions-deploy",
+      "functions-configure",
+      "functions-monitor",
+      "functions-secure",
+      "functions-troubleshoot"
     ],
     "Pulsar IO": [
       "io-overview",

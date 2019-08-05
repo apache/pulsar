@@ -30,6 +30,8 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
@@ -76,6 +78,49 @@ class InMemTransactionBuffer implements TransactionBuffer {
         public int numEntries() {
             synchronized (entries) {
                 return entries.size();
+            }
+        }
+
+        @Override
+        public long committedAtLedgerId() {
+            return committedAtLedgerId;
+        }
+
+        @Override
+        public long committedAtEntryId() {
+            return committedAtEntryId;
+        }
+
+        @Override
+        public long lastSequenceId() {
+            return entries.lastKey();
+        }
+
+        @Override
+        public CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId) {
+            return FutureUtil.failedFuture(new UnsupportedOperationException());
+        }
+
+        @Override
+        public CompletableFuture<Void> appendEntry(long sequenceId, Position position) {
+            return FutureUtil.failedFuture(new UnsupportedOperationException());
+        }
+
+        @Override
+        public CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
+            try {
+                return CompletableFuture.completedFuture(commitAt(committedAtLedgerId, committedAtEntryId));
+            } catch (UnexpectedTxnStatusException e) {
+                return FutureUtil.failedFuture(e);
+            }
+        }
+
+        @Override
+        public CompletableFuture<TransactionMeta> abortTxn() {
+            try {
+                return CompletableFuture.completedFuture(abort());
+            } catch (UnexpectedTxnStatusException e) {
+                return FutureUtil.failedFuture(e);
             }
         }
 
@@ -150,7 +195,6 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
-
     public InMemTransactionBuffer() {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
@@ -285,7 +329,9 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public void close() {
+    public CompletableFuture<Void> closeAsync() {
         buffers.values().forEach(TxnBuffer::close);
+        return CompletableFuture.completedFuture(null);
     }
+
 }

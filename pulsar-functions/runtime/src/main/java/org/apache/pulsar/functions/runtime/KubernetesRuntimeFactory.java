@@ -76,6 +76,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         private String changeConfigMap;
         private String changeConfigMapNamespace;
         private int percentMemoryPadding;
+        private double cpuOverCommitRatio;
+        private double memoryOverCommitRatio;
     }
     private final KubernetesInfo kubernetesInfo;
     private final Boolean submittingInsidePod;
@@ -108,6 +110,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String extraDependenciesDir,
                                     Map<String, String> customLabels,
                                     int percentMemoryPadding,
+                                    double cpuOverCommitRatio,
+                                    double memoryOverCommitRatio,
                                     String pulsarServiceUri,
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
@@ -158,6 +162,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.kubernetesInfo.setChangeConfigMap(changeConfigMap);
         this.kubernetesInfo.setChangeConfigMapNamespace(changeConfigMapNamespace);
         this.kubernetesInfo.setPercentMemoryPadding(percentMemoryPadding);
+        this.kubernetesInfo.setCpuOverCommitRatio(cpuOverCommitRatio);
+        this.kubernetesInfo.setMemoryOverCommitRatio(memoryOverCommitRatio);
         this.submittingInsidePod = submittingInsidePod;
         this.installUserCodeDependencies = installUserCodeDependencies;
         this.customLabels = customLabels;
@@ -230,6 +236,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             secretsProviderConfigurator,
             expectedMetricsCollectionInterval,
             this.kubernetesInfo.getPercentMemoryPadding(),
+            this.kubernetesInfo.getCpuOverCommitRatio(),
+            this.kubernetesInfo.getMemoryOverCommitRatio(),
             getAuthProvider(),
             authenticationEnabled);
     }
