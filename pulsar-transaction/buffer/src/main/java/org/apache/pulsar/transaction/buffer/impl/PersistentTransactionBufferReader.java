@@ -73,7 +73,8 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
     private CompletableFuture<List<TransactionEntry>> readEntry(SortedMap<Long, Position> entries) {
         CompletableFuture<List<TransactionEntry>> readFuture = new CompletableFuture<>();
-        List<TransactionEntry> txnEntries = new ArrayList<>(entries.size()); List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<TransactionEntry> txnEntries = new ArrayList<>(entries.size());
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (Map.Entry<Long, Position> longPositionEntry : entries.entrySet()) {
             CompletableFuture<Void> tmpFuture = new CompletableFuture<>();
             readEntry(longPositionEntry.getValue()).whenComplete((entry, throwable) -> {

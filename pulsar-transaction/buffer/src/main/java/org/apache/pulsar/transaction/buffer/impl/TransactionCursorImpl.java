@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -137,7 +136,10 @@ public class TransactionCursorImpl implements TransactionCursor {
             }
 
             TransactionMetaImpl newMeta = new TransactionMetaImpl(txnID);
-            TransactionMeta oldMeta = txnIndex.putIfAbsent(txnID, newMeta); if (null != oldMeta) { meta = oldMeta; } else {
+            TransactionMeta oldMeta = txnIndex.putIfAbsent(txnID, newMeta);
+            if (null != oldMeta) {
+                meta = oldMeta;
+            } else {
                 meta = newMeta;
             }
         }
@@ -283,7 +285,7 @@ public class TransactionCursorImpl implements TransactionCursor {
                 } else {
                     if (snapshot.status == null) {
                         recoverFuture.complete(null);
-                    }else {
+                    } else {
                         switch (snapshot.status) {
                             case START:
                                 recoverFromStart(currentPosition).whenComplete((ignore, error) -> {
