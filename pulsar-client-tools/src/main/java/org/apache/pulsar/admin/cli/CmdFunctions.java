@@ -218,9 +218,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = {"-o", "--output"}, description = "The output topic of a Pulsar Function (If none is specified, no output is written)")
         protected String output;
         // for backwards compatibility purposes
-        @Parameter(names = "--logTopic", description = "The topic to which the functions logs are produced", hidden = true)
+        @Parameter(names = "--logTopic", description = "The topic to which the logs of a Pulsar Function are produced", hidden = true)
         protected String DEPRECATED_logTopic;
-        @Parameter(names = "--log-topic", description = "The topic to which the functions logs are produced")
+        @Parameter(names = "--log-topic", description = "The topic to which the logs of a Pulsar Function are produced")
         protected String logTopic;
 
         @Parameter(names = {"-st", "--schema-type"}, description = "The builtin schema type or custom schema class name to be used for messages output by the function")
@@ -239,9 +239,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--output-serde-classname", description = "The SerDe class to be used for messages output by the function")
         protected String outputSerdeClassName;
         // for backwards compatibility purposes
-        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the functions configuration", hidden = true)
+        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file that specifies the configuration of a Pulsar Function", hidden = true)
         protected String DEPRECATED_fnConfigFile;
-        @Parameter(names = "--function-config-file", description = "The path to a YAML config file specifying the functions configuration")
+        @Parameter(names = "--function-config-file", description = "The path to a YAML config file that specifies the configuration of a Pulsar Function")
         protected String fnConfigFile;
         // for backwards compatibility purposes
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the function", hidden = true)
@@ -259,7 +259,7 @@ public class CmdFunctions extends CmdBase {
         protected Boolean retainOrdering;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
-        @Parameter(names = "--parallelism", description = "The parallelism factor of function (i.e. the number of function instances to run)")
+        @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
         protected Double cpu;
@@ -543,7 +543,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Run Pulsar Functions locally, rather than deploy to the Pulsar cluster)")
+    @Parameters(commandDescription = "Run a Pulsar Function locally, rather than deploy to a Pulsar cluster)")
     class LocalRunner extends FunctionDetailsCommand {
 
         // TODO: this should become BookKeeper URL and it should be fetched from Pulsar client.
