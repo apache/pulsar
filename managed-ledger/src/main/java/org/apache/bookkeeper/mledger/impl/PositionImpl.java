@@ -75,6 +75,14 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         return PositionImpl.get(ledgerId, entryId + 1);
     }
 
+    @Override
+    public Position getPrev() {
+        if (entryId < 0) {
+            return PositionImpl.get(ledgerId, entryId);
+        }
+        return PositionImpl.get(ledgerId, entryId - 1);
+    }
+
     /**
      * String representation of virtual cursor - LedgerId:EntryId.
      */

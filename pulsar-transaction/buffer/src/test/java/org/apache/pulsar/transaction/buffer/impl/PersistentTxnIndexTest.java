@@ -68,9 +68,9 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
             }
             LedgerEntry ledgerEntry = entryList.nextElement();
             byte[] data = ledgerEntry.getEntry();
-            TransactionBufferDataFormats.StoredTxn txn = DataFormat.parseStoredTxn(data);
+            TransactionBufferDataFormats.StoredTxnIndexEntry txn = DataFormat.parseStoredTxn(data);
             if (count == 0) {
-                assertEquals(txn.getStoredStatus(), TransactionBufferDataFormats.StoredStatus.START);
+                assertEquals(txn.getStoredStatus(), TransactionBufferDataFormats.StoredSnapshotStatus.START);
                 assertEquals(txn.getPosition().getLedgerId(), -1L);
                 assertEquals(txn.getPosition().getEntryId(), -1L);
                 count++;
@@ -78,13 +78,13 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
             }
 
             if (count == metaList.size() + 1) {
-                assertEquals(txn.getStoredStatus(), TransactionBufferDataFormats.StoredStatus.END);
+                assertEquals(txn.getStoredStatus(), TransactionBufferDataFormats.StoredSnapshotStatus.END);
                 assertEquals(txn.getPosition().getLedgerId(), readLedger.getId());
                 assertEquals(txn.getPosition().getEntryId(), 1);
                 count++;
                 continue;
             }
-            assertEquals(txn.getStoredStatus(), TransactionBufferDataFormats.StoredStatus.MIDDLE);
+            assertEquals(txn.getStoredStatus(), TransactionBufferDataFormats.StoredSnapshotStatus.MIDDLE);
             assertEquals(txn.getPosition().getLedgerId(), readLedger.getId());
             assertEquals(txn.getPosition().getEntryId(), 1);
             TransactionMetaImpl meta = (TransactionMetaImpl) DataFormat.parseToTransactionMeta(data);
@@ -118,16 +118,17 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
 
     private void writeExampleDataToLedger(LedgerHandle ledgerHandle, List<TransactionMetaImpl> metaList)
         throws BKException, InterruptedException {
-        TransactionBufferDataFormats.StoredTxn startStore = DataFormat.newSnapshotStartEntry(PositionImpl.get(-1, -1));
+        TransactionBufferDataFormats.StoredTxnIndexEntry startStore = DataFormat.newSnapshotStartEntry(PositionImpl.get(-1,
+                                                                                                                -1));
         long startEntryId = ledgerHandle.addEntry(startStore.toByteArray());
 
         PositionImpl startPos = PositionImpl.get(ledgerHandle.getId(), startEntryId);
         for (TransactionMetaImpl meta : metaList) {
-            TransactionBufferDataFormats.StoredTxn middleStore = DataFormat.newSnapshotMiddleEntry(startPos, meta);
+            TransactionBufferDataFormats.StoredTxnIndexEntry middleStore = DataFormat.newSnapshotMiddleEntry(startPos, meta);
             ledgerHandle.addEntry(middleStore.toByteArray());
         }
 
-        TransactionBufferDataFormats.StoredTxn endStore = DataFormat.newSnapshotEndEntry(startPos);
+        TransactionBufferDataFormats.StoredTxnIndexEntry endStore = DataFormat.newSnapshotEndEntry(startPos);
         ledgerHandle.addEntry(endStore.toByteArray());
     }
 

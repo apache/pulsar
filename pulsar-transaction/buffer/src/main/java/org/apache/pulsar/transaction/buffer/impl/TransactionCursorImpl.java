@@ -22,7 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +31,6 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -47,6 +45,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarMarkers;
@@ -216,7 +215,7 @@ public class TransactionCursorImpl implements TransactionCursor {
     // Take a snapshot for all indexes. We can persist the transaction meta because the indexes can be rebuilt by it.
     // a. Create a begin block and put the current transaction log position into it.
     // b. Create the middle  block to store the transaction meta  and the snapshot start position.
-    // c. Create the end block to say the snapshot is ending and put the sanpshot start position to get the number of
+    // c. Create the end block to say the snapshot is ending and put the snapshot start position to get the number of
     //    snapshot blocks  when recovering.
     public CompletableFuture<Void> takeSnapshot(Position txnBufferPosition) {
         return startSnapshot(txnBufferPosition)
@@ -230,10 +229,11 @@ public class TransactionCursorImpl implements TransactionCursor {
 
     private CompletableFuture<Position> indexSnapshot(Position startSnapshotPos,
                                                Collection<TransactionMetaImpl> snapshotsMeta) {
-        List<CompletableFuture<Position>> snapshot =
-            snapshotsMeta.stream()
-                         .map(meta -> record(DataFormat.newSnapshotMiddleEntry(startSnapshotPos, (TransactionMetaImpl) meta)))
-                         .collect(Collectors.toList());
+        // TODO: support storing multiple metadata chunks for one transaction metadata.
+        // TODO: avoid sending all meta at same time, implement throttling mechanism
+        List<CompletableFuture<Position>> snapshot = snapshotsMeta.stream().map(
+            meta -> record(DataFormat.newSnapshotMiddleEntry(startSnapshotPos, (TransactionMetaImpl) meta)))
+                                                                  .collect(Collectors.toList());
 
         return FutureUtil.waitForAll(snapshot).thenApply(ignore -> startSnapshotPos);
     }
@@ -273,7 +273,7 @@ public class TransactionCursorImpl implements TransactionCursor {
     // Recover the index.
     // i. Read the last entry of the transaction cursor ledger.
     //      a. If the end entry is the beginning of the snapshot, move backward and recover the index by c.
-    //      b. If the end entry in the middle of the snapshot, get teh snapshot beginning position, recover the index
+    //      b. If the end entry in the middle of the snapshot, get the snapshot beginning position, recover the index
     //         by a.
     //      c. If the end entry is the ending of the snapshot, get the snapshot beginning position, recover it by the
     //         middle  entries.
@@ -306,7 +306,7 @@ public class TransactionCursorImpl implements TransactionCursor {
                                 });
                                 break;
                             case END:
-                                recoverFromEnd(snapshot).whenComplete((ignore, error) -> {
+                                recoverFromEnd(snapshot, currentPosition).whenComplete((ignore, error) -> {
                                     checkComplete(error, recoverFuture);
                                 });
                         }
@@ -319,7 +319,13 @@ public class TransactionCursorImpl implements TransactionCursor {
 
     private void checkComplete(Throwable error, CompletableFuture<Void> future) {
         if (error != null) {
-            future.completeExceptionally(error);
+            replayTxnLogEntries(PositionImpl.earliest).whenComplete((ignore, err) -> {
+                if (err != null) {
+                    future.completeExceptionally(err);
+                } else {
+                    future.complete(null);
+                }
+            });
         } else {
             future.complete(null);
         }
@@ -359,10 +365,30 @@ public class TransactionCursorImpl implements TransactionCursor {
     }
 
     private CompletableFuture<Void> recoverFromStart(Position currentPosition) {
-        return readPrevEntry(currentPosition)
-                   .thenApply(entry -> new PersistentTxnIndexSnapshot(entry.getData()))
-                   .thenCompose(this::recoverFromEnd);
-
+        AtomicReference<CompletableFuture<Void>> recoverFromStartFuture = new AtomicReference<>(
+            new CompletableFuture<>());
+        readPrevEntry(currentPosition).whenComplete((entry, throwable) -> {
+            if (throwable != null) {
+                recoverFromStartFuture.get().completeExceptionally(throwable);
+            } else {
+                PersistentTxnIndexSnapshot txnIndexSnapshot = new PersistentTxnIndexSnapshot(entry.getData());
+                switch (txnIndexSnapshot.getStatus()) {
+                    case START:
+                       recoverFromStartFuture.set(recoverFromStart(currentPosition.getPrev()));
+                        break;
+                    case MIDDLE:
+                        recoverFromStartFuture.set(recoverFromMiddle(txnIndexSnapshot));
+                        break;
+                    case END:
+                        recoverFromStartFuture.set(recoverFromEnd(txnIndexSnapshot, currentPosition.getPrev()));
+                        break;
+                    default:
+                        recoverFromStartFuture.set(FutureUtil.failedFuture(
+                            new TransactionIndexRecoveringError("Unknown transaction index entry")));
+                }
+            }
+        });
+        return recoverFromStartFuture.get();
     }
 
     private CompletableFuture<Entry> readPrevEntry(Position position) {
@@ -372,8 +398,7 @@ public class TransactionCursorImpl implements TransactionCursor {
                 new TransactionIndexRecoveringError("Not found the prev position of the current position " + position));
         }
 
-        PositionImpl prevPosition = PositionImpl.get(currentPos.getLedgerId(), currentPos.getEntryId() - 1);
-        return readSpecifiedPosEntry(prevPosition);
+        return readSpecifiedPosEntry(position.getPrev());
     }
 
     private CompletableFuture<Void> recoverFromMiddle(PersistentTxnIndexSnapshot snapshot) {
@@ -409,46 +434,32 @@ public class TransactionCursorImpl implements TransactionCursor {
         return readFuture;
     }
 
-    private CompletableFuture<Void> recoverFromEnd(PersistentTxnIndexSnapshot snapshot) {
-        return recoverFromLedger(snapshot);
+    private CompletableFuture<Void> recoverFromEnd(PersistentTxnIndexSnapshot snapshot, Position currentPos) {
+        AtomicReference<CompletableFuture<Void>> recoverFuture = new AtomicReference<>(new CompletableFuture<>());
+        recoverFromIndexLedger(snapshot, currentPos).whenComplete((persistentTxnIndexSnapshot, error) -> {
+            if (error != null) {
+                recoverFuture.set(FutureUtil.failedFuture(error));
+            } else {
+                recoverFuture.set(replayTxnLogEntries(persistentTxnIndexSnapshot.getPosition()));
+            }
+        });
+        return recoverFuture.get();
     }
 
-    private CompletableFuture<Void> recoverFromLedger(PersistentTxnIndexSnapshot snapshot) {
-        return readEntryFromCursorLedger(snapshot.position, indexCursor.get().getCurrentCursorLedger())
-            .thenApply(entries ->
-                           entries.stream()
-                                  .map(entry -> new PersistentTxnIndexSnapshot(entry.getData()))
-                                  .filter(tmpSnapshot ->
-                                              !tmpSnapshot.getStatus()
-                                                         .equals(PersistentTxnIndexSnapshot.SnapshotStatus.END))
-                                  .collect(Collectors.toList()))
-            .thenCompose(snapshots -> rebuildIndex(snapshots))
-            .thenCompose(beginning -> replayTxnLogEntries(beginning.position));
-    }
-
-    private CompletableFuture<PersistentTxnIndexSnapshot> rebuildIndex(List<PersistentTxnIndexSnapshot> snapshots) {
-        List<CompletableFuture<Void>> rebuildFutre = new ArrayList<>();
-
-        snapshots.stream()
-                 .filter(snapshot -> snapshot.getStatus().equals(PersistentTxnIndexSnapshot.SnapshotStatus.MIDDLE))
-                 .map(snapshot -> snapshot.getMeta())
-                 .forEach(transactionMeta -> rebuildFutre.add(rebuildIndexByEntry(transactionMeta)));
-
-        return FutureUtil.waitForAll(rebuildFutre).thenCompose(ignore -> findStart(snapshots));
-    }
-
-    private CompletableFuture<PersistentTxnIndexSnapshot> findStart(List<PersistentTxnIndexSnapshot> snapshots) {
-        List<PersistentTxnIndexSnapshot> beginning = snapshots.stream()
-                 .filter(snapshot -> snapshot.getStatus().equals(PersistentTxnIndexSnapshot.SnapshotStatus.START))
-                 .collect(Collectors.toList());
-
-        if (beginning.size() != 1 || beginning.get(0) == null) {
-            return FutureUtil.failedFuture(new TransactionIndexRecoveringError(
-                "Found more than one START when recovering transaction index on cursor ledger: "
-                + indexCursor.get().getCurrentCursorLedger().getId()));
+    private CompletableFuture<PersistentTxnIndexSnapshot> recoverFromIndexLedger(PersistentTxnIndexSnapshot snapshot,
+                                                                                 Position position) {
+        List<CompletableFuture<Void>> recoverEntryList = new ArrayList<>();
+        PositionImpl readPosition = (PositionImpl) position;
+        PositionImpl startPosition = (PositionImpl) snapshot.getPosition();
+        while (readPosition.compareTo(startPosition) > 0) {
+            readPosition = (PositionImpl) readPosition.getPrev();
+            CompletableFuture<Void> future = readSpecifiedPosEntry(readPosition)
+                                                 .thenApply(entry -> new PersistentTxnIndexSnapshot(entry.getData()))
+                                                 .thenCompose(s -> rebuildIndexByEntry(s.getMeta()));
+            recoverEntryList.add(future);
         }
-
-        return CompletableFuture.completedFuture(beginning.get(0));
+        return FutureUtil.waitForAll(recoverEntryList).thenCompose(ignore -> readSpecifiedPosEntry(startPosition))
+                         .thenApply(entry -> new PersistentTxnIndexSnapshot(entry.getData()));
     }
 
     private CompletableFuture<Void> rebuildIndexByEntry(TransactionMetaImpl meta) {
@@ -467,96 +478,38 @@ public class TransactionCursorImpl implements TransactionCursor {
         return CompletableFuture.completedFuture(null);
     }
 
-    private CompletableFuture<List<Entry>> readEntryFromCursorLedger(Position startSnapshotPos,
-                                                                     LedgerHandle cursorLedger) {
-        CompletableFuture<List<Entry>> readFuture = new CompletableFuture<>();
-        PositionImpl startPos = (PositionImpl) startSnapshotPos;
-        long startEntryId = startPos.getEntryId();
-        long endEntryId = cursorLedger.getLastAddConfirmed();
+    private CompletableFuture<Entry> readEntryFromLedger(Position position) {
+        CompletableFuture<Entry> readFuture = new CompletableFuture<>();
 
-        cursorLedger.asyncReadEntries(startEntryId, endEntryId, (rc, handle, entries, ctx) -> {
-            if (rc != BKException.Code.OK) {
-                readFuture.completeExceptionally(BKException.create(rc));
-            } else {
-                if (entries.hasMoreElements()) {
-                    List<Entry> entryList = Collections.list(entries)
-                                                       .stream()
-                                                       .map(ledgerEntry -> EntryImpl.create(ledgerEntry.getLedgerId()
-                                                           , ledgerEntry.getEntryId(), ledgerEntry.getEntry()))
-                                                       .collect(Collectors.toList());
-                    readFuture.complete(entryList);
-                } else {
-                    readFuture.completeExceptionally(new NoSuchElementException(
-                        "No more entry can read from ledger: " + handle.getId() + ", entry: " + startEntryId));
-                }
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) txnLog;
+
+        ledger.asyncReadEntry((PositionImpl) position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                readFuture.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                readFuture.completeExceptionally(exception);
             }
         }, null);
 
         return readFuture;
     }
 
-    private CompletableFuture<List<Entry>> readEntryFromLedger(Position startSnapshotPos, ManagedLedger managedLedger) {
-        CompletableFuture<List<Entry>> readFuture = new CompletableFuture<>();
-
-        List<CompletableFuture<Void>> readAllEntryFuture = new ArrayList<>();
-        List<Entry> entryList = new ArrayList<>();
-        ManagedLedger cursorLedger = managedLedger;
-        ManagedCursor readCursor = null;
-        try {
-            readCursor = cursorLedger.newNonDurableCursor(startSnapshotPos);
-
-            while (readCursor.hasMoreEntries()) {
-                CompletableFuture<Void> readEntries = new CompletableFuture<>();
-                readCursor.asyncReadEntries(100, new AsyncCallbacks.ReadEntriesCallback() {
-                    @Override
-                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                        synchronized (entryList) {
-                            entryList.addAll(entries);
-                        }
-                        readEntries.complete(null);
-                    }
-
-                    @Override
-                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                        readEntries.completeExceptionally(exception);
-                    }
-                }, null);
-                readAllEntryFuture.add(readEntries);
-            }
-
-            FutureUtil.waitForAll(readAllEntryFuture).whenComplete((ignore, error) -> {
-                if (error != null) {
-                    readFuture.completeExceptionally(error);
-                } else {
-                    readFuture.complete(entryList);
-                }
-            });
-
-        } catch (ManagedLedgerException e) {
-            readFuture.completeExceptionally(e);
-        } finally {
-            if (readCursor != null) {
-                readCursor.asyncClose(new AsyncCallbacks.CloseCallback() {
-                    @Override
-                    public void closeComplete(Object ctx) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Cursor for recovering the transaction index is closed");
-                        }
-                    }
-
-                    @Override
-                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("Failed close the cursor for recovering the transaction index.", exception);
-                    }
-                }, null);
-            }
-        }
-        return readFuture;
-    }
-
     // Replay all messages from the previous snapshot position on the transaction log.
     private CompletableFuture<Void> replayTxnLogEntries(Position position) {
-        return readEntryFromLedger(position, txnLog).thenAccept(entries -> entries.forEach(this::replayEntry));
+        List<CompletableFuture<Void>> replayFutures = new ArrayList<>();
+        PositionImpl readPosition = (PositionImpl) position;
+        PositionImpl endPosition = (PositionImpl) txnLog.getLastConfirmedEntry();
+        while (readPosition.compareTo(endPosition) < 0) {
+            readPosition = readPosition.getNext();
+            CompletableFuture<Void> replayEntry = readEntryFromLedger(readPosition)
+                                                      .thenCompose(entry -> replayEntry(entry));
+            replayFutures.add(replayEntry);
+        }
+        return FutureUtil.waitForAll(replayFutures);
     }
 
     private CompletableFuture<Void> replayEntry(Entry entry) {

@@ -32,4 +32,12 @@ public interface Position {
      * @return the position of the next logical entry
      */
     Position getNext();
+
+    /**
+     * Get the position of the entry previous to this one. The returned position might point to a non-existing, or not-yet
+     * existing entry
+     *
+     * @return the position of the previous logical entry
+     */
+    Position getPrev();
 }
