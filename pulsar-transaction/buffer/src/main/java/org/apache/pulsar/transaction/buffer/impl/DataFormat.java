@@ -33,9 +33,9 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredEntryInfo;
 import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredPosition;
-import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredStatus;
-import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredTxn;
+import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredSnapshotStatus;
 import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredTxnID;
+import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredTxnIndexEntry;
 import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredTxnMeta;
 import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredTxnStatus;
 
@@ -43,30 +43,31 @@ import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredTx
  * Data format used to format index snapshot entry.
  */
 public class DataFormat {
-    static StoredTxn parseStoredTxn(byte[] data) {
+    static StoredTxnIndexEntry parseStoredTxn(byte[] data) {
         try {
-            return StoredTxn.parseFrom(data);
+            return StoredTxnIndexEntry.parseFrom(data);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
     }
 
-    static StoredTxn startStore(Position bufferPosition) {
-        return StoredTxn.newBuilder().setPosition(buildPosition(bufferPosition))
-                        .setStoredStatus(StoredStatus.START).build();
+    static StoredTxnIndexEntry newSnapshotStartEntry(Position bufferPosition) {
+        return StoredTxnIndexEntry.newBuilder().setPosition(buildPosition(bufferPosition))
+                                  .setStoredStatus(StoredSnapshotStatus.START).build();
     }
-    static StoredTxn middleStore(Position startPosition, TransactionMetaImpl meta) {
-        return StoredTxn.newBuilder().setStoredStatus(StoredStatus.MIDDLE)
-                        .setPosition(buildPosition(startPosition)).setTxnMeta(buildStoredTxnMeta(meta)).build();
+    static StoredTxnIndexEntry newSnapshotMiddleEntry(Position startPosition, TransactionMetaImpl meta) {
+        return StoredTxnIndexEntry.newBuilder().setStoredStatus(StoredSnapshotStatus.MIDDLE)
+                                  .setPosition(buildPosition(startPosition)).setTxnMeta(buildStoredTxnMeta(meta))
+                                  .build();
     }
 
-    static StoredTxn endStore(Position startPosition) {
-        return StoredTxn.newBuilder().setStoredStatus(StoredStatus.END)
-                        .setPosition(buildPosition(startPosition)).build();
+    static StoredTxnIndexEntry newSnapshotEndEntry(Position startPosition) {
+        return StoredTxnIndexEntry.newBuilder().setStoredStatus(StoredSnapshotStatus.END)
+                                  .setPosition(buildPosition(startPosition)).build();
     }
 
     static TransactionMeta parseToTransactionMeta(byte[] data) {
-        StoredTxn storedTxn = parseStoredTxn(data);
+        StoredTxnIndexEntry storedTxn = parseStoredTxn(data);
         return recoverMeta(storedTxn.getTxnMeta());
     }
 
@@ -123,6 +124,7 @@ public class DataFormat {
             storedEntryInfo -> EntryInfo.builder().sequenceId(storedEntryInfo.getSequenceId())
                                         .position(recoverPosition(storedEntryInfo.getPosition())).build())
                                            .collect(Collectors.toMap(EntryInfo::getSequenceId, EntryInfo::getPosition));
+
         return new TreeMap<>(index);
     }
 

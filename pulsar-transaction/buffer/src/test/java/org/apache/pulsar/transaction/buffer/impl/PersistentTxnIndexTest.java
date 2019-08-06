@@ -118,16 +118,16 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
 
     private void writeExampleDataToLedger(LedgerHandle ledgerHandle, List<TransactionMetaImpl> metaList)
         throws BKException, InterruptedException {
-        TransactionBufferDataFormats.StoredTxn startStore = DataFormat.startStore(PositionImpl.get(-1, -1));
+        TransactionBufferDataFormats.StoredTxn startStore = DataFormat.newSnapshotStartEntry(PositionImpl.get(-1, -1));
         long startEntryId = ledgerHandle.addEntry(startStore.toByteArray());
 
         PositionImpl startPos = PositionImpl.get(ledgerHandle.getId(), startEntryId);
         for (TransactionMetaImpl meta : metaList) {
-            TransactionBufferDataFormats.StoredTxn middleStore = DataFormat.middleStore(startPos, meta);
+            TransactionBufferDataFormats.StoredTxn middleStore = DataFormat.newSnapshotMiddleEntry(startPos, meta);
             ledgerHandle.addEntry(middleStore.toByteArray());
         }
 
-        TransactionBufferDataFormats.StoredTxn endStore = DataFormat.endStore(startPos);
+        TransactionBufferDataFormats.StoredTxn endStore = DataFormat.newSnapshotEndEntry(startPos);
         ledgerHandle.addEntry(endStore.toByteArray());
     }
 

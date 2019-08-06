@@ -51,8 +51,6 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 @Slf4j
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 
-    static final String TXN_CURSOR_NAME = "pulsar.transaction";
-
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
 

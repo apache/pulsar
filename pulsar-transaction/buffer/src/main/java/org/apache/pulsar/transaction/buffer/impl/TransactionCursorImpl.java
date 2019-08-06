@@ -59,10 +59,12 @@ import org.apache.pulsar.transaction.buffer.exceptions.NoTxnsCommittedAtLedgerEx
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionIndexRecoveringError;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredTxn;
+import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats.StoredTxnIndexEntry;
 
 @Slf4j
 public class TransactionCursorImpl implements TransactionCursor {
+
+    static final String TXN_CURSOR_NAME = "pulsar.transaction";
 
     private final ManagedLedger txnLog;
     private volatile AtomicReference<ManagedCursor> indexCursor = new AtomicReference<>();
@@ -78,13 +80,18 @@ public class TransactionCursorImpl implements TransactionCursor {
     }
 
     @VisibleForTesting
-    void addToTxnIndex(TransactionMetaImpl meta) {
-        txnIndex.putIfAbsent(meta.id(), meta);
+    boolean addToTxnIndex(TransactionMetaImpl meta) {
+        TransactionMetaImpl oldMeta = txnIndex.putIfAbsent(meta.id(), meta);
+        if (oldMeta != null) {
+            return false;
+        } else {
+            return true;
+        }
     }
 
     @VisibleForTesting
-    void addToCommittedLedgerTxnIndex(long ledgerId, TxnID txnID) {
-        committedLedgerTxnIndex.computeIfAbsent(ledgerId, ledger -> new HashSet<>()).add(txnID);
+    boolean addToCommittedLedgerTxnIndex(long ledgerId, TxnID txnID) {
+        return committedLedgerTxnIndex.computeIfAbsent(ledgerId, ledger -> new HashSet<>()).add(txnID);
     }
 
     @VisibleForTesting
@@ -97,31 +104,32 @@ public class TransactionCursorImpl implements TransactionCursor {
         return indexCursor.get().getCurrentCursorLedger();
     }
 
-    private void initializeTransactionCursor() throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
-        txnLog.asyncOpenCursor(PersistentTransactionBuffer.TXN_CURSOR_NAME, new AsyncCallbacks.OpenCursorCallback() {
+    private CompletableFuture<Void> initializeTransactionCursor() throws InterruptedException {
+        CompletableFuture<Void> initializeFuture = new CompletableFuture<>();
+        txnLog.asyncOpenCursor(TXN_CURSOR_NAME, new AsyncCallbacks.OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 cursor.setAlwaysInactive();
                 indexCursor.compareAndSet(null, cursor);
                 recover().whenComplete((ignore, error) -> {
                     if (error != null) {
+                        initializeFuture.completeExceptionally(error);
                         log.error("Failed to recover the transaction index");
                     } else {
+                        initializeFuture.complete(null);
                         log.info("Succeed to recover the transaction index.");
                     }
-                    latch.countDown();
                 });
             }
 
             @Override
             public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Failed to open the transaction index cursor to recover transaction index", exception);
-                latch.countDown();
+                initializeFuture.completeExceptionally(exception);
             }
         }, null);
 
-        latch.await();
+        return initializeFuture;
     }
 
     @Override
@@ -217,31 +225,31 @@ public class TransactionCursorImpl implements TransactionCursor {
     }
 
     private CompletableFuture<Position> startSnapshot(Position position) {
-        return record(DataFormat.startStore(position));
+        return record(DataFormat.newSnapshotStartEntry(position));
     }
 
     private CompletableFuture<Position> indexSnapshot(Position startSnapshotPos,
                                                Collection<TransactionMetaImpl> snapshotsMeta) {
         List<CompletableFuture<Position>> snapshot =
             snapshotsMeta.stream()
-                         .map(meta -> record(DataFormat.middleStore(startSnapshotPos, (TransactionMetaImpl) meta)))
+                         .map(meta -> record(DataFormat.newSnapshotMiddleEntry(startSnapshotPos, (TransactionMetaImpl) meta)))
                          .collect(Collectors.toList());
 
         return FutureUtil.waitForAll(snapshot).thenApply(ignore -> startSnapshotPos);
     }
 
     private CompletableFuture<Void> endSnapshot(Position startPos) {
-        return record(DataFormat.endStore(startPos)).thenApply(position -> null);
+        return record(DataFormat.newSnapshotEndEntry(startPos)).thenApply(position -> null);
     }
 
-    private CompletableFuture<Position> record(StoredTxn storedTxn) {
+    private CompletableFuture<Position> record(StoredTxnIndexEntry storedTxn) {
         CompletableFuture<Position> recordFuture = new CompletableFuture<>();
 
         indexCursor.get().asyncAddEntry(storedTxn.toByteArray(), new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, Object ctx) {
                 if (log.isDebugEnabled()) {
-                    log.info("Success to record the txn [{} - {}:{}] at [{}]", storedTxn.getStoredStatus(),
+                    log.debug("Success to record the txn [{} - {}:{}] at [{}]", storedTxn.getStoredStatus(),
                              storedTxn.getTxnMeta().getTxnId().getMostSigBits(),
                              storedTxn.getTxnMeta().getTxnId().getLeastSigBits(), position);
                 }
@@ -251,7 +259,7 @@ public class TransactionCursorImpl implements TransactionCursor {
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 if (log.isDebugEnabled()) {
-                    log.info("Failed to record the txn [{} : {}:{}]", storedTxn.getStoredStatus(),
+                    log.debug("Failed to record the txn [{} : {}:{}]", storedTxn.getStoredStatus(),
                              storedTxn.getTxnMeta().getTxnId().getMostSigBits(),
                              storedTxn.getTxnMeta().getTxnId().getLeastSigBits());
                 }
@@ -332,7 +340,7 @@ public class TransactionCursorImpl implements TransactionCursor {
         TransactionMetaImpl meta;
 
         PersistentTxnIndexSnapshot(byte[] entry) {
-            StoredTxn txn = DataFormat.parseStoredTxn(entry);
+            StoredTxnIndexEntry txn = DataFormat.parseStoredTxn(entry);
             switch (txn.getStoredStatus()) {
                 case START:
                     this.status = SnapshotStatus.START;
@@ -445,8 +453,10 @@ public class TransactionCursorImpl implements TransactionCursor {
 
     private CompletableFuture<Void> rebuildIndexByEntry(TransactionMetaImpl meta) {
         // add to transaction index
-        txnIndex.putIfAbsent(meta.id(), meta);
-
+        TransactionMetaImpl oldMeta = txnIndex.putIfAbsent(meta.id(), meta);
+        if (oldMeta != null) {
+            meta = oldMeta;
+        }
         // add to committed ledger transaction index
         synchronized (committedLedgerTxnIndex) {
             if (meta.isCommitted()) {

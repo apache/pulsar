@@ -52,14 +52,14 @@ message StoredTxnMeta {
     int64 committed_entry = 5;
 }
 
-enum StoredStatus {
+enum StoredSnapshotStatus {
     START   = 0; // the index log start marker
     MIDDLE  = 1; // index log
     END     = 2; // the index log end marker
 }
 
-message StoredTxn {
-    StoredStatus stored_status = 1;
+message StoredTxnIndexEntry {
+    StoredSnapshotStatus stored_status = 1;
     StoredPosition position= 2;
     StoredTxnMeta txn_meta = 3;
 }
