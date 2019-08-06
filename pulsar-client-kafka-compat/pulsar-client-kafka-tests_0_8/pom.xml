@@ -31,42 +31,47 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-client-kafka-original</artifactId>
-  <name>Pulsar Kafka compatibility :: API (original)</name>
+  <artifactId>pulsar-client-kafka-tests_0_8</artifactId>
+  <name>Pulsar Kafka-0.8 compatibility :: Tests</name>
 
-  <description>Kafka client library that publishes and consumes messages on Pulsar topics</description>
+  <description>Tests to verify the correct shading configuration for the pulsar-client-kafka wrapper</description>
 
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client</artifactId>
+      <artifactId>pulsar-client-kafka_0_8</artifactId>
       <version>${project.version}</version>
-    </dependency>
-    
-    <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-lang3</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka-clients</artifactId>
-      <version>${kafka-client.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>net.jpountz.lz4</groupId>
-          <artifactId>lz4</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.lz4</groupId>
-          <artifactId>lz4-java</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.xerial.snappy</groupId>
-          <artifactId>snappy-java</artifactId>
-        </exclusion>
-      </exclusions>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger-original</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.beust</groupId>
+      <artifactId>jcommander</artifactId>
+      <scope>test</scope>
+    </dependency>
+    
   </dependencies>
 
 </project>
