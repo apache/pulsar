@@ -258,7 +258,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
 
             ProducerBase<T> producer;
-            if (metadata.partitions > 1) {
+            if (metadata.partitions > 0) {
                 producer = new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
                         producerCreatedFuture, schema, interceptors);
             } else {
@@ -345,7 +345,7 @@ public class PulsarClientImpl implements PulsarClient {
             ConsumerBase<T> consumer;
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
-            if (metadata.partitions > 1) {
+            if (metadata.partitions > 0) {
                 consumer = MultiTopicsConsumerImpl.createPartitionedConsumer(PulsarClientImpl.this, conf,
                     listenerThread, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
             } else {
@@ -472,7 +472,7 @@ public class PulsarClientImpl implements PulsarClient {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
 
-            if (metadata.partitions > 1) {
+            if (metadata.partitions > 0) {
                 readerFuture.completeExceptionally(
                         new PulsarClientException("Topic reader cannot be created on a partitioned topic"));
                 return;
@@ -658,7 +658,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public CompletableFuture<List<String>> getPartitionsForTopic(String topic) {
         return getPartitionedTopicMetadata(topic).thenApply(metadata -> {
-            if (metadata.partitions > 1) {
+            if (metadata.partitions > 0) {
                 TopicName topicName = TopicName.get(topic);
                 List<String> partitions = new ArrayList<>(metadata.partitions);
                 for (int i = 0; i < metadata.partitions; i++) {
