@@ -34,7 +34,6 @@ public class ProducerExample {
 
         Properties props = new Properties();
         props.put("bootstrap.servers", "pulsar://localhost:6650");
-
         props.put("key.serializer", IntegerSerializer.class.getName());
         props.put("value.serializer", StringSerializer.class.getName());
 
