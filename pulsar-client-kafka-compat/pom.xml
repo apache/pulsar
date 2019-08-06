@@ -38,10 +38,13 @@
 
   <modules>
     <module>pulsar-client-kafka</module>
+    <module>pulsar-client-kafka_0_8</module>
     <module>pulsar-client-kafka_0_9</module>
     <module>pulsar-client-kafka-shaded</module>
+    <module>pulsar-client-kafka-shaded_0_8</module>
     <module>pulsar-client-kafka-shaded_0_9</module>
     <module>pulsar-client-kafka-tests</module>
+    <module>pulsar-client-kafka-tests_0_8</module>
     <module>pulsar-client-kafka-tests_0_9</module>
   </modules>
 </project>
