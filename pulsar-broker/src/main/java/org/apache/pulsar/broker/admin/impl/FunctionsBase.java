@@ -116,7 +116,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "  It also supports URL path [http/https/file (file protocol assumes that file " +
                             "  already exists on worker host)] from which worker can download the package.  \n" +
                             "- **py**  \n" +
-                            "  Path to the main Python file/Python Wheel file for the Pulsar Function (if the Pulsar Function is written in Python).  \n" +
+                            "  Path to the main Python file or Python wheel file for the Pulsar Function (if the Pulsar Function is written in Python).  \n" +
                             "- **go**  \n" +
                             "  Path to the main Go executable binary for the Pulsar Function (if the Pulsar Function is written in Go).  \n" +
                             "- **logTopic**  \n" +
@@ -153,7 +153,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
                             "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
                             "- **cleanupSubscription**  \n" +
-                            "  Whether the subscriptions of a Pulsar Function created/used should be deleted when the Pulsar Function is deleted.  \n",
+                            "  Whether the subscriptions of a Pulsar Function created or used should be deleted when the Pulsar Function is deleted.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -223,7 +223,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "  It also supports URL path [http/https/file (file protocol assumes that file " +
                             "  already exists on worker host)] from which worker can download the package.  \n" +
                             "- **py**  \n" +
-                            "  Path to the main Python file/Python Wheel file for the Pulsar Function (if the Pulsar Function is written in Python).  \n" +
+                            "  Path to the main Python file or Python wheel file for the Pulsar Function (if the Pulsar Function is written in Python).  \n" +
                             "- **go**  \n" +
                             "  Path to the main Go executable binary for the Pulsar Function (if the Pulsar Function is written in Go).  \n" +
                             "- **logTopic**  \n" +
@@ -260,7 +260,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
                             "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
                             "- **cleanupSubscription**  \n" +
-                            "  Whether the subscriptions of a Pulsar Function created/used should be deleted when the Pulsar Function is deleted.  \n",
+                            "  Whether the subscriptions of a Pulsar Function created or used should be deleted when the Pulsar Function is deleted.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -591,7 +591,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @POST
-    @ApiOperation(value = "Start instance of a Pulsar Function", response = Void.class)
+    @ApiOperation(value = "Start an instance of a Pulsar Function", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
