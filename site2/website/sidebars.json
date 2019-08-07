@@ -19,7 +19,10 @@
       "concepts-schema-registry"
     ],
     "Pulsar Schema": [
-      "schema-get-started"
+      "schema-get-started",
+      "schema-understand",
+      "schema-evolution-compatibility",
+      "schema-manage"
     ],
     "Pulsar Functions": [
       "functions-overview",
