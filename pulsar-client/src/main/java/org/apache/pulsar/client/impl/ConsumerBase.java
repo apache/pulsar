@@ -268,6 +268,19 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     abstract public CompletableFuture<Void> closeAsync();
 
+
+    @Override
+    public MessageId getLastMessageId() throws PulsarClientException {
+        try {
+            return getLastMessageIdAsync().get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    abstract public CompletableFuture<MessageId> getLastMessageIdAsync();
+
     private boolean isCumulativeAcknowledgementAllowed(SubscriptionType type) {
         return SubscriptionType.Shared != type;
     }
