@@ -59,7 +59,7 @@ import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -465,8 +465,9 @@ public class SchemasResource extends AdminResource {
     private static GetSchemaResponse convertSchemaAndMetadataToGetSchemaResponse(SchemaAndMetadata schemaAndMetadata) {
         String schemaData;
         if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
-            schemaData = KeyValueSchema.getKeyValueSchemaString(schemaAndMetadata.schema);
-
+            schemaData = DefaultImplementation
+                    .convertKeyValueSchemaInfoDataToString(DefaultImplementation.decodeKeyValueSchemaInfo
+                            (schemaAndMetadata.schema.toSchemaInfo()));
         } else {
             schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
         }

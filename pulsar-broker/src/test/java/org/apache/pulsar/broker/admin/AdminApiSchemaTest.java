@@ -110,7 +110,6 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "schemas")
     public void testSchemaInfoApi(Schema<?> schema) throws Exception {
         testSchemaInfoApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
-        testSchemaInfoWithVersionApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
     }
 
     @Test(dataProvider = "schemas")
