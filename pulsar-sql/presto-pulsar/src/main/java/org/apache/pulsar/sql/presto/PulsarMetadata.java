@@ -355,7 +355,7 @@ public class PulsarMetadata implements ConnectorMetadata {
         ColumnMetadata valueColumn = new PulsarColumnMetadata(
                 "__value__",
                 convertPulsarType(schemaInfo.getType()),
-                "The value of the message with primary type schema", null, false, false,
+                "The value of the message with primitive type schema", null, false, false,
                 new String[0],
                 new Integer[0]);
 

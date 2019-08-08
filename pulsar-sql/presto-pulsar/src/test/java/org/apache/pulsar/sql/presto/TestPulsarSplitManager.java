@@ -51,6 +51,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNotNull;
 
 @Test(singleThreaded = true)
 public class TestPulsarSplitManager extends TestPulsarConnector {
@@ -378,5 +379,24 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
+    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    public void testGetSplitNonSchema(String delimiter) throws Exception {
+        updateRewriteNamespaceDelimiterIfNeeded(delimiter);
+        TopicName topicName = NON_SCHEMA_TOPIC;
+        setup();
+        log.info("!----- topic: %s -----!", topicName);
+        PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(pulsarConnectorId.toString(),
+            topicName.getNamespace(),
+            topicName.getLocalName(),
+            topicName.getLocalName());
 
+        Map<ColumnHandle, Domain> domainMap = new HashMap<>();
+        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(domainMap);
+
+        PulsarTableLayoutHandle pulsarTableLayoutHandle = new PulsarTableLayoutHandle(pulsarTableHandle, tupleDomain);
+        ConnectorSplitSource connectorSplitSource = this.pulsarSplitManager.getSplits(
+            mock(ConnectorTransactionHandle.class), mock(ConnectorSession.class),
+            pulsarTableLayoutHandle, null);
+        assertNotNull(connectorSplitSource);
+    }
 }
