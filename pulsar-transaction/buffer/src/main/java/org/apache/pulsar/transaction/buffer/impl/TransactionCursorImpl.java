@@ -73,15 +73,24 @@ public class TransactionCursorImpl implements TransactionCursor {
     private final ConcurrentMap<TxnID, TransactionMetaImpl> txnIndex;
     private final Map<Long, Set<TxnID>> committedLedgerTxnIndex;
 
-    TransactionCursorImpl(ManagedLedger ledger) throws InterruptedException {
+    public static CompletableFuture<TransactionCursorImpl> createTransactionCursor(ManagedLedger ledger) {
+        CompletableFuture<TransactionCursorImpl> createFuture = new CompletableFuture<>();
+        TransactionCursorImpl cursor = new TransactionCursorImpl(ledger);
+        cursor.initializeTransactionCursor().whenComplete((ignore, error) -> {
+            if (error != null) {
+                createFuture.completeExceptionally(error);
+            } else {
+                createFuture.complete(cursor);
+            }
+        });
+
+        return createFuture;
+    }
+
+    TransactionCursorImpl(ManagedLedger ledger) {
         this.txnIndex = new ConcurrentHashMap<>();
         this.committedLedgerTxnIndex = new TreeMap<>();
         this.txnLog = ledger;
-        try {
-            initializeTransactionCursor().get();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
     }
 
     @VisibleForTesting
@@ -109,7 +118,7 @@ public class TransactionCursorImpl implements TransactionCursor {
         return indexCursor.get().getCurrentCursorLedger();
     }
 
-    private CompletableFuture<Void> initializeTransactionCursor() throws InterruptedException {
+    private CompletableFuture<Void> initializeTransactionCursor() {
         CompletableFuture<Void> initializeFuture = new CompletableFuture<>();
         txnLog.asyncOpenCursor(TXN_CURSOR_NAME, new AsyncCallbacks.OpenCursorCallback() {
             @Override

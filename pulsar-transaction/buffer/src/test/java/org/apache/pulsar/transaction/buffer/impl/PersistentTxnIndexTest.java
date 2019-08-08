@@ -62,7 +62,7 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
     public void testTakeSnapshot() throws ManagedLedgerException, InterruptedException, ExecutionException,
                                           BKException {
         ManagedLedger txnlog = factory.open("test_takesnapshot");
-        TransactionCursorImpl cursor = new TransactionCursorImpl(txnlog);
+        TransactionCursorImpl cursor = TransactionCursorImpl.createTransactionCursor(txnlog).get();
         List<TransactionMetaImpl> metaList = createExampleData(20);
         metaList.forEach(cursor::addToTxnIndex);
         List<TxnID> txnIDList = metaList.stream().map(TransactionMetaImpl::getTxnID).collect(Collectors.toList());
@@ -114,7 +114,7 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
     @Test
     public void testRecoverNormalTxnIndex() throws Exception {
         ManagedLedger txnLog = factory.open("test_recover_txnindex");
-        TransactionCursorImpl cursor = new TransactionCursorImpl(txnLog);
+        TransactionCursorImpl cursor = TransactionCursorImpl.createTransactionCursor(txnLog).get();
 
         LedgerHandle write = cursor.getCursorLedger();
         List<TransactionMetaImpl> metaList = createExampleData(10);
@@ -142,7 +142,7 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
     public void testRecoverTxnIndexFromTxnLog1() throws ManagedLedgerException, InterruptedException,
                                                        ExecutionException {
         ManagedLedger txnLedger = factory.open("test_recover1");
-        TransactionCursorImpl cursor = new TransactionCursorImpl(txnLedger);
+        TransactionCursorImpl cursor = TransactionCursorImpl.createTransactionCursor(txnLedger).get();
         long committedAtLedgerId = 1234L;
         long committedAtEntryId = 2345L;
         long mostBits = randomGenerator.nextInt(1000);
@@ -182,7 +182,7 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
     @Test
     public void testRecoverTxnIndexFromTxnLog2() throws Exception {
         ManagedLedger txnLedger = factory.open("test_recover2");
-        TransactionCursorImpl cursor = new TransactionCursorImpl(txnLedger);
+        TransactionCursorImpl cursor = TransactionCursorImpl.createTransactionCursor(txnLedger).get();
         long committedAtLedgerId = randomGenerator.nextInt(1000);
         long committedAtEntryId = randomGenerator.nextInt(1000);
 
@@ -232,7 +232,7 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
     @Test
     public void testRecoverTxnIndexFromTxnLog3() throws Exception {
         ManagedLedger txnLedger = factory.open("test_recover3");
-        TransactionCursorImpl cursor = new TransactionCursorImpl(txnLedger);
+        TransactionCursorImpl cursor = TransactionCursorImpl.createTransactionCursor(txnLedger).get();
 
         long committedAtLedgerId = randomGenerator.nextInt(1000);
         long committedAtEntryId = randomGenerator.nextInt(1000);
