@@ -12,22 +12,21 @@ A [Django](https://www.djangoproject.com) web app is used to render the collecte
 
 ## Install
 
-The easiest way to use the dashboard is to run it inside a [Docker](https://www.docker.com/products/docker) container. A {@inject: github:`Dockerfile`:/dashboard/Dockerfile} to generate the image is provided.
-
-To generate the Docker image:
-
-```shell
-$ docker build -t apachepulsar/pulsar-dashboard dashboard
-```
-
-To run the dashboard:
+The easiest way to use the dashboard is to run it inside a [Docker](https://www.docker.com/products/docker) container.
 
 ```shell
 $ SERVICE_URL=http://broker.example.com:8080/
 $ docker run -p 80:80 \
   -e SERVICE_URL=$SERVICE_URL \
-  apachepulsar/pulsar-dashboard
+  apachepulsar/pulsar-dashboard:{{pulsar:version}}
 ```
+
+The {@inject: github:`Dockerfile`:/dashboard/Dockerfile} can be found in `dashboard` directory, you can build a image from scratch also:
+
+```shell
+$ docker build -t apachepulsar/pulsar-dashboard dashboard
+```
+
 If token authentication is enabled:
 > Provided token should have super-user access. 
 ```shell
