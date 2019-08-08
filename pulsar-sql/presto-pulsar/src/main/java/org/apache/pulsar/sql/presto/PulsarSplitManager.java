@@ -39,6 +39,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import io.airlift.log.Logger;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -59,7 +60,6 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import java.util.ArrayList;
 
 /**
  * The class helping to manage splits.
@@ -179,7 +179,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             }
 
             throw new RuntimeException("Failed to get metadata for partitioned topic "
-                + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(),e);
+                + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
         List<Integer> predicatePartitions = new ArrayList<>();
         if (tupleDomain.getDomains().isPresent()) {

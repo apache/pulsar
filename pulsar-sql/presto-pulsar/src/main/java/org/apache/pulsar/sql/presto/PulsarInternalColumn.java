@@ -226,7 +226,8 @@ public abstract class PulsarInternalColumn {
     }
 
     public static Set<PulsarInternalColumn> getInternalFields() {
-        return ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME, MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES);
+        return ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME, MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY,
+            PROPERTIES);
     }
 
     public static Map<String, PulsarInternalColumn> getInternalFieldsMap() {

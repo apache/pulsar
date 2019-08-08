@@ -192,7 +192,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                     pulsarTopicList.stream()
                         .map(topic -> TopicName.get(topic).getPartitionedTopicName())
                         .distinct()
-                        .forEach(topic -> builder.add(new SchemaTableName(schemaNameOrNull, TopicName.get(topic).getLocalName())));
+                        .forEach(topic -> builder.add(new SchemaTableName(schemaNameOrNull,
+                            TopicName.get(topic).getLocalName())));
                 }
             }
         }
