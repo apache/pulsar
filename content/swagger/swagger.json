@@ -8891,14 +8891,14 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
+        "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "msgThroughputOut" : {
+        "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         }
@@ -9068,13 +9068,13 @@
           "type" : "number",
           "format" : "double"
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -9739,13 +9739,13 @@
             "type" : "string"
           }
         },
+        "producerName" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
-          "type" : "string"
-        },
-        "producerName" : {
           "type" : "string"
         },
         "address" : {
