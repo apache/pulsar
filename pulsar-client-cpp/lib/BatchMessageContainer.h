@@ -49,6 +49,7 @@ class BatchMessageContainer {
             : message_(message), sendCallback_(sendCallback) {}
         Message message_;
         SendCallback sendCallback_;
+        void callBack(const pulsar::Result& r) { sendCallback_(r, message_); }
     };
     typedef std::vector<MessageContainer> MessageContainerList;
     typedef std::shared_ptr<MessageContainerList> MessageContainerListPtr;
