@@ -52,6 +52,8 @@ import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.proto.TransactionBufferDataFormats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
@@ -113,9 +115,11 @@ public class PersistentTxnIndexTest extends MockedBookKeeperTestCase {
     //      c. verify the transaction index
     @Test
     public void testRecoverNormalTxnIndex() throws Exception {
-        ManagedLedger txnLog = factory.open("test_recover_txnindex");
-        TransactionCursorImpl cursor = TransactionCursorImpl.createTransactionCursor(txnLog).get();
 
+        ManagedLedger txnLog = factory.open("test_recover_txnindex");
+        Logger logger = LoggerFactory.getLogger(TransactionCursorImpl.class);
+
+        TransactionCursorImpl cursor = TransactionCursorImpl.createTransactionCursor(txnLog).get();
         LedgerHandle write = cursor.getCursorLedger();
         List<TransactionMetaImpl> metaList = createExampleData(10);
         for (TransactionMetaImpl transactionMeta : metaList) {

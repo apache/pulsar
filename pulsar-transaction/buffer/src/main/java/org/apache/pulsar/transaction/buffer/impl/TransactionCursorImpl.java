@@ -31,8 +31,6 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -302,10 +300,20 @@ public class TransactionCursorImpl implements TransactionCursor {
         PositionImpl currentPosition = PositionImpl.get(ledgerId, entryId);
 
         readSpecifiedPosEntry(currentPosition)
-            .thenApply(entry -> new PersistentTxnIndexSnapshot(entry.getData()))
+            .thenCompose(entry -> PersistentTxnIndexSnapshot.createPersistentTxnIndexSnapshotAsync(entry.getData()))
             .whenComplete((snapshot, throwable) -> {
                 if (throwable != null) {
-                    recoverFuture.completeExceptionally(throwable);
+                    if (throwable.getCause() instanceof TransactionIndexRecoveringError) {
+                        replayTxnLogEntries(PositionImpl.earliest).whenComplete((ignore, err) -> {
+                            if (err != null) {
+                                recoverFuture.completeExceptionally(err);
+                            } else {
+                                recoverFuture.complete(null);
+                            }
+                        });
+                    } else {
+                        recoverFuture.completeExceptionally(throwable);
+                    }
                 } else {
                     if (snapshot.status == null) {
                         replayTxnLogEntries(PositionImpl.earliest)
@@ -337,8 +345,9 @@ public class TransactionCursorImpl implements TransactionCursor {
     private void checkComplete(Throwable error, CompletableFuture<Void> future) {
         if (error != null) {
             if (log.isDebugEnabled()) {
-                log.debug("Recover the transaction index from cursor ledger failed. Start recover the transaction index "
-                         + "from the transaction log.");
+                log.debug(
+                    "Recover the transaction index from cursor ledger failed. Start recover the transaction index "
+                    + "from the transaction log.");
             }
             replayTxnLogEntries(PositionImpl.earliest).whenComplete((ignore, err) -> {
                 if (err != null) {
@@ -373,7 +382,16 @@ public class TransactionCursorImpl implements TransactionCursor {
         Position position;
         TransactionMetaImpl meta;
 
-        PersistentTxnIndexSnapshot(byte[] entry) {
+        static CompletableFuture<PersistentTxnIndexSnapshot> createPersistentTxnIndexSnapshotAsync(byte[] entry) {
+            try {
+                PersistentTxnIndexSnapshot snapshot = new PersistentTxnIndexSnapshot(entry);
+                return CompletableFuture.completedFuture(snapshot);
+            } catch (TransactionIndexRecoveringError transactionIndexRecoveringError) {
+                return FutureUtil.failedFuture(transactionIndexRecoveringError);
+            }
+        }
+
+        PersistentTxnIndexSnapshot(byte[] entry) throws TransactionIndexRecoveringError {
             StoredTxnIndexEntry txn = DataFormat.parseStoredTxn(entry);
             switch (txn.getStoredStatus()) {
                 case START:
@@ -385,6 +403,8 @@ public class TransactionCursorImpl implements TransactionCursor {
                 case END:
                     this.status = SnapshotStatus.END;
                     break;
+                default:
+                    throw new TransactionIndexRecoveringError("Unknown the status of the snapshot entry");
             }
             this.meta = DataFormat.recoverMeta(txn.getTxnMeta());
             this.position = DataFormat.recoverPosition(txn.getPosition());
@@ -397,11 +417,12 @@ public class TransactionCursorImpl implements TransactionCursor {
             log.debug("Recover snapshot start {}",  currentPosition);
         }
         CompletableFuture<Void> recoverFromStartFuture = new CompletableFuture<>();
-        readPrevEntry(currentPosition).whenComplete((entry, throwable) -> {
+        readPrevEntry(currentPosition)
+            .thenCompose(entry -> PersistentTxnIndexSnapshot.createPersistentTxnIndexSnapshotAsync(entry.getData()))
+            .whenComplete((txnIndexSnapshot, throwable) -> {
             if (throwable != null) {
                 recoverFromStartFuture.completeExceptionally(throwable);
             } else {
-                PersistentTxnIndexSnapshot txnIndexSnapshot = new PersistentTxnIndexSnapshot(entry.getData());
                 if (txnIndexSnapshot.getStatus() == null) {
                     recoverFromStartFuture
                         .completeExceptionally(new TransactionIndexRecoveringError("Unknown transaction index entry"));
@@ -446,7 +467,8 @@ public class TransactionCursorImpl implements TransactionCursor {
 
     private CompletableFuture<Void> recoverFromMiddle(PersistentTxnIndexSnapshot snapshot) {
         return readSpecifiedPosEntry(snapshot.position)
-                   .thenApply(entry -> new PersistentTxnIndexSnapshot(entry.getData()))
+                   .thenCompose(entry -> PersistentTxnIndexSnapshot
+                                             .createPersistentTxnIndexSnapshotAsync(entry.getData()))
                    .thenCompose(startBlock -> recoverFromStart(snapshot.position));
 
     }
@@ -497,13 +519,16 @@ public class TransactionCursorImpl implements TransactionCursor {
         PositionImpl startPosition = (PositionImpl) snapshot.getPosition();
         while (readPosition.compareTo(startPosition) > 0 && !readPosition.getPrev().equals(startPosition)) {
             readPosition = (PositionImpl) readPosition.getPrev();
-            CompletableFuture<Void> future = readSpecifiedPosEntry(readPosition)
-                                                 .thenApply(entry -> new PersistentTxnIndexSnapshot(entry.getData()))
-                                                 .thenCompose(s -> rebuildIndexByEntry(s.getMeta()));
+            CompletableFuture<Void> future =
+                readSpecifiedPosEntry(readPosition)
+                    .thenCompose(entry -> PersistentTxnIndexSnapshot
+                                              .createPersistentTxnIndexSnapshotAsync(entry.getData()))
+                    .thenCompose(s -> rebuildIndexByEntry(s.getMeta()));
             recoverEntryList.add(future);
         }
         return FutureUtil.waitForAll(recoverEntryList).thenCompose(ignore -> readSpecifiedPosEntry(startPosition))
-                         .thenApply(entry -> new PersistentTxnIndexSnapshot(entry.getData()));
+                         .thenCompose(entry -> PersistentTxnIndexSnapshot
+                                                   .createPersistentTxnIndexSnapshotAsync(entry.getData()));
     }
 
     private CompletableFuture<Void> rebuildIndexByEntry(TransactionMetaImpl meta) {
