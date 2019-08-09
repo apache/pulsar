@@ -22,6 +22,9 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.statelib.StateStores;
+
+import org.apache.bookkeeper.statelib.impl.kv.RocksdbKVAsyncStore;
+import org.apache.bookkeeper.statelib.impl.kv.RocksdbKVStore;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
@@ -60,7 +63,7 @@ public class PersistentTransactionMetadataStoreProvider implements TransactionMe
         try {
             internalConf = pulsarAdmin.brokers().getInternalConfigurationData();
             URI dlNameSpace = CoordinatorUtils.initializeDLNamespace(internalConf.getZookeeperServers(),
-                                                                       internalConf.getLedgersRootPath());
+                                                                     internalConf.getLedgersRootPath());
 
             DistributedLogConfiguration dlConf = CoordinatorUtils.getDLConf(coordinatorConfiguration);
 
@@ -69,14 +72,17 @@ public class PersistentTransactionMetadataStoreProvider implements TransactionMe
                     .clientId("transaction-coordinator" + transactionCoordinatorId)
                     .uri(dlNameSpace)
                     .build();
-
-            future.complete(new PersistentTransactionMetadataStore(transactionCoordinatorId, StateStores.kvAsyncStoreSupplier(() -> namespace)));
+            future.complete(new PersistentTransactionMetadataStore(transactionCoordinatorId, new RocksdbKVAsyncStore<>(
+                                                                                    () -> new RocksdbKVStore<>(),
+                                                                                    () -> namespace)));
         } catch (IOException e) {
             log.error("Exception open transaction meta store:", e);
             future.completeExceptionally(new CoordinatorMetadataStoreException(e));
         } catch (PulsarAdminException e) {
             log.error("Exception open transaction meta store:", e);
             future.completeExceptionally(new CoordinatorMetadataStoreException(e));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return future;
     }

@@ -16,18 +16,6 @@ public class CoordinatorConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_SECURITY = "Security settings for talking to brokers";
 
     @FieldContext(
-            category = CATEGORY_COORDINATOR,
-            doc = "Pulsar web service url that coordinator talks to"
-    )
-    private String pulsarWebServiceUrl;
-
-    @FieldContext(
-            category = CATEGORY_SECURITY,
-            doc = "The auth plugin used for talking to brokers"
-    )
-    private String clientAuthenticationPlugin;
-
-    @FieldContext(
             category = CATEGORY_SECURITY,
             doc = "The auth plugin used for talking to bookies"
     )
@@ -68,6 +56,12 @@ public class CoordinatorConfiguration implements PulsarConfiguration {
             doc = "The number of replicas for transaction metadata store"
     )
     private int numCoordinatorMetaStoreReplicas;
+
+    @FieldContext(
+            category = CATEGORY_COORDINATOR,
+            doc = "Directory of local state store used for transaction metadata store"
+    )
+    private String dlLocalStateStoreDir;
 
     @Override
     public Properties getProperties() {

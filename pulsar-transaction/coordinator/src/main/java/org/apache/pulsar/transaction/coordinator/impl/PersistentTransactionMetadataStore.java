@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.common.coder.ByteArrayCoder;
+import org.apache.bookkeeper.statelib.api.StateStoreSpec;
 import org.apache.bookkeeper.statelib.api.kv.KVAsyncStore;
-import org.apache.commons.lang3.SerializationUtils;
+import org.apache.pulsar.transaction.configuration.CoordinatorConfiguration;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
@@ -27,28 +30,37 @@ import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorMetadataS
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
+@Slf4j
 public class PersistentTransactionMetadataStore implements TransactionMetadataStore {
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentTransactionMetadataStore.class);
 
     private final TransactionCoordinatorID tcID;
     private final AtomicLong localID;
     private final KVAsyncStore<TxnID, TxnMeta> kvStore;
 
 
-    public PersistentTransactionMetadataStore(TransactionCoordinatorID tcID, Supplier<KVAsyncStore<TxnID, TxnMeta>> kvStoreSupplier) throws IOException {
+    public PersistentTransactionMetadataStore(TransactionCoordinatorID tcID, KVAsyncStore<TxnID, TxnMeta> kvStore) throws ExecutionException, InterruptedException {
         this.tcID = tcID;
         this.localID = new AtomicLong(0L);
-        this.kvStore = kvStoreSupplier.get();
+        this.kvStore = kvStore;
+    }
+
+    public CompletableFuture<Void> init(CoordinatorConfiguration coordinatorConfiguration) {
+        StateStoreSpec spec = StateStoreSpec.builder()
+                .name("a")
+                .stream("a")
+                .localStateStoreDir(new File(coordinatorConfiguration.getDlLocalStateStoreDir()))
+                .keyCoder(ByteArrayCoder.of())
+                .valCoder(ByteArrayCoder.of())
+                .build();
+        return this.kvStore.init(spec);
     }
 
     @Override
@@ -67,7 +79,13 @@ public class PersistentTransactionMetadataStore implements TransactionMetadataSt
         CompletableFuture<TxnID> future = new CompletableFuture<>();
         TxnID txnID = new TxnID(tcID.getId(), localID.getAndIncrement());
         TxnMeta txnMeta = new TxnMetaImpl(txnID);
-        kvStore.put(txnID, txnMeta).thenRun(() -> future.complete(txnID));
+        try {
+            kvStore.put(txnID, txnMeta).get();
+            future.complete(txnID);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         return future;
     }
 

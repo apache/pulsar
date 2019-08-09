@@ -21,6 +21,8 @@ package org.apache.pulsar.transaction.coordinator;
 import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.transaction.configuration.CoordinatorConfiguration;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
@@ -29,6 +31,18 @@ import org.apache.pulsar.transaction.impl.common.TxnStatus;
  */
 @Beta
 public interface TransactionMetadataStore {
+
+    /**
+     * Do necessary initialization for this {@link TransactionMetadataStore}.
+     *
+     * @param coordinatorConfiguration CoordinatorConfiguration
+     * @return a future represents the result of initialization.
+     */
+    default CompletableFuture<Void> init(CoordinatorConfiguration coordinatorConfiguration) {
+        CompletableFuture future =  new CompletableFuture<>();
+        future.complete(null);
+        return future;
+    }
 
     /**
      * Query the {@link TxnStatus} of a given transaction <tt>txnid</tt>.

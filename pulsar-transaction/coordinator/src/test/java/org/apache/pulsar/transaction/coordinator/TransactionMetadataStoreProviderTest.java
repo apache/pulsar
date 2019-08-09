@@ -18,18 +18,40 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.mockito.Mockito.mock;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.common.coder.ByteArrayCoder;
+import org.apache.bookkeeper.shims.zk.ZooKeeperServerShim;
+import org.apache.bookkeeper.statelib.api.StateStoreSpec;
+import org.apache.bookkeeper.util.IOUtils;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.distributedlog.DLMTestUtil;
+import org.apache.distributedlog.LocalDLMEmulator;
+import org.apache.pulsar.client.admin.Brokers;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.transaction.configuration.CoordinatorConfiguration;
+import org.apache.pulsar.transaction.coordinator.impl.PersistentTransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
@@ -38,30 +60,71 @@ import org.testng.annotations.Test;
 /**
  * Unit test different transaction metadata store provider.
  */
+@Slf4j
 public class TransactionMetadataStoreProviderTest {
 
     @DataProvider(name = "providers")
     public static Object[][] providers() {
         return new Object[][] {
-            { InMemTransactionMetadataStoreProvider.class.getName() }
+            //{ InMemTransactionMetadataStoreProvider.class.getName() },
+            { PersistentTransactionMetadataStoreProvider.class.getName(),
+              new Class[] {PulsarAdmin.class, CoordinatorConfiguration.class},
+              new Object[] {mockPulsarAdmin, mockCoordinatorConfiguration}}
         };
     }
+
+    private static ZooKeeperServerShim zks;
+    private static String zkServers;
+    private static int zkPort;
+    private static int numBookies = 3;
+    private static LocalDLMEmulator bkutil;
+    private static File zkTmpDir;
+    private static PulsarAdmin mockPulsarAdmin = mock(PulsarAdmin.class);
+    private static CoordinatorConfiguration mockCoordinatorConfiguration = mock(CoordinatorConfiguration.class);
+    private static Brokers mockBrokers = mock(Brokers.class);
+    private static InternalConfigurationData mockInternalConfigurationData = mock(InternalConfigurationData.class);
 
     private final String providerClassName;
     private TransactionMetadataStoreProvider provider;
     private TransactionCoordinatorID tcId;
     private TransactionMetadataStore store;
+    private ZooKeeper zkc;
 
     @Factory(dataProvider = "providers")
-    public TransactionMetadataStoreProviderTest(String providerClassName) throws Exception {
+    public TransactionMetadataStoreProviderTest(String providerClassName,
+                                                Class[] constructorArgClazzes,
+                                                Object[] constructorArgs) throws Exception {
+        if (providerClassName == PersistentTransactionMetadataStoreProvider.class.getName()) {
+            setupCluster();
+            setupMock();
+        }
         this.providerClassName = providerClassName;
-        this.provider = TransactionMetadataStoreProvider.newProvider(providerClassName);
+        this.provider = TransactionMetadataStoreProvider.newProvider(providerClassName,
+                                                                    constructorArgClazzes,
+                                                                    constructorArgs);
     }
 
     @BeforeMethod
     public void setup() throws Exception {
+        try {
+            zkc = LocalDLMEmulator.connectZooKeeper("127.0.0.1", zkPort);
+        } catch (Exception ex) {
+            log.error("hit exception connecting to zookeeper at {}:{}", "127.0.0.1", zkPort, ex);
+            throw ex;
+        }
+        try {
+            zkc.create("/pulsar/transaction/coordinator", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        } catch (Exception ex) {
+        }
         this.tcId = new TransactionCoordinatorID(1L);
         this.store = this.provider.openStore(tcId).get();
+    }
+
+    @Test
+    public void testKVStore() throws Exception {
+        this.store.init(mockCoordinatorConfiguration).get();
+        TxnID txnID = this.store.newTransaction().get();
+        System.out.println(txnID);
     }
 
     @Test
@@ -240,6 +303,36 @@ public class TransactionMetadataStoreProviderTest {
         txn = this.store.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.COMMITTING);
         assertEquals(txn.ackedPartitions(), finalPartitions);
+    }
+
+    private static void setupCluster() throws Exception {
+        zkTmpDir = IOUtils.createTempDir("zookeeper", "distrlog");
+        Pair<ZooKeeperServerShim, Integer> serverAndPort = LocalDLMEmulator.runZookeeperOnAnyPort(zkTmpDir);
+        zks = serverAndPort.getLeft();
+        zkPort = serverAndPort.getRight();
+        bkutil = LocalDLMEmulator.newBuilder()
+                .numBookies(numBookies)
+                .zkHost("127.0.0.1")
+                .zkPort(zkPort)
+                .serverConf(DLMTestUtil.loadTestBkConf())
+                .shouldStartZK(false)
+                .build();
+        bkutil.start();
+        zkServers = "127.0.0.1:" + zkPort;
+    }
+
+    private static void setupMock() throws Exception {
+        when(mockInternalConfigurationData.getZookeeperServers()).thenReturn("127.0.0.1:" + zkPort);
+        when(mockInternalConfigurationData.getLedgersRootPath()).thenReturn("/ledgerRoot");
+        when(mockCoordinatorConfiguration.getDlLocalStateStoreDir()).thenReturn("./temp");
+        when(mockBrokers.getInternalConfigurationData()).thenReturn(mockInternalConfigurationData);
+        when(mockPulsarAdmin.brokers()).thenReturn(mockBrokers);
+    }
+
+    private static void teardownCluster() throws Exception {
+        bkutil.teardown();
+        zks.stop();
+        FileUtils.forceDeleteOnExit(zkTmpDir);
     }
 
 }

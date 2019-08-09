@@ -27,7 +27,7 @@ public class CoordinatorUtils {
     public static URI initializeDLNamespace(String zkServers, String ledgersRootPath) throws IOException {
         BKDLConfig dlConfig = new BKDLConfig(zkServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
-        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zkServers));
+        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/transaction/coordinator", zkServers));
 
         try {
             dlMetadata.create(dlogUri);

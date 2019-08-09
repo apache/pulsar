@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.Beta;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -48,6 +49,39 @@ public interface TransactionMetadataStoreProvider {
             return (TransactionMetadataStoreProvider) obj;
         } catch (Exception e) {
             throw new IOException(e);
+        }
+    }
+
+    /**
+     * Construct a provider from the provided class with args.
+     *
+     * @param providerClassName the provider class name.
+     * @param constructorArgClazzes Class of additional args to identify constructor.
+     * @param constructorArgs Args for constructor.
+     * @return an instance of transaction metadata store provider.
+     */
+    static TransactionMetadataStoreProvider newProvider(String providerClassName,
+                                                        Class[] constructorArgClazzes,
+                                                        Object ... constructorArgs) throws IOException {
+        if (constructorArgClazzes == null || constructorArgClazzes.length == 0) {
+            return newProvider(providerClassName);
+        } else {
+            if (constructorArgClazzes.length != constructorArgs.length) {
+                throw new IllegalArgumentException("Wrong number of arguments to create new " + providerClassName +
+                        "expect " + Arrays.toString(constructorArgClazzes) + " but get " + Arrays.toString(constructorArgs));
+            }
+            Class<?> providerClass;
+            try {
+                providerClass = Class.forName(providerClassName);
+                Object obj = providerClass.getDeclaredConstructor(constructorArgClazzes).newInstance(constructorArgs);
+                checkArgument(obj instanceof TransactionMetadataStoreProvider,
+                        "The factory has to be an instance of "
+                                + TransactionMetadataStoreProvider.class.getName());
+
+                return (TransactionMetadataStoreProvider) obj;
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
         }
     }
 
