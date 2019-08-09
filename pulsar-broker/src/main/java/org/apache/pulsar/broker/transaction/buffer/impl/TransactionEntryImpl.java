@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.transaction.buffer.TransactionEntry;
+import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**

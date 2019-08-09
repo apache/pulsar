@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 
 /**
  * A provider that provides in-memory implementations of {@link TransactionBuffer}.

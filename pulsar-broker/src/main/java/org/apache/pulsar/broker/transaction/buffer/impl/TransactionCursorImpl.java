@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -26,10 +26,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.transaction.buffer.TransactionCursor;
-import org.apache.pulsar.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.transaction.buffer.exceptions.NoTxnsCommittedAtLedgerException;
-import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
+import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
+import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.NoTxnsCommittedAtLedgerException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 public class TransactionCursorImpl implements TransactionCursor {

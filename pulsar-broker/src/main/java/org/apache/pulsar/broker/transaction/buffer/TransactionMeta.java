@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.buffer;
+package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.annotations.Beta;
 import java.util.SortedMap;

@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.buffer;
+package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
 
 /**
  * A reader to read entries of a given transaction from transaction buffer.

@@ -22,8 +22,6 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
-import org.apache.pulsar.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
@@ -54,7 +52,7 @@ public interface TransactionBuffer {
      *
      * @param txnID the transaction id
      * @return a future represents the result of the operation
-     * @throws org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
+     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
     CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID);
@@ -68,7 +66,7 @@ public interface TransactionBuffer {
      * @param sequenceId the sequence id of the entry in this transaction buffer.
      * @param buffer the entry buffer
      * @return a future represents the result of the operation.
-     * @throws org.apache.pulsar.transaction.buffer.exceptions.TransactionSealedException if the transaction
+     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException if the transaction
      *         has been sealed.
      */
     CompletableFuture<Void> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer);
@@ -80,7 +78,7 @@ public interface TransactionBuffer {
      * @param txnID transaction id
      * @param startSequenceId the sequence id to start read
      * @return a future represents the result of open operation.
-     * @throws org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
+     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
@@ -94,7 +92,7 @@ public interface TransactionBuffer {
      * @param committedAtLedgerId the data ledger id where the commit marker of the transaction was appended to.
      * @param committedAtEntryId the data ledger id where the commit marker of the transaction was appended to.
      * @return a future represents the result of commit operation.
-     * @throws org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
+     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
     CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId);
@@ -105,7 +103,7 @@ public interface TransactionBuffer {
      *
      * @param txnID the transaction id
      * @return a future represents the result of abort operation.
-     * @throws org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
+     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
     CompletableFuture<Void> abortTxn(TxnID txnID);

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,10 +34,10 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
-import org.apache.pulsar.transaction.buffer.TransactionEntry;
-import org.apache.pulsar.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
+import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
+import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**

@@ -19,4 +19,4 @@
 /**
  * Implementation of a transaction buffer.
  */
-package org.apache.pulsar.transaction.buffer;
+package org.apache.pulsar.broker.transaction.buffer;
