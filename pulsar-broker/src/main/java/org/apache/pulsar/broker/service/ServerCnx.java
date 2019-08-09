@@ -68,6 +68,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -106,6 +107,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1532,5 +1534,50 @@ public class ServerCnx extends PulsarHandler {
 
     public String getClientVersion() {
         return clientVersion;
+    }
+
+    /**
+     * The transaction marker controller controls the commit marker or the abort marker publish to the specified topic.
+     * If it is a commit marker, we need to wait for the position it committed at the topic.
+     */
+    final static class TxnMarkerController implements Topic.PublishContext {
+
+        private final Topic topic;
+        private final TxnID txnID;
+        private final long sequenceId;
+        private final CompletableFuture<Position> publishFuture = new CompletableFuture<>();
+
+        public TxnMarkerController(Topic topic, TxnID txnID, long sequenceId) {
+            this.topic = topic;
+            this.txnID = txnID;
+            this.sequenceId = sequenceId;
+        }
+
+        public CompletableFuture<Position> publishCommitMarker() {
+            ByteBuf commitMarker = Markers
+                                       .newTxnCommitMarker(sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits());
+            publishMessage(commitMarker);
+            return publishFuture;
+        }
+
+        public CompletableFuture<Void> publishAbortMarker() {
+            ByteBuf abortMarker = Markers
+                                      .newTxnAbortMarker(sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits());
+            publishMessage(abortMarker);
+            return publishFuture.thenApply(position -> null);
+        }
+
+        void publishMessage(ByteBuf headersAndPayload) {
+            topic.publishMessage(headersAndPayload, this);
+        }
+
+        @Override
+        public void completed(Exception e, long ledgerId, long entryId) {
+            if (e != null) {
+                publishFuture.completeExceptionally(e);
+            } else {
+                publishFuture.complete(PositionImpl.get(ledgerId, entryId));
+            }
+        }
     }
 }
