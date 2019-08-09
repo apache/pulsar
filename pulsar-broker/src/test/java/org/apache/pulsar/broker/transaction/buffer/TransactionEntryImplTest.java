@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,23 +15,37 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
+ *
  */
-package org.apache.pulsar.transaction.buffer.exceptions;
+package org.apache.pulsar.broker.transaction.buffer;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.testng.annotations.Test;
 
 /**
- * Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.
+ * Unit test {@link TransactionEntryImpl}.
  */
-public class UnexpectedTxnStatusException extends TransactionBufferException {
+public class TransactionEntryImplTest {
 
-    private static final long serialVersionUID = 0L;
-
-    public UnexpectedTxnStatusException(TxnID txnId,
-                                        TxnStatus expectedStatus,
-                                        TxnStatus actualStatus) {
-        super("Transaction `" + txnId + "` is not in an expected status `" + expectedStatus
-            + "`, but is in status `" + actualStatus + "`");
+    @Test
+    public void testCloseShouldReleaseBuffer() {
+        ByteBuf buffer = Unpooled.copiedBuffer("test-value", UTF_8);
+        TransactionEntryImpl entry = new TransactionEntryImpl(
+            new TxnID(1234L, 3456L),
+            0L,
+            buffer,
+            33L,
+            44L
+        );
+        assertEquals(buffer.refCnt(), 1);
+        entry.close();
+        assertEquals(buffer.refCnt(), 0);
     }
+
 }

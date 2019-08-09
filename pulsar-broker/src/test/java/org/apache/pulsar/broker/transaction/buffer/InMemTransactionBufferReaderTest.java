@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,8 +15,9 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
+ *
  */
-package org.apache.pulsar.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
@@ -33,8 +34,8 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import org.apache.pulsar.transaction.buffer.TransactionEntry;
-import org.apache.pulsar.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferReader;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.testng.annotations.Test;
 

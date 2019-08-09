@@ -32,7 +32,7 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 /**
  * A {@link TransactionBufferReader} implementation that reads entries from {@link InMemTransactionBuffer}.
  */
-class InMemTransactionBufferReader implements TransactionBufferReader {
+public class InMemTransactionBufferReader implements TransactionBufferReader {
 
     private final TxnID txnId;
     private final Iterator<Entry<Long, ByteBuf>> entries;
@@ -41,10 +41,8 @@ class InMemTransactionBufferReader implements TransactionBufferReader {
 
     // the iterator should hold the references to the entries
     // so when the reader is closed, all the entries can be released.
-    InMemTransactionBufferReader(TxnID txnId,
-                                 Iterator<Entry<Long, ByteBuf>> entries,
-                                 long committedAtLedgerId,
-                                 long committedAtEntryId) {
+    public InMemTransactionBufferReader(TxnID txnId, Iterator<Entry<Long, ByteBuf>> entries, long committedAtLedgerId,
+                                        long committedAtEntryId) {
         this.txnId = txnId;
         this.entries = entries;
         this.committedAtLedgerId = committedAtLedgerId;

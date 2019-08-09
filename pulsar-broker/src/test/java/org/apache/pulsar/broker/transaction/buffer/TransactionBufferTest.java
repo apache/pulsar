@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,8 +15,9 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
+ *
  */
-package org.apache.pulsar.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
@@ -28,14 +29,10 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import org.apache.pulsar.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.transaction.buffer.TransactionBufferProvider;
-import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
-import org.apache.pulsar.transaction.buffer.TransactionEntry;
-import org.apache.pulsar.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotFoundException;
-import org.apache.pulsar.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.transaction.buffer.exceptions.UnexpectedTxnStatusException;
+import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.testng.annotations.AfterMethod;
