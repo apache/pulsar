@@ -21,6 +21,7 @@
 package org.apache.pulsar.transaction.buffer.impl;
 
 import java.util.concurrent.CompletableFuture;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -30,6 +31,7 @@ import org.apache.pulsar.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.transaction.buffer.TransactionBufferProvider;
 
 public class PersistentTransactionBufferProvider implements TransactionBufferProvider {
+
     private final BrokerService brokerService;
     private final String topic;
     private final String txnTopic;
@@ -44,27 +46,32 @@ public class PersistentTransactionBufferProvider implements TransactionBufferPro
     @Override
     public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
         CompletableFuture<TransactionBuffer> newBufferFuture = new CompletableFuture<>();
-        brokerService.getManagedLedgerConfig(TopicName.get(topic)).thenAccept(config -> {
-            config.setCreateIfMissing(true);
-            brokerService.getManagedLedgerFactory()
-                         .asyncOpen(txnTopic, config, new AsyncCallbacks.OpenLedgerCallback() {
-                             @Override
-                             public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                                 try {
-                                     PersistentTransactionBuffer buffer =
-                                         new PersistentTransactionBuffer(txnTopic, ledger, brokerService);
-                                     newBufferFuture.complete(buffer);
-                                 } catch (Exception e) {
-                                     newBufferFuture.completeExceptionally(e);
-                                 }
-                             }
+        brokerService.getManagedLedgerConfig(TopicName.get(topic)).whenComplete((config, err) -> {
+            if (err != null) {
+                newBufferFuture.completeExceptionally(err);
+            } else {
+                config.setCreateIfMissing(true);
+                brokerService.getManagedLedgerFactory().asyncOpen(txnTopic, config, new AsyncCallbacks.OpenLedgerCallback() {
+                    @Override
+                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                        try {
+                            PersistentTransactionBuffer buffer = new PersistentTransactionBuffer(txnTopic, ledger,
+                                                                                                 brokerService);
+                            newBufferFuture.complete(buffer);
+                        } catch (Exception e) {
+                            newBufferFuture.completeExceptionally(e);
+                        }
+                    }
 
-                             @Override
-                             public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                 newBufferFuture.completeExceptionally(exception);
-                             }
-                         }, null);
+                    @Override
+                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        newBufferFuture.completeExceptionally(exception);
+                    }
+                }, null);
+            }
         });
         return newBufferFuture;
     }
+
+
 }

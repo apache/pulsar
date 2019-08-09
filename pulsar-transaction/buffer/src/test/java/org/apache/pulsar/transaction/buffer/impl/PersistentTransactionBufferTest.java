@@ -83,6 +83,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.transaction.buffer.TransactionMeta;
@@ -108,19 +109,35 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
+
+    @DataProvider(name = "providers")
+    public static Object[][] providers() {
+        return new Object[][] { { PersistentTransactionBufferProvider.class.getName() } };
+    }
+
     private PulsarService pulsar;
     private BrokerService brokerService;
-    private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
     private ConfigurationCacheService configCacheService;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic_txn";
+    final String txnTopicName = "success-test-txn";
     private static final Logger log = LoggerFactory.getLogger(PersistentTransactionBufferTest.class);
+
+    private TransactionBufferProvider provider;
+    private String providerName;
+
+    @Factory(dataProvider = "providers")
+    public PersistentTransactionBufferTest(String providerClassName) throws Exception {
+        this.providerName = providerClassName;
+    }
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -129,8 +146,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
 
-        mlFactoryMock = mock(ManagedLedgerFactory.class);
-        doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        doReturn(factory).when(pulsar).getManagedLedgerFactory();
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
@@ -167,6 +183,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
 
+        this.provider = TransactionBufferProvider.newProvider(providerName, brokerService, txnTopicName);
         setupMLAsyncCallbackMocks();
     }
 
@@ -210,7 +227,8 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
     @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks()
-        throws BrokerServiceException.NamingException, ManagedLedgerException, InterruptedException {
+        throws BrokerServiceException.NamingException, ManagedLedgerException, InterruptedException,
+               ExecutionException {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursor.class);
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
@@ -240,27 +258,6 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 closeFuture.completeExceptionally(new BrokerServiceException.PersistenceException(exception));
             }
         }, null);
-
-        // call openLedgerComplete with ledgerMock on ML factory asyncOpen
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
-                return null;
-            }
-        }).when(mlFactoryMock)
-          .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), anyObject());
-
-        // call openLedgerFailed on ML factory asyncOpen
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
-                    .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
-                return null;
-            }
-        }).when(mlFactoryMock)
-          .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), anyObject());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer(new Answer<Object>() {
@@ -314,7 +311,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             return null;
         }).when(cursorMock).asyncMarkDelete(anyObject(), anyObject(), any(MarkDeleteCallback.class), anyObject());
 
-        this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService);
+        this.buffer = (PersistentTransactionBuffer) provider.newTransactionBuffer().get();
     }
 
     @AfterMethod
@@ -392,6 +389,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             reader.readNext(1).get();
 
         } catch (ExecutionException ee) {
+            System.out.println(ee.getMessage());
             assertTrue(ee.getCause() instanceof EndOfTransactionException);
         }
 

@@ -114,6 +114,8 @@ public class TopicName implements ServiceUnitId {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else if (parts.length == 1) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
+                } else if (parts.length == 5) {
+                    completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else {
                     throw new IllegalArgumentException(
                         "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
