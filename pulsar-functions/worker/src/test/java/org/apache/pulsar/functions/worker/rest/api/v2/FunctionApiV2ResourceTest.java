@@ -517,6 +517,58 @@ public class FunctionApiV2ResourceTest {
         }
 
     }
+    @Test
+    public void testRegisterFunctionEmptyResources() {
+
+        SinkSpec sinkSpec = SinkSpec.newBuilder()
+                .setTopic(outputTopic)
+                .setSerDeClassName(outputSerdeClassName).build();
+        FunctionDetails functionDetails = FunctionDetails.newBuilder()
+                .setClassName(className)
+                .setSink(sinkSpec)
+                .setName(function)
+                .setNamespace(namespace)
+                .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
+                .setTenant(tenant)
+                .setParallelism(parallelism)
+                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
+                        .putInputSpecs("topic",org.apache.pulsar.functions.proto.Function.ConsumerSpec.newBuilder().build())).build();
+
+        FunctionDetails.newBuilder(functionDetails)
+                .setResources(org.apache.pulsar.functions.proto.Function.Resources.newBuilder().build());
+
+        mockStatic(WorkerUtils.class);
+
+        try {
+            WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class));
+            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            RequestResult rr = new RequestResult()
+                    .setSuccess(true)
+                    .setMessage("function registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            resource.registerFunction(
+                    tenant,
+                    namespace,
+                    function,
+                    mockedInputStream,
+                    mockedFormData,
+                    null,
+                    JsonFormat.printer().print(functionDetails),
+                    null);
+        } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
 
     private void registerDefaultFunction() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();

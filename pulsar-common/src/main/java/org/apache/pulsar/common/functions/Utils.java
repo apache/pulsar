@@ -62,6 +62,9 @@ public class Utils {
         if (sourceConfig.getParallelism() == null) {
             sourceConfig.setParallelism(1);
         }
+
+        Resources resources = Resources.mergeWithDefault(sourceConfig.getResources());
+        sourceConfig.setResources(resources);
     }
 
     public static void inferMissingArguments(SinkConfig sinkConfig) {
@@ -74,5 +77,8 @@ public class Utils {
         if (sinkConfig.getParallelism() == null) {
             sinkConfig.setParallelism(1);
         }
+
+        Resources resources = Resources.mergeWithDefault(sinkConfig.getResources());
+        sinkConfig.setResources(resources);
     }
 }
