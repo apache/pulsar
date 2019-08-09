@@ -270,4 +270,12 @@ public class TopicNameTest {
             // Ok
         }
     }
+
+    public void testTopicNameTxnSuffix() {
+        TopicName tn = TopicName.get("test-topic");
+        assertEquals(tn.getPersistenceNamingEncoding(true), "public/default/persistent/test-topic/_txnlog");
+
+        tn = TopicName.get("test-tenant/test-namespace/test-topic");
+        assertEquals(tn.getPersistenceNamingEncoding(true), "test-tenant/test-namespace/persistent/test-topic/_txnlog");
+    }
 }
