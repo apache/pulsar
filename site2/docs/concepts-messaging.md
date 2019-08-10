@@ -152,7 +152,7 @@ A subscription is a named configuration rule that determines how messages are de
 
 In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.
 
-In the diagram above, only **Consumer-A** is allowed to consume messages.
+In the diagram below, only **Consumer-A** is allowed to consume messages.
 
 > Exclusive mode is the default subscription mode.
 
@@ -164,7 +164,7 @@ In *failover* mode, multiple consumers can attach to the same subscription. The 
 
 When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.
 
-In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-1 disconnected.
+In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next in line to receive messages if **Consumer-B-0** disconnected.
 
 ![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
 
@@ -172,7 +172,7 @@ In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 wou
 
 In *shared* or *round robin* mode, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.
 
-In the diagram above, **Consumer-B-1** and **Consumer-B-2** are able to subscribe to the topic, but **Consumer-C-1** and others could as well.
+In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscribe to the topic, but **Consumer-C-3** and others could as well.
 
 > #### Limitations of shared mode
 > There are two important things to be aware of when using shared mode:
