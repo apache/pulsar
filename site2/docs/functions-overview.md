@@ -13,7 +13,7 @@ sidebar_label: Overview
 The following is an example of a Pulsar Function written in Java (using the [native interface](functions-api.md#java-native-functions)).
 
 ```java
-import java.util.function.Function;
+import java.util.Function;
 
 public class ExclamationFunction implements Function<String, String> {
     @Override
@@ -31,19 +31,19 @@ The following is an example of a Pulsar Function written in Go.
 
 ```
 import (
-    "fmt"
-    "context"
+	"fmt"
+	"context"
 
-    "github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func HandleRequest(ctx context.Context, in []byte) error {
-    fmt.Println(string(in) + "!")
-    return nil
+	fmt.Println(string(in) + "!")
+	return nil
 }
 
 func main() {
-    pf.Start(HandleRequest)
+	pf.Start(HandleRequest)
 }
 ```
 
@@ -71,7 +71,7 @@ Pulsar Functions can be described as
 
 ## Programming model
 
-The core programming model of Pulsar Functions is simple. Functions receive messages from one or more **input [topics](reference-terminology.md#topic)**. Each time a message is received, the function will complete the following tasks.
+The core programming model of Pulsar Functions is simple. Functions receive messages from one or more **input [topics](reference-terminology.md#topic)**. Each time a message is received, the function will complete the following tasks.   
 
   * Apply some processing logic to the input and write output to:
     * An **output topic** in Pulsar
@@ -233,7 +233,7 @@ Each Pulsar Function created using [Pulsar Functions SDK](#the-pulsar-functions-
 
 The benefit of native functions is that they do not have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they do not provide access to the function [context](#function-context), which is necessary for a variety of functionalities, including [logging](#logging), [user configuration](#user-configuration), and more.
 
-## Pulsar Functions SDK
+## Pulsar Functions SDK   
 To enable a Pulsar Function to access to a [context object](#function-context), you can use **Pulsar Functions SDK**, available for [Java](functions-api.md#functions-for-java), [Python](functions-api.md#functions-for-python), and [Go](functions-api.md#functions-for-go).
 
 ### Java
@@ -277,24 +277,24 @@ The following is a Go function example that uses information about its context.
 
 ```
 import (
-    "context"
-    "fmt"
+	"context"
+	"fmt"
 
     "github.com/apache/pulsar/pulsar-function-go/log"
-    "github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func contextFunc(ctx context.Context) {
-    if fc, ok := pf.FromContext(ctx); ok {
-        tenant := fc.GetFuncTenant()
-        namespace := fc.GetFuncNamespace()
-        name := fc.GetFuncName()
-        log.Info("Function tenant/namespace/name: %s/%s/%s\n", tenant, namespace, name)
-    }
+	if fc, ok := pf.FromContext(ctx); ok {
+		tenant := fc.GetFuncTenant()
+		namespace := fc.GetFuncNamespace()
+		name := fc.GetFuncName()
+		log.Info("Function tenant/namespace/name: %s/%s/%s\n", tenant, namespace, name)
+	}
 }
 
 func main() {
-    pf.Start(contextFunc)
+	pf.Start(contextFunc)
 }
 
 ```
@@ -410,22 +410,22 @@ The following is an example of [Go function](functions-api.md#go-logging) that l
 
 ```
 import (
-    "context"
+	"context"
 
-    "github.com/apache/pulsar/pulsar-function-go/log"
-    "github.com/apache/pulsar/pulsar-function-go/pf"
+	"github.com/apache/pulsar/pulsar-function-go/log"
+	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func loggerFunc(ctx context.Context, input []byte) {
-    if len(input) <= 100 {
-        log.Infof("This input has a length of: %d", len(input))
-    } else {
-        log.Warnf("This input is getting too long! It has {%d} characters", len(input))
-    }
+	if len(input) <= 100 {
+		log.Infof("This input has a length of: %d", len(input))
+	} else {
+		log.Warnf("This input is getting too long! It has {%d} characters", len(input))
+	}
 }
 
 func main() {
-    pf.Start(loggerFunc)
+	pf.Start(loggerFunc)
 }
 ```
 
@@ -461,7 +461,7 @@ public class ConfigMapFunction implements Function<String, Void> {
 
 You can [trigger](functions-deploying.md#triggering-pulsar-functions) a Pulsar Function running in the [cluster mode](#cluster-mode) with the [command line](#command-line-interface). When triggering a Pulsar Function, you can pass a specific value to the Function and get the return value *without* creating a client. Triggering is useful for, but not limited to, testing and debugging purposes.
 
-> Note
+> Note   
 > Triggering a function is no different from invoking a function by producing a message on one of the function input topics. The [`pulsar-admin functions trigger`](reference-pulsar-admin.md#trigger) command is a convenient mechanism for sending messages to functions without using the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
 
 The following is an example of Pulsar Functions written in Python (using the [native interface](functions-api.md#python-native-functions)) that simply reverses string inputs.
@@ -483,7 +483,7 @@ $ bin/pulsar-admin functions trigger \
 
 And then `welcome to Pulsar Functions` is displayed in the console output.
 
-> Note
+> Note   
 > Instead of passing a string via the CLI, you can trigger Pulsar Functions with the contents of a file using the `--triggerFile` flag.
 
 ## Processing guarantees

@@ -205,11 +205,11 @@ public interface Function<I, O> {
 Here's an example function that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:
 
 ```java
-import java.util.function.Function;
+import java.util.Function;
 
 public class ExclamationFunction implements Function<String, String> {
     @Override
-    public String apply(String input) {
+    public String process(String input) {
         return String.format("%s!", input);
     }
 }
