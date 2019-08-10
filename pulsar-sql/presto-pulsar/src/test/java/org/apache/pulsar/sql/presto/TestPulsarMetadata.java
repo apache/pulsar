@@ -45,6 +45,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.StandardErrorCode.NOT_FOUND;
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -104,7 +105,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     public void testGetTableMetadata(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         List<TopicName> allTopics = new LinkedList<>();
-        allTopics.addAll(topicNames);
+        allTopics.addAll(topicNames.stream().filter(topicName -> !topicName.equals(NON_SCHEMA_TOPIC)).collect(Collectors.toList()));
         allTopics.addAll(partitionedTopicNames);
 
         for (TopicName topic : allTopics) {
@@ -120,7 +121,6 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
             assertEquals(tableMetadata.getTable().getSchemaName(), topic.getNamespace());
             assertEquals(tableMetadata.getTable().getTableName(), topic.getLocalName());
-
             assertEquals(tableMetadata.getColumns().size(),
                     fooColumnHandles.size());
 
@@ -200,7 +200,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
         ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
                 pulsarTableHandle);
-        assertEquals(tableMetadata.getColumns().size(), 0);
+        assertEquals(tableMetadata.getColumns().size(), PulsarInternalColumn.getInternalFields().size() + 1);
     }
 
     @Test(dataProvider = "rewriteNamespaceDelimiter")
