@@ -262,14 +262,20 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         assertTrue(this.pulsarMetadata.listTables(mock(ConnectorSession.class), "wrong-tenant/wrong-ns")
                 .isEmpty());
 
-        SchemaTableName[] expectedTopics1 = {new SchemaTableName(TOPIC_4.getNamespace(), TOPIC_4.getLocalName())};
+        SchemaTableName[] expectedTopics1 = {new SchemaTableName(
+            TOPIC_4.getNamespace(), TOPIC_4.getLocalName()),
+            new SchemaTableName(PARTITIONED_TOPIC_4.getNamespace(), PARTITIONED_TOPIC_4.getLocalName())
+        };
         assertEquals(this.pulsarMetadata.listTables(mock(ConnectorSession.class),
                 NAMESPACE_NAME_3.toString()), Arrays.asList(expectedTopics1));
 
         SchemaTableName[] expectedTopics2 = {new SchemaTableName(TOPIC_5.getNamespace(), TOPIC_5.getLocalName()),
-                new SchemaTableName(TOPIC_6.getNamespace(), TOPIC_6.getLocalName())};
+                new SchemaTableName(TOPIC_6.getNamespace(), TOPIC_6.getLocalName()),
+            new SchemaTableName(PARTITIONED_TOPIC_5.getNamespace(), PARTITIONED_TOPIC_5.getLocalName()),
+            new SchemaTableName(PARTITIONED_TOPIC_6.getNamespace(), PARTITIONED_TOPIC_6.getLocalName()),
+        };
         assertEquals(new HashSet<>(this.pulsarMetadata.listTables(mock(ConnectorSession.class),
-                NAMESPACE_NAME_4.toString())), new HashSet<>(Arrays.asList(expectedTopics2)));
+            NAMESPACE_NAME_4.toString())), new HashSet<>(Arrays.asList(expectedTopics2)));
     }
 
     @Test(dataProvider = "rewriteNamespaceDelimiter")
@@ -315,7 +321,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
                 = this.pulsarMetadata.listTableColumns(mock(ConnectorSession.class),
                 new SchemaTablePrefix(TOPIC_1.getNamespace()));
 
-        assertEquals(tableColumnsMap.size(), 2);
+        assertEquals(tableColumnsMap.size(), 4);
         List<ColumnMetadata> columnMetadataList
                 = tableColumnsMap.get(new SchemaTableName(TOPIC_1.getNamespace(), TOPIC_1.getLocalName()));
         assertNotNull(columnMetadataList);
