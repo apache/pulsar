@@ -23,6 +23,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 
 import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.IntegerType;
 import com.facebook.presto.spi.type.TimestampType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
@@ -39,6 +40,21 @@ import org.apache.pulsar.common.api.raw.RawMessage;
  * This abstract class represents internal columns.
  */
 public abstract class PulsarInternalColumn {
+
+    /**
+     * Internal column representing the partition.
+     */
+    public static class PartitionColumn extends PulsarInternalColumn {
+
+        PartitionColumn(String name, Type type, String comment) {
+            super(name, type, comment);
+        }
+
+        @Override
+        public Object getData(RawMessage message) {
+            return null;
+        }
+    }
 
     /**
      * Internal column representing the event time.
@@ -151,6 +167,9 @@ public abstract class PulsarInternalColumn {
         }
     }
 
+    public static final PartitionColumn PARTITION = new PartitionColumn("__partition__", IntegerType.INTEGER,
+        "The partition number which the message belongs to");
+
     public static final PulsarInternalColumn EVENT_TIME = new EventTimeColumn("__event_time__", TimestampType
             .TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
 
@@ -207,7 +226,8 @@ public abstract class PulsarInternalColumn {
     }
 
     public static Set<PulsarInternalColumn> getInternalFields() {
-        return ImmutableSet.of(EVENT_TIME, PUBLISH_TIME, MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES);
+        return ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME, MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY,
+            PROPERTIES);
     }
 
     public static Map<String, PulsarInternalColumn> getInternalFieldsMap() {
