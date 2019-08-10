@@ -189,8 +189,11 @@ public class PulsarMetadata implements ConnectorMetadata {
                             + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
                 }
                 if (pulsarTopicList != null) {
-                    pulsarTopicList.forEach(topic -> builder.add(
-                            new SchemaTableName(schemaNameOrNull, TopicName.get(topic).getLocalName())));
+                    pulsarTopicList.stream()
+                        .map(topic -> TopicName.get(topic).getPartitionedTopicName())
+                        .distinct()
+                        .forEach(topic -> builder.add(new SchemaTableName(schemaNameOrNull,
+                            TopicName.get(topic).getLocalName())));
                 }
             }
         }
