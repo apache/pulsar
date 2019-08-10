@@ -130,6 +130,8 @@ public abstract class TestPulsarConnector {
     protected static final TopicName TOPIC_4 = TopicName.get("persistent", NAMESPACE_NAME_3, "topic-1");
     protected static final TopicName TOPIC_5 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-1");
     protected static final TopicName TOPIC_6 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-2");
+    protected static final TopicName NON_SCHEMA_TOPIC = TopicName.get(
+        "persistent", NAMESPACE_NAME_2, "non-schema-topic");
 
 
     protected static final TopicName PARTITIONED_TOPIC_1 = TopicName.get("persistent", NAMESPACE_NAME_1,
@@ -209,6 +211,7 @@ public abstract class TestPulsarConnector {
             topicNames.add(TOPIC_4);
             topicNames.add(TOPIC_5);
             topicNames.add(TOPIC_6);
+            topicNames.add(NON_SCHEMA_TOPIC);
 
             partitionedTopicNames = new LinkedList<>();
             partitionedTopicNames.add(PARTITIONED_TOPIC_1);
@@ -274,6 +277,7 @@ public abstract class TestPulsarConnector {
             topicsToNumEntries.put(TOPIC_5.getSchemaName(), 8000L);
             topicsToNumEntries.put(TOPIC_6.getSchemaName(), 1L);
 
+            topicsToNumEntries.put(NON_SCHEMA_TOPIC.getSchemaName(), 8000L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_1.getSchemaName(), 1233L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_2.getSchemaName(), 8000L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_3.getSchemaName(), 100L);
@@ -550,13 +554,15 @@ public abstract class TestPulsarConnector {
             allTopics.addAll(partitionedTopicNames);
 
             for (TopicName topicName : allTopics) {
-                splits.put(topicName, new PulsarSplit(0, pulsarConnectorId.toString(),
+                if (topicsToSchemas.containsKey(topicName.getSchemaName())) {
+                    splits.put(topicName, new PulsarSplit(0, pulsarConnectorId.toString(),
                         topicName.getNamespace(), topicName.getLocalName(),
                         topicsToNumEntries.get(topicName.getSchemaName()),
                         new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()),
                         topicsToSchemas.get(topicName.getSchemaName()).getType(),
                         0, topicsToNumEntries.get(topicName.getSchemaName()),
                         0, 0, TupleDomain.all(), new HashMap<>()));
+                }
             }
 
             fooFunctions = new HashMap<>();
@@ -742,7 +748,11 @@ public abstract class TestPulsarConnector {
             public SchemaInfo answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Object[] args = invocationOnMock.getArguments();
                 String topic = (String) args[0];
-                return topicsToSchemas.get(topic);
+                if (topicsToSchemas.get(topic) != null) {
+                    return topicsToSchemas.get(topic);
+                } else {
+                    throw new PulsarAdminException(new ClientErrorException(Response.status(404).build()));
+                }
             }
         });
 

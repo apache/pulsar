@@ -36,6 +36,7 @@ import org.testng.annotations.Test;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -51,6 +52,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNotNull;
 
 @Test(singleThreaded = true)
 public class TestPulsarSplitManager extends TestPulsarConnector {
@@ -73,7 +75,9 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter")
     public void testTopic(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        for (TopicName topicName : topicNames) {
+        List<TopicName> topics = new LinkedList<>();
+        topics.addAll(topicNames.stream().filter(topicName -> !topicName.equals(NON_SCHEMA_TOPIC)).collect(Collectors.toList()));
+        for (TopicName topicName : topics) {
             setup();
             log.info("!----- topic: %s -----!", topicName);
             PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(pulsarConnectorId.toString(),
@@ -378,5 +382,24 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
+    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    public void testGetSplitNonSchema(String delimiter) throws Exception {
+        updateRewriteNamespaceDelimiterIfNeeded(delimiter);
+        TopicName topicName = NON_SCHEMA_TOPIC;
+        setup();
+        log.info("!----- topic: %s -----!", topicName);
+        PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(pulsarConnectorId.toString(),
+            topicName.getNamespace(),
+            topicName.getLocalName(),
+            topicName.getLocalName());
 
+        Map<ColumnHandle, Domain> domainMap = new HashMap<>();
+        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(domainMap);
+
+        PulsarTableLayoutHandle pulsarTableLayoutHandle = new PulsarTableLayoutHandle(pulsarTableHandle, tupleDomain);
+        ConnectorSplitSource connectorSplitSource = this.pulsarSplitManager.getSplits(
+            mock(ConnectorTransactionHandle.class), mock(ConnectorSession.class),
+            pulsarTableLayoutHandle, null);
+        assertNotNull(connectorSplitSource);
+    }
 }
