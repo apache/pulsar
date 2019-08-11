@@ -153,8 +153,8 @@ class WordFilter(Function):
 
 Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
-* The [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface
-* The {@inject: javadoc:Function:/pulsar-functions/org/apache/pulsar/functions/api/Function} interface. This interface works much like the `java.util.Function` interface, but with the important difference that it provides a {@inject: javadoc:Context:/pulsar-functions/org/apache/pulsar/functions/api/Context} object that you can use in a [variety of ways](#context)
+* The [`java.util.function.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface
+* The {@inject: javadoc:Function:/pulsar-functions/org/apache/pulsar/functions/api/Function} interface. This interface works much like the `java.util.function.Function` interface, but with the important difference that it provides a {@inject: javadoc:Context:/pulsar-functions/org/apache/pulsar/functions/api/Context} object that you can use in a [variety of ways](#context)
 
 ### Get started
 
@@ -187,14 +187,14 @@ How you get started writing Pulsar Functions in Java depends on which API you're
 
 #### Packaging
 
-Whether you're writing Java Pulsar Functions using the [native](#java-native-functions) Java `java.util.Function` interface or using the [Java SDK](#java-sdk-functions), you'll need to package your function(s) as a "fat" JAR.
+Whether you're writing Java Pulsar Functions using the [native](#java-native-functions) Java `java.util.function.Function` interface or using the [Java SDK](#java-sdk-functions), you'll need to package your function(s) as a "fat" JAR.
 
 > #### Starter repo
 > If you'd like to get up and running quickly, you can use [this repo](https://github.com/streamlio/pulsar-functions-java-starter), which contains the necessary Maven configuration to build a fat JAR as well as some example functions.
 
 ### Java native functions
 
-If your function doesn't require access to its [context](#context), you can create a Pulsar Function by implementing the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
+If your function doesn't require access to its [context](#context), you can create a Pulsar Function by implementing the [`java.util.function.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
 
 ```java
 public interface Function<I, O> {
@@ -205,11 +205,11 @@ public interface Function<I, O> {
 Here's an example function that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:
 
 ```java
-import java.util.Function;
+import java.util.function.Function;
 
 public class ExclamationFunction implements Function<String, String> {
     @Override
-    public String process(String input) {
+    public String apply(String input) {
         return String.format("%s!", input);
     }
 }
