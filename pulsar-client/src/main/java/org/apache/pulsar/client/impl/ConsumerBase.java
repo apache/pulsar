@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -71,11 +72,19 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
     protected final BatchReceivePolicy batchReceivePolicy;
-    protected final ConcurrentLinkedQueue<OpBatchReceive<T>> pendingBatchReceives;
+    protected ConcurrentLinkedQueue<OpBatchReceive<T>> pendingBatchReceives;
     protected static final AtomicLongFieldUpdater<ConsumerBase> INCOMING_MESSAGES_SIZE_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ConsumerBase.class, "incomingMessagesSize");
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
+
+    protected final FastThreadLocal<MessagesImpl<T>> TL_MESSAGES = new FastThreadLocal<MessagesImpl<T>>() {
+        @Override
+        protected MessagesImpl<T> initialValue() {
+            return new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
+                batchReceivePolicy.getMaxNumBytes());
+        }
+    };
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
@@ -96,7 +105,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         this.schema = schema;
         this.interceptors = interceptors;
         this.batchReceivePolicy = conf.getBatchReceivePolicy();
-        this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
         if (batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
@@ -108,10 +116,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
             throw new PulsarClientException.InvalidConfigurationException(
                     "Cannot use receive() when a listener has been set");
         }
-        PulsarClientException exception = verifyConsumerState();
-        if (exception != null) {
-            throw exception;
-        }
+        verifyConsumerState();
         return internalReceive();
     }
 
@@ -121,9 +126,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use receive() when a listener has been set"));
         }
-        PulsarClientException exception = verifyConsumerState();
-        if (exception != null) {
-            return FutureUtil.failedFuture(exception);
+        try {
+            verifyConsumerState();
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
         }
         return internalReceiveAsync();
     }
@@ -143,10 +149,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
                     "Cannot use receive() when a listener has been set");
         }
 
-        PulsarClientException exception = verifyConsumerState();
-        if (exception != null) {
-            throw exception;
-        }
+        verifyConsumerState();
         return internalReceive(timeout, unit);
     }
 
@@ -154,36 +157,20 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
 
     @Override
     public Messages<T> batchReceive() throws PulsarClientException {
-        if (listener != null) {
-            throw new PulsarClientException.InvalidConfigurationException(
-                    "Cannot use receive() when a listener has been set");
-        }
-        if (conf.getReceiverQueueSize() == 0) {
-            throw new PulsarClientException.InvalidConfigurationException(
-                    "Can't use batch receive, if the queue size is 0");
-        }
-        PulsarClientException exception = verifyConsumerState();
-        if (exception != null) {
-            throw exception;
-        }
+        verifyBatchReceive();
+        verifyConsumerState();
         return internalBatchReceive();
     }
 
     @Override
     public CompletableFuture<Messages<T>> batchReceiveAsync() {
-        if (listener != null) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                    "Cannot use receive() when a listener has been set"));
+        try {
+            verifyBatchReceive();
+            verifyConsumerState();
+            return internalBatchReceiveAsync();
+        } catch (PulsarClientException e) {
+            return FutureUtil.failedFuture(e);
         }
-        if (conf.getReceiverQueueSize() == 0) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                    "Can't use batch receive, if the queue size is 0"));
-        }
-        PulsarClientException exception = verifyConsumerState();
-        if (exception != null) {
-            return FutureUtil.failedFuture(exception);
-        }
-        return internalBatchReceiveAsync();
     }
 
     abstract protected Messages<T> internalBatchReceive() throws PulsarClientException;
@@ -489,23 +476,33 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
                 || (batchReceivePolicy.getMaxNumBytes() > 0 && INCOMING_MESSAGES_SIZE_UPDATER.get(this) >= batchReceivePolicy.getMaxNumBytes());
     }
 
-    private PulsarClientException verifyConsumerState() {
+    private void verifyConsumerState() throws PulsarClientException {
         switch (getState()) {
             case Ready:
             case Connecting:
                 break; // Ok
             case Closing:
             case Closed:
-                return new PulsarClientException.AlreadyClosedException("Consumer already closed");
+                throw  new PulsarClientException.AlreadyClosedException("Consumer already closed");
             case Terminated:
-                return new PulsarClientException.AlreadyClosedException("Topic was terminated");
+                throw new PulsarClientException.AlreadyClosedException("Topic was terminated");
             case Failed:
             case Uninitialized:
-                return new PulsarClientException.NotConnectedException();
+                throw new PulsarClientException.NotConnectedException();
             default:
                 break;
         }
-        return null;
+    }
+
+    private void verifyBatchReceive() throws PulsarClientException {
+        if (listener != null) {
+            throw new PulsarClientException.InvalidConfigurationException(
+                "Cannot use receive() when a listener has been set");
+        }
+        if (conf.getReceiverQueueSize() == 0) {
+            throw new PulsarClientException.InvalidConfigurationException(
+                "Can't use batch receive, if the queue size is 0");
+        }
     }
 
     protected static final class OpBatchReceive<T> {
@@ -536,7 +533,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
             if (getState() == State.Closing || getState() == State.Closed) {
                 return;
             }
-
+            if (pendingBatchReceives == null) {
+                pendingBatchReceives = Queues.newConcurrentLinkedQueue();
+            }
             OpBatchReceive<T> firstOpBatchReceive = pendingBatchReceives.peek();
             timeToWaitMs = batchReceivePolicy.getTimeoutMs();
 
@@ -558,6 +557,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
             }
             batchReceiveTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
         }
+    }
+
+    protected MessagesImpl<T> getReUseableMessagesImpl() {
+        MessagesImpl<T> messages = TL_MESSAGES.get();
+        messages.clear();
+        return messages;
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);

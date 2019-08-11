@@ -19,14 +19,15 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.base.Preconditions;
+import net.jcip.annotations.NotThreadSafe;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+@NotThreadSafe
 public class MessagesImpl<T> implements Messages<T> {
 
     private List<Message<T>> messageList;
@@ -62,17 +63,18 @@ public class MessagesImpl<T> implements Messages<T> {
     }
 
     @Override
-    public List<Message<T>> getMessageList() {
-        return messageList == null ? Collections.emptyList() : Collections.unmodifiableList(messageList);
+    public int size() {
+        return messageList.size();
     }
 
-    @Override
-    public int size() {
-        return getMessageList().size();
+    public void clear() {
+        this.currentNumberOfMessages = 0;
+        this.currentSizeOfMessages = 0;
+        this.messageList.clear();
     }
 
     @Override
     public Iterator<Message<T>> iterator() {
-        return  getMessageList().iterator();
+        return  messageList.iterator();
     }
 }

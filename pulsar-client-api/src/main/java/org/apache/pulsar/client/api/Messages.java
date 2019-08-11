@@ -18,18 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.List;
-
 /**
  * A container that holds the list {@link Message} for a topic.
  * @param <T>
  */
 public interface Messages<T> extends Iterable<Message<T>> {
-
-    /**
-     * Get the list {@link Message}
-     */
-    List<Message<T>> getMessageList();
 
     /**
      * Get number of messages.

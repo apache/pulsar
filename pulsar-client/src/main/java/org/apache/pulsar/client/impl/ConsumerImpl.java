@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
+import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 
@@ -374,7 +375,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } catch (InterruptedException | ExecutionException e) {
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
-                stats.incrementNumReceiveFailed();
+                stats.incrementNumBatchReceiveFailed();
                 throw PulsarClientException.unwrap(e);
             } else {
                 return null;
@@ -387,12 +388,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompletableFuture<Messages<T>> result = new CompletableFuture<>();
         try {
             lock.writeLock().lock();
+            if (pendingBatchReceives == null) {
+                pendingBatchReceives = Queues.newConcurrentLinkedQueue();
+            }
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
-                        batchReceivePolicy.getMaxNumBytes());
+                MessagesImpl<T> messages = getReUseableMessagesImpl();
                 Message<T> msgPeeked = incomingMessages.peek();
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-                    Message<T> msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
+                    Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         messageProcessed(msg);
                         Message<T> interceptMsg = beforeConsume(msg);
@@ -404,9 +407,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 pendingBatchReceives.add(OpBatchReceive.of(result));
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            result.completeExceptionally(e);
         } finally {
             lock.writeLock().unlock();
         }

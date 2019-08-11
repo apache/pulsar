@@ -25,6 +25,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Lists;
+
+import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
@@ -38,6 +40,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,7 +48,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Consumer;
@@ -402,7 +404,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         } catch (InterruptedException | ExecutionException e) {
             State state = getState();
             if (state != State.Closing && state != State.Closed) {
-                stats.incrementNumReceiveFailed();
+                stats.incrementNumBatchReceiveFailed();
                 throw PulsarClientException.unwrap(e);
             } else {
                 return null;
@@ -415,12 +417,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Messages<T>> result = new CompletableFuture<>();
         try {
             lock.writeLock().lock();
+            if (pendingBatchReceives == null) {
+                pendingBatchReceives = Queues.newConcurrentLinkedQueue();
+            }
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
-                        batchReceivePolicy.getMaxNumBytes());
+                MessagesImpl<T> messages = getReUseableMessagesImpl();
                 Message<T> msgPeeked = incomingMessages.peek();
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-                    Message<T> msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
+                    Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
                         Message<T> interceptMsg = beforeConsume(msg);
@@ -432,9 +436,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 pendingBatchReceives.add(OpBatchReceive.of(result));
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            result.completeExceptionally(e);
         } finally {
             lock.writeLock().unlock();
         }

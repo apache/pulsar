@@ -53,9 +53,9 @@ public class BatchReceivePolicy {
      * Timeout: 100ms
      */
     public static final BatchReceivePolicy DEFAULT_POLICY = new BatchReceivePolicy(
-            100, 1024 * 1024 * 10, 100, TimeUnit.MILLISECONDS);
+            -1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS);
 
-    private BatchReceivePolicy(int maxNumMessages, long maxNumBytes, int timeout, TimeUnit timeoutUnit) {
+    private BatchReceivePolicy(int maxNumMessages, int maxNumBytes, int timeout, TimeUnit timeoutUnit) {
         this.maxNumMessages = maxNumMessages;
         this.maxNumBytes = maxNumBytes;
         this.timeout = timeout;
@@ -65,18 +65,18 @@ public class BatchReceivePolicy {
     /**
      * Max number of messages for a single batch receive, 0 or negative means no limit.
      */
-    private int maxNumMessages;
+    private final int maxNumMessages;
 
     /**
      * Max bytes of messages for a single batch receive, 0 or negative means no limit.
      */
-    private long maxNumBytes;
+    private final int maxNumBytes;
 
     /**
      * timeout for waiting for enough messages(enough number or enough bytes).
      */
-    private int timeout;
-    private TimeUnit timeoutUnit;
+    private final int timeout;
+    private final TimeUnit timeoutUnit;
 
     public void verify() {
         if (maxNumMessages <= 0 && maxNumBytes <= 0 && timeout <= 0) {
@@ -100,26 +100,10 @@ public class BatchReceivePolicy {
         return maxNumBytes;
     }
 
-    public BatchReceivePolicy setMaxNumMessages(int maxNumMessages) {
-        this.maxNumMessages = maxNumMessages;
-        return this;
-    }
-
-    public BatchReceivePolicy setMaxNumBytes(long maxNumBytes) {
-        this.maxNumBytes = maxNumBytes;
-        return this;
-    }
-
-    private BatchReceivePolicy setTimeout(int timeout, TimeUnit timeoutUnit) {
-        this.timeout = timeout;
-        this.timeoutUnit = timeoutUnit;
-        return this;
-    }
-
     public static class Builder {
 
         private int maxNumMessages;
-        private long maxNumBytes;
+        private int maxNumBytes;
         private int timeout;
         private TimeUnit timeoutUnit;
 
@@ -128,7 +112,7 @@ public class BatchReceivePolicy {
             return this;
         }
 
-        public Builder maxNumBytes(long maxNumBytes) {
+        public Builder maxNumBytes(int maxNumBytes) {
             this.maxNumBytes = maxNumBytes;
             return this;
         }

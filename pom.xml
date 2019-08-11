@@ -202,7 +202,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.1.3</snappy.version>
     <hbase.version>1.4.9</hbase.version>
     <guava.version>25.1-jre</guava.version>
-    
+    <jcip.version>1.0</jcip.version>
+
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
@@ -1094,6 +1095,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.javassist</groupId>
         <artifactId>javassist</artifactId>
         <version>${javassist.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>net.jcip</groupId>
+        <artifactId>jcip-annotations</artifactId>
+        <version>${jcip.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
