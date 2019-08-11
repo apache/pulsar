@@ -195,9 +195,9 @@
 <h2><a class="anchor" aria-hidden="true" id="functions-for-java"></a><a href="#functions-for-java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Functions for Java</h2>
 <p>Writing Pulsar Functions in Java involves implementing one of two interfaces:</p>
 <ul>
-<li>The <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code>java.util.Function</code></a> interface</li>
+<li>The <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code>java.util.function.Function</code></a> interface</li>
 <li>The <a href="https://pulsar.incubator.apache.org/api/pulsar-functions/org/apache/pulsar/functions/api/Function">Function</a>
- interface. This interface works much like the <code>java.util.Function</code> interface, but with the important difference that it provides a <a href="https://pulsar.incubator.apache.org/api/pulsar-functions/org/apache/pulsar/functions/api/Context">Context</a>
+ interface. This interface works much like the <code>java.util.function.Function</code> interface, but with the important difference that it provides a <a href="https://pulsar.incubator.apache.org/api/pulsar-functions/org/apache/pulsar/functions/api/Context">Context</a>
  object that you can use in a <a href="#context">variety of ways</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="get-started"></a><a href="#get-started" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Get started</h3>
@@ -221,23 +221,23 @@
 </code></pre></li>
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="packaging"></a><a href="#packaging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Packaging</h4>
-<p>Whether you're writing Java Pulsar Functions using the <a href="#java-native-functions">native</a> Java <code>java.util.Function</code> interface or using the <a href="#java-sdk-functions">Java SDK</a>, you'll need to package your function(s) as a &quot;fat&quot; JAR.</p>
+<p>Whether you're writing Java Pulsar Functions using the <a href="#java-native-functions">native</a> Java <code>java.util.function.Function</code> interface or using the <a href="#java-sdk-functions">Java SDK</a>, you'll need to package your function(s) as a &quot;fat&quot; JAR.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="starter-repo"></a><a href="#starter-repo" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Starter repo</h4>
 <p>If you'd like to get up and running quickly, you can use <a href="https://github.com/streamlio/pulsar-functions-java-starter">this repo</a>, which contains the necessary Maven configuration to build a fat JAR as well as some example functions.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="java-native-functions"></a><a href="#java-native-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java native functions</h3>
-<p>If your function doesn't require access to its <a href="#context">context</a>, you can create a Pulsar Function by implementing the <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code>java.util.Function</code></a> interface, which has this very simple, single-method signature:</p>
+<p>If your function doesn't require access to its <a href="#context">context</a>, you can create a Pulsar Function by implementing the <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code>java.util.function.Function</code></a> interface, which has this very simple, single-method signature:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">interface</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">I</span>, <span class="hljs-title">O</span>&gt; </span>{
     <span class="hljs-function">O <span class="hljs-title">apply</span><span class="hljs-params">(I input)</span></span>;
 }
 </code></pre>
 <p>Here's an example function that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:</p>
-<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Function;
+<pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.function.Function;
 
 <span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
-    <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">process</span><span class="hljs-params">(String input)</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">apply</span><span class="hljs-params">(String input)</span> </span>{
         <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input);
     }
 }

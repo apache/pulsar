@@ -57,13 +57,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         } ],
@@ -94,19 +94,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         } ],
@@ -124,7 +124,7 @@
             "description" : "The requester doesn't have admin permissions"
           },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "The Pulsar Function doesn't exist"
           },
           "408" : {
             "description" : "Request timeout"
@@ -141,25 +141,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The functions tenant",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The functions namespace",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The functions name",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "A JSON value presenting functions configuration payload. An example of the expected functions can be found here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (specified as a JSON object).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (specified as a JSON object).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [input] and [topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in customSerdeInputs (supported for java fun only)  \nuserConfig  \n  A map of user-defined configurations (specified as a JSON object).  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+          "description" : "A JSON value presenting configuration payload of a Pulsar Function. An example of the expected Pulsar Function can be found here.  \n- **autoAck**  \n  Whether or not the framework acknowledges messages automatically.  \n- **runtime**  \n  What is the runtime of the Pulsar Function. Possible Values: [JAVA, PYTHON, GO]  \n- **resources**  \n  The size of the system resources allowed by the Pulsar Function runtime. The resources include: cpu, ram, disk.  \n- **className**  \n  The class name of a Pulsar Function.  \n- **customSchemaInputs**  \n  The map of input topics to Schema class names (specified as a JSON object).  \n- **customSerdeInputs**  \n  The map of input topics to SerDe class names (specified as a JSON object).  \n- **deadLetterTopic**  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \n- **runtimeFlags**  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \n- **fqfn**  \n  The Fully Qualified Function Name (FQFN) for the Pulsar Function.  \n- **inputSpecs**  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n- **inputs**  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function.  \n- **jar**  \n  Path to the JAR file for the Pulsar Function (if the Pulsar Function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \n- **py**  \n  Path to the main Python file or Python wheel file for the Pulsar Function (if the Pulsar Function is written in Python).  \n- **go**  \n  Path to the main Go executable binary for the Pulsar Function (if the Pulsar Function is written in Go).  \n- **logTopic**  \n  The topic to which the logs of a Pulsar Function are produced.  \n- **maxMessageRetries**  \n  How many times should we try to process a message before giving up.  \n- **output**  \n  The output topic of a Pulsar Function (If none is specified, no output is written).  \n- **outputSerdeClassName**  \n  The SerDe class to be used for messages output by the Pulsar Function.  \n- **parallelism**  \n  The parallelism factor of a Pulsar Function (i.e. the number of a Pulsar Function instances to run).  \n- **processingGuarantees**  \n  The processing guarantees (that is, delivery semantics) applied to the Pulsar Function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n- **retainOrdering**  \n  Function consumes and processes messages in order.  \n- **outputSchemaType**  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.- **subName**  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \n- **windowConfig**  \n  The window configuration of a Pulsar Function.  \n- **timeoutMs**  \n  The message timeout in milliseconds.  \n- **topicsPattern**  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [input] and [topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in customSerdeInputs (supported for java fun only)  \n- **userConfig**  \n  A map of user-defined configurations (specified as a JSON object).  \n- **secrets**  \n  This is a map of secretName(that is how the secret is going to be accessed in the Pulsar Function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \n- **cleanupSubscription**  \n  Whether the subscriptions of a Pulsar Function created or used should be deleted when the Pulsar Function is deleted.  \n",
           "required" : false,
           "schema" : {
             "$ref" : "#/definitions/FunctionConfig"
@@ -173,7 +173,7 @@
             "description" : "Pulsar Function successfully created"
           },
           "400" : {
-            "description" : "Invalid request (function already exists, etc.)"
+            "description" : "Invalid request (The Pulsar Function already exists, etc.)"
           },
           "403" : {
             "description" : "The requester doesn't have admin permissions"
@@ -193,25 +193,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \nautoAck  \n  Whether or not the framework will automatically acknowledge messages.  \nruntime  \n  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \nresources  \n  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \nclassName  \n  The class name of functions.  \ncustomSchemaInputs  \n  The map of input topics to Schema class names (specified as a JSON object).  \ncustomSerdeInputs  \n  The map of input topics to SerDe class names (specified as a JSON object).  \ndeadLetterTopic  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \nfqfn  \n  The Fully Qualified Function Name (FQFN) for the function.  \ninputSpecs  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \ninputs  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \njar  \n  Path to the JAR file for the function (if the function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \npy  \n  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \ngo  \n  Path to the main Go executable binary for the function (if the function is written in Go).  \nlogTopic  \n  The topic to which the functions logs are produced.  \nmaxMessageRetries  \n  How many times should we try to process a message before giving up.  \noutput  \n  The functions output topic (If none is specified, no output is written).  \noutputSerdeClassName  \n  The SerDe class to be used for messages output by the function.  \nparallelism  \n  The functions parallelism factor (i.e. the number of function instances to run).  \nprocessingGuarantees  \n  The processing guarantees (that is, delivery semantics) applied to the function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nretainOrdering  \n  Function consumes and processes messages in order.  \noutputSchemaType  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.subName  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \nwindowConfig  \n  The window functions configuration.  \ntimeoutMs  \n  The message timeout in milliseconds.  \ntopicsPattern  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [input] and [topicsPattern] are mutually exclusive. Add SerDe class name for a   pattern in customSerdeInputs (supported for java fun only)  \nuserConfig  \n  A map of user-defined configurations (specified as a JSON object).  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \ncleanupSubscription  \n  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+          "description" : "A JSON value presenting configuration payload of a Pulsar Function. An example of the expected Pulsar Function can be found here.  \n- **autoAck**  \n  Whether or not the framework acknowledges messages automatically.  \n- **runtime**  \n  What is the runtime of the Pulsar Function. Possible Values: [JAVA, PYTHON, GO]  \n- **resources**  \n  The size of the system resources allowed by the Pulsar Function runtime. The resources include: cpu, ram, disk.  \n- **className**  \n  The class name of a Pulsar Function.  \n- **customSchemaInputs**  \n  The map of input topics to Schema class names (specified as a JSON object).  \n- **customSerdeInputs**  \n  The map of input topics to SerDe class names (specified as a JSON object).  \n- **deadLetterTopic**  \n  Messages that are not processed successfully are sent to `deadLetterTopic`.  \n- **runtimeFlags**  \n  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \n- **fqfn**  \n  The Fully Qualified Function Name (FQFN) for the Pulsar Function.  \n- **inputSpecs**  \n   The map of input topics to its consumer configuration, each configuration has schema of    {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n- **inputs**  \n  The input topic or topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function.  \n- **jar**  \n  Path to the JAR file for the Pulsar Function (if the Pulsar Function is written in Java).   It also supports URL path [http/https/file (file protocol assumes that file   already exists on worker host)] from which worker can download the package.  \n- **py**  \n  Path to the main Python file or Python wheel file for the Pulsar Function (if the Pulsar Function is written in Python).  \n- **go**  \n  Path to the main Go executable binary for the Pulsar Function (if the Pulsar Function is written in Go).  \n- **logTopic**  \n  The topic to which the logs of a Pulsar Function are produced.  \n- **maxMessageRetries**  \n  How many times should we try to process a message before giving up.  \n- **output**  \n  The output topic of a Pulsar Function (If none is specified, no output is written).  \n- **outputSerdeClassName**  \n  The SerDe class to be used for messages output by the Pulsar Function.  \n- **parallelism**  \n  The parallelism factor of a Pulsar Function (i.e. the number of a Pulsar Function instances to run).  \n- **processingGuarantees**  \n  The processing guarantees (that is, delivery semantics) applied to the Pulsar Function.  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n- **retainOrdering**  \n  Function consumes and processes messages in order.  \n- **outputSchemaType**  \n   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation.- **subName**  \n  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \n- **windowConfig**  \n  The window configuration of a Pulsar Function.  \n- **timeoutMs**  \n  The message timeout in milliseconds.  \n- **topicsPattern**  \n  The topic pattern to consume from a list of topics under a namespace that match the pattern.  [input] and [topic-pattern] are mutually exclusive. Add SerDe class name for a   pattern in customSerdeInputs (supported for java fun only)  \n- **userConfig**  \n  A map of user-defined configurations (specified as a JSON object).  \n- **secrets**  \n  This is a map of secretName(that is how the secret is going to be accessed in the Pulsar Function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \n- **cleanupSubscription**  \n  Whether the subscriptions of a Pulsar Function created or used should be deleted when the Pulsar Function is deleted.  \n",
           "required" : false,
           "schema" : {
             "$ref" : "#/definitions/FunctionConfig"
@@ -233,7 +233,7 @@
             "description" : "Pulsar Function successfully updated"
           },
           "400" : {
-            "description" : "Invalid request (function doesn't exist, etc.)"
+            "description" : "Invalid request (The Pulsar Function doesn't exist, etc.)"
           },
           "403" : {
             "description" : "The requester doesn't have admin permissions"
@@ -250,25 +250,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         } ],
         "responses" : {
           "200" : {
-            "description" : "The function was successfully deleted"
+            "description" : "The Pulsar Function was successfully deleted"
           },
           "400" : {
             "description" : "Invalid request"
@@ -277,7 +277,7 @@
             "description" : "The requester doesn't have admin permissions"
           },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "The Pulsar Function doesn't exist"
           },
           "408" : {
             "description" : "Request timeout"
@@ -288,7 +288,7 @@
     "/functions/{tenant}/{namespace}/{functionName}/restart" : {
       "post" : {
         "tags" : [ "functions" ],
-        "summary" : "Restart all function instances",
+        "summary" : "Restart all instances of a Pulsar Function",
         "description" : "",
         "operationId" : "restartFunction",
         "consumes" : [ "application/json" ],
@@ -296,19 +296,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         } ],
@@ -317,7 +317,7 @@
             "description" : "Invalid request"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The Pulsar Function does not exist"
           },
           "500" : {
             "description" : "Internal server error"
@@ -328,7 +328,7 @@
     "/functions/{tenant}/{namespace}/{functionName}/start" : {
       "post" : {
         "tags" : [ "functions" ],
-        "summary" : "Start all function instances",
+        "summary" : "Start all instances of a Pulsar Function",
         "description" : "",
         "operationId" : "startFunction",
         "consumes" : [ "application/json" ],
@@ -336,19 +336,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         } ],
@@ -357,7 +357,7 @@
             "description" : "Invalid request"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The Pulsar Function does not exist"
           },
           "500" : {
             "description" : "Internal server error"
@@ -376,19 +376,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
@@ -455,7 +455,7 @@
             "description" : "The requester doesn't have admin permissions"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The Pulsar Function does not exist"
           },
           "500" : {
             "description" : "Internal server error"
@@ -474,19 +474,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         } ],
@@ -504,7 +504,7 @@
             "description" : "The requester doesn't have admin permissions"
           },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "The Pulsar Function doesn't exist"
           }
         }
       }
@@ -520,19 +520,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         } ],
@@ -550,7 +550,7 @@
             "description" : "The requester doesn't have admin permissions"
           },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "The Pulsar Function doesn't exist"
           }
         }
       }
@@ -558,7 +558,7 @@
     "/functions/{tenant}/{namespace}/{functionName}/stop" : {
       "post" : {
         "tags" : [ "functions" ],
-        "summary" : "Stop all function instances",
+        "summary" : "Stop all instances of a Pulsar Function",
         "description" : "",
         "operationId" : "stopFunction",
         "consumes" : [ "application/json" ],
@@ -566,19 +566,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         } ],
@@ -587,7 +587,7 @@
             "description" : "Invalid request"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The Pulsar Function does not exist"
           },
           "500" : {
             "description" : "Internal server error"
@@ -606,25 +606,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "The value with which you want to trigger the function",
+          "description" : "The value with which you want to trigger the Pulsar Function",
           "required" : false,
           "schema" : {
             "type" : "string"
@@ -632,7 +632,7 @@
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "The path to the file that contains the data with which you'd like to trigger the function",
+          "description" : "The path to the file that contains the data with which you'd like to trigger the Pulsar Function",
           "required" : false,
           "schema" : {
             "$ref" : "#/definitions/InputStream"
@@ -640,7 +640,7 @@
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "The specific topic name that the function consumes from which you want to inject the data to",
+          "description" : "The specific topic name that the Pulsar Function consumes from which you want to inject the data to",
           "required" : false,
           "schema" : {
             "type" : "string"
@@ -657,7 +657,7 @@
             "description" : "Invalid request"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The Pulsar Function does not exist"
           },
           "408" : {
             "description" : "Request timeout"
@@ -671,7 +671,7 @@
     "/functions/{tenant}/{namespace}/{functionName}/{instanceId}/restart" : {
       "post" : {
         "tags" : [ "functions" ],
-        "summary" : "Restart function instance",
+        "summary" : "Restart an instance of a Pulsar Function",
         "description" : "",
         "operationId" : "restartFunction",
         "consumes" : [ "application/json" ],
@@ -679,25 +679,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The function instanceId (if instance-id is not provided, all instances are restarted",
+          "description" : "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are restarted",
           "required" : true,
           "type" : "string"
         } ],
@@ -706,7 +706,7 @@
             "description" : "Invalid request"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The Pulsar Function does not exist"
           },
           "500" : {
             "description" : "Internal server error"
@@ -717,7 +717,7 @@
     "/functions/{tenant}/{namespace}/{functionName}/{instanceId}/start" : {
       "post" : {
         "tags" : [ "functions" ],
-        "summary" : "Start function instance",
+        "summary" : "Start an instance of a Pulsar Function",
         "description" : "",
         "operationId" : "startFunction",
         "consumes" : [ "application/json" ],
@@ -725,25 +725,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The function instanceId (if instance-id is not provided, all instances sre started. ",
+          "description" : "The instanceId of a Pulsar Function (if instance-id is not provided, all instances sre started. ",
           "required" : true,
           "type" : "string"
         } ],
@@ -752,7 +752,7 @@
             "description" : "Invalid request"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The Pulsar Function does not exist"
           },
           "500" : {
             "description" : "Internal server error"
@@ -771,25 +771,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The function instanceId (if instance-id is not provided, the stats of all instances is returned",
+          "description" : "The instanceId of a Pulsar Function (if instance-id is not provided, the stats of all instances is returned",
           "required" : true,
           "type" : "string"
         } ],
@@ -807,7 +807,7 @@
             "description" : "The requester doesn't have admin permissions"
           },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "The Pulsar Function doesn't exist"
           }
         }
       }
@@ -823,25 +823,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The function instanceId (if instance-id is not provided, the stats of all instances is returned",
+          "description" : "The instanceId of a Pulsar Function (if instance-id is not provided, the stats of all instances is returned",
           "required" : true,
           "type" : "string"
         } ],
@@ -859,7 +859,7 @@
             "description" : "The requester doesn't have admin permissions"
           },
           "404" : {
-            "description" : "The function doesn't exist"
+            "description" : "The Pulsar Function doesn't exist"
           }
         }
       }
@@ -867,7 +867,7 @@
     "/functions/{tenant}/{namespace}/{functionName}/{instanceId}/stop" : {
       "post" : {
         "tags" : [ "functions" ],
-        "summary" : "Stop function instance",
+        "summary" : "Stop an instance of a Pulsar Function",
         "description" : "",
         "operationId" : "stopFunction",
         "consumes" : [ "application/json" ],
@@ -875,25 +875,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The tenant of functions",
+          "description" : "The tenant of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The namespace of functions",
+          "description" : "The namespace of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "functionName",
           "in" : "path",
-          "description" : "The name of functions",
+          "description" : "The name of a Pulsar Function",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The function instanceId (if instance-id is not provided, all instances are stopped. ",
+          "description" : "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are stopped. ",
           "required" : true,
           "type" : "string"
         } ],
@@ -902,7 +902,7 @@
             "description" : "Invalid request"
           },
           "404" : {
-            "description" : "The function does not exist"
+            "description" : "The Pulsar Function does not exist"
           },
           "500" : {
             "description" : "Internal server error"
@@ -1348,18 +1348,15 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "schemaVersion" : {
+        "topicName" : {
+          "type" : "string"
+        },
+        "keyBytes" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "replicated" : {
-          "type" : "boolean"
         },
         "publishTime" : {
           "type" : "integer",
@@ -1369,23 +1366,9 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "topicName" : {
-          "type" : "string"
-        },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1397,11 +1380,28 @@
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
-        "replicatedFrom" : {
-          "type" : "string"
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "producerName" : {
           "type" : "string"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "replicated" : {
+          "type" : "boolean"
         },
         "data" : {
           "type" : "array",
