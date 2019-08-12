@@ -559,10 +559,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         }
     }
 
-    protected MessagesImpl<T> getReUseableMessagesImpl() {
+    protected MessagesImpl<T> getReuseableMessagesImpl() {
         MessagesImpl<T> messages = TL_MESSAGES.get();
         messages.clear();
         return messages;
+    }
+
+    protected boolean hasPendingBatchReceive() {
+        return pendingBatchReceives != null && !pendingBatchReceives.isEmpty();
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);

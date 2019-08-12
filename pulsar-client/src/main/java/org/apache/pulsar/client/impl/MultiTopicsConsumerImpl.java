@@ -280,7 +280,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 unAckedMessageTracker.add(topicMessage.getMessageId());
                 listenerExecutor.execute(() -> receivedFuture.complete(topicMessage));
             } else if (enqueueMessageAndCheckBatchReceive(topicMessage)) {
-                if (!pendingBatchReceives.isEmpty()) {
+                if (hasPendingBatchReceive()) {
                     notifyPendingBatchReceivedCallBack();
                 }
             }
@@ -421,7 +421,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 pendingBatchReceives = Queues.newConcurrentLinkedQueue();
             }
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getReUseableMessagesImpl();
+                MessagesImpl<T> messages = getReuseableMessagesImpl();
                 Message<T> msgPeeked = incomingMessages.peek();
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
                     Message<T> msg = incomingMessages.poll();

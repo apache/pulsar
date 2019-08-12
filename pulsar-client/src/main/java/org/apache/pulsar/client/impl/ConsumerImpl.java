@@ -392,7 +392,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 pendingBatchReceives = Queues.newConcurrentLinkedQueue();
             }
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getReUseableMessagesImpl();
+                MessagesImpl<T> messages = getReuseableMessagesImpl();
                 Message<T> msgPeeked = incomingMessages.peek();
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
                     Message<T> msg = incomingMessages.poll();
@@ -881,7 +881,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (!pendingReceives.isEmpty()) {
                     notifyPendingReceivedCallback(message, null);
                 } else if (enqueueMessageAndCheckBatchReceive(message)) {
-                    if (!pendingBatchReceives.isEmpty()) {
+                    if (hasPendingBatchReceive()) {
                         notifyPendingBatchReceivedCallBack();
                     }
                 }
@@ -1069,7 +1069,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     if (!pendingReceives.isEmpty()) {
                         notifyPendingReceivedCallback(message, null);
                     } else if (enqueueMessageAndCheckBatchReceive(message)) {
-                        if (!pendingBatchReceives.isEmpty()) {
+                        if (hasPendingBatchReceive()) {
                             notifyPendingBatchReceivedCallBack();
                         }
                     }
