@@ -116,7 +116,7 @@ public class TopicName implements ServiceUnitId {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else if (parts.length == 1) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
-                } else if (parts.length == 4) {
+                } else if (parts.length == 4 && completeTopicName.endsWith("/_txnlog")) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else {
                     throw new IllegalArgumentException(
