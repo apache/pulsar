@@ -1380,7 +1380,7 @@ public class ServerCnx extends PulsarHandler {
                     if (commandEndTxnOnPartition.getTxnAction().equals(PulsarApi.TxnAction.COMMIT)) {
                         markerController.publishCommitMarker().thenApply(position -> {
                                 PositionImpl commitPosition = (PositionImpl) position;
-                                partition.getTxnBuffer()
+                                partition.getTxnBuffer(false)
                                          .thenCompose(transactionBuffer ->
                                                           transactionBuffer
                                                               .commitTxn(txnID, commitPosition.getLedgerId(),
@@ -1393,7 +1393,7 @@ public class ServerCnx extends PulsarHandler {
                         });
                     } else if (commandEndTxnOnPartition.getTxnAction().equals(PulsarApi.TxnAction.ABORT)) {
                         markerController.publishAbortMarker()
-                                        .thenCompose(ignore -> partition.getTxnBuffer())
+                                        .thenCompose(ignore -> partition.getTxnBuffer(false))
                                         .thenCompose(buffer -> buffer.abortTxn(txnID))
                                         .exceptionally(err -> {
                                             ctx.writeAndFlush(

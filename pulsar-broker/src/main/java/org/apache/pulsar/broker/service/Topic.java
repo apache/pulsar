@@ -177,7 +177,7 @@ public interface Topic {
 
     CompletableFuture<Void> deleteForcefully();
 
-    CompletableFuture<TransactionBuffer> getTxnBuffer();
+    CompletableFuture<TransactionBuffer> getTxnBuffer(boolean createIfAbsent);
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();

@@ -203,9 +203,9 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<TransactionBuffer> getTxnBuffer() {
+    public CompletableFuture<TransactionBuffer> getTxnBuffer(boolean createIfAbsent) {
         CompletableFuture<TransactionBuffer> getBufferFuture = new CompletableFuture<>();
-        if (transactionBuffer == null) {
+        if (transactionBuffer == null && createIfAbsent) {
             try {
                 TransactionBufferProvider provider = getProvider();
                 provider.newTransactionBuffer().whenComplete((buffer, err) -> {
@@ -219,6 +219,8 @@ public abstract class AbstractTopic implements Topic {
             } catch (IOException e) {
                 return FutureUtil.failedFuture(e);
             }
+        } else {
+            getBufferFuture.completeExceptionally(new UnknownError("Transaction buffer not exist."))
         }
         return getBufferFuture;
     }
