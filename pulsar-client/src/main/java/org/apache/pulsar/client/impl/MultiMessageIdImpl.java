@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import lombok.Getter;
 import org.apache.pulsar.client.api.MessageId;
@@ -37,6 +38,8 @@ public class MultiMessageIdImpl implements MessageId {
         this.map = map;
     }
 
+    // TODO: Add support for Serialization and Deserialization
+    //  https://github.com/apache/pulsar/issues/4940
     @Override
     public byte[] toByteArray() {
         throw new NotImplementedException();
@@ -47,8 +50,62 @@ public class MultiMessageIdImpl implements MessageId {
         return Objects.hash(map);
     }
 
+    // If all messageId in map are same size, and all bigger/smaller than the other, return valid value.
     @Override
     public int compareTo(MessageId o) {
-        throw new NotImplementedException();
+        if (!(o instanceof MultiMessageIdImpl)) {
+            throw new IllegalArgumentException(
+                "expected MultiMessageIdImpl object. Got instance of " + o.getClass().getName());
+        }
+
+        MultiMessageIdImpl other = (MultiMessageIdImpl) o;
+        Map<String, MessageId> otherMap = other.getMap();
+
+        if ((map == null || map.isEmpty()) && (otherMap == null || otherMap.isEmpty())) {
+            return 0;
+        }
+
+        if (otherMap == null || map == null || otherMap.size() != map.size()) {
+            throw new IllegalArgumentException("Current size and other size not equals");
+        }
+
+        int result = 0;
+        for (Entry<String, MessageId> entry : map.entrySet()) {
+            MessageId otherMessage = otherMap.get(entry.getKey());
+            if (otherMessage == null) {
+                throw new IllegalArgumentException(
+                    "Other MessageId not have topic " + entry.getKey());
+            }
+
+            int currentResult = entry.getValue().compareTo(otherMessage);
+            if (result == 0) {
+                result = currentResult;
+            } else if (currentResult == 0) {
+                continue;
+            } else if (result != currentResult) {
+                throw new IllegalArgumentException(
+                    "Different MessageId in Map get different compare result");
+            } else {
+                continue;
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof MultiMessageIdImpl)) {
+            throw new IllegalArgumentException(
+                "expected MultiMessageIdImpl object. Got instance of " + obj.getClass().getName());
+        }
+
+        MultiMessageIdImpl other = (MultiMessageIdImpl) obj;
+
+        try {
+            return compareTo(other) == 0;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 }
