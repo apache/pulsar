@@ -17,30 +17,26 @@
  * under the License.
  */
 
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl.conf;
 
-import java.util.concurrent.CompletableFuture;
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * {@link TransactionBuilder} is used to configure and create instances of {@link Transaction}.
- *
- * @see PulsarClient
- */
-public interface TransactionBuilder extends Cloneable {
-    /**
-     * Finalize the creation of the {@link Transaction} instance.
-     *
-     * This method will block until the transaction is created successfully.
-     *
-     * @return the transaction instance
-     * @throws PulsarClientException
-     */
-    Transaction build() throws PulsarClientException;
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TransactionConfigurationData implements Serializable, Cloneable {
 
-    CompletableFuture<Transaction> buildAsync();
+    private static final long serialVersionUID = 1L;
 
-    TransactionBuilder withTransactionTimeout(int timeout, TimeUnit timeoutUnit);
+    private long ttl = 60000;
+    private String topic = "test";
 
-    TransactionBuilder clone();
+    public void setTransactionTimeout(int timeout, TimeUnit timeUnit) {
+        this.ttl = timeUnit.toMillis(timeout);
+    }
+
 }

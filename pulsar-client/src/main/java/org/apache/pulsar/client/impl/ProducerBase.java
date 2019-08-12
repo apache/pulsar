@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.Transaction;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -67,6 +68,11 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     @Override
     public TypedMessageBuilder<T> newMessage() {
         return new TypedMessageBuilderImpl<>(this, schema);
+    }
+
+    @Override
+    public TypedMessageBuilder<T> newMessage(Transaction transaction) {
+        return new TypedMessageBuilderImpl<>(this, schema, transaction);
     }
 
     abstract CompletableFuture<MessageId> internalSendAsync(Message<T> message);

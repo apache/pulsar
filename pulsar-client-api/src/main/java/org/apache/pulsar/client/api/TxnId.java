@@ -19,28 +19,11 @@
 
 package org.apache.pulsar.client.api;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+public interface TxnId {
 
-/**
- * {@link TransactionBuilder} is used to configure and create instances of {@link Transaction}.
- *
- * @see PulsarClient
- */
-public interface TransactionBuilder extends Cloneable {
-    /**
-     * Finalize the creation of the {@link Transaction} instance.
-     *
-     * This method will block until the transaction is created successfully.
-     *
-     * @return the transaction instance
-     * @throws PulsarClientException
-     */
-    Transaction build() throws PulsarClientException;
+    long getMostBits();
 
-    CompletableFuture<Transaction> buildAsync();
+    long getLeastBits();
 
-    TransactionBuilder withTransactionTimeout(int timeout, TimeUnit timeoutUnit);
-
-    TransactionBuilder clone();
+    String toString();
 }

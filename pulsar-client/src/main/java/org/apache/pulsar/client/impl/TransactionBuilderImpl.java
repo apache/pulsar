@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,24 +20,44 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Transaction;
 import org.apache.pulsar.client.api.TransactionBuilder;
+import org.apache.pulsar.client.impl.conf.TransactionConfigurationData;
 
 public class TransactionBuilderImpl implements TransactionBuilder {
 
-    @Override
-    public Transaction create() throws PulsarClientException {
-        return null;
+    private final PulsarClientImpl client;
+    private TransactionConfigurationData conf;
+
+    public TransactionBuilderImpl(PulsarClientImpl client, TransactionConfigurationData conf) {
+        this.client = client;
+        this.conf = conf;
     }
 
     @Override
-    public CompletableFuture<Transaction> createAsync() {
-        return null;
+    public Transaction build() throws PulsarClientException {
+        try {
+            return buildAsync().get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Transaction> buildAsync() {
+        return client.createTransactionAsync(conf);
+    }
+
+    @Override
+    public TransactionBuilder withTransactionTimeout(int timeout, TimeUnit timeoutUnit) {
+        conf.setTransactionTimeout(timeout, timeoutUnit);
+        return this;
     }
 
     @Override
     public TransactionBuilder clone() {
-        return null;
+        return new TransactionBuilderImpl(client, conf);
     }
 }

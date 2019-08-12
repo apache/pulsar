@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TxnId;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -340,6 +341,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         if (schemaVersion.isPresent()) {
             msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.get()));
+        }
+
+        if (msg.getTransaction().isPresent()) {
+            TxnId txnId = msg.getTransaction().get().getTxnId();
+            msgMetadataBuilder.setTxnidLeastBits(txnId.getLeastBits());
+            msgMetadataBuilder.setTxnidMostBits(txnId.getMostBits());
         }
 
         try {

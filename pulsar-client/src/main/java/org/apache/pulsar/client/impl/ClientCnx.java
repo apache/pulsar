@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
@@ -57,6 +58,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
+import org.apache.pulsar.client.api.TxnId;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.AuthData;
@@ -68,11 +70,13 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxnResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
@@ -106,8 +110,13 @@ public class ClientCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<CompletableFuture<Optional<SchemaInfo>>> pendingGetSchemaRequests = new ConcurrentLongHashMap<>(
             16, 1);
 
+    // transaction requests that waiting in client side.
+    private final ConcurrentLongHashMap<CompletableFuture<TransactionResponse>> pendingGetTransactionRquests =
+        new ConcurrentLongHashMap<>(16, 1);
+
     private final ConcurrentLongHashMap<ProducerImpl<?>> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentHashMap<TxnId, TransactionImpl> transactions = new ConcurrentHashMap<>();
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
@@ -723,6 +732,44 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
+    @Override
+    protected void handleNewTxnResponse(CommandNewTxnResponse commandNewTxnResponse) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received success response from server: {}", ctx.channel(), commandNewTxnResponse.getRequestId());
+        }
+
+        long requestId = commandNewTxnResponse.getRequestId();
+        CompletableFuture<TransactionResponse> requestFuture = pendingGetTransactionRquests.get(requestId);
+        if (requestFuture != null) {
+            requestFuture.complete(new TransactionResponse(commandNewTxnResponse.getTxnidMostBits(),
+                                                           commandNewTxnResponse.getTxnidLeastBits()));
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), commandNewTxnResponse.getRequestId());
+        }
+    }
+
+    @Override
+    protected void handleEndTxnOnPartitionResponse(
+        CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received success response from server: {}", ctx.channel(), commandEndTxnOnPartitionResponse.getRequestId());
+        }
+
+        long requestId = commandEndTxnOnPartitionResponse.getRequestId();
+        CompletableFuture<TransactionResponse> future = pendingGetTransactionRquests.get(requestId);
+        if (commandEndTxnOnPartitionResponse.hasError()) {
+            future.completeExceptionally(getPulsarClientException(commandEndTxnOnPartitionResponse.getError(),
+                                                                  commandEndTxnOnPartitionResponse.getMessage()));
+        } else {
+            future.complete(new TransactionResponse(commandEndTxnOnPartitionResponse.getTxnidMostBits(),
+                                                    commandEndTxnOnPartitionResponse.getTxnidLeastBits()));
+        }
+    }
+
     Promise<Void> newPromise() {
         return ctx.newPromise();
     }
@@ -754,6 +801,21 @@ public class ClientCnx extends PulsarHandler {
             }
         });
         requestTimeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+        return future;
+    }
+
+    CompletableFuture<TransactionResponse> sendTxnRequestWithId(ByteBuf request, long requestId) {
+        CompletableFuture<TransactionResponse> future = new CompletableFuture<>();
+        pendingGetTransactionRquests.put(requestId, future);
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send newTxn request to transaction coordinator :{}", ctx.channel(),
+                         writeFuture.cause().getMessage());
+                pendingGetTransactionRquests.remove(requestId);
+                future.completeExceptionally(writeFuture.cause());
+            }
+        });
+
         return future;
     }
 
@@ -866,6 +928,10 @@ public class ClientCnx extends PulsarHandler {
 
     void removeConsumer(final long consumerId) {
         consumers.remove(consumerId);
+    }
+
+    void removeTransaction(final TxnId txnId) {
+        transactions.remove(txnId);
     }
 
     void setTargetBroker(InetSocketAddress targetBrokerAddress) {

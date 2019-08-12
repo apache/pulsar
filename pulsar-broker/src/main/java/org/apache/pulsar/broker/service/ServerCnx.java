@@ -36,6 +36,7 @@ import io.netty.handler.ssl.SslHandler;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -1358,6 +1359,12 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
+    @Override
+    protected void handleNewTxn(PulsarApi.CommandNewTxn commandNewTxn) {
+        Random random = new Random(System.currentTimeMillis());
+        ctx.writeAndFlush(
+            Commands.newTxnResponse(commandNewTxn.getRequestId(), random.nextInt(1000), random.nextInt(1000)));
+    }
 
     @Override
     protected boolean isHandshakeCompleted() {

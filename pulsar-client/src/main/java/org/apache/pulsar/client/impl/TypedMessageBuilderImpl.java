@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -34,6 +35,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.Transaction;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
@@ -49,11 +51,17 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private final MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
     private final Schema<T> schema;
     private ByteBuffer content;
+    private Optional<Transaction> transaction;
 
     public TypedMessageBuilderImpl(ProducerBase<T> producer, Schema<T> schema) {
         this.producer = producer;
         this.schema = schema;
         this.content = EMPTY_CONTENT;
+    }
+
+    public TypedMessageBuilderImpl(ProducerBase<T> producer, Schema<T> schema, Transaction transaction) {
+        this(producer, schema);
+        this.transaction = Optional.of(transaction);
     }
 
     @Override
@@ -212,7 +220,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     }
 
     public Message<T> getMessage() {
-        return (Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema);
+        if (transaction.isPresent()) {
+            return MessageImpl.create(msgMetadataBuilder, content, schema, transaction);
+        } else {
+            return MessageImpl.create(msgMetadataBuilder, content, schema);
+        }
     }
 
     public long getPublishTime() {

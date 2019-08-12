@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,30 +17,31 @@
  * under the License.
  */
 
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.TxnId;
 
-/**
- * {@link TransactionBuilder} is used to configure and create instances of {@link Transaction}.
- *
- * @see PulsarClient
- */
-public interface TransactionBuilder extends Cloneable {
-    /**
-     * Finalize the creation of the {@link Transaction} instance.
-     *
-     * This method will block until the transaction is created successfully.
-     *
-     * @return the transaction instance
-     * @throws PulsarClientException
-     */
-    Transaction build() throws PulsarClientException;
+class TxnIdImpl implements TxnId {
 
-    CompletableFuture<Transaction> buildAsync();
+    private final long mostBits;
+    private final long leastBits;
 
-    TransactionBuilder withTransactionTimeout(int timeout, TimeUnit timeoutUnit);
+    public TxnIdImpl(long mostBits, long leastBits) {
+        this.mostBits = mostBits;
+        this.leastBits = leastBits;
+    }
 
-    TransactionBuilder clone();
+    @Override
+    public long getMostBits() {
+        return mostBits;
+    }
+
+    public long getLeastBits() {
+        return leastBits;
+    }
+
+    @Override
+    public String toString() {
+        return "(" + mostBits + "," + leastBits + ")";
+    }
 }

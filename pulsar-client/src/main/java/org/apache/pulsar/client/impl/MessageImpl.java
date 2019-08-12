@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.Transaction;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -57,6 +58,7 @@ public class MessageImpl<T> implements Message<T> {
     private ClientCnx cnx;
     private ByteBuf payload;
     private Schema<T> schema;
+    private Optional<Transaction> transaction = Optional.empty();
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
     private String topic; // only set for incoming messages
@@ -74,6 +76,14 @@ public class MessageImpl<T> implements Message<T> {
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
         msg.schema = schema;
+        return msg;
+    }
+
+    static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema,
+                                     Optional<Transaction> transaction) {
+        @SuppressWarnings("unchecked")
+        MessageImpl<T> msg = create(msgMetadataBuilder, payload, schema);
+        msg.transaction = transaction;
         return msg;
     }
 
@@ -208,6 +218,11 @@ public class MessageImpl<T> implements Message<T> {
     public String getReplicatedFrom() {
         checkNotNull(msgMetadataBuilder);
         return msgMetadataBuilder.getReplicatedFrom();
+    }
+
+    @Override
+    public Optional<Transaction> getTransaction() {
+        return transaction;
     }
 
     @Override

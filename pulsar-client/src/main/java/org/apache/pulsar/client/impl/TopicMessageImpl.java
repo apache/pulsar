@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Transaction;
 import org.apache.pulsar.common.api.EncryptionContext;
 
 public class TopicMessageImpl<T> implements Message<T> {
@@ -166,6 +167,11 @@ public class TopicMessageImpl<T> implements Message<T> {
     @Override
     public String getReplicatedFrom() {
         return msg.getReplicatedFrom();
+    }
+
+    @Override
+    public Optional<Transaction> getTransaction() {
+        return msg.getTransaction();
     }
 
     public Message<T> getMessage() {

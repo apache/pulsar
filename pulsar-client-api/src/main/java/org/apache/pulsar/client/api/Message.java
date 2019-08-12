@@ -23,7 +23,6 @@ import java.util.Optional;
 
 import org.apache.pulsar.common.api.EncryptionContext;
 
-
 /**
  * The message abstraction used in Pulsar.
  *
@@ -219,4 +218,12 @@ public interface Message<T> {
      * @return the name of cluster, from which the message is replicated.
      */
     String getReplicatedFrom();
+
+    /**
+     * {@link Transaction} contains all transaction related info.
+     *
+     * @return the optional transaction context
+     * @since 2.5.0
+     */
+    Optional<Transaction> getTransaction();
 }

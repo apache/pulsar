@@ -60,6 +60,8 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.Transaction;
+import org.apache.pulsar.client.api.TransactionBuilder;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
@@ -67,6 +69,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.impl.conf.TransactionConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
@@ -193,6 +196,17 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public <T> ReaderBuilder<T> newReader(Schema<T> schema) {
         return new ReaderBuilderImpl<>(this, schema);
+    }
+
+    @Override
+    public TransactionBuilder newTransaction() {
+        return new TransactionBuilderImpl(this, new TransactionConfigurationData());
+    }
+
+    public CompletableFuture<Transaction> createTransactionAsync(TransactionConfigurationData conf) {
+        CompletableFuture<Transaction> transactionCompletableFuture = new CompletableFuture<>();
+        new TransactionImpl(PulsarClientImpl.this, conf, transactionCompletableFuture);
+        return transactionCompletableFuture;
     }
 
     public CompletableFuture<Producer<byte[]>> createProducerAsync(ProducerConfigurationData conf) {
