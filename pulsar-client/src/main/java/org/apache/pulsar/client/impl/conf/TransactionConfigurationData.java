@@ -33,7 +33,7 @@ public class TransactionConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private long ttl = 60000;
-    private String topic = "test";
+    private String topic = null;
 
     public void setTransactionTimeout(int timeout, TimeUnit timeUnit) {
         this.ttl = timeUnit.toMillis(timeout);

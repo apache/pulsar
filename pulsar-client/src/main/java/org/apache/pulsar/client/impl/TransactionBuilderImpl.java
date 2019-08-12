@@ -57,6 +57,12 @@ public class TransactionBuilderImpl implements TransactionBuilder {
     }
 
     @Override
+    public TransactionBuilder topic(String topc) {
+        conf.setTopic(topc);
+        return this;
+    }
+
+    @Override
     public TransactionBuilder clone() {
         return new TransactionBuilderImpl(client, conf);
     }

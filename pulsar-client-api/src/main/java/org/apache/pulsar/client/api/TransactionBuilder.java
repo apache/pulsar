@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 import java.util.concurrent.CompletableFuture;
@@ -41,6 +40,8 @@ public interface TransactionBuilder extends Cloneable {
     CompletableFuture<Transaction> buildAsync();
 
     TransactionBuilder withTransactionTimeout(int timeout, TimeUnit timeoutUnit);
+
+    TransactionBuilder topic(String topc);
 
     TransactionBuilder clone();
 }
