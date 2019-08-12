@@ -338,12 +338,10 @@ public final class SchemaUtils {
      */
     public static String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
         ObjectMapper objectMapper = ObjectMapperFactory.create();
-        KeyValueSchemaInfoData keyValueSchemaInfoData = KeyValueSchemaInfoData.builder()
-                .key(SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
-                : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()))
-                .value(SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ?
-                        "" : objectMapper.readTree(kvSchemaInfo.getValue().getSchema())).build();
-        return objectMapper.writeValueAsString(keyValueSchemaInfoData);
+        KeyValue<Object, Object> keyValue = new KeyValue<>(SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
+                : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()), SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ?
+                "" : objectMapper.readTree(kvSchemaInfo.getValue().getSchema()));
+        return objectMapper.writeValueAsString(keyValue);
     }
 
     private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {
