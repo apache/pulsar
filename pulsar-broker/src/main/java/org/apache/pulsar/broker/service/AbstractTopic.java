@@ -23,14 +23,18 @@ import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -73,6 +77,8 @@ public abstract class AbstractTopic implements Topic {
             SchemaCompatibilityStrategy.FULL;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
+
+    protected TransactionBuffer transactionBuffer;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -195,6 +201,29 @@ public abstract class AbstractTopic implements Topic {
                 .getSchemaRegistryService()
                 .isCompatible(id, schema, schemaCompatibilityStrategy);
     }
+
+    @Override
+    public CompletableFuture<TransactionBuffer> getTxnBuffer() {
+        CompletableFuture<TransactionBuffer> getBufferFuture = new CompletableFuture<>();
+        if (transactionBuffer == null) {
+            try {
+                TransactionBufferProvider provider = getProvider();
+                provider.newTransactionBuffer().whenComplete((buffer, err) -> {
+                    if (err != null) {
+                        getBufferFuture.completeExceptionally(err);
+                    } else {
+                        this.transactionBuffer = buffer;
+                        getBufferFuture.complete(buffer);
+                    }
+                });
+            } catch (IOException e) {
+                return FutureUtil.failedFuture(e);
+            }
+        }
+        return getBufferFuture;
+    }
+
+    protected abstract TransactionBufferProvider getProvider() throws IOException;
 
     @Override
     public void recordAddLatency(long latencyUSec) {

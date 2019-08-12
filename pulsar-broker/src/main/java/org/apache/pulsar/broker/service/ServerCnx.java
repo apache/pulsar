@@ -1360,6 +1360,56 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
+    @Override
+    protected void handleEndTxnOnPartition(PulsarApi.CommandEndTxnOnPartition commandEndTxnOnPartition) {
+        final long requestId = commandEndTxnOnPartition.getRequestId();
+        final String topicName = commandEndTxnOnPartition.getTopic();
+        final long mostBits = commandEndTxnOnPartition.getTxnidMostBits();
+        final long leastBits = commandEndTxnOnPartition.getTxnidLeastBits();
+
+        TxnID txnID = new TxnID(mostBits, leastBits);
+        service.getTopic(topicName, false).whenComplete((topic, throwable) -> {
+            if (throwable != null) {
+                ctx.writeAndFlush(
+                    Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, throwable.getMessage()));
+            } else {
+                if (topic.isPresent()) {
+                    Topic partition = topic.get();
+                    // sequenceId ?
+                    TxnMarkerController markerController = new TxnMarkerController(topic.get(), txnID, -1);
+                    if (commandEndTxnOnPartition.getTxnAction().equals(PulsarApi.TxnAction.COMMIT)) {
+                        markerController.publishCommitMarker().thenApply(position -> {
+                                PositionImpl commitPosition = (PositionImpl) position;
+                                partition.getTxnBuffer()
+                                         .thenCompose(transactionBuffer ->
+                                                          transactionBuffer
+                                                              .commitTxn(txnID, commitPosition.getLedgerId(),
+                                                                         commitPosition.getEntryId()));
+                            return null;
+                        }).exceptionally(err -> {
+                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError,
+                                                                                    err.getMessage()));
+                            return null;
+                        });
+                    } else if (commandEndTxnOnPartition.getTxnAction().equals(PulsarApi.TxnAction.ABORT)) {
+                        markerController.publishAbortMarker()
+                                        .thenCompose(ignore -> partition.getTxnBuffer())
+                                        .thenCompose(buffer -> buffer.abortTxn(txnID))
+                                        .exceptionally(err -> {
+                                            ctx.writeAndFlush(
+                                                Commands.newEndTxnOnPartitionResponse(requestId,
+                                                                                      ServerError.UnknownError,
+                                                                                      err.getMessage()));
+                                            return null;
+                                        });
+                    }
+                } else {
+                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError,
+                                                                            "Topic is not exist"));
+                }
+            }
+        });
+    }
 
     @Override
     protected boolean isHandshakeCompleted() {

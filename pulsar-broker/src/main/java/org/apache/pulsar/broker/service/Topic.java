@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -175,6 +176,8 @@ public interface Topic {
     CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
 
     CompletableFuture<Void> deleteForcefully();
+
+    CompletableFuture<TransactionBuffer> getTxnBuffer();
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();
