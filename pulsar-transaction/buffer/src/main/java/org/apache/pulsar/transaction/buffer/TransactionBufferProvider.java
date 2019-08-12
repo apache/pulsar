@@ -52,21 +52,6 @@ public interface TransactionBufferProvider {
         }
     }
 
-    static TransactionBufferProvider newProvider(String providerClassName, Object... args) throws IOException {
-        Class<?> providerClass;
-        try {
-            providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.getConstructor(BrokerService.class, String.class).newInstance(args);
-            checkArgument(obj instanceof TransactionBufferProvider,
-                          "The factory has to be an instance of "
-                          + TransactionBufferProvider.class.getName());
-
-            return (TransactionBufferProvider) obj;
-        } catch (Exception e) {
-            throw new IOException(e);
-        }
-    }
-
     /**
      * Open the transaction buffer.
      *
@@ -75,4 +60,6 @@ public interface TransactionBufferProvider {
      *         if the operation succeeds.
      */
     CompletableFuture<TransactionBuffer> newTransactionBuffer();
+
+    CompletableFuture<TransactionBuffer> newTransactionBuffer(BrokerService brokerService, String topic);
 }

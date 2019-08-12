@@ -128,7 +128,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     private ConfigurationCacheService configCacheService;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic_txn";
-    final String txnTopicName = "success-test-txn";
+    final String txnTopicName = "tenant/namespace/success-test-txn";
     private static final Logger log = LoggerFactory.getLogger(PersistentTransactionBufferTest.class);
 
     private TransactionBufferProvider provider;
@@ -183,7 +183,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
 
-        this.provider = TransactionBufferProvider.newProvider(providerName, brokerService, txnTopicName);
+        this.provider = TransactionBufferProvider.newProvider(providerName);
         setupMLAsyncCallbackMocks();
     }
 
@@ -311,7 +311,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             return null;
         }).when(cursorMock).asyncMarkDelete(anyObject(), anyObject(), any(MarkDeleteCallback.class), anyObject());
 
-        this.buffer = (PersistentTransactionBuffer) provider.newTransactionBuffer().get();
+        this.buffer = (PersistentTransactionBuffer) provider.newTransactionBuffer(brokerService, txnTopicName).get();
     }
 
     @AfterMethod
@@ -389,7 +389,6 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             reader.readNext(1).get();
 
         } catch (ExecutionException ee) {
-            System.out.println(ee.getMessage());
             assertTrue(ee.getCause() instanceof EndOfTransactionException);
         }
 

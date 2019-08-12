@@ -88,7 +88,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
-        log.info("Getting transaction {} meta", txnID);
         return txnCursor.getTxnMeta(txnID, false);
     }
 

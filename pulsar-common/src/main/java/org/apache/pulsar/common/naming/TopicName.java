@@ -109,12 +109,14 @@ public class TopicName implements ServiceUnitId {
                 // The short topic name can be:
                 // - <topic>
                 // - <property>/<namespace>/<topic>
+                // When the topic is transaction topic, the topic name is:
+                // - <property>/<namespace>/<topic>/_txnlog
                 String[] parts = StringUtils.split(completeTopicName, '/');
                 if (parts.length == 3) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else if (parts.length == 1) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
-                } else if (parts.length == 5) {
+                } else if (parts.length == 4) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else {
                     throw new IllegalArgumentException(

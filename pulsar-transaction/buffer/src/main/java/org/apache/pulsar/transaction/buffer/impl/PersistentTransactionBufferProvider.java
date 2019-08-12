@@ -21,57 +21,51 @@
 package org.apache.pulsar.transaction.buffer.impl;
 
 import java.util.concurrent.CompletableFuture;
-import lombok.Setter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.transaction.buffer.TransactionBufferProvider;
 
+/**
+ * A provider that provides persist the transaction buffer to the ledger implementations of {@link TransactionBuffer}.
+ */
 public class PersistentTransactionBufferProvider implements TransactionBufferProvider {
-
-    private final BrokerService brokerService;
-    private final String topic;
-    private final String txnTopic;
-
-    public PersistentTransactionBufferProvider(BrokerService service, String topic) {
-        this.brokerService = service;
-        // TODO: get the transaction topic name by the TopicName.getPersistentNamingEncoding(isTxn)
-        this.txnTopic = TopicName.get(topic).getPersistenceNamingEncoding() + "/_txnlog";
-        this.topic = topic;
-    }
 
     @Override
     public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
-        CompletableFuture<TransactionBuffer> newBufferFuture = new CompletableFuture<>();
-        brokerService.getManagedLedgerConfig(TopicName.get(topic)).whenComplete((config, err) -> {
-            if (err != null) {
-                newBufferFuture.completeExceptionally(err);
-            } else {
-                config.setCreateIfMissing(true);
-                brokerService.getManagedLedgerFactory().asyncOpen(txnTopic, config, new AsyncCallbacks.OpenLedgerCallback() {
-                    @Override
-                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                        try {
-                            PersistentTransactionBuffer buffer = new PersistentTransactionBuffer(txnTopic, ledger,
-                                                                                                 brokerService);
-                            newBufferFuture.complete(buffer);
-                        } catch (Exception e) {
-                            newBufferFuture.completeExceptionally(e);
-                        }
-                    }
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
+    }
 
-                    @Override
-                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                        newBufferFuture.completeExceptionally(exception);
+    @Override
+    public CompletableFuture<TransactionBuffer> newTransactionBuffer(BrokerService brokerService, String topic) {
+        String txnTopic = topic + "/_txnlog";
+        CompletableFuture<TransactionBuffer> newBufferFuture = new CompletableFuture<>();
+        brokerService.getManagedLedgerConfig(TopicName.get(topic)).thenCompose(config -> {
+            config.setCreateIfMissing(true);
+            brokerService.getManagedLedgerFactory()
+                         .asyncOpen(txnTopic, config, new AsyncCallbacks.OpenLedgerCallback() {
+                @Override
+                public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                    try {
+                        PersistentTransactionBuffer buffer = new PersistentTransactionBuffer(txnTopic, ledger,
+                                                                                             brokerService);
+                        newBufferFuture.complete(buffer);
+                    } catch (Exception e) {
+                        newBufferFuture.completeExceptionally(e);
                     }
-                }, null);
-            }
+                }
+
+                @Override
+                public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                    newBufferFuture.completeExceptionally(exception);
+                }
+            }, null);
+            return null;
         });
         return newBufferFuture;
     }
-
-
 }
