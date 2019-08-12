@@ -921,15 +921,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         PositionImpl pos = getMarkDeletePositionOfSlowestConsumer();
 
         while (true) {
-            if (pos == null) {
-                return 0;
-            }
             long size = 0;
-            final long slowestConsumerLedgerId = pos.getLedgerId();
-
-            // Subtract size of ledgers that were already fully consumed but not trimmed yet
             synchronized (this) {
                 size = getTotalSize();
+                if (pos == null) {
+                    return size;
+                }
+                final long slowestConsumerLedgerId = pos.getLedgerId();
+                // Subtract size of ledgers that were already fully consumed but not trimmed yet
                 size -= ledgers.values().stream().filter(li -> li.getLedgerId() < slowestConsumerLedgerId)
                         .mapToLong(li -> li.getSize()).sum();
             }
