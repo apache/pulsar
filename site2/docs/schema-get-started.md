@@ -4,6 +4,8 @@ title: Get started
 sidebar_label: Get started
 ---
 
+This chapter introduces Pulsar schemas and explains why they are important. 
+
 ## Schema Registry
 
 Type safety is extremely important in any application built around a message bus like Pulsar. 

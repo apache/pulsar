@@ -4,6 +4,10 @@ title: Schema evolution and compatibility
 sidebar_label: Schema evolution and compatibility
 ---
 
+Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs. 
+
+This chapter examines how Pulsar schema evolves and what Pulsar schema compatibility check strategies are.
+
 ## Schema evolution
 
 Pulsar schema is defined in a data structure called `SchemaInfo`. 
