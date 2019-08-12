@@ -1420,6 +1420,9 @@ public class Commands {
         if (builder.hasReplicatedFrom()) {
             messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
         }
+        if (builder.getReplicateToCount() > 0) {
+            messageMetadata.addAllReplicateTo(builder.getReplicateToList());
+        }
         if (builder.hasSchemaVersion()) {
             messageMetadata.setSchemaVersion(builder.getSchemaVersion());
         }
