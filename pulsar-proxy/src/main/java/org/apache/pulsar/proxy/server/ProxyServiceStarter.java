@@ -45,6 +45,7 @@ import org.apache.pulsar.common.configuration.VipStatus;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 
 
@@ -174,7 +175,7 @@ public class ProxyServiceStarter {
     static void addWebServerHandlers(WebServer server,
                                      ProxyConfiguration config,
                                      BrokerDiscoveryProvider discoveryProvider) {
-        server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
+        server.addServlet("/metrics", new ServletHolder(MetricsServlet.class), Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
 
