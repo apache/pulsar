@@ -257,7 +257,7 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Sinj does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}")
