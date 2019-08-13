@@ -102,7 +102,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -1593,22 +1592,4 @@ public class ServerCnxTest {
 
         channel.finish();
     }
-
-//    @Test(timeOut = 30000)
-//    public void testCommandEndTxnOnPartition() throws Exception {
-//        resetChannel();
-//        setChannelConnected();
-//
-//        String invalidTopicName = "xx/ass/aa/aaa";
-//
-//        TxnID txnID = new TxnID(12L, 34L);
-//        channel.writeInbound(Commands.newEndTxnOnPartition(1, txnID.getLeastSigBits(), txnID.getMostSigBits(),
-//                                                           invalidTopicName, PulsarApi.TxnAction.COMMIT));
-//
-//        Object obj = getResponse();
-//        CommandError res = (CommandError) obj;
-//        assertEquals(res.getError(), ServerError.InvalidTopicName);
-//
-//        channel.finish();
-//    }
 }
