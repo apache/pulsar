@@ -220,7 +220,7 @@ public abstract class AbstractTopic implements Topic {
                 return FutureUtil.failedFuture(e);
             }
         } else {
-            getBufferFuture.completeExceptionally(new UnknownError("Transaction buffer not exist."))
+            getBufferFuture.completeExceptionally(new UnknownError("Transaction buffer not exist."));
         }
         return getBufferFuture;
     }
