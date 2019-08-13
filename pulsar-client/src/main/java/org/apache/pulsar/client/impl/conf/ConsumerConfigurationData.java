@@ -99,7 +99,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private DeadLetterPolicy deadLetterPolicy;
 
     @JsonIgnore
-    private BatchReceivePolicy batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
+    private BatchReceivePolicy batchReceivePolicy;
 
     private boolean autoUpdatePartitions = true;
 

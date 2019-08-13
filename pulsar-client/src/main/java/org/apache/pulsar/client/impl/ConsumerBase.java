@@ -104,7 +104,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
         this.interceptors = interceptors;
-        this.batchReceivePolicy = conf.getBatchReceivePolicy();
+        if (conf.getBatchReceivePolicy() != null) {
+            this.batchReceivePolicy = conf.getBatchReceivePolicy();
+        } else {
+            this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
+        }
         if (batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
