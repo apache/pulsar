@@ -70,6 +70,12 @@ metadata:
         component: zookeeper
 spec:
     serviceName: zookeeper
+    # Must match template:metadata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: zookeeper
+            cluster: local
     replicas: 3
     template:
         metadata:
