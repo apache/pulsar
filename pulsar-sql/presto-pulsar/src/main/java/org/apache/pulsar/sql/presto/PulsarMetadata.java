@@ -189,8 +189,11 @@ public class PulsarMetadata implements ConnectorMetadata {
                             + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
                 }
                 if (pulsarTopicList != null) {
-                    pulsarTopicList.forEach(topic -> builder.add(
-                            new SchemaTableName(schemaNameOrNull, TopicName.get(topic).getLocalName())));
+                    pulsarTopicList.stream()
+                        .map(topic -> TopicName.get(topic).getPartitionedTopicName())
+                        .distinct()
+                        .forEach(topic -> builder.add(new SchemaTableName(schemaNameOrNull,
+                            TopicName.get(topic).getLocalName())));
                 }
             }
         }
@@ -308,17 +311,17 @@ public class PulsarMetadata implements ConnectorMetadata {
                     String.format("%s/%s", namespace, schemaTableName.getTableName()));
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
-                // to indicate that we can't read from topic because there is no schema
-                return null;
+                // use default schema because there is no schema
+                schemaInfo = PulsarSchemaHandlers.defaultSchema();
             } else if (e.getStatusCode() == 401) {
                 throw new PrestoException(QUERY_REJECTED,
                         String.format("Failed to get pulsar topic schema information for topic %s/%s: Unauthorized",
                                 namespace, schemaTableName.getTableName()));
+            } else {
+                throw new RuntimeException("Failed to get pulsar topic schema information for topic "
+                        + String.format("%s/%s", namespace, schemaTableName.getTableName())
+                        + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
             }
-
-            throw new RuntimeException("Failed to get pulsar topic schema information for topic "
-                    + String.format("%s/%s", namespace, schemaTableName.getTableName())
-                    + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
         List<ColumnMetadata> handles = getPulsarColumns(
                 topicName, schemaInfo, withInternalColumns
@@ -352,7 +355,7 @@ public class PulsarMetadata implements ConnectorMetadata {
         ColumnMetadata valueColumn = new PulsarColumnMetadata(
                 "__value__",
                 convertPulsarType(schemaInfo.getType()),
-                null, null, false, false,
+                "The value of the message with primitive type schema", null, false, false,
                 new String[0],
                 new Integer[0]);
 
