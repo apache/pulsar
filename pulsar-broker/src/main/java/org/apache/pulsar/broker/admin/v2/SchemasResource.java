@@ -320,7 +320,9 @@ public class SchemasResource extends AdminResource {
                 .user(defaultIfEmpty(clientAppId(), ""))
                 .props(payload.getProperties())
                 .build(),
-            SchemaCompatibilityStrategy.FULL
+            SchemaCompatibilityStrategy
+                    .fromAutoUpdatePolicy(getNamespacePolicies(NamespaceName.get(tenant, namespace))
+                            .schema_auto_update_compatibility_strategy)
         ).thenAccept(version ->
             response.resume(
                 Response.accepted().entity(
