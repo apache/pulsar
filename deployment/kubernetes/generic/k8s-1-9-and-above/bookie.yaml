@@ -62,6 +62,11 @@ metadata:
         app: pulsar
         component: bookkeeper
 spec:
+    # Must match template:metadata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: bookkeeper
     template:
         metadata:
             labels:
