@@ -4,7 +4,7 @@ title: Manage schema
 sidebar_label: Manage schema
 ---
 
-Schemas can be managed in the following methods:
+This guide demonstrates the ways to manage schemas:
 
 * Automatically 
   
