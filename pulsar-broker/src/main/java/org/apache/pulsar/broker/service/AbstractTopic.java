@@ -219,8 +219,10 @@ public abstract class AbstractTopic implements Topic {
             } catch (IOException e) {
                 return FutureUtil.failedFuture(e);
             }
-        } else {
+        } else if (transactionBuffer == null && !createIfAbsent) {
             getBufferFuture.completeExceptionally(new UnknownError("Transaction buffer not exist."));
+        } else {
+            getBufferFuture.complete(transactionBuffer);
         }
         return getBufferFuture;
     }

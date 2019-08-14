@@ -1368,38 +1368,39 @@ public class ServerCnx extends PulsarHandler {
         final long leastBits = commandEndTxnOnPartition.getTxnidLeastBits();
 
         TxnID txnID = new TxnID(mostBits, leastBits);
+        log.info("Received CommandEndTxnOnPartition from {}, [{}] transaction {} on the topic {}", remoteAddress,
+                 commandEndTxnOnPartition.getTxnAction(), txnID, topicName);
         service.getTopic(topicName, false).whenComplete((topic, throwable) -> {
             if (throwable != null) {
                 ctx.writeAndFlush(
                     Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, throwable.getMessage()));
             } else {
                 if (topic.isPresent()) {
-                    Topic partition = topic.get();
+                    final Topic partition = topic.get();
                     // sequenceId ?
                     TxnMarkerController markerController = new TxnMarkerController(topic.get(), txnID, -1);
                     if (commandEndTxnOnPartition.getTxnAction().equals(PulsarApi.TxnAction.COMMIT)) {
-                        markerController.publishCommitMarker().thenApply(position -> {
-                                PositionImpl commitPosition = (PositionImpl) position;
-                                partition.getTxnBuffer(false)
-                                         .thenCompose(transactionBuffer ->
-                                                          transactionBuffer
-                                                              .commitTxn(txnID, commitPosition.getLedgerId(),
-                                                                         commitPosition.getEntryId()));
-                            return null;
-                        }).exceptionally(err -> {
-                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError,
-                                                                                    err.getMessage()));
-                            return null;
-                        });
+                        markerController.publishCommitMarker()
+                                        .thenApply(position -> (PositionImpl)position)
+                                        .thenCombine(partition.getTxnBuffer(false), (position, transactionBuffer) ->
+                                            transactionBuffer.commitTxn(txnID, position.getLedgerId(), position.getEntryId()))
+                                        .thenAccept(ignore ->
+                                                        ctx.writeAndFlush(
+                                                            Commands.newEndTxnOnPartitionResponse(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits())))
+                                        .exceptionally(err -> {
+                                            log.error("Commit txn error :", err);
+                                            ctx.writeAndFlush(
+                                                Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, err.getMessage()));
+                                            return null;
+                                        });
                     } else if (commandEndTxnOnPartition.getTxnAction().equals(PulsarApi.TxnAction.ABORT)) {
                         markerController.publishAbortMarker()
                                         .thenCompose(ignore -> partition.getTxnBuffer(false))
                                         .thenCompose(buffer -> buffer.abortTxn(txnID))
                                         .exceptionally(err -> {
+                                            log.error("Abort txn error : ", err);
                                             ctx.writeAndFlush(
-                                                Commands.newEndTxnOnPartitionResponse(requestId,
-                                                                                      ServerError.UnknownError,
-                                                                                      err.getMessage()));
+                                                Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, err.getMessage()));
                                             return null;
                                         });
                     }
