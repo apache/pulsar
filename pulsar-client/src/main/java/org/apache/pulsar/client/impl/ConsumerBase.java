@@ -237,6 +237,22 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
+    public void flushAcknowledgements() throws PulsarClientException {
+    	try {
+    		flushAcknowledgementsAsync().get();
+    	} catch (Exception e) {
+    		throw PulsarClientException.unwrap(e);
+    	}
+    }
+    
+    @Override
+    public CompletableFuture<Void> flushAcknowledgementsAsync() {
+    	return doFlushAcknowledgements();
+    }
+    
+    abstract protected CompletableFuture<Void> doFlushAcknowledgements();
+    
+    @Override
     public void negativeAcknowledge(Message<?> message) {
         negativeAcknowledge(message.getMessageId());
     }

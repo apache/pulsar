@@ -423,10 +423,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
     
     @Override
-    public void flushAcknowledgements() {
+    protected CompletableFuture<Void> doFlushAcknowledgements() {
     	for (ConsumerImpl<T> consumer : consumers.values()) {
     		consumer.flushAcknowledgements();
     	}
+    	return CompletableFuture.completedFuture(null);
     }
 
     @Override

@@ -481,9 +481,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
     
     @Override
-    public void flushAcknowledgements() {
+    protected CompletableFuture<Void> doFlushAcknowledgements() {
     	acknowledgmentsGroupingTracker.flush();
+    	return CompletableFuture.completedFuture(null);
     }
+
 
     @Override
     public void connectionOpened(final ClientCnx cnx) {

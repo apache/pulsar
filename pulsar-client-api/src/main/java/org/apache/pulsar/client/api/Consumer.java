@@ -260,8 +260,16 @@ public interface Consumer<T> extends Closeable {
      * Flush all batched acknowledgements and wait until all acknowledgments have been persisted.
      * 
      * Flush acks returns immediately if batching of acks is disabled.
+     * @throws PulsarClientException 
      */
-    void flushAcknowledgements();
+    void flushAcknowledgements() throws PulsarClientException;
+    
+    /**
+     * Asynchronously flush all batched acknowledgements.
+     * 
+     * @return a future that can be used to track the completion of the operation.
+     */
+    CompletableFuture<Void> flushAcknowledgementsAsync();
 
     /**
      * Get statistics for the consumer.
