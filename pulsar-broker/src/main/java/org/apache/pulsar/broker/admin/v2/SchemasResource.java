@@ -310,6 +310,10 @@ public class SchemasResource extends AdminResource {
     ) {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
 
+        SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                .fromAutoUpdatePolicy(getNamespacePolicies(NamespaceName.get(tenant, namespace))
+                        .schema_auto_update_compatibility_strategy);
+
         pulsar().getSchemaRegistryService().putSchemaIfAbsent(
             buildSchemaId(tenant, namespace, topic),
             SchemaData.builder()
@@ -320,9 +324,8 @@ public class SchemasResource extends AdminResource {
                 .user(defaultIfEmpty(clientAppId(), ""))
                 .props(payload.getProperties())
                 .build(),
-             SchemaCompatibilityStrategy
-                     .fromAutoUpdatePolicy(getNamespacePolicies(NamespaceName.get(tenant, namespace))
-                             .schema_auto_update_compatibility_strategy)
+            schemaCompatibilityStrategy
+
         ).thenAccept(version ->
             response.resume(
                 Response.accepted().entity(
@@ -332,7 +335,7 @@ public class SchemasResource extends AdminResource {
                 ).build()
             )
         ).exceptionally(error -> {
-            if (error instanceof IncompatibleSchemaException) {
+            if (error.getCause() instanceof IncompatibleSchemaException) {
                 response.resume(Response.status(Response.Status.CONFLICT).build());
             } else if (error instanceof InvalidSchemaDataException) {
                 response.resume(Response.status(
