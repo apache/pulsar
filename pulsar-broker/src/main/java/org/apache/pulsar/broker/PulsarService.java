@@ -75,6 +75,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.cache.TopicPoliciesCache;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -89,6 +90,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicService;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -189,6 +191,9 @@ public class PulsarService implements AutoCloseable {
     private ProtocolHandlers protocolHandlers = null;
 
     private ShutdownService shutdownService;
+
+    private NamespaceEventsSystemTopicService namespaceEventsSystemTopicService;
+    private TopicPoliciesCache topicPoliciesCache;
 
     private MetricsGenerator metricsGenerator;
     private TransactionMetadataStoreService transactionMetadataStoreService;
@@ -417,6 +422,14 @@ public class PulsarService implements AutoCloseable {
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
 
             brokerService.start();
+
+            if (config.isSystemTopicEnable()) {
+                namespaceEventsSystemTopicService = new NamespaceEventsSystemTopicService(getClient());
+            }
+
+            if (config.isTopicLevelPoliciesEnable()) {
+                topicPoliciesCache = new TopicPoliciesCache();
+            }
 
             this.webService = new WebService(this);
             Map<String, Object> attributeMap = Maps.newHashMap();
@@ -1120,6 +1133,14 @@ public class PulsarService implements AutoCloseable {
             LOG.error("Failed to get bookkeeper metadata service uri", e);
         }
         return metadataServiceUri;
+    }
+
+    public NamespaceEventsSystemTopicService getNamespaceEventsSystemTopicService() {
+        return namespaceEventsSystemTopicService;
+    }
+
+    public TopicPoliciesCache getTopicPoliciesCache() {
+        return topicPoliciesCache;
     }
 
     private void startWorkerService(AuthenticationService authenticationService,

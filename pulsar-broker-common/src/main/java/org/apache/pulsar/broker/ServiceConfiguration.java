@@ -674,6 +674,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> messagingProtocols = Sets.newTreeSet();
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable system topic.")
+    private boolean systemTopicEnable = true;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable topic level policies.")
+    private boolean topicLevelPoliciesEnable = true;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,

@@ -103,11 +103,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -929,8 +931,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
-                                PersistentTopic persistentTopic = new PersistentTopic(topic, ledger,
-                                        BrokerService.this);
+                                PersistentTopic persistentTopic = isSystemTopic(topic)
+                                    ? new PersistentTopic(topic, ledger, BrokerService.this, true)
+                                    : new PersistentTopic(topic, ledger, BrokerService.this, false);
                                 CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
                                 replicationFuture.thenCompose(v -> {
                                     // Also check dedup status
@@ -1257,6 +1260,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @return determine if quota enforcement needs to be done for topic
      */
     public boolean isBacklogExceeded(PersistentTopic topic) {
+        if (topic.isSystemTopic()) {
+            return false;
+        }
         TopicName topicName = TopicName.get(topic.getName());
         long backlogQuotaLimitInBytes = getBacklogQuotaManager().getBacklogQuotaLimit(topicName.getNamespace());
         if (backlogQuotaLimitInBytes < 0) {
@@ -2115,7 +2121,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return Optional.empty();
         }
     }
-
     private void checkMessagePublishBuffer() {
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
         foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
@@ -2227,5 +2232,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         log.warn("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
+    }
+    private boolean isSystemTopic(String topic) {
+        return NamespaceEventsSystemTopicFactory.LOCAL_TOPIC_NAME.equals(TopicName.get(topic).getLocalName());
     }
 }
