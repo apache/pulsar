@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -160,6 +161,14 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             assertTrue(e.getMessage().contains("HTTP 409 Conflict"));
         }
 
+        namespace = "schematest/testnotfound";
+        topicName = namespace + "/testStrategyChange";
+
+        try {
+            admin.schemas().createSchema(topicName, fooSchemaInfo);
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
+        }
     }
 
 }

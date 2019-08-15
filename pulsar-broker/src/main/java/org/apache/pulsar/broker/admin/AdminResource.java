@@ -60,6 +60,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
@@ -350,6 +351,36 @@ public abstract class AdminResource extends PulsarWebResource {
             log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+
+    }
+
+    protected CompletableFuture<Policies> getNamespacePoliciesAsync(NamespaceName namespaceName) {
+        final String namespace = namespaceName.toString();
+        final String policyPath = AdminResource.path(POLICIES, namespace);
+
+        return policiesCache().getAsync(policyPath).thenCompose(policies -> {
+            if (policies.isPresent()) {
+                return pulsar()
+                        .getNamespaceService()
+                        .getNamespaceBundleFactory()
+                        .getBundlesAsync(namespaceName)
+                        .thenCompose(bundles -> {
+                    BundlesData bundleData = null;
+                    try {
+                        bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+                    } catch (Exception e) {
+                        log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
+                        return FutureUtil.failedFuture(new RestException(e));
+                    }
+                    policies.get().bundles = bundleData != null ? bundleData : policies.get().bundles;
+                    // hydrate the namespace polices
+                    mergeNamespaceWithDefaults(policies.get(), namespace, policyPath);
+                    return CompletableFuture.completedFuture(policies.get());
+                });
+            } else {
+                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+            }
+        });
     }
 
     protected void mergeNamespaceWithDefaults(Policies policies, String namespace, String namespacePath) {
