@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.UnaryOperator;
 
-abstract class HandlerState {
+public abstract class HandlerState {
     protected final PulsarClientImpl client;
     protected final String topic;
 
@@ -61,7 +61,7 @@ abstract class HandlerState {
         STATE_UPDATER.set(this, s);
     }
 
-    abstract String getHandlerName();
+    protected abstract String getHandlerName();
 
     protected State getAndUpdateState(final UnaryOperator<State> updater) {
         return STATE_UPDATER.getAndUpdate(this, updater);

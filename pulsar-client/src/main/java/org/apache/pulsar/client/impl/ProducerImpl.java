@@ -1133,7 +1133,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    String getHandlerName() {
+    protected String getHandlerName() {
         return producerName;
     }
 

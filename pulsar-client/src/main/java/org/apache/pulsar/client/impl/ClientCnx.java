@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionResponse;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -68,6 +69,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
@@ -106,6 +108,9 @@ public class ClientCnx extends PulsarHandler {
 
     private final ConcurrentLongHashMap<CompletableFuture<CommandGetSchemaResponse>> pendingGetSchemaRequests = new ConcurrentLongHashMap<>(
             16, 1);
+    // transaction requests that waiting in client side
+    private final ConcurrentLongHashMap<CompletableFuture<TransactionResponse>> pendingGetTransactionRequests =
+        new ConcurrentLongHashMap<>(16, 1);
 
     private final ConcurrentLongHashMap<ProducerImpl<?>> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers = new ConcurrentLongHashMap<>(16, 1);
@@ -713,6 +718,25 @@ public class ClientCnx extends PulsarHandler {
         future.complete(commandGetSchemaResponse);
     }
 
+    @Override
+    protected void handleEndTxnOnPartitionResponse(CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received success response from server: {}", ctx.channel(), commandEndTxnOnPartitionResponse.getRequestId());
+        }
+
+        long requestId = commandEndTxnOnPartitionResponse.getRequestId();
+        CompletableFuture<TransactionResponse> future = pendingGetTransactionRequests.get(requestId);
+        if (commandEndTxnOnPartitionResponse.hasError()) {
+            future.completeExceptionally(getPulsarClientException(commandEndTxnOnPartitionResponse.getError(),
+                                                                  commandEndTxnOnPartitionResponse.getMessage()));
+        } else {
+            future.complete(new TransactionResponse(commandEndTxnOnPartitionResponse.getTxnidMostBits(),
+                                                    commandEndTxnOnPartitionResponse.getTxnidLeastBits()));
+        }
+    }
+
     Promise<Void> newPromise() {
         return ctx.newPromise();
     }
@@ -796,6 +820,36 @@ public class ClientCnx extends PulsarHandler {
         });
 
         return future;
+    }
+
+    public CompletableFuture<TransactionResponse> sendTxnRequestWithId(ByteBuf request, long requestId) {
+        CompletableFuture<TransactionResponse> future = new CompletableFuture<>();
+        pendingGetTransactionRequests.put(requestId, future);
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send newTxn request to transaction coordinator :{}", ctx.channel(),
+                         writeFuture.cause().getMessage());
+                pendingGetTransactionRequests.remove(requestId);
+                future.completeExceptionally(writeFuture.cause());
+            }
+        });
+
+        return future;
+    }
+
+    @VisibleForTesting
+    ConcurrentLongHashMap<CompletableFuture<TransactionResponse>> getPendingTxnRequest() {
+        return pendingGetTransactionRequests;
+    }
+
+    @VisibleForTesting
+    void setCtx(ChannelHandlerContext ctx) {
+        this.ctx = ctx;
+    }
+
+    @VisibleForTesting
+    void setState(State state) {
+        this.state = state;
     }
 
     /**

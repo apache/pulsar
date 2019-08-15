@@ -25,7 +25,7 @@ import org.apache.pulsar.client.impl.HandlerState.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class ConnectionHandler {
+public class ConnectionHandler {
     private static final AtomicReferenceFieldUpdater<ConnectionHandler, ClientCnx> CLIENT_CNX_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ConnectionHandler.class, ClientCnx.class, "clientCnx");
     @SuppressWarnings("unused")
@@ -34,21 +34,21 @@ class ConnectionHandler {
     protected final HandlerState state;
     protected final Backoff backoff;
 
-    interface Connection {
+    public interface Connection {
         void connectionFailed(PulsarClientException exception);
         void connectionOpened(ClientCnx cnx);
     }
 
     protected Connection connection;
 
-    protected ConnectionHandler(HandlerState state, Backoff backoff, Connection connection) {
+    public ConnectionHandler(HandlerState state, Backoff backoff, Connection connection) {
         this.state = state;
         this.connection = connection;
         this.backoff = backoff;
         CLIENT_CNX_UPDATER.set(this, null);
     }
 
-    protected void grabCnx() {
+    public void grabCnx() {
         if (CLIENT_CNX_UPDATER.get(this) != null) {
             log.warn("[{}] [{}] Client cnx already set, ignoring reconnection request", state.topic, state.getHandlerName());
             return;
@@ -119,7 +119,7 @@ class ConnectionHandler {
         backoff.reset();
     }
 
-    protected ClientCnx cnx() {
+    public ClientCnx cnx() {
         return CLIENT_CNX_UPDATER.get(this);
     }
 
@@ -131,7 +131,7 @@ class ConnectionHandler {
         return CLIENT_CNX_UPDATER.get(this);
     }
 
-    protected void setClientCnx(ClientCnx clientCnx) {
+    public void setClientCnx(ClientCnx clientCnx) {
         CLIENT_CNX_UPDATER.set(this, clientCnx);
     }
 

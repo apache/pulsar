@@ -521,7 +521,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    String getHandlerName() {
+    protected String getHandlerName() {
         return subscription;
     }
 

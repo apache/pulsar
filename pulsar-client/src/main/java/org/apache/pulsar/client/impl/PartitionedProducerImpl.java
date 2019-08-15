@@ -261,7 +261,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     @Override
-    String getHandlerName() {
+    protected String getHandlerName() {
         return "partition-producer";
     }
 

@@ -18,22 +18,41 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.CompleteFuture;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class ClientCnxTest {
@@ -58,6 +77,88 @@ public class ClientCnxTest {
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
         }
+    }
+
+    @Test
+    public void testSendTxnRequestWithId() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10);
+        ClientCnx clientCnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        doReturn(listenerFuture).when(ctx).writeAndFlush(any());
+        doReturn(listenerFuture).when(listenerFuture).addListener(any());
+
+        clientCnx.setCtx(ctx);
+
+        clientCnx.sendTxnRequestWithId(Unpooled.EMPTY_BUFFER, 1);
+
+        verify(ctx, times(1)).writeAndFlush(eq(Unpooled.EMPTY_BUFFER));
+        verify(listenerFuture, times(1)).addListener(any());
+    }
+
+    @Test
+    public void testFailHandleEndTxnOnPartition() {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10);
+        ClientCnx clientCnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        doReturn(listenerFuture).when(ctx).writeAndFlush(any());
+        doReturn(listenerFuture).when(listenerFuture).addListener(any());
+
+        clientCnx.setState(ClientCnx.State.Ready);
+
+        CompletableFuture<TransactionResponse> future = new CompletableFuture<>();
+        clientCnx.getPendingTxnRequest().put(1L, future);
+        PulsarApi.CommandEndTxnOnPartitionResponse res =
+            PulsarApi.CommandEndTxnOnPartitionResponse.newBuilder().setRequestId(1L).setError(PulsarApi.ServerError.UnknownError).setMessage("Unknown error").build();
+
+        clientCnx.handleEndTxnOnPartitionResponse(res);
+        try {
+            future.get();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof PulsarClientException);
+            assertEquals(e.getCause().getMessage(), "Unknown error");
+        }
+        res.recycle();
+    }
+
+    @Test
+    public void testSuccessHandleEndTxnOnPartition() {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10);
+        ClientCnx clientCnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        doReturn(listenerFuture).when(ctx).writeAndFlush(any());
+        doReturn(listenerFuture).when(listenerFuture).addListener(any());
+
+        clientCnx.setState(ClientCnx.State.Ready);
+
+        CompletableFuture<TransactionResponse> future = new CompletableFuture<>();
+        clientCnx.getPendingTxnRequest().put(1L, future);
+        PulsarApi.CommandEndTxnOnPartitionResponse res =
+            PulsarApi.CommandEndTxnOnPartitionResponse.newBuilder()
+                                                      .setRequestId(1L)
+                                                      .setTxnidLeastBits(1L)
+                                                      .setTxnidMostBits(1L).build();
+
+        clientCnx.handleEndTxnOnPartitionResponse(res);
+        try {
+            TransactionResponse response = future.get();
+            assertEquals(response.getTxnIdLeastBits(), 1L);
+            assertEquals(response.getTxnIdMostBits(), 1L);
+        } catch (Exception e) {
+            // no-op
+        }
+        res.recycle();
     }
 
 }
