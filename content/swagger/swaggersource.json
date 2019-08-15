@@ -59,13 +59,13 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         } ],
@@ -102,19 +102,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         } ],
@@ -129,7 +129,7 @@
             "description" : "Invalid request"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "503" : {
             "description" : "Function worker service is now initializing. Please try again later."
@@ -146,25 +146,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of source",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
+          "description" : "A JSON value presenting configuration payload of a Pulsar Source. An example of the expected functions can be found here.  \n- **classname**  \n  The class name of a Pulsar Source if archive is file-url-path (file://).  \n- **topicName**  \n  The Pulsar topic to which data is sent.  \n- **serdeClassName**  \n  The SerDe classname for the Pulsar Source.  \n- **schemaType**  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the Pulsar Source  \n- **configs**  \n  Source config key/values  \n- **secrets**  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \n- **parallelism**  \n  The parallelism factor of a Pulsar Source (i.e. the number of a Pulsar Source instances to run).  \n- **processingGuarantees**  \n  The processing guarantees (aka delivery semantics) applied to the Pulsar Source.    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n- **resources**  \n  The size of the system resources allowed by the Pulsar Source runtime. The resources include: cpu, ram, disk.  \n- **archive**  \n  The path to the NAR archive for the Pulsar Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \n- **runtimeFlags**  \n  Any flags that you want to pass to the runtime.  \n",
           "required" : false,
           "schema" : {
             "$ref" : "#/definitions/SourceConfig"
@@ -201,33 +201,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of source",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "URL of sources' archive",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "body",
-          "name" : "body",
-          "description" : "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \nclassname  \n  The source's class name if archive is file-url-path (file://).  \ntopicName  \n  The Pulsar topic to which data is sent.  \nserdeClassName  \n  The SerDe classname for the source.  \nschemaType  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the source  \nconfigs  \n  Source config key/values  \nsecrets  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \nparallelism  \n  The source's parallelism factor (i.e. the number of source instances to run).  \nprocessingGuarantees  \n  The processing guarantees (aka delivery semantics) applied to the source    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \nresources  \n  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \narchive  \n  The path to the NAR archive for the Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \nruntimeFlags  \n  Any flags that you want to pass to the runtime.  \n",
+          "description" : "A JSON value presenting configuration payload of a Pulsar Source. An example of the expected functions can be found here.  \n- **classname**  \n  The class name of a Pulsar Source if archive is file-url-path (file://).  \n- **topicName**  \n  The Pulsar topic to which data is sent.  \n- **serdeClassName**  \n  The SerDe classname for the Pulsar Source.  \n- **schemaType**  \n  The schema type (either a builtin schema like 'avro', 'json', etc.. or    custom Schema class name to be used to encode messages emitted from the Pulsar Source  \n- **configs**  \n  Pulsar Source config key/values  \n- **secrets**  \n  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the  SecretProviderConfigurator.getSecretObjectType() method. \n- **parallelism**  \n  The parallelism factor of a Pulsar Source (i.e. the number of a Pulsar Source instances to run).  \n- **processingGuarantees**  \n  The processing guarantees (aka delivery semantics) applied to the Pulsar Source.    Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n- **resources**  \n  The size of the system resources allowed by the Pulsar Source runtime. The resources include: cpu, ram, disk.  \n- **archive**  \n  The path to the NAR archive for the Pulsar Source. It also supports url-path   [http/https/file (file protocol assumes that file already exists on worker host)]   from which worker can download the package.  \n- **runtimeFlags**  \n  Any flags that you want to pass to the runtime.  \n",
           "required" : false,
           "schema" : {
             "$ref" : "#/definitions/SourceConfig"
@@ -238,7 +230,7 @@
         }, {
           "in" : "body",
           "name" : "body",
-          "description" : "Update options for source",
+          "description" : "Update options for Pulsar Source",
           "required" : false,
           "schema" : {
             "$ref" : "#/definitions/UpdateOptions"
@@ -258,7 +250,7 @@
             "description" : "The requester doesn't have admin permissions"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "500" : {
             "description" : "Internal Server Error"
@@ -278,19 +270,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         } ],
@@ -305,7 +297,7 @@
             "description" : "Client is not authorize to perform operation"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "408" : {
             "description" : "Request timeout"
@@ -322,7 +314,7 @@
     "/sources/{tenant}/{namespace}/{sourceName}/restart" : {
       "post" : {
         "tags" : [ "sources" ],
-        "summary" : "Restart all source instances",
+        "summary" : "Restart all instances of a Pulsar Source",
         "description" : "",
         "operationId" : "restartSource",
         "consumes" : [ "application/json" ],
@@ -330,19 +322,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         } ],
@@ -354,7 +346,7 @@
             "description" : "Client is not authorize to perform operation"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
@@ -368,7 +360,7 @@
     "/sources/{tenant}/{namespace}/{sourceName}/start" : {
       "post" : {
         "tags" : [ "sources" ],
-        "summary" : "Start all source instances",
+        "summary" : "Start all instances of a Pulsar Source",
         "description" : "",
         "operationId" : "startSource",
         "consumes" : [ "application/json" ],
@@ -376,19 +368,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         } ],
@@ -400,7 +392,7 @@
             "description" : "Client is not authorize to perform operation"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
@@ -422,19 +414,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         } ],
@@ -457,7 +449,7 @@
     "/sources/{tenant}/{namespace}/{sourceName}/stop" : {
       "post" : {
         "tags" : [ "sources" ],
-        "summary" : "Stop all source instances",
+        "summary" : "Stop all instances of a Pulsar Source",
         "description" : "",
         "operationId" : "stopSource",
         "consumes" : [ "application/json" ],
@@ -465,19 +457,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         } ],
@@ -489,7 +481,7 @@
             "description" : "Client is not authorize to perform operation"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
@@ -503,7 +495,7 @@
     "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/restart" : {
       "post" : {
         "tags" : [ "sources" ],
-        "summary" : "Restart source instance",
+        "summary" : "Restart an instance of a Pulsar Source",
         "description" : "",
         "operationId" : "restartSource",
         "consumes" : [ "application/json" ],
@@ -511,25 +503,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
+          "description" : "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).",
           "required" : true,
           "type" : "string"
         } ],
@@ -541,7 +533,7 @@
             "description" : "Client is not authorize to perform operation"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
@@ -555,7 +547,7 @@
     "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/start" : {
       "post" : {
         "tags" : [ "sources" ],
-        "summary" : "Start source instance",
+        "summary" : "Start an instance of a Pulsar Source",
         "description" : "",
         "operationId" : "startSource",
         "consumes" : [ "application/json" ],
@@ -563,25 +555,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
+          "description" : "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).",
           "required" : true,
           "type" : "string"
         } ],
@@ -593,7 +585,7 @@
             "description" : "Client is not authorize to perform operation"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
@@ -615,25 +607,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
+          "description" : "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).",
           "required" : true,
           "type" : "string"
         } ],
@@ -656,7 +648,7 @@
     "/sources/{tenant}/{namespace}/{sourceName}/{instanceId}/stop" : {
       "post" : {
         "tags" : [ "sources" ],
-        "summary" : "Stop source instance",
+        "summary" : "Stop instance of a Pulsar Source",
         "description" : "",
         "operationId" : "stopSource",
         "consumes" : [ "application/json" ],
@@ -664,25 +656,25 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
-          "description" : "The name of tenant",
+          "description" : "The tenant of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
-          "description" : "The name of namespace",
+          "description" : "The namespace of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "sourceName",
           "in" : "path",
-          "description" : "The name of name",
+          "description" : "The name of a Pulsar Source",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "instanceId",
           "in" : "path",
-          "description" : "The source instanceId (if instance-id is not provided, the stats of all instances is returned).",
+          "description" : "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).",
           "required" : true,
           "type" : "string"
         } ],
@@ -694,7 +686,7 @@
             "description" : "Client is not authorize to perform operation"
           },
           "404" : {
-            "description" : "Not Found(The source doesn't exist)"
+            "description" : "Not Found(The Pulsar Source doesn't exist)"
           },
           "500" : {
             "description" : "Internal server error"
