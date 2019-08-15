@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import com.google.common.base.Joiner;
 import static com.google.common.base.Preconditions.checkArgument;
+import org.apache.pulsar.broker.PulsarServerException;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.Codec.decode;
 
@@ -551,8 +553,26 @@ public abstract class AdminResource extends PulsarWebResource {
                 }
             }).thenAccept(metadata -> {
                 // if the partitioned topic is not found in zk, then the topic is not partitioned
+                boolean allowAutoTopicCreation = pulsar.getConfiguration().isAllowAutoTopicCreation();
+                String topicType = pulsar.getConfiguration().getAllowAutoTopicCreationType();
                 if (metadata.isPresent()) {
                     metadataFuture.complete(metadata.get());
+                } else if (allowAutoTopicCreation && "partition".equals(topicType)) {
+                    String topicName = getTopicNameFromPath(path);
+                    int configPartitions = pulsar.getConfiguration().getAllowAutoTopicCreationNumPartitions();
+                    try {
+                        pulsar.getAdminClient().topics()
+                                .createPartitionedTopicAsync(topicName, configPartitions)
+                                .whenComplete((result, ex) -> {
+                                    if (ex == null) {
+                                        metadataFuture.complete(new PartitionedTopicMetadata(configPartitions));
+                                    } else {
+                                        metadataFuture.completeExceptionally(ex);
+                                    }
+                                });
+                    } catch (PulsarServerException e) {
+                        metadataFuture.completeExceptionally(e);
+                    }
                 } else {
                     metadataFuture.complete(new PartitionedTopicMetadata());
                 }
@@ -626,5 +646,11 @@ public abstract class AdminResource extends PulsarWebResource {
 
         partitionedTopics.sort(null);
         return partitionedTopics;
+    }
+
+    private static String getTopicNameFromPath(String path) {
+        String formatPath = splitPath(path, 4);
+        String[] parts = formatPath.split("/");
+        return Joiner.on("/").join(parts[2] + ":/", parts[0], parts[1], parts[3]);
     }
 }
