@@ -153,6 +153,7 @@ public class SchemaTest extends PulsarTestSuite {
                 SchemaDefinition.<PersonConsumeSchema>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
                         withPojo(PersonConsumeSchema.class).build()))
+                .subscriptionName("test")
                 .topic(fqtn)
                 .subscribe();
         ) {
@@ -202,6 +203,7 @@ public class SchemaTest extends PulsarTestSuite {
         try (Consumer<AvroLogicalType> consumer = client
                 .newConsumer(Schema.AVRO(AvroLogicalType.class))
                 .topic(fqtn)
+                .subscriptionName("test")
                 .subscribe()
         ) {
             AvroLogicalType received = consumer.receive().getValue();
@@ -218,4 +220,43 @@ public class SchemaTest extends PulsarTestSuite {
 
     }
 
+    @Test
+    public void testAutoConsumeSchemaSubscribeFirst() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topic = "test-auto-consume-schema";
+        final String fqtn = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topic
+        ).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(pulsarCluster.getClusterName())
+        );
+        Consumer<Person> consumer = client
+                .newConsumer(Schema.AVRO(Person.class))
+                .topic(fqtn)
+                .subscriptionName("test")
+                .subscribe();
+
+        try (Producer<Person> producer = client
+                .newProducer(Schema.AVRO(Person.class))
+                .topic(fqtn)
+                .create()
+        ) {
+            Person person = new Person();
+            person.setName("Tom Hanks");
+            person.setAge(60);
+            producer.send(person);
+        }
+
+        Person person = consumer.receive().getValue();
+        assertEquals(person.getName(), "Tom Hanks");
+        assertEquals(person.getAge(), 60);
+        }
+
 }
+

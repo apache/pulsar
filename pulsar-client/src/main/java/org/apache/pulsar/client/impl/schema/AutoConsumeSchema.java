@@ -30,6 +30,8 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.util.concurrent.ExecutionException;
+
 /**
  * Auto detect schema.
  */
@@ -37,6 +39,12 @@ import org.apache.pulsar.common.schema.SchemaType;
 public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private Schema<GenericRecord> schema;
+
+    private String topicName;
+
+    private String componentName;
+
+    private SchemaInfoProvider schemaInfoProvider;
 
     public void setSchema(Schema<GenericRecord> schema) {
         this.schema = schema;
@@ -67,20 +75,36 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        ensureSchemaInitialized();
-
+        if (schema == null) {
+            try {
+                SchemaInfo schemaInfo = schemaInfoProvider.getLatestSchema().get();
+                schema = generateSchema(schemaInfo);
+                ensureSchemaInitialized();
+                schema.setSchemaInfoProvider(schemaInfoProvider);
+                    log.info("Configure {} schema for topic {} : {}",
+                            componentName, topicName, schemaInfo.getSchemaDefinition());
+            } catch (InterruptedException | ExecutionException e ) {
+                log.error("Con't get last schema for topic {} use AutoConsumeSchema", topicName);
+                throw new RuntimeException("Con't use AutoConsumeSchema get last schema for topic :" + topicName + "use AutoConsumeSchema");
+            }
+        }
         return schema.decode(bytes, schemaVersion);
     }
 
     @Override
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
-        schema.setSchemaInfoProvider(schemaInfoProvider);
+        if (schema == null) {
+            this.schemaInfoProvider = schemaInfoProvider;
+        } else {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
     }
 
     @Override
     public SchemaInfo getSchemaInfo() {
-        ensureSchemaInitialized();
-
+        if (schema == null) {
+            return null;
+        }
         return schema.getSchemaInfo();
     }
 
@@ -93,16 +117,24 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     public void configureSchemaInfo(String topicName,
                                     String componentName,
                                     SchemaInfo schemaInfo) {
+        this.topicName = topicName;
+        this.componentName = componentName;
+        if (schemaInfo != null) {
+            GenericSchema genericSchema = generateSchema(schemaInfo);
+            setSchema(genericSchema);
+            log.info("Configure {} schema for topic {} : {}",
+                    componentName, topicName, schemaInfo.getSchemaDefinition());
+        }
+    }
+
+    private GenericSchema generateSchema(SchemaInfo schemaInfo) {
         if (schemaInfo.getType() != SchemaType.AVRO
             && schemaInfo.getType() != SchemaType.JSON) {
             throw new RuntimeException("Currently auto consume only works for topics with avro or json schemas");
         }
         // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
         // to decode the messages.
-        GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
-        setSchema(genericSchema);
-        log.info("Configure {} schema for topic {} : {}",
-            componentName, topicName, schemaInfo.getSchemaDefinition());
+        return GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
     }
 
     public static Schema<?> getSchema(SchemaInfo schemaInfo) {
