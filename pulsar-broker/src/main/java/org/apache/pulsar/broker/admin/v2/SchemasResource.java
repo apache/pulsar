@@ -352,7 +352,7 @@ public class SchemasResource extends AdminResource {
         }).exceptionally(error -> {
             if (error.getCause() instanceof RestException) {
                 response.resume(Response.status(
-                    404, /* Unprocessable Entity */
+                        ((RestException) error.getCause()).getResponse().getStatus(), /* Unprocessable Entity */
                     error.getMessage()
                 ).build());
             } else {
