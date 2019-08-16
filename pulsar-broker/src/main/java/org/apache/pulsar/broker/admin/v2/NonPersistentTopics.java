@@ -88,7 +88,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return getPartitionedTopicMetadata(topicName, authoritative);
+        return getPartitionedTopicMetadata(topicName, authoritative, false);
     }
 
     @GET

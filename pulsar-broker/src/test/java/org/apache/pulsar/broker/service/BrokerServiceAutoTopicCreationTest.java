@@ -41,7 +41,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     @Test
     public void testAutoNonPartitionedTopicCreation() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
-        pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partition");
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
 
         final String topicName = "persistent://prop/ns-abc/non-partitioned-topic";
         final String subscriptionName = "non-partitioned-topic-sub";
@@ -54,7 +54,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     @Test
     public void testAutoPartitionedTopicCreation() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
-        pulsar.getConfiguration().setAllowAutoTopicCreationType("partition");
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
         pulsar.getConfiguration().setAllowAutoTopicCreationNumPartitions(3);
 
         final String topicName = "persistent://prop/ns-abc/partitioned-topic";
