@@ -32,6 +32,7 @@ import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -111,6 +112,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         testSchemaInfoApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
     }
 
+    @Test(dataProvider = "schemas")
+    public void testSchemaInfoWithVersionApi(Schema<?> schema) throws Exception {
+        testSchemaInfoWithVersionApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
+    }
+
     private <T> void testSchemaInfoApi(Schema<T> schema,
                                        String topicName) throws Exception {
         SchemaInfo si = schema.getSchemaInfo();
@@ -126,6 +132,26 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
         assertEquals(si, readSi);
+
+    }
+
+    private <T> void testSchemaInfoWithVersionApi(Schema<T> schema,
+                                       String topicName) throws Exception {
+        SchemaInfo si = schema.getSchemaInfo();
+        admin.schemas().createSchema(topicName, si);
+        log.info("Upload schema to topic {} : {}", topicName, si);
+
+        SchemaInfoWithVersion readSi = admin.schemas().getSchemaInfoWithVersion(topicName);
+        log.info("Read schema of topic {} : {}", topicName, readSi);
+
+        assertEquals(si, readSi.getSchemaInfo());
+        assertEquals(0, readSi.getVersion());
+
+        readSi = admin.schemas().getSchemaInfoWithVersion(topicName + "-partition-0");
+        log.info("Read schema of topic {} : {}", topicName, readSi);
+
+        assertEquals(si, readSi.getSchemaInfo());
+        assertEquals(0, readSi.getVersion());
 
     }
 }

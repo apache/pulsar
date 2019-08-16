@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 
 @SuppressWarnings("unchecked")
@@ -361,6 +362,19 @@ public class DefaultImplementation {
     }
 
     /**
+     * Jsonify the schema info with version.
+     *
+     * @param schemaInfoWithVersion the schema info with version
+     * @return the jsonified schema info with version
+     */
+    public static String jsonifySchemaInfoWithVersion(SchemaInfoWithVersion schemaInfoWithVersion) {
+        return catchExceptions(
+                () -> (String) getStaticMethod("org.apache.pulsar.client.impl.schema.SchemaUtils",
+                        "jsonifySchemaInfoWithVersion", SchemaInfoWithVersion.class
+                ).invoke(null, schemaInfoWithVersion));
+    }
+
+    /**
      * Jsonify the key/value schema info.
      *
      * @param kvSchemaInfo the key/value schema info
@@ -371,6 +385,32 @@ public class DefaultImplementation {
             () -> (String) getStaticMethod("org.apache.pulsar.client.impl.schema.SchemaUtils",
                 "jsonifyKeyValueSchemaInfo", KeyValue.class
             ).invoke(null, kvSchemaInfo));
+    }
+
+    /**
+     * convert the key/value schema data
+     *
+     * @param kvSchemaInfo the key/value schema info
+     * @return the convert key/value schema data string
+     */
+    public static String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) {
+        return catchExceptions(
+                () -> (String) getStaticMethod("org.apache.pulsar.client.impl.schema.SchemaUtils",
+                        "convertKeyValueSchemaInfoDataToString", KeyValue.class
+                ).invoke(null, kvSchemaInfo));
+    }
+
+    /**
+     * convert the key/value schema info data json bytes to key/value schema info data bytes
+     *
+     * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
+     * @return the key/value schema info data bytes
+     */
+    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) {
+        return catchExceptions(
+                () -> (byte[]) getStaticMethod("org.apache.pulsar.client.impl.schema.SchemaUtils",
+                        "convertKeyValueDataStringToSchemaInfoSchema", byte[].class
+                ).invoke(null, keyValueSchemaInfoDataJsonBytes));
     }
 
     public static BatcherBuilder newDefaultBatcherBuilder() {
