@@ -86,6 +86,16 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         this.retentionCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
     }
 
+    public static CompletableFuture<TransactionBuffer> createTransactionBufferAsync(String topic, ManagedLedger ledger,
+                                                                                    BrokerService brokerService) {
+        try {
+            PersistentTransactionBuffer buffer = new PersistentTransactionBuffer(topic, ledger, brokerService);
+            return CompletableFuture.completedFuture(buffer);
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+    }
+
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
         return txnCursor.getTxnMeta(txnID, false);

@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -53,6 +54,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TransactionBufferNotExistOnTopicException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
@@ -66,6 +68,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -106,7 +109,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             .newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
 
-    private final static String transactionBufferProvider = InMemTransactionBufferProvider.class.getName();
+    private Optional<TransactionBuffer> transactionBuffer = Optional.empty();
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -163,9 +166,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public void publishMessage(ByteBuf data, PublishContext callback) {
         callback.completed(null, 0L, 0L);
-        ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
-
-        subscriptions.forEach((name, subscription) -> {
+        ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this); subscriptions.forEach((name, subscription) -> {
             ByteBuf duplicateBuffer = data.retainedDuplicate();
             Entry entry = create(0L, 0L, duplicateBuffer);
             // entry internally retains data so, duplicateBuffer should be release here
@@ -352,8 +353,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    protected TransactionBufferProvider getProvider() throws IOException {
-        return TransactionBufferProvider.newProvider(transactionBufferProvider);
+    public CompletableFuture<TransactionBuffer> getTxnBuffer(boolean createIfAbsent) {
+        if (transactionBuffer.isPresent()) {
+            return CompletableFuture.completedFuture(transactionBuffer.get());
+        }
+        if (createIfAbsent) {
+            return CompletableFuture.completedFuture(new InMemTransactionBuffer())
+                                    .thenApply(inMemTransactionBuffer -> transactionBuffer = Optional.of(inMemTransactionBuffer))
+                                    .thenApply(buffer -> buffer.get());
+        }
+        return FutureUtil.failedFuture(new TransactionBufferNotExistOnTopicException("Not found transaction buffer"));
     }
 
     private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,

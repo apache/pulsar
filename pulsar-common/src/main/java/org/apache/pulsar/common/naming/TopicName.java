@@ -83,6 +83,9 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String topic) {
+        if (topic.endsWith("/_txnlog")) {
+            topic = topic.replace("/_txnlog", "");
+        }
         try {
             return cache.get(topic);
         } catch (ExecutionException e) {

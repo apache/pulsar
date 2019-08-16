@@ -36,6 +36,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -86,6 +87,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleAct
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -1368,5 +1371,32 @@ public class PersistentTopicTest {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         topic.checkCompaction();
         verify(compactor, times(0)).compact(anyString());
+    }
+
+    @Test
+    public void testGetNonExistTransactionBuffer() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successSubName, ledgerMock, brokerService);
+        try {
+            topic.getTxnBuffer(false).get();
+            fail("Should fail to get transaction buffer");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.TransactionBufferNotExistOnTopicException);
+        }
+    }
+
+    @Test
+    public void testCreateIfNotExistTransactionBuffer() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successSubName, ledgerMock, brokerService);
+        TransactionBuffer buffer = topic.getTxnBuffer(true).get();
+        assertNotNull(buffer);
+
+        TransactionBuffer getBuffer = topic.getTxnBuffer(false).get();
+        assertNotNull(getBuffer);
+        assertEquals(getBuffer, buffer);
+
+        TransactionBuffer getBuffer1 = topic.getTxnBuffer(false).get();
+        assertNotNull(getBuffer1);
+        assertEquals(getBuffer1, getBuffer);
+        assertEquals(getBuffer1, buffer);
     }
 }

@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
 import io.netty.buffer.ByteBuf;
@@ -78,6 +79,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
@@ -1368,12 +1370,14 @@ public class ServerCnx extends PulsarHandler {
         final long leastBits = commandEndTxnOnPartition.getTxnidLeastBits();
 
         TxnID txnID = new TxnID(mostBits, leastBits);
-        log.info("Received CommandEndTxnOnPartition from {}, [{}] transaction {} on the topic {}", remoteAddress,
-                 commandEndTxnOnPartition.getTxnAction(), txnID, topicName);
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandEndTxnOnPartition from {}, [{}] transaction {} on the topic {}", remoteAddress,
+                     commandEndTxnOnPartition.getTxnAction(), txnID, topicName);
+        }
         service.getTopic(topicName, false).whenComplete((topic, throwable) -> {
             if (throwable != null) {
                 ctx.writeAndFlush(
-                    Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, throwable.getMessage()));
+                    Commands.newEndTxnOnPartitionResponse(requestId, ServerError.TopicNotFound, throwable.getMessage()));
             } else {
                 if (topic.isPresent()) {
                     final Topic partition = topic.get();
@@ -1382,31 +1386,33 @@ public class ServerCnx extends PulsarHandler {
                     if (commandEndTxnOnPartition.getTxnAction().equals(PulsarApi.TxnAction.COMMIT)) {
                         markerController.publishCommitMarker()
                                         .thenApply(position -> (PositionImpl)position)
-                                        .thenCombine(partition.getTxnBuffer(false), (position, transactionBuffer) ->
-                                            transactionBuffer.commitTxn(txnID, position.getLedgerId(), position.getEntryId()))
-                                        .thenAccept(ignore ->
+                                        .thenCompose(position -> partition.getTxnBuffer(false)
+                                                                          .thenCompose(txnBuffer ->
+                                                                                           txnBuffer.commitTxn(txnID, position.getLedgerId(), position.getEntryId())))
+                                        .thenApply(ignore ->
                                                         ctx.writeAndFlush(
                                                             Commands.newEndTxnOnPartitionResponse(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits())))
                                         .exceptionally(err -> {
-                                            log.error("Commit txn error :", err);
+                                            log.warn("Commit transaction {} on the topic [{}] failed.", txnID, topicName);
                                             ctx.writeAndFlush(
-                                                Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, err.getMessage()));
+                                                Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, err.getCause().getMessage()));
                                             return null;
                                         });
                     } else if (commandEndTxnOnPartition.getTxnAction().equals(PulsarApi.TxnAction.ABORT)) {
-                        markerController.publishAbortMarker()
-                                        .thenCompose(ignore -> partition.getTxnBuffer(false))
-                                        .thenCompose(buffer -> buffer.abortTxn(txnID))
-                                        .exceptionally(err -> {
-                                            log.error("Abort txn error : ", err);
-                                            ctx.writeAndFlush(
-                                                Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, err.getMessage()));
-                                            return null;
-                                        });
+                        partition.getTxnBuffer(false)
+                                 .thenCompose(buffer -> buffer.abortTxn(txnID))
+                                 .thenApply(ignore ->
+                                                ctx.writeAndFlush(
+                                                    Commands.newEndTxnOnPartitionResponse(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits())))
+                                 .exceptionally(err -> {
+                                     log.error("Abort transaction {} on the topic [{}] failed.", txnID, topicName, err);
+                                     ctx.writeAndFlush(
+                                         Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError, err.getCause().getMessage()));
+                                     return null;
+                                 });
                     }
                 } else {
-                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId, ServerError.UnknownError,
-                                                                            "Topic is not exist"));
+                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId, ServerError.TopicNotFound, "Topic does not exist"));
                 }
             }
         });
@@ -1607,19 +1613,8 @@ public class ServerCnx extends PulsarHandler {
         public CompletableFuture<Position> publishCommitMarker() {
             ByteBuf commitMarker = Markers
                                        .newTxnCommitMarker(sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits());
-            publishMessage(commitMarker);
+            topic.publishMessage(commitMarker, this);
             return publishFuture;
-        }
-
-        public CompletableFuture<Void> publishAbortMarker() {
-            ByteBuf abortMarker = Markers
-                                      .newTxnAbortMarker(sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits());
-            publishMessage(abortMarker);
-            return publishFuture.thenApply(position -> null);
-        }
-
-        void publishMessage(ByteBuf headersAndPayload) {
-            topic.publishMessage(headersAndPayload, this);
         }
 
         @Override
@@ -1629,6 +1624,11 @@ public class ServerCnx extends PulsarHandler {
             } else {
                 publishFuture.complete(PositionImpl.get(ledgerId, entryId));
             }
+        }
+
+        @Override
+        public String getProducerName() {
+            return txnID.toString();
         }
     }
 }

@@ -203,33 +203,6 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<TransactionBuffer> getTxnBuffer(boolean createIfAbsent) {
-        CompletableFuture<TransactionBuffer> getBufferFuture = new CompletableFuture<>();
-        if (transactionBuffer == null && createIfAbsent) {
-            try {
-                TransactionBufferProvider provider = getProvider();
-                provider.newTransactionBuffer().whenComplete((buffer, err) -> {
-                    if (err != null) {
-                        getBufferFuture.completeExceptionally(err);
-                    } else {
-                        this.transactionBuffer = buffer;
-                        getBufferFuture.complete(buffer);
-                    }
-                });
-            } catch (IOException e) {
-                return FutureUtil.failedFuture(e);
-            }
-        } else if (transactionBuffer == null && !createIfAbsent) {
-            getBufferFuture.completeExceptionally(new UnknownError("Transaction buffer not exist."));
-        } else {
-            getBufferFuture.complete(transactionBuffer);
-        }
-        return getBufferFuture;
-    }
-
-    protected abstract TransactionBufferProvider getProvider() throws IOException;
-
-    @Override
     public void recordAddLatency(long latencyUSec) {
         addEntryLatencyStatsUsec.addValue(latencyUSec);
     }

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -77,6 +78,7 @@ import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -87,6 +89,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
@@ -102,6 +105,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -1591,5 +1595,243 @@ public class ServerCnxTest {
         assertEquals(res.getError(), ServerError.InvalidTopicName);
 
         channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testFailCommitTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // no transaction buffer create
+        channel.writeInbound(Commands.newEndTxnOnPartition(1L, 1L, 1L, successTopicName, PulsarApi.TxnAction.COMMIT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertEquals(res.getError(), ServerError.UnknownError);
+        assertEquals(res.getMessage(), "Not found transaction buffer");
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testCommitNonExistTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // create a transaction buffer
+        final String successTxnName = "txn-success";
+        PersistentTopic mockTopic = spy(new PersistentTopic(successTxnName, ledgerMock, brokerService));
+        TransactionBuffer buffer = mockTopic.getTxnBuffer(true).get();
+        assertNotNull(buffer);
+
+        CompletableFuture<Optional<Topic>> future = CompletableFuture.supplyAsync(() -> Optional.of(mockTopic));
+        doReturn(future).when(brokerService).getTopic(successTopicName, false);
+
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                ((ServerCnx.TxnMarkerController) invocationOnMock.getArguments()[1]).completed(null, 1L, 1L);
+                return null;
+            }
+        }).when(mockTopic).publishMessage(any(ByteBuf.class), any(Topic.PublishContext.class));
+
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newEndTxnOnPartition(1L, 1L, 1L, successTopicName, PulsarApi.TxnAction.COMMIT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertTrue(res.hasError());
+        assertEquals(res.getRequestId(), 1L);
+        assertEquals(res.getError(), ServerError.UnknownError);
+        assertEquals(res.getMessage(), "Transaction `(1,1)` doesn't exist");
+    }
+
+    @Test(timeOut = 30000)
+    public void testSuccessCommitTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // create a transaction buffer
+        final String successTxnName = "txn-success";
+        PersistentTopic mockTopic = spy(new PersistentTopic(successTxnName, ledgerMock, brokerService));
+        TransactionBuffer buffer = mockTopic.getTxnBuffer(true).get();
+        assertNotNull(buffer);
+
+        TxnID txnID = new TxnID(1L, 1L);
+        buffer.appendBufferToTxn(txnID, 1L, Unpooled.EMPTY_BUFFER).get();
+
+        CompletableFuture<Optional<Topic>> future = CompletableFuture.supplyAsync(() -> Optional.of(mockTopic));
+        doReturn(future).when(brokerService).getTopic(successTopicName, false);
+
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                ((ServerCnx.TxnMarkerController) invocationOnMock.getArguments()[1]).completed(null, 1L, 1L);
+                return null;
+            }
+        }).when(mockTopic).publishMessage(any(ByteBuf.class), any(Topic.PublishContext.class));
+
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(
+            Commands.newEndTxnOnPartition(1L, txnID.getLeastSigBits(), txnID.getMostSigBits(), successTopicName, PulsarApi.TxnAction.COMMIT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertFalse(res.hasError());
+        assertEquals(res.getRequestId(), 1L);
+        assertEquals(res.getTxnidMostBits(), txnID.getMostSigBits());
+        assertEquals(res.getTxnidLeastBits(), txnID.getLeastSigBits());
+    }
+
+    @Test(timeOut = 30000)
+    public void testInvalidTopicOnCommitTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        String invalidTopicName = "persistent://prop/use/ns-abc/";
+
+        channel.writeInbound(Commands.newEndTxnOnPartition(1L, 1L, 1L, invalidTopicName, PulsarApi.TxnAction.COMMIT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertTrue(res.hasError());
+        assertEquals(res.getRequestId(), 1L);
+        assertEquals(res.getError(), ServerError.TopicNotFound);
+        assertEquals(res.getMessage(), "Invalid topic name: persistent://prop/use/ns-abc/");
+    }
+
+    @Test(timeOut = 30000)
+    public void testFailCommitTxnOnNonExistTopic() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        CompletableFuture<Optional<Topic>> future = CompletableFuture.supplyAsync(() -> Optional.empty());
+        doReturn(future).when(brokerService).getTopic(successTopicName, false);
+
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newEndTxnOnPartition(1L, 1L, 1L, successTopicName, PulsarApi.TxnAction.COMMIT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertTrue(res.hasError());
+        assertEquals(res.getError(), ServerError.TopicNotFound);
+        assertEquals(res.getRequestId(), 1L);
+        assertEquals(res.getMessage(), "Topic does not exist");
+    }
+
+    @Test(timeOut = 30000)
+    public void testFailAbortTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // no transaction buffer create
+        channel.writeInbound(Commands.newEndTxnOnPartition(1L, 1L, 1L, successTopicName, PulsarApi.TxnAction.ABORT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertEquals(res.getError(), ServerError.UnknownError);
+        assertEquals(res.getMessage(), "Not found transaction buffer");
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAbortNonExistTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // create a transaction buffer
+        final String successTxnName = "txn-success";
+        PersistentTopic mockTopic = spy(new PersistentTopic(successTxnName, ledgerMock, brokerService));
+        TransactionBuffer buffer = mockTopic.getTxnBuffer(true).get();
+        assertNotNull(buffer);
+
+        CompletableFuture<Optional<Topic>> future = CompletableFuture.supplyAsync(() -> Optional.of(mockTopic));
+        doReturn(future).when(brokerService).getTopic(successTopicName, false);
+
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newEndTxnOnPartition(1L, 1L, 1L, successTopicName, PulsarApi.TxnAction.ABORT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertTrue(res.hasError());
+        assertEquals(res.getRequestId(), 1L);
+        assertEquals(res.getError(), ServerError.UnknownError);
+        assertEquals(res.getMessage(), "Transaction `(1,1)` doesn't exist");
+    }
+
+    @Test(timeOut = 30000)
+    public void testSuccessAbortTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        // create a transaction buffer
+        final String successTxnName = "txn-success";
+        PersistentTopic mockTopic = spy(new PersistentTopic(successTxnName, ledgerMock, brokerService));
+        TransactionBuffer buffer = mockTopic.getTxnBuffer(true).get();
+        assertNotNull(buffer);
+
+        TxnID txnID = new TxnID(1L, 1L);
+        buffer.appendBufferToTxn(txnID, 1L, Unpooled.EMPTY_BUFFER).get();
+
+        CompletableFuture<Optional<Topic>> future = CompletableFuture.supplyAsync(() -> Optional.of(mockTopic));
+        doReturn(future).when(brokerService).getTopic(successTopicName, false);
+
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(
+            Commands.newEndTxnOnPartition(
+                1L, txnID.getLeastSigBits(), txnID.getMostSigBits(), successTopicName, PulsarApi.TxnAction.ABORT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertFalse(res.hasError());
+        assertEquals(res.getRequestId(), 1L);
+        assertEquals(res.getTxnidMostBits(), txnID.getMostSigBits());
+        assertEquals(res.getTxnidLeastBits(), txnID.getLeastSigBits());
+    }
+
+    @Test(timeOut = 30000)
+    public void testInvalidTopicOnAbortTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        String invalidTopicName = "persistent://prop/use/ns-abc/";
+        channel.writeInbound(Commands.newEndTxnOnPartition(1L, 1L, 1L, invalidTopicName, PulsarApi.TxnAction.ABORT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertTrue(res.hasError());
+        assertEquals(res.getRequestId(), 1L);
+        assertEquals(res.getError(), ServerError.TopicNotFound);
+        assertEquals(res.getMessage(), "Invalid topic name: persistent://prop/use/ns-abc/");
+    }
+
+    @Test(timeOut = 30000)
+    public void testFailAbortTxnOnNonExistTopic() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        CompletableFuture<Optional<Topic>> future = CompletableFuture.supplyAsync(() -> Optional.empty());
+        doReturn(future).when(brokerService).getTopic(successTopicName, false);
+
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newEndTxnOnPartition(1L, 1L, 1L, successTopicName, PulsarApi.TxnAction.ABORT));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandEndTxnOnPartitionResponse.class);
+        CommandEndTxnOnPartitionResponse res = (CommandEndTxnOnPartitionResponse) obj;
+        assertTrue(res.hasError());
+        assertEquals(res.getError(), ServerError.TopicNotFound);
+        assertEquals(res.getRequestId(), 1L);
+        assertEquals(res.getMessage(), "Topic does not exist");
     }
 }

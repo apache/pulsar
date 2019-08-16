@@ -49,8 +49,10 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -1010,5 +1012,33 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         } catch (Exception e) {
             log.error("Stats executor error", e);
         }
+    }
+
+
+    @Test
+    public void testGetNonExistTransactionBuffer() throws Exception {
+        NonPersistentTopic topic = new NonPersistentTopic("test", pulsar.getBrokerService());
+        try {
+            topic.getTxnBuffer(false).get();
+            fail("Should fail to get transaction buffer");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.TransactionBufferNotExistOnTopicException);
+        }
+    }
+
+    @Test
+    public void testCreateIfNotExistTransactionBuffer() throws Exception {
+        NonPersistentTopic topic = new NonPersistentTopic("test", pulsar.getBrokerService());
+        TransactionBuffer buffer = topic.getTxnBuffer(true).get();
+        assertNotNull(buffer);
+
+        TransactionBuffer getBuffer = topic.getTxnBuffer(false).get();
+        assertNotNull(getBuffer);
+        assertEquals(getBuffer, buffer);
+
+        TransactionBuffer getBuffer1 = topic.getTxnBuffer(false).get();
+        assertNotNull(getBuffer1);
+        assertEquals(getBuffer1, getBuffer);
+        assertEquals(getBuffer1, buffer);
     }
 }

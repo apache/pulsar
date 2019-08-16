@@ -27,6 +27,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
@@ -151,6 +152,12 @@ public class ClientChannelHelper {
         @Override
         protected void handleLookupResponse(CommandLookupTopicResponse connection) {
             queue.offer(CommandLookupTopicResponse.newBuilder(connection).build());
+        }
+
+        @Override
+        protected void handleEndTxnOnPartitionResponse(
+            CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse) {
+            queue.offer(CommandEndTxnOnPartitionResponse.newBuilder(commandEndTxnOnPartitionResponse).build());
         }
     };
 

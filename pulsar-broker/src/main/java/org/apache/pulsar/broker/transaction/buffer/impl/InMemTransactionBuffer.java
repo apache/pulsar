@@ -45,7 +45,7 @@ import org.apache.pulsar.transaction.impl.common.TxnStatus;
 /**
  * The in-memory implementation of {@link TransactionBuffer}.
  */
-class InMemTransactionBuffer implements TransactionBuffer {
+public class InMemTransactionBuffer implements TransactionBuffer {
 
     /**
      * A class represents the buffer of a transaction.
