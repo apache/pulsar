@@ -21,6 +21,60 @@
     overflow: auto;
 }
 
+.em {
+    font-weight: bold;
+}
+
+.tab {
+    border-bottom: 1px solid #79aec8;
+}
+
+.tab span {
+    cursor: pointer;
+    display: inline-block;
+    float: left;
+    font-weight: bold;
+    height: 30px;
+    line-height: 30px;
+    padding: 0 15px;
+}
+
+.tab span.active {
+    background-color: #79aec8;
+    color: #fff;
+}
+
+.tab span.warn {
+    background-color: #c13b3b;
+}
+
+.tab-content {
+    display: none
+}
+
+.clearfix:after{
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.message {
+    max-width: 800px;
+}
+
+.message-title {
+    padding-right: 25px;
+}
+
+.message-content {
+    margin: 10px 0;
+    padding: 0 10px;
+    border-left: 5px solid #79aec8;
+    border-radius: 0 2px 2px 0;
+    background-color: #f2f2f2;
+    max-height: 400px;
+}
+
 input.small-button {
     padding: 2px;
 }
