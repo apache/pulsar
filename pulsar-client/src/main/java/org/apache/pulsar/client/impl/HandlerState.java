@@ -30,7 +30,7 @@ public abstract class HandlerState {
     @SuppressWarnings("unused")
     private volatile State state = null;
 
-    enum State {
+    protected enum State {
         Uninitialized, // Not initialized
         Connecting, // Client connecting to broker
         Ready, // Handler is being used

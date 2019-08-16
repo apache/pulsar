@@ -37,7 +37,7 @@ import org.mockito.stubbing.Answer;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class TransactionBufferClientTest {
+public class TransactionCoordinatorClientTest {
 
     PulsarClientImpl pulsarClient;
     ConnectionHandler connectionHandler;
@@ -80,7 +80,7 @@ public class TransactionBufferClientTest {
     @Test
     public void testCommitSuccess() {
         String topic = "test-success-commit";
-        TransactionBufferClientImpl client = new TransactionBufferClientImpl(pulsarClient, topic, connectionHandler);
+        TransactionCoordinatorClientImpl client = new TransactionCoordinatorClientImpl(pulsarClient, topic, connectionHandler);
         doReturn(1L).when(pulsarClient).newRequestId();
         try {
             client.commitTxnOnTopic(topic, 1, 1).get();
@@ -92,7 +92,7 @@ public class TransactionBufferClientTest {
     @Test
     public void testCommitFailed() {
         String topic = "test-fail-commit";
-        TransactionBufferClientImpl client = new TransactionBufferClientImpl(pulsarClient, topic, connectionHandler);
+        TransactionCoordinatorClientImpl client = new TransactionCoordinatorClientImpl(pulsarClient, topic, connectionHandler);
 
         doReturn(2L).when(pulsarClient).newRequestId();
         try {
@@ -106,7 +106,7 @@ public class TransactionBufferClientTest {
     @Test
     public void testAbortSuccess() {
         String topic = "test-success-abort";
-        TransactionBufferClientImpl client = new TransactionBufferClientImpl(pulsarClient, topic, connectionHandler);
+        TransactionCoordinatorClientImpl client = new TransactionCoordinatorClientImpl(pulsarClient, topic, connectionHandler);
 
         doReturn(1L).when(pulsarClient).newRequestId();
         try {
@@ -119,7 +119,7 @@ public class TransactionBufferClientTest {
     @Test
     public void testAbortFailed() {
         String topic = "test-fail-abort";
-        TransactionBufferClientImpl client = new TransactionBufferClientImpl(pulsarClient, topic, connectionHandler);
+        TransactionCoordinatorClientImpl client = new TransactionCoordinatorClientImpl(pulsarClient, topic, connectionHandler);
 
         doReturn(2L).when(pulsarClient).newRequestId();
         try {
