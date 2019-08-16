@@ -1,6 +1,5 @@
 # Pulsar Functions configure
 
-
 ## localrun
 
 Run Pulsar Functions locally, rather than deploying it to the Pulsar cluster.
