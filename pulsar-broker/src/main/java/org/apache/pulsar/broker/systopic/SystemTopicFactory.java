@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import org.apache.pulsar.client.api.PulsarClientException;
-
 /**
  * System topic factory
  */
@@ -30,7 +28,6 @@ public interface SystemTopicFactory {
      * @param key key of the system topic
      * @param eventType event type
      * @return system topic
-     * @throws PulsarClientException exception cause while create system topic
      */
-    SystemTopic createSystemTopic(String key, EventType eventType) throws PulsarClientException;
+    SystemTopic createSystemTopic(String key, EventType eventType);
 }

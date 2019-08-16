@@ -48,11 +48,10 @@ public abstract class CachedSystemTopicService implements SystemTopicService {
         return caches.get(eventType).computeIfAbsent(key, k -> loadSystemTopic(k, eventType));
     }
 
-    @Override
-    public void destroySystemTopic(String key, EventType eventType) {
-        SystemTopic systemTopic = caches.get(eventType).remove(key);
-        if (systemTopic != null) {
-            systemTopic.close();
+    public void invalidate(String key, EventType eventType) {
+        SystemTopic toInvalidate = caches.get(eventType).remove(key);
+        if (toInvalidate != null) {
+            toInvalidate.closeAsync();
         }
     }
 

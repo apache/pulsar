@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -41,20 +42,46 @@ public interface SystemTopic {
      * Create a reader for the system topic.
      * @return a new reader for the system topic
      */
-    Reader createReader() throws PulsarClientException;
+    Reader newReader() throws PulsarClientException;
 
     /**
-     * Get a writer for the system topic.
+     * Create a reader for the system topic asynchronously.
+     */
+    CompletableFuture<Reader> newReaderAsync();
+
+    /**
+     * Create a writer for the system topic.
      * @return writer for the system topic
      */
-    Writer getWriter() throws PulsarClientException;
+    Writer newWriter() throws PulsarClientException;
 
     /**
-     * Close the system topic.
-     *
-     * Close system topic will close producer and consumer of the system topic
+     * Create a writer for the system topic asynchronously.
      */
-    void close();
+    CompletableFuture<Writer> newWriterAsync();
+
+    /**
+     * Close the system topic
+     */
+    void close() throws Exception;
+
+    /**
+     * Close the system topic asynchronously.
+     * @return
+     */
+    CompletableFuture<Void> closeAsync();
+
+    /**
+     * Get all writers of the system topic
+     * @return writer list
+     */
+    List<Writer> getWriters();
+
+    /**
+     * Get all readers of the system topic
+     * @return reader list
+     */
+    List<Reader> getReaders();
 
     /**
      * Writer for system topic
@@ -69,9 +96,28 @@ public interface SystemTopic {
         MessageId write(PulsarEvent event) throws PulsarClientException;
 
         /**
+         * Async write event to the system topic
+         * @param event pulsar event
+         * @return message id future
+         */
+        CompletableFuture<MessageId> writeAsync(PulsarEvent event);
+
+        /**
          * Close the system topic writer.
          */
         void close() throws IOException;
+
+        /**
+         * Close the writer of the system topic asynchronously.
+         */
+        CompletableFuture<Void> closeAsync();
+
+        /**
+         * Get the system topic of the writer
+         * @return system topic
+         */
+        SystemTopic getSystemTopic();
+
     }
 
     /**
@@ -92,9 +138,32 @@ public interface SystemTopic {
         CompletableFuture<Message<PulsarEvent>> readNextAsync();
 
         /**
+         * Check has more events available for the reader.
+         * @return true if has remaining events, otherwise false
+         */
+        boolean hasMoreEvents() throws PulsarClientException;
+
+        /**
+         * Check has more events available for the reader asynchronously.
+         * @return true if has remaining events, otherwise false
+         */
+        CompletableFuture<Boolean> hasMoreEventsAsync();
+
+        /**
          * Close the system topic reader.
          */
         void close() throws IOException;
+
+        /**
+         * Close the reader of the system topic asynchronously.
+         */
+        CompletableFuture<Void> closeAsync();
+
+        /**
+         * Get the system topic of the reader
+         * @return system topic
+         */
+        SystemTopic getSystemTopic();
     }
 
 }

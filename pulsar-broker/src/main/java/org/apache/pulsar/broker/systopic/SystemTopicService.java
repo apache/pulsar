@@ -31,10 +31,4 @@ public interface SystemTopicService {
      */
     SystemTopic getSystemTopic(String key, EventType eventType);
 
-    /**
-     * Destroy the system topic for a key
-     * @param key key of the system topic
-     * @param eventType event type
-     */
-    void destroySystemTopic(String key, EventType eventType);
 }

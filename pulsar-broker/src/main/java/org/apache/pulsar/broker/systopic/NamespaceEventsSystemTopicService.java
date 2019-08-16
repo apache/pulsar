@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.systopic;
 
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,12 +35,11 @@ public class NamespaceEventsSystemTopicService extends CachedSystemTopicService 
 
     @Override
     SystemTopic loadSystemTopic(String key, EventType eventType) {
-        try {
-            return systemTopicFactory.createSystemTopic(key, eventType);
-        } catch (PulsarClientException e) {
-            log.error("Create system topic for key {} failed", e);
-            return null;
-        }
+        return systemTopicFactory.createSystemTopic(key, eventType);
+    }
+
+    public SystemTopic getTopicPoliciesSystemTopic(NamespaceName namespaceName) {
+        return getSystemTopic(namespaceName.toString(), EventType.TOPIC_POLICY);
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicService.class);
