@@ -16,16 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#pragma once
+#include <gtest/gtest.h>
 
-#include "CompressionCodec.h"
+#include "../lib/CompressionCodecSnappy.h"
 
-namespace pulsar {
+using namespace pulsar;
 
-class PULSAR_PUBLIC CompressionCodecSnappy : public CompressionCodec {
-   public:
-    SharedBuffer encode(const SharedBuffer& raw);
+TEST(CompressionCodecSnappyTest, testEncodeAndDecode) {
+    CompressionCodecSnappy compressionCodecSnappy;
+    char data[] = "snappy compression compresses snappy";
+    size_t sz = sizeof(data);
+    SharedBuffer source = SharedBuffer::wrap(data, sz);
+    SharedBuffer compressed = compressionCodecSnappy.encode(source);
+    ASSERT_GT(compressed.readableBytes(), 0);
 
-    bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
-};
-}  // namespace pulsar
+    SharedBuffer uncompressed;
+    bool res = compressionCodecSnappy.decode(compressed, static_cast<uint32_t>(sz), uncompressed);
+    ASSERT_TRUE(res);
+    ASSERT_EQ(uncompressed.readableBytes(), sz);
+    ASSERT_STREQ(data, uncompressed.data());
+}
