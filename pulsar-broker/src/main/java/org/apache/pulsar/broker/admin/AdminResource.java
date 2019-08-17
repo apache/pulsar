@@ -593,7 +593,7 @@ public abstract class AdminResource extends PulsarWebResource {
             String topicType = pulsar.getConfiguration().getAllowAutoTopicCreationType();
             fetchPartitionedTopicMetadataAsync(pulsar, path).whenComplete((metadata, ex) -> {
                 if (ex != null) {
-                    metadataFuture.completeExceptionally(ex.getCause());
+                    metadataFuture.completeExceptionally(ex);
                 } else if (metadata.partitions == 0 && allowAutoTopicCreation &&
                         TopicType.PARTITIONED.toString().equals(topicType)) {
                     int configPartitions = pulsar.getConfiguration().getAllowAutoTopicCreationNumPartitions();
@@ -606,7 +606,7 @@ public abstract class AdminResource extends PulsarWebResource {
                         Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
                         metadataFuture.complete(configMetadata);
                     } catch (JsonProcessingException | InterruptedException | KeeperException e) {
-                        metadataFuture.completeExceptionally(e.getCause());
+                        metadataFuture.completeExceptionally(e);
                     }
                 } else {
                     metadataFuture.complete(metadata);
