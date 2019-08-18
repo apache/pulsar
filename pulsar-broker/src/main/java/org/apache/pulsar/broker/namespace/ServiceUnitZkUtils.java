@@ -153,7 +153,7 @@ public final class ServiceUnitZkUtils {
         String brokerUrl = null;
         try {
             byte[] data = zkc.getData(path, false, null);
-            if (data.length == 0) {
+            if (data == null || data.length == 0) {
                 // skip, ephemeral node will not have zero byte
                 return;
             }
