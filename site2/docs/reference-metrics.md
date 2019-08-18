@@ -27,29 +27,29 @@ The metrics exposed by Pulsar are in Prometheus format. The types of metrics are
 
 ## ZooKeeper
 
-The zookeeper metrics are exposed under "/metrics" at port 8000. You can change the port by configuring a system
-property `stats_server_port` to use a different port.
+The ZooKeeper metrics are exposed under "/metrics" at port 8000. You can use a different port
+by configuring the `stats_server_port` system property. 
 
 ### Server metrics
 
 | Name | Type | Description |
 |---|---|---|
-| zookeeper_server_znode_count | Gauge | Number of z-nodes stored. |
+| zookeeper_server_znode_count | Gauge | The number of z-nodes stored. |
 | zookeeper_server_data_size_bytes | Gauge | The total size of all of z-nodes stored. |
-| zookeeper_server_connections | Gauge | Number of currently opened connections. |
-| zookeeper_server_watches_count | Gauge | Number of watchers registered. |
-| zookeeper_server_ephemerals_count | Gauge | Number of ephemeral z-nodes. |
+| zookeeper_server_connections | Gauge | The number of currently opened connections. |
+| zookeeper_server_watches_count | Gauge | The number of watchers registered. |
+| zookeeper_server_ephemerals_count | Gauge | The number of ephemeral z-nodes. |
 
 ### Request metrics
 
 | Name | Type | Description |
 |---|---|---|
 | zookeeper_server_requests | Counter | The total number of requests received by a particular server. |
-| zookeeper_server_requests_latency_ms | Summary | The requests latency calculated in milliseconds. <br> Available labels: *type* (write, read). <br> <ul><li>*write*: the requests that write data to zookeeper.</li><li>*read*: the requests that read data from zookeeper.</li></ul>|
+| zookeeper_server_requests_latency_ms | Summary | The requests latency calculated in milliseconds. <br> Available labels: *type* (write, read). <br> <ul><li>*write*: the requests that write data to ZooKeeper.</li><li>*read*: the requests that read data from ZooKeeper.</li></ul>|
 
 ## BookKeeper
 
-The bookkeeper metrics are exposed under "/metrics" at port 8000. You can change the port by updating `prometheusStatsHttpPort`
+The BookKeeper metrics are exposed under "/metrics" at port 8000. You can change the port by updating `prometheusStatsHttpPort`
 in `bookkeeper.conf` configuration file.
 
 ### Server metrics
@@ -57,18 +57,18 @@ in `bookkeeper.conf` configuration file.
 | Name | Type | Description |
 |---|---|---|
 | bookie_SERVER_STATUS | Gauge | The server status for bookie server. <br><ul><li>1: the bookie is running in writable mode.</li><li>0: the bookie is running in readonly mode.</li></ul> |
-| bookkeeper_server_ADD_ENTRY_count | Counter | The total number of ADD_ENTRY requests received at the bookie. Label `success` used to distinguish successes and failures. |
-| bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. Label `success` used to distinguish successes and failures. |
+| bookkeeper_server_ADD_ENTRY_count | Counter | The total number of ADD_ENTRY requests received at the bookie. The `success` label used to distinguish successes and failures. |
+| bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. The `success` label used to distinguish successes and failures. |
 | bookie_WRITE_BYTES | Counter | The total number of bytes written to the bookie. |
 | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. |
-| bookkeeper_server_ADD_ENTRY_REQUEST | Histogram | The histogram of request latency of ADD_ENTRY requests at the bookie. Label `success` used to distinguish successes and failures. | 
-| bookkeeper_server_READ_ENTRY_REQUEST | Histogram | The histogram of request latency of READ_ENTRY requests at the bookie. Label `success` used to distinguish successes and failures. | 
+| bookkeeper_server_ADD_ENTRY_REQUEST | Histogram | The histogram of request latency of ADD_ENTRY requests at the bookie. The `success` label used to distinguish successes and failures. | 
+| bookkeeper_server_READ_ENTRY_REQUEST | Histogram | The histogram of request latency of READ_ENTRY requests at the bookie. The `success` label used to distinguish successes and failures. | 
 
 ### Journal metrics
 
 | Name | Type | Description |
 |---|---|---|
-| bookie_journal_JOURNAL_SYNC_count | Counter | The total number of journal fsync operations happening at the bookie. Label `success` used to distinguish successes and failures. |
+| bookie_journal_JOURNAL_SYNC_count | Counter | The total number of journal fsync operations happening at the bookie. The `success` label used to distinguish successes and failures. |
 | bookie_journal_JOURNAL_QUEUE_SIZE | Gauge | The total number of requests pending in the journal queue. |
 | bookie_journal_JOURNAL_FORCE_WRITE_QUEUE_SIZE | Gauge | The total number of force write (fsync) requests pending in the force-write queue. |
 | bookie_journal_JOURNAL_CB_QUEUE_SIZE | Gauge | The total number of callbacks pending in the callback queue. |
@@ -83,7 +83,7 @@ in `bookkeeper.conf` configuration file.
 | bookie_entries_count | Gauge | The total number of entries stored in the bookie. |
 | bookie_write_cache_size | Gauge | The bookie write cache size (in bytes). |
 | bookie_read_cache_size | Gauge | The bookie read cache size (in bytes). |
-| bookie_DELETED_LEDGER_COUNT | Counter | The total number of ledgers deleted since the bookie starts. |
+| bookie_DELETED_LEDGER_COUNT | Counter | The total number of ledgers deleted since the bookie has started. |
 | bookie_ledger_writable_dirs | Gauge | The number of writable directories in the bookie. |
 
 ## Broker
@@ -105,7 +105,7 @@ Broker has the following kinds of metrics:
 
 ### Namespace metrics
 
-> Namespace metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to false.
+> Namespace metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `false`.
 
 All the namespace metrics are labelled with the following labels:
 
@@ -149,7 +149,7 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 
 > Topic metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to true.
 
-All the topic metrics are labelled with following labels:
+All the topic metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -192,7 +192,7 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 
 > Subscription metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to true.
 
-All the subscription metrics are labelled with following labels:
+All the subscription metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -204,8 +204,8 @@ All the subscription metrics are labelled with following labels:
 | pulsar_subscription_back_log | Gauge | The total backlog of a subscription (messages). |
 | pulsar_subscription_delayed | Gauge | The total number of messages are delayed to be dispatched for a subscription (messages). |
 | pulsar_subscription_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (messages/second). |
-| pulsar_subscription_unacked_massages | Gauge | The total number of unacked messages of a subscription (messages). |
-| pulsar_subscription_blocked_on_unacked_messages | Gauge | Indicate whether a subscription is blocked on unacked messages or not. <br> <ul><li>1 means the subscription is blocked on waiting unacked messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacked messages to be acked.</li></ul> |
+| pulsar_subscription_unacked_massages | Gauge | The total number of unacknowledged messages of a subscription (messages). |
+| pulsar_subscription_blocked_on_unacked_messages | Gauge | Indicate whether a subscription is blocked on unacknowledged messages or not. <br> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
 | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (messages/second). |
 | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (bytes/second). |
 
@@ -214,7 +214,7 @@ All the subscription metrics are labelled with following labels:
 > Consumer metrics are only exposed when both `exposeTopicLevelMetricsInPrometheus` and `exposeConsumerLevelMetricsInPrometheus`
 > are set to true.
 
-All the consumer metrics are labelled with following labels:
+All the consumer metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -226,8 +226,8 @@ All the consumer metrics are labelled with following labels:
 | Name | Type | Description |
 |---|---|---|
 | pulsar_consumer_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (messages/second). |
-| pulsar_consumer_unacked_massages | Gauge | The total number of unacked messages of a consumer (messages). |
-| pulsar_consumer_blocked_on_unacked_messages | Gauge | Indicate whether a consumer is blocked on unacked messages or not. <br> <ul><li>1 means the consumer is blocked on waiting unacked messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacked messages to be acked.</li></ul> |
+| pulsar_consumer_unacked_massages | Gauge | The total number of unacknowledged messages of a consumer (messages). |
+| pulsar_consumer_blocked_on_unacked_messages | Gauge | Indicate whether a consumer is blocked on unacknowledged messages or not. <br> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
 | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). |
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
@@ -237,7 +237,7 @@ All the consumer metrics are labelled with following labels:
 You can [set up a Prometheus instance](https://prometheus.io/) to collect all the metrics exposed at Pulsar components and set up
 [Grafana](https://grafana.com/) dashboards to display the metrics and monitor your Pulsar cluster.
 
-The example Grafana dashboards can be found:
+The following are some Grafana dashboards examples:
 
 - [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
 - [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
