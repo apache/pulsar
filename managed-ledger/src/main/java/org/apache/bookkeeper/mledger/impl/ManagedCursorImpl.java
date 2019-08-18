@@ -45,6 +45,7 @@ import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +72,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
@@ -766,7 +768,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             @Override
-            public void findEntryFailed(ManagedLedgerException exception, Object ctx) {
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition,
+                    Object ctx) {
                 result.exception = exception;
                 counter.countDown();
             }
@@ -796,11 +799,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             max = getNumberOfEntriesInStorage();
             break;
         default:
-            callback.findEntryFailed(new ManagedLedgerException("Unknown position constraint"), ctx);
+            callback.findEntryFailed(new ManagedLedgerException("Unknown position constraint"), Optional.empty(), ctx);
             return;
         }
         if (startPosition == null) {
-            callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"), ctx);
+            callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"),
+                    Optional.empty(), ctx);
             return;
         }
         op = new OpFindNewest(this, startPosition, condition, max, callback, ctx);
@@ -2579,6 +2583,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Disable mark-delete rate limiter
             markDeleteLimiter = null;
         }
+    }
+
+    @Override
+    public ManagedLedger getManagedLedger() {
+        return this.ledger;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

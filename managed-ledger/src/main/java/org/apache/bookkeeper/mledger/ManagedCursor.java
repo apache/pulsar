@@ -587,4 +587,11 @@ public interface ManagedCursor {
      */
     void setThrottleMarkDelete(double throttleMarkDelete);
 
+    /**
+     * Get {@link ManagedLedger} attached with cursor
+     * 
+     * @return ManagedLedger
+     */
+    ManagedLedger getManagedLedger();
+
 }

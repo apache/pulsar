@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.KEY_VALUE_SCHEMA_INFO_INCLUDE_PRIMITIVE;
+import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.KEY_VALUE_SCHEMA_INFO_NOT_INCLUDE_PRIMITIVE;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -205,6 +206,21 @@ public class KeyValueSchemaInfoTest {
         );
         assertFalse(BAR_SCHEMA.getSchemaInfo().getProperties().isEmpty());
         assertTrue(valueSchemaInfo.getProperties().isEmpty());
+    }
+
+    @Test
+    public void testKeyValueSchemaInfoToString() {
+        String havePrimitiveType = DefaultImplementation
+                .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo
+                        .decodeKeyValueSchemaInfo(Schema.KeyValue(Schema.AVRO(Foo.class), Schema.STRING)
+                                .getSchemaInfo()));
+        assertEquals(havePrimitiveType, KEY_VALUE_SCHEMA_INFO_INCLUDE_PRIMITIVE);
+
+        String notHavePrimitiveType = DefaultImplementation
+                .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo
+                        .decodeKeyValueSchemaInfo(Schema.KeyValue(Schema.AVRO(Foo.class),
+                                Schema.AVRO(Foo.class)).getSchemaInfo()));
+        assertEquals(notHavePrimitiveType, KEY_VALUE_SCHEMA_INFO_NOT_INCLUDE_PRIMITIVE);
     }
 
 }

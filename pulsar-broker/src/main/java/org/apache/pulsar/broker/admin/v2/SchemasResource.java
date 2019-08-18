@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -58,6 +59,7 @@ import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -461,11 +463,19 @@ public class SchemasResource extends AdminResource {
     }
 
     private static GetSchemaResponse convertSchemaAndMetadataToGetSchemaResponse(SchemaAndMetadata schemaAndMetadata) {
+        String schemaData;
+        if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
+            schemaData = DefaultImplementation
+                    .convertKeyValueSchemaInfoDataToString(DefaultImplementation.decodeKeyValueSchemaInfo
+                            (schemaAndMetadata.schema.toSchemaInfo()));
+        } else {
+            schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+        }
         return GetSchemaResponse.builder()
                 .version(getLongSchemaVersion(schemaAndMetadata.version))
                 .type(schemaAndMetadata.schema.getType())
                 .timestamp(schemaAndMetadata.schema.getTimestamp())
-                .data(new String(schemaAndMetadata.schema.getData(), UTF_8))
+                .data(schemaData)
                 .properties(schemaAndMetadata.schema.getProps())
                 .build();
     }

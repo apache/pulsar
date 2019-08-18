@@ -49,6 +49,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -3023,6 +3024,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public static ManagedLedgerException createManagedLedgerException(Throwable t) {
         if (t instanceof org.apache.bookkeeper.client.api.BKException) {
             return createManagedLedgerException(((org.apache.bookkeeper.client.api.BKException) t).getCode());
+        } else if (t instanceof CompletionException
+                && !(t.getCause() instanceof CompletionException) /* check to avoid stackoverlflow */) {
+            return createManagedLedgerException(t.getCause());
         } else {
             return new ManagedLedgerException("Unknown exception");
         }

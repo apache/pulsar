@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.testng.annotations.Test;
@@ -308,6 +309,12 @@ public class ManagedCursorContainerTest {
         public double getThrottleMarkDelete() {
             return -1;
         }
+
+        @Override
+        public ManagedLedger getManagedLedger() {
+            return null;
+        }
+
     }
 
     @Test
