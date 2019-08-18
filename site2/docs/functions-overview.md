@@ -13,7 +13,7 @@ sidebar_label: Overview
 The following is an example of a Pulsar Function written in Java (using the [native interface](functions-api.md#java-native-functions)).
 
 ```java
-import java.util.Function;
+import java.util.function.Function;
 
 public class ExclamationFunction implements Function<String, String> {
     @Override
