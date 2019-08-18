@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.Queues;
 import java.util.Collections;
 import java.util.Map;
@@ -25,7 +27,6 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
@@ -36,7 +37,9 @@ import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -223,26 +226,66 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> acknowledgeAsync(MessageId messageId) {
-        return doAcknowledge(messageId, AckType.Individual, Collections.emptyMap());
+        return acknowledgeAsync(messageId, null);
+    }
+
+    // TODO: expose this method to consumer interface when the transaction feature is completed
+    // @Override
+    public CompletableFuture<Void> acknowledgeAsync(MessageId messageId,
+                                                    Transaction txn) {
+        TransactionImpl txnImpl = null;
+        if (null != txn) {
+            checkArgument(txn instanceof TransactionImpl);
+            txnImpl = (TransactionImpl) txn;
+        }
+        return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(), txnImpl);
     }
 
     @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId) {
+        return acknowledgeCumulativeAsync(messageId, null);
+    }
+
+    // TODO: expose this method to consumer interface when the transaction feature is completed
+    // @Override
+    public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Transaction txn) {
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use cumulative acks on a non-exclusive subscription"));
         }
 
-        return doAcknowledge(messageId, AckType.Cumulative, Collections.emptyMap());
+        TransactionImpl txnImpl = null;
+        if (null != txn) {
+            checkArgument(txn instanceof TransactionImpl);
+            txnImpl = (TransactionImpl) txn;
+        }
+        return doAcknowledgeWithTxn(messageId, AckType.Cumulative, Collections.emptyMap(), txnImpl);
     }
 
     @Override
     public void negativeAcknowledge(Message<?> message) {
         negativeAcknowledge(message.getMessageId());
     }
+  
+    protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
+                                                           Map<String,Long> properties,
+                                                           TransactionImpl txn) {
+        CompletableFuture<Void> ackFuture = doAcknowledge(messageId, ackType, properties, txn);
+        if (txn != null) {
+            // it is okay that we register acked topic after sending the acknowledgements. because
+            // the transactional ack will not be visiable for consumers until the transaction is
+            // committed
+            txn.registerAckedTopic(getTopic());
+            // register the ackFuture as part of the transaction
+            return txn.registerAckOp(ackFuture);
+        } else {
+            return ackFuture;
+        }
+    }
 
     protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
-                                                             Map<String,Long> properties);
+                                                             Map<String,Long> properties,
+                                                             TransactionImpl txn);
 
     @Override
     public void unsubscribe() throws PulsarClientException {
