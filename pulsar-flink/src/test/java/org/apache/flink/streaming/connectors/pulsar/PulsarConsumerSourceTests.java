@@ -530,6 +530,16 @@ public class PulsarConsumerSourceTests {
         @Override
         public void resume() {
         }
+
+        @Override
+        public MessageId getLastMessageId() throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<MessageId> getLastMessageIdAsync() {
+            return null;
+        }
     }
 
     private static List<Message> createMessages(int startIndex, int numMessages) {

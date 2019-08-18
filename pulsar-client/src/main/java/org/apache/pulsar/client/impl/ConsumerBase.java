@@ -133,9 +133,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return internalReceiveAsync();
     }
 
-    abstract protected Message<T> internalReceive() throws PulsarClientException;
+    protected abstract Message<T> internalReceive() throws PulsarClientException;
 
-    abstract protected CompletableFuture<Message<T>> internalReceiveAsync();
+    protected abstract CompletableFuture<Message<T>> internalReceiveAsync();
 
     @Override
     public Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
@@ -165,7 +165,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return internalReceive(timeout, unit);
     }
 
-    abstract protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
+    protected abstract Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     @Override
     public void acknowledge(Message<?> message) throws PulsarClientException {
@@ -241,7 +241,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         negativeAcknowledge(message.getMessageId());
     }
 
-    abstract protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
+    protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                              Map<String,Long> properties);
 
     @Override
@@ -254,7 +254,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
-    abstract public CompletableFuture<Void> unsubscribeAsync();
+    public abstract CompletableFuture<Void> unsubscribeAsync();
 
     @Override
     public void close() throws PulsarClientException {
@@ -266,7 +266,20 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
-    abstract public CompletableFuture<Void> closeAsync();
+    public abstract CompletableFuture<Void> closeAsync();
+
+
+    @Override
+    public MessageId getLastMessageId() throws PulsarClientException {
+        try {
+            return getLastMessageIdAsync().get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public abstract CompletableFuture<MessageId> getLastMessageIdAsync();
 
     private boolean isCumulativeAcknowledgementAllowed(SubscriptionType type) {
         return SubscriptionType.Shared != type;
@@ -292,9 +305,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return null;
     }
 
-    abstract public int getAvailablePermits();
+    public abstract int getAvailablePermits();
 
-    abstract public int numMessagesInQueue();
+    public abstract int numMessagesInQueue();
 
     public CompletableFuture<Consumer<T>> subscribeFuture() {
         return subscribeFuture;
