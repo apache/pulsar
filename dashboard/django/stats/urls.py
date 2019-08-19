@@ -37,6 +37,5 @@ urlpatterns = [
     url(r'^clusters/$', views.clusters, name='clusters'),
     url(r'^clearSubscription/(?P<topic_name>.+)/(?P<subscription_name>.+)$', views.clearSubscription, name='clearSubscription'),
     url(r'^deleteSubscription/(?P<topic_name>.+)/(?P<subscription_name>.+)$', views.deleteSubscription, name='deleteSubscription'),
-    url(r'^peek/(?P<topic_name>.+)/(?P<subscription_name>.+)/(?P<message_number>.+)$', views.peek, name='peek'),
     url(r'^messages/(?P<topic_name>.+)/(?P<subscription_name>.+)$', views.messages, name='messages'),
 ]

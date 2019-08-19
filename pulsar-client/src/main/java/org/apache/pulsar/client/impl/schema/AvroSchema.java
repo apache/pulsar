@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
@@ -99,16 +100,16 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     @Override
-    protected SchemaReader<T> loadReader(byte[] schemaVersion) {
-        SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion);
+    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
+        SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
             log.info("Load schema reader for version({}), schema is : {}",
-                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                 schemaInfo.getSchemaDefinition());
             return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema);
         } else {
             log.warn("No schema found for version({}), use latest schema : {}",
-                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                 this.schemaInfo.getSchemaDefinition());
             return reader;
         }

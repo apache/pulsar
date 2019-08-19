@@ -63,6 +63,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -393,7 +394,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             if (AckType.Cumulative == ackType
                 && !batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
-                sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties);
+                sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties, null);
                 batchMessageId.getAcker().setPrevBatchCumulativelyAcked(true);
             } else {
                 onAcknowledge(batchMessageId, null);
@@ -408,7 +409,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
-                                                    Map<String,Long> properties) {
+                                                    Map<String,Long> properties,
+                                                    TransactionImpl txnImpl) {
         checkArgument(messageId instanceof MessageIdImpl);
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
@@ -433,11 +435,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return CompletableFuture.completedFuture(null);
             }
         }
-        return sendAcknowledge(messageId, ackType, properties);
+        return sendAcknowledge(messageId, ackType, properties, txnImpl);
     }
 
+    // TODO: handle transactional acknowledgements.
     private CompletableFuture<Void> sendAcknowledge(MessageId messageId, AckType ackType,
-                                                    Map<String,Long> properties) {
+                                                    Map<String,Long> properties,
+                                                    TransactionImpl txnImpl) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
 
         if (ackType == AckType.Individual) {
@@ -1481,7 +1485,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    CompletableFuture<MessageId> getLastMessageIdAsync() {
+    @Override
+    public CompletableFuture<MessageId> getLastMessageIdAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
                 .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));

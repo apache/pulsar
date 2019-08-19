@@ -19,6 +19,7 @@
 
 import logging
 import struct
+import chardet
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template import loader
@@ -348,22 +349,35 @@ def deleteSubscription(request, topic_name, subscription_name):
             topic.save(update_fields=['backlog'])
     return redirect('topic', topic_name=topic_name)
 
+
 def messages(request, topic_name, subscription_name):
-    topic_name = extract_topic_db_name(topic_name)
+    topic_db_name = extract_topic_db_name(topic_name)
     timestamp = get_timestamp()
     cluster_name = request.GET.get('cluster')
 
     if cluster_name:
-        topic = get_object_or_404(Topic, name=topic_name, cluster__name=cluster_name, timestamp=timestamp)
+        topic_obj = get_object_or_404(Topic,
+                                      name=topic_db_name,
+                                      cluster__name=cluster_name,
+                                      timestamp=timestamp)
     else:
-        topic = get_object_or_404(Topic, name=topic_name, timestamp=timestamp)
-    subscription = get_object_or_404(Subscription, topic=topic, name=subscription_name)
+        topic_obj = get_object_or_404(Topic,
+                                      name=topic_db_name, timestamp=timestamp)
+    subscription_obj = get_object_or_404(Subscription,
+                                         topic=topic_obj, name=subscription_name)
+
+    message = None
+    message_position = request.GET.get('message-position')
+    if message_position and message_position.isnumeric():
+        message = peek_message(topic_obj, subscription_name, message_position)
 
     return render(request, 'stats/messages.html', {
-        'topic' : topic,
-        'subscription' : subscription,
-        'title' : topic.name,
-        'subtitle' : subscription_name,
+        'topic': topic_obj,
+        'subscription': subscription_obj,
+        'title': topic_obj.name,
+        'subtitle': subscription_name,
+        'message': message,
+        'position': message_position or 1,
     })
 
 
@@ -379,7 +393,7 @@ def message_skip_meta(message_view):
 
 def get_message_from_http_response(response):
     if response.status_code != 200:
-        return "ERROR", "status_code=%d" % response.status_code
+        return {"ERROR": "%s(%d)" % (response.reason, response.status_code)}
     message_view = memoryview(response.content)
     if 'X-Pulsar-num-batch-message' in response.headers:
         batch_size = int(response.headers['X-Pulsar-num-batch-message'])
@@ -387,32 +401,31 @@ def get_message_from_http_response(response):
             message_view = message_skip_meta(message_view)
         else:
             # TODO: can not figure out multi-message batch for now
-            return "Batch(size=%d)" % batch_size, "<omitted>"
-
+            return {"Batch": "(size=%d)<omitted>" % batch_size}
+    message = {"Hex": hexdump.hexdump(message_view, result='return')}
     try:
-        text = str(message_view,
-                   encoding=response.encoding or response.apparent_encoding,
-                   errors='replace')
-        if not text.isprintable():
-            return "Hex", hexdump.hexdump(message_view, result='return')
-    except (LookupError, TypeError):
-        return "Hex", hexdump.hexdump(message_view, result='return')
-    try:
-        return "JSON", json.dumps(json.loads(text),
-                                  ensure_ascii=False, indent=4)
-    except json.JSONDecodeError:
-        return "Text", text
+        message_bytes = message_view.tobytes()
+        text = str(message_bytes,
+                   encoding=chardet.detect(message_bytes)['encoding'],
+                   errors='strict')
+        message["Text"] = text
+        message["JSON"] = json.dumps(json.loads(text),
+                                     ensure_ascii=False, indent=4)
+    except Exception:
+        pass
+    return message
 
 
-def peek(request, topic_name, subscription_name, message_number):
-    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name + '/position/' + message_number
-    response = requests.get(url)
-    message_type, message = get_message_from_http_response(response)
-    context = {
-        'message_type': message_type,
-        'message_body': message,
-    }
-    return render(request, 'stats/peek.html', context)
+def peek_message(topic_obj, subscription_name, message_position):
+    peek_url = "%s/subscription/%s/position/%s" % (
+        topic_path(topic_obj), subscription_name, message_position)
+    peek_response = requests.get(peek_url)
+    return get_message_from_http_response(peek_response)
+
+
+def topic_path(topic_obj):
+    admin_base = "/admin/v2/" if topic_obj.is_v2() else "/admin/"
+    return settings.SERVICE_URL + admin_base + topic_obj.url_name()
 
 
 def extract_topic_db_name(topic_name):

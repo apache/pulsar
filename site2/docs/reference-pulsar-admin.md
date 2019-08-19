@@ -2058,6 +2058,16 @@ Options
 ### `create-partitioned-topic`
 Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
 
+> #### Note
+>
+> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
+>
+> To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
+>
+> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+>
+> For more information about these two parameters, see [here](reference-configuration.md#broker).
+
 Usage
 ```bash
 $ pulsar-admin topics create-partitioned-topic {persistent|non-persistent}://tenant/namespace/topic options
@@ -2078,6 +2088,16 @@ $ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
 
 ### `create`
 Creates a non-partitioned topic. A non-partitioned topic must explicitly be created by the user if allowAutoTopicCreation or createIfMissing is disabled.
+
+> #### Note
+>
+> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
+>
+> To disable this feature, set `brokerDeleteInactiveTopicsEnabled`  to `false`.
+>
+> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+>
+> For more information about these two parameters, see [here](reference-configuration.md#broker).
 
 Usage
 ```bash

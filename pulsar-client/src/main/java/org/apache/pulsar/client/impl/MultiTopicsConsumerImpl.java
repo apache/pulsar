@@ -22,7 +22,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Lists;
+import com.google.protobuf.MapEntry;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
@@ -36,7 +39,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,6 +46,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
@@ -54,6 +57,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -387,7 +391,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
-                                                    Map<String,Long> properties) {
+                                                    Map<String,Long> properties,
+                                                    TransactionImpl txnImpl) {
         checkArgument(messageId instanceof TopicMessageIdImpl);
         TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
 
@@ -407,7 +412,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
 
             MessageId innerId = topicMessageId.getInnerMessageId();
-            return consumer.doAcknowledge(innerId, ackType, properties)
+            return consumer.doAcknowledgeWithTxn(innerId, ackType, properties, txnImpl)
                 .thenRun(() ->
                     unAckedMessageTracker.remove(topicMessageId));
         }
@@ -1058,6 +1063,34 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @VisibleForTesting
     public Timeout getPartitionsAutoUpdateTimeout() {
         return partitionsAutoUpdateTimeout;
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getLastMessageIdAsync() {
+        CompletableFuture<MessageId> returnFuture = new CompletableFuture<>();
+
+        Map<String, CompletableFuture<MessageId>> messageIdFutures = consumers.entrySet().stream()
+            .map(entry -> Pair.of(entry.getKey(),entry.getValue().getLastMessageIdAsync()))
+            .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
+
+        CompletableFuture
+            .allOf(messageIdFutures.entrySet().stream().map(Map.Entry::getValue).toArray(CompletableFuture<?>[]::new))
+            .whenComplete((ignore, ex) -> {
+                Builder<String, MessageId> builder = ImmutableMap.<String, MessageId>builder();
+                messageIdFutures.forEach((key, future) -> {
+                    MessageId messageId;
+                    try {
+                        messageId = future.get();
+                    } catch(Exception e) {
+                        log.warn("[{}] Exception when topic {} getLastMessageId.", key, e);
+                        messageId = MessageId.earliest;
+                    }
+                    builder.put(key, messageId);
+                });
+                returnFuture.complete(new MultiMessageIdImpl(builder.build()));
+            });
+
+        return returnFuture;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MultiTopicsConsumerImpl.class);
