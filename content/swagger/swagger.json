@@ -8875,15 +8875,9 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputOut" : {
           "type" : "number",
@@ -8892,15 +8886,21 @@
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -9068,10 +9068,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -9739,10 +9739,10 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
