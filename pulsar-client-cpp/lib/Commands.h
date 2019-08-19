@@ -20,6 +20,7 @@
 #define LIB_COMMANDS_H_
 
 #include <pulsar/Authentication.h>
+#include <pulsar/defines.h>
 #include <pulsar/Message.h>
 #include <pulsar/Schema.h>
 
@@ -111,8 +112,8 @@ class Commands {
 
     static void initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata);
 
-    static void serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
-                                                         const unsigned long& maxMessageSizeInBytes);
+    static PULSAR_PUBLIC void serializeSingleMessageInBatchWithPayload(
+        const Message& msg, SharedBuffer& batchPayLoad, const unsigned long& maxMessageSizeInBytes);
 
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex);
 
