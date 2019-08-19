@@ -83,6 +83,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +104,7 @@ public class ClientCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<CompletableFuture<List<String>>> pendingGetTopicsRequests =
         new ConcurrentLongHashMap<>(16, 1);
 
-    private final ConcurrentLongHashMap<CompletableFuture<Optional<SchemaInfo>>> pendingGetSchemaRequests = new ConcurrentLongHashMap<>(
+    private final ConcurrentLongHashMap<CompletableFuture<CommandGetSchemaResponse>> pendingGetSchemaRequests = new ConcurrentLongHashMap<>(
             16, 1);
 
     private final ConcurrentLongHashMap<ProducerImpl<?>> producers = new ConcurrentLongHashMap<>(16, 1);
@@ -704,23 +705,12 @@ public class ClientCnx extends PulsarHandler {
 
         long requestId = commandGetSchemaResponse.getRequestId();
 
-        CompletableFuture<Optional<SchemaInfo>> future = pendingGetSchemaRequests.remove(requestId);
+        CompletableFuture<CommandGetSchemaResponse> future = pendingGetSchemaRequests.remove(requestId);
         if (future == null) {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
             return;
         }
-
-        if (commandGetSchemaResponse.hasErrorCode()) {
-            // Request has failed
-            ServerError rc = commandGetSchemaResponse.getErrorCode();
-            if (rc == ServerError.TopicNotFound) {
-                future.complete(Optional.empty());
-            } else {
-                future.completeExceptionally(getPulsarClientException(rc, commandGetSchemaResponse.getErrorMessage()));
-            }
-        } else {
-            future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(commandGetSchemaResponse.getSchema())));
-        }
+        future.complete(commandGetSchemaResponse);
     }
 
     Promise<Void> newPromise() {
@@ -774,7 +764,25 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<Optional<SchemaInfo>> sendGetSchema(ByteBuf request, long requestId) {
-        CompletableFuture<Optional<SchemaInfo>> future = new CompletableFuture<>();
+        return sendGetRawSchema(request, requestId).thenCompose(commandGetSchemaResponse -> {
+            if (commandGetSchemaResponse.hasErrorCode()) {
+                // Request has failed
+                ServerError rc = commandGetSchemaResponse.getErrorCode();
+                if (rc == ServerError.TopicNotFound) {
+                    return CompletableFuture.completedFuture(Optional.empty());
+                } else {
+                    return FutureUtil.failedFuture(
+                        getPulsarClientException(rc, commandGetSchemaResponse.getErrorMessage()));
+                }
+            } else {
+                return CompletableFuture.completedFuture(
+                    Optional.of(SchemaInfoUtil.newSchemaInfo(commandGetSchemaResponse.getSchema())));
+            }
+        });
+    }
+
+    public CompletableFuture<CommandGetSchemaResponse> sendGetRawSchema(ByteBuf request, long requestId) {
+        CompletableFuture<CommandGetSchemaResponse> future = new CompletableFuture<>();
 
         pendingGetSchemaRequests.put(requestId, future);
 
