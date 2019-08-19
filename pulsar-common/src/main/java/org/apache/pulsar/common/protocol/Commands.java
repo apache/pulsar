@@ -938,10 +938,23 @@ public class Commands {
             schema.setSchemaVersion(ByteString.copyFrom(version.get().bytes()));
         }
 
+        CommandGetSchema getSchema = schema.build();
+
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
             .setType(Type.GET_SCHEMA)
-            .setGetSchema(schema.build()));
+            .setGetSchema(getSchema));
         schema.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetSchemaResponse(long requestId, CommandGetSchemaResponse response) {
+        CommandGetSchemaResponse.Builder schemaResponseBuilder = CommandGetSchemaResponse.newBuilder(response)
+            .setRequestId(requestId);
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_SCHEMA_RESPONSE)
+            .setGetSchemaResponse(schemaResponseBuilder.build()));
+        schemaResponseBuilder.recycle();
         return res;
     }
 
