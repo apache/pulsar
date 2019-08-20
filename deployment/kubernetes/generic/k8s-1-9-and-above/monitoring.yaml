@@ -85,6 +85,11 @@ kind: Deployment
 metadata:
     name: prometheus
 spec:
+    # Must match template:metadata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: prometheus
     replicas: 1
     template:
         metadata:
@@ -134,6 +139,11 @@ kind: Deployment
 metadata:
     name: grafana
 spec:
+    # Must match template:metadata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: grafana
     replicas: 1
     template:
         metadata:
@@ -175,6 +185,11 @@ kind: Deployment
 metadata:
     name: pulsar-dashboard
 spec:
+    # Must match template:metadata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: dashboard
     replicas: 1
     template:
         metadata:
