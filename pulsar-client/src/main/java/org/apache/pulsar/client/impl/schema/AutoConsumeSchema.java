@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -76,18 +77,22 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
         if (schema == null) {
+            SchemaInfo schemaInfo = null;
             try {
-                SchemaInfo schemaInfo = schemaInfoProvider.getLatestSchema().get();
-                schema = generateSchema(schemaInfo);
-                ensureSchemaInitialized();
-                schema.setSchemaInfoProvider(schemaInfoProvider);
-                    log.info("Configure {} schema for topic {} : {}",
-                            componentName, topicName, schemaInfo.getSchemaDefinition());
+                schemaInfo = schemaInfoProvider.getLatestSchema().get();
             } catch (InterruptedException | ExecutionException e ) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 log.error("Con't get last schema for topic {} use AutoConsumeSchema", topicName);
-                throw new RuntimeException("Con't use AutoConsumeSchema get last schema for topic :" + topicName + "use AutoConsumeSchema");
+                throw new SchemaSerializationException(e.getCause());
             }
+            schema = generateSchema(schemaInfo);
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+            log.info("Configure {} schema for topic {} : {}",
+                    componentName, topicName, schemaInfo.getSchemaDefinition());
         }
+        ensureSchemaInitialized();
         return schema.decode(bytes, schemaVersion);
     }
 
