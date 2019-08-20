@@ -23,13 +23,14 @@ import java.util.concurrent.TimeUnit;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
+@SuppressWarnings("checkstyle:JavadocType")
 public class RelativeTimeUtil {
     public static long parseRelativeTimeInSeconds(String relativeTime) {
         if (relativeTime.isEmpty()) {
             throw new IllegalArgumentException("exipiry time cannot be empty");
         }
 
-        int lastIndex=  relativeTime.length() - 1;
+        int lastIndex =  relativeTime.length() - 1;
         char lastChar = relativeTime.charAt(lastIndex);
         final char timeUnit;
 

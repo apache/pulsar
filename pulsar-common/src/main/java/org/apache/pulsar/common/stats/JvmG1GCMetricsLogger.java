@@ -27,6 +27,7 @@ import javax.management.ObjectName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class JvmG1GCMetricsLogger implements JvmGCMetricsLogger {
 
     private volatile long accumulatedYoungGcCount = 0;

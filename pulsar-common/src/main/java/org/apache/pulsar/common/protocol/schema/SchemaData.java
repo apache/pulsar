@@ -29,6 +29,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 @Builder
 @Data
 @ToString
+@SuppressWarnings("checkstyle:JavadocType")
 public class SchemaData {
     private final SchemaType type;
     private final boolean isDeleted;
@@ -53,7 +54,7 @@ public class SchemaData {
     }
 
     /**
-     * Convert a schema info to a schema data
+     * Convert a schema info to a schema data.
      *
      * @param schemaInfo schema info
      * @return the converted schema schema data

@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.common.functions;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
+@SuppressWarnings("checkstyle:JavadocType")
 public class ConsumerConfig {
     private String schemaType;
     private String serdeClassName;

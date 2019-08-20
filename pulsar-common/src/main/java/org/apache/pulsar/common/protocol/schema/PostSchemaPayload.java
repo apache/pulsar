@@ -26,6 +26,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@SuppressWarnings("checkstyle:JavadocType")
 public class PostSchemaPayload {
     private String type;
     private String schema;

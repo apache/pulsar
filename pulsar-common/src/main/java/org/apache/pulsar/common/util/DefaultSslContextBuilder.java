@@ -25,6 +25,7 @@ import java.security.GeneralSecurityException;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class DefaultSslContextBuilder extends SslContextAutoRefreshBuilder<SSLContext> {
     private volatile SSLContext sslContext;
 

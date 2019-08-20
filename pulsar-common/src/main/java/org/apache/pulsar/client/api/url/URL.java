@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 import java.net.URLConnection;
 import java.net.URLStreamHandlerFactory;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class URL {
     private static final URLStreamHandlerFactory urlStreamHandlerFactory = new PulsarURLStreamHandlerFactory();
     private final java.net.URL url;

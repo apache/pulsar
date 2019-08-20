@@ -34,6 +34,7 @@ import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 
 @UtilityClass
 @Slf4j
+@SuppressWarnings("checkstyle:JavadocType")
 public class PulsarByteBufAllocator {
 
     public static final String PULSAR_ALLOCATOR_POOLED = "pulsar.allocator.pooled";

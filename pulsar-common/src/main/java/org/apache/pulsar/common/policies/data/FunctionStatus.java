@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.Data;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import lombok.Data;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Data
+@SuppressWarnings("checkstyle:JavadocType")
 public class FunctionStatus {
 
     public int numInstances;

@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class PersistentTopicInternalStats {
 
     public long entriesAddedCounter;
@@ -41,6 +42,7 @@ public class PersistentTopicInternalStats {
     public List<LedgerInfo> ledgers;
     public Map<String, CursorStats> cursors;
 
+    @SuppressWarnings("checkstyle:JavadocType")
     public static class LedgerInfo {
         public long ledgerId;
         public long entries;
@@ -48,6 +50,7 @@ public class PersistentTopicInternalStats {
         public boolean offloaded;
     }
 
+    @SuppressWarnings("checkstyle:JavadocType")
     public static class CursorStats {
         public String markDeletePosition;
         public String readPosition;
@@ -62,8 +65,7 @@ public class PersistentTopicInternalStats {
         public String state;
         public long numberOfEntriesSinceFirstNotAckedMessage;
         public int totalNonContiguousDeletedMessagesRange;
-        
+
         public Map<String, Long> properties;
     }
-
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.partition;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class PartitionedTopicMetadata {
 
     /* Number of partitions for the topic */

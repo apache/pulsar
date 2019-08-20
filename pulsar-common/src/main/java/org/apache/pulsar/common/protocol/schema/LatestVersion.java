@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.protocol.schema;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public final class LatestVersion implements SchemaVersion {
     private static final byte[] EMPTY = new byte[]{};
 

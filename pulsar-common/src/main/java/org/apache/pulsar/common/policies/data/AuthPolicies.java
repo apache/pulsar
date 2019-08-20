@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.collect.Maps;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import com.google.common.collect.Maps;
-
+@SuppressWarnings("checkstyle:JavadocType")
 public class AuthPolicies {
+    @SuppressWarnings("checkstyle:MemberName")
     public final Map<String, Set<AuthAction>> namespace_auth;
+    @SuppressWarnings("checkstyle:MemberName")
     public final Map<String, Map<String, Set<AuthAction>>> destination_auth;
+    @SuppressWarnings("checkstyle:MemberName")
     public final Map<String, Set<String>> subscription_auth_roles;
 
     public AuthPolicies() {

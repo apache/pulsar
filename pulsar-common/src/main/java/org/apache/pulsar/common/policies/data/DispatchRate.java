@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
-import com.google.common.base.MoreObjects;
-
+@SuppressWarnings("checkstyle:JavadocType")
 public class DispatchRate {
 
     public int dispatchThrottlingRateInMsg = -1;

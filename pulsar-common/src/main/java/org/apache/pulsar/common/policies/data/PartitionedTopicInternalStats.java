@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.collect.Maps;
 import java.util.Map;
-
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
-import com.google.common.collect.Maps;
-
+@SuppressWarnings("checkstyle:JavadocType")
 public class PartitionedTopicInternalStats {
 
     public PartitionedTopicMetadata metadata;

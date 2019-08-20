@@ -31,6 +31,7 @@ import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class DataURLStreamHandler extends URLStreamHandler {
 
     static class DataURLConnection extends URLConnection {

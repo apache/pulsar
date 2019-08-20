@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.MoreObjects;
 import java.util.List;
 import java.util.Objects;
 
-import com.google.common.base.MoreObjects;
-
+@SuppressWarnings("checkstyle:JavadocType")
 public class BundlesData {
     public List<String> boundaries;
     public int numBundles;

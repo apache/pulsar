@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.common.functions;
 
-import lombok.*;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 
 @Data
@@ -26,6 +29,7 @@ import lombok.experimental.Accessors;
 @Getter
 @Accessors(chain = true)
 @ToString
+@SuppressWarnings("checkstyle:JavadocType")
 public class WindowConfig {
 
     public static final String WINDOW_CONFIG_KEY = "__WINDOWCONFIGS__";

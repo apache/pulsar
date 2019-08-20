@@ -20,12 +20,11 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- */
+@SuppressWarnings("checkstyle:JavadocType")
 public class NonPersistentPublisherStats extends PublisherStats {
     /**
      * for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
-     * messages per connection
+     * messages per connection.
      **/
     public double msgDropRate;
 

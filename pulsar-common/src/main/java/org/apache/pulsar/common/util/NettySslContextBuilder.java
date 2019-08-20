@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.common.util;
 
+import io.netty.handler.ssl.SslContext;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Set;
-
 import javax.net.ssl.SSLException;
 
-import io.netty.handler.ssl.SslContext;
-
+@SuppressWarnings("checkstyle:JavadocType")
 public class NettySslContextBuilder extends SslContextAutoRefreshBuilder<SslContext> {
     private volatile SslContext sslNettyContext;
 
@@ -38,7 +37,8 @@ public class NettySslContextBuilder extends SslContextAutoRefreshBuilder<SslCont
     }
 
     @Override
-    public synchronized SslContext update() throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
+    public synchronized SslContext update()
+        throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
         this.sslNettyContext = SecurityUtility.createNettySslContextForServer(tlsAllowInsecureConnection,
                 tlsTrustCertsFilePath.getFileName(), tlsCertificateFilePath.getFileName(), tlsKeyFilePath.getFileName(),
                 tlsCiphers, tlsProtocols, tlsRequireTrustedClientCertOnConnect);

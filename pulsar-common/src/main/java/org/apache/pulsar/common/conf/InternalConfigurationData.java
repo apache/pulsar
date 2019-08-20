@@ -21,6 +21,7 @@ package org.apache.pulsar.common.conf;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class InternalConfigurationData {
 
     private String zookeeperServers;

@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.base.Objects;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class BookieAffinityGroupData {
 
     public String bookkeeperAffinityGroupPrimary;

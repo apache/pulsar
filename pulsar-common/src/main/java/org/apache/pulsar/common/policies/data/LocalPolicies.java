@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
 
 import com.google.common.base.Objects;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class LocalPolicies {
 
     public BundlesData bundles;

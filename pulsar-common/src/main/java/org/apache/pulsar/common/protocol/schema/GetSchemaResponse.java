@@ -29,6 +29,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@SuppressWarnings("checkstyle:JavadocType")
 public class GetSchemaResponse {
     private long version;
     private SchemaType type;

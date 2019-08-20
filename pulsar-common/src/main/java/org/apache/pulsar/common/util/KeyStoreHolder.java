@@ -25,6 +25,7 @@ import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class KeyStoreHolder {
 
     private KeyStore keyStore = null;

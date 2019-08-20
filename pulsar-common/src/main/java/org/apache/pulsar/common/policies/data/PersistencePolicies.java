@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
-import com.google.common.base.MoreObjects;
-
+/**
+ * Configuration of bookkeeper persistence policies.
+ */
 public class PersistencePolicies {
     private int bookkeeperEnsemble;
     private int bookkeeperWriteQuorum;

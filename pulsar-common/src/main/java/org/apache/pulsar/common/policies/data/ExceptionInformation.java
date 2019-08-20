@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import lombok.Data;
 
 @Data
+@SuppressWarnings("checkstyle:JavadocType")
 public class ExceptionInformation {
     String exceptionString;
     long timestampMs;

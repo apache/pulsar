@@ -20,6 +20,7 @@ package org.apache.pulsar.common.stats;
 
 import java.util.List;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class AllocatorStats {
     public int numDirectArenas;
     public int numHeapArenas;
@@ -31,6 +32,7 @@ public class AllocatorStats {
     public List<PoolArenaStats> directArenas;
     public List<PoolArenaStats> heapArenas;
 
+    @SuppressWarnings("checkstyle:JavadocType")
     public static class PoolArenaStats {
         public int numTinySubpages;
         public int numSmallSubpages;
@@ -56,6 +58,7 @@ public class AllocatorStats {
         public long numActiveHugeAllocations;
     }
 
+    @SuppressWarnings("checkstyle:JavadocType")
     public static class PoolSubpageStats {
         public int maxNumElements;
         public int numAvailable;
@@ -63,12 +66,14 @@ public class AllocatorStats {
         public int pageSize;
     }
 
+    @SuppressWarnings("checkstyle:JavadocType")
     public static class PoolChunkListStats {
         public int minUsage;
         public int maxUsage;
         public List<PoolChunkStats> chunks;
     }
 
+    @SuppressWarnings("checkstyle:JavadocType")
     public static class PoolChunkStats {
         public int usage;
         public int chunkSize;

@@ -18,24 +18,25 @@
  */
 package org.apache.pulsar.common.naming;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public interface ServiceUnitId {
 
     @Override
-    public abstract String toString();
+    String toString();
 
     /**
-     * Return the namespace object that this <code>ServiceUnitId</code> belongs to
+     * Return the namespace object that this <code>ServiceUnitId</code> belongs to.
      *
      * @return NamespaceName object
      */
-    public abstract NamespaceName getNamespaceObject();
+    NamespaceName getNamespaceObject();
 
     /**
-     * Check whether a fully-qualified topic is included in this <code>ServiceUnitId</code> object
+     * Check whether a fully-qualified topic is included in this <code>ServiceUnitId</code> object.
      *
      * @param topicName
      *            a fully-qualified topic object
      * @return true or false
      */
-    public abstract boolean includes(TopicName topicName);
+    boolean includes(TopicName topicName);
 }

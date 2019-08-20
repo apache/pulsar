@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util.collections;
 import java.util.BitSet;
 import java.util.concurrent.locks.StampedLock;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class ConcurrentBitSet extends BitSet {
 
     private static final long serialVersionUID = 1L;

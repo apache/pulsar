@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.protocol.schema;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public interface SchemaVersion {
     SchemaVersion Latest = new LatestVersion();
     SchemaVersion Empty = new EmptyVersion();

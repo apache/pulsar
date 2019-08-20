@@ -23,6 +23,7 @@ import io.netty.util.ReferenceCounted;
 
 import java.util.function.Consumer;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class ReferenceCountedObject<T> extends AbstractReferenceCounted {
 
     private final T object;

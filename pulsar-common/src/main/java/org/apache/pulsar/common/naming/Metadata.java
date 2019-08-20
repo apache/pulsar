@@ -20,6 +20,7 @@ package org.apache.pulsar.common.naming;
 
 import java.util.Map;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class Metadata {
 
     private static final int MAX_METADATA_SIZE = 1024; // 1 Kb

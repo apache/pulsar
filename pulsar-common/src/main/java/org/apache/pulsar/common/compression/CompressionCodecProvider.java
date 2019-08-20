@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 
 @UtilityClass
+@SuppressWarnings("checkstyle:JavadocType")
 public class CompressionCodecProvider {
     private static final EnumMap<PulsarApi.CompressionType, CompressionCodec> codecs;
 

@@ -25,6 +25,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@SuppressWarnings("checkstyle:JavadocType")
 public class BookieInfo {
     private String rack;
     private String hostname;

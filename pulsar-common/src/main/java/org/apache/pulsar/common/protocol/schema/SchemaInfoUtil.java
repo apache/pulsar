@@ -20,15 +20,14 @@ package org.apache.pulsar.common.protocol.schema;
 
 import java.util.Collections;
 import java.util.TreeMap;
-
 import lombok.experimental.UtilityClass;
-
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 @UtilityClass
+@SuppressWarnings("checkstyle:JavadocType")
 public class SchemaInfoUtil {
 
     public static SchemaInfo newSchemaInfo(String name, SchemaData data) {

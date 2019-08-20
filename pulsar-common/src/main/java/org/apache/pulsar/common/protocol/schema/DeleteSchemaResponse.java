@@ -27,6 +27,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@SuppressWarnings("checkstyle:JavadocType")
 public class DeleteSchemaResponse {
     private long version;
 }

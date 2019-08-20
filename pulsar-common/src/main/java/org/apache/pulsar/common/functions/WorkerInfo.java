@@ -25,9 +25,10 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Getter
-@AllArgsConstructor(access=AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @ToString
+@SuppressWarnings("checkstyle:JavadocType")
 public class WorkerInfo {
     private String workerId;
     private String workerHostname;

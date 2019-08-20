@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util;
 
 import io.netty.buffer.ByteBuf;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class NumberFormat {
 
     static void format(ByteBuf out, long num) {

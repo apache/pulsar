@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class ErrorData {
     public String reason;
 
