@@ -80,4 +80,22 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
         assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicName));
     }
+
+    @Test
+    public void testAutoTopicCreationDisableIfNonPartitionedTopicAlreadyExist() throws Exception{
+        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        pulsar.getConfiguration().setDefaultNumPartitions(3);
+
+        final String topicName = "persistent://prop/ns-abc/partitioned-topic";
+        final String subscriptionName = "partitioned-topic-sub";
+        admin.topics().createNonPartitionedTopic(topicName);
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+
+        assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicName));
+        for (int i = 0; i < 3; i++) {
+            assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicName + "-partition-" + i));
+        }
+        assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicName));
+    }
 }

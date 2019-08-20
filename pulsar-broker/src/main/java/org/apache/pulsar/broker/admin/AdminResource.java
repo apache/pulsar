@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import static org.apache.pulsar.common.util.Codec.decode;
 
 import java.net.MalformedURLException;
@@ -523,7 +524,7 @@ public abstract class AdminResource extends PulsarWebResource {
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(), topicName.getEncodedLocalName());
         PartitionedTopicMetadata partitionMetadata;
         if (checkAllowAutoCreation) {
-            partitionMetadata = fetchPartitionedTopicMetadataCheckAllowAutoCreation(pulsar(), path);
+            partitionMetadata = fetchPartitionedTopicMetadataCheckAllowAutoCreation(pulsar(), path, topicName);
         } else {
             partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), path);
         }
@@ -574,9 +575,10 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected static PartitionedTopicMetadata fetchPartitionedTopicMetadataCheckAllowAutoCreation(
-            PulsarService pulsar, String path) {
+            PulsarService pulsar, String path, TopicName topicName) {
         try {
-            return fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(pulsar, path).get();
+            return fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(pulsar, path, topicName)
+                    .get();
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
                 throw (RestException) e;
@@ -586,15 +588,26 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected static CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
-            PulsarService pulsar, String path) {
+            PulsarService pulsar, String path, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             boolean allowAutoTopicCreation = pulsar.getConfiguration().isAllowAutoTopicCreation();
             String topicType = pulsar.getConfiguration().getAllowAutoTopicCreationType();
+            boolean topicExist;
+            try {
+                topicExist = pulsar.getNamespaceService()
+                        .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                        .contains(topicName.toString());
+            } catch (Exception e) {
+                log.warn("Unexpected error while getting list of topics. topic={}. Error: {}",
+                        topicName, e.getMessage(), e);
+                throw new RestException(e);
+            }
             fetchPartitionedTopicMetadataAsync(pulsar, path).whenComplete((metadata, ex) -> {
                 if (ex != null) {
                     metadataFuture.completeExceptionally(ex);
-                } else if (metadata.partitions == 0 && allowAutoTopicCreation &&
+                // If topic is already exist, creating partitioned topic is not allowed.
+                } else if (metadata.partitions == 0 && !topicExist && allowAutoTopicCreation &&
                         TopicType.PARTITIONED.toString().equals(topicType)) {
                     int configPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
                     try {
