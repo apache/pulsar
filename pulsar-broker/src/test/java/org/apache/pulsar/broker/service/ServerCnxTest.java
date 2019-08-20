@@ -43,6 +43,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -77,6 +78,7 @@ import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -1591,5 +1593,35 @@ public class ServerCnxTest {
         assertEquals(res.getError(), ServerError.InvalidTopicName);
 
         channel.finish();
+    }
+
+    ByteBufPair createSendCommand(String producerName) {
+        MessageMetadata messageMetadata = MessageMetadata.newBuilder().setSequenceId(1L)
+                                                         .setPublishTime(System.currentTimeMillis())
+                                                         .setProducerName(producerName).build();
+        return Commands.newSend(1L, 1L, 0, 1L, 1L, ChecksumType.None, messageMetadata, Unpooled.EMPTY_BUFFER);
+
+    }
+
+    @Test(timeOut = 30000)
+    public void testHandleSendTxn() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        String producerName = "txn-producer";
+
+        ByteBuf newProduce = Commands.newProducer(successTopicName, 1L, 1, producerName, Collections.emptyMap());
+        channel.writeInbound(newProduce);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+
+        channel.writeInbound(ByteBufPair.coalesce(createSendCommand(producerName)));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandSendReceipt.class);
+        CommandSendReceipt sendReceipt = (CommandSendReceipt) obj;
+        assertEquals(sendReceipt.getProducerId(), 1L);
+        assertEquals(sendReceipt.getSequenceId(), 1L);
+        assertTrue(sendReceipt.hasMessageId());
+        assertNotNull(sendReceipt.getMessageId().getLedgerId());
+        assertNotNull(sendReceipt.getMessageId().getEntryId());
     }
 }

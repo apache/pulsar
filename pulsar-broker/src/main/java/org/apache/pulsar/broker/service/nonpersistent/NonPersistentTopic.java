@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -343,6 +344,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public CompletableFuture<Void> deleteForcefully() {
         return delete(false, true, false);
+    }
+
+    @Override
+    public CompletableFuture<TransactionBuffer> getTxnBuffer(boolean createIfAbsent) {
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,

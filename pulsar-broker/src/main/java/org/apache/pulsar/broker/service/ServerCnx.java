@@ -106,6 +106,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1019,6 +1020,8 @@ public class ServerCnx extends PulsarHandler {
     protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
         checkArgument(state == State.Connected);
 
+        boolean isTxn = send.hasTxnidMostBits() && send.hasTxnidLeastBits();
+
         CompletableFuture<Producer> producerFuture = producers.get(send.getProducerId());
 
         if (producerFuture == null || !producerFuture.isDone() || producerFuture.isCompletedExceptionally()) {
@@ -1048,8 +1051,29 @@ public class ServerCnx extends PulsarHandler {
 
         startSendOperation();
 
-        // Persist the message
-        producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        if (isTxn) {
+            final long txnIdMostBits = send.getTxnidMostBits();
+            final long txnIdLeastBits = send.getTxnidLeastBits();
+            final long sequenceId = send.getSequenceId();
+            final long producerId = send.getProducerId();
+            TxnID txnID = new TxnID(txnIdMostBits, txnIdLeastBits);
+            headersAndPayload.retain();
+            producer.getTopic()
+                    .getTxnBuffer(true)
+                    .thenCompose(txnBuffer ->
+                                     txnBuffer.appendBufferToTxn(txnID, sequenceId, headersAndPayload))
+                    .thenAccept(position ->
+                                   ctx.writeAndFlush(
+                                       Commands.newSendReceipt(producerId, sequenceId, ((PositionImpl)position).getLedgerId(), ((PositionImpl)position).getEntryId())))
+                    .exceptionally(err -> {
+                        log.warn("Send transaction [{}] message to transaction buffer failed, {}", txnID, err.getCause().getMessage());
+                        ctx.writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.UnknownError, err.getCause().getMessage()));
+                        return null;
+                    });
+        } else {
+            // Persist the message
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        }
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {

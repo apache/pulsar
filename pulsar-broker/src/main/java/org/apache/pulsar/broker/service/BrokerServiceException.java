@@ -158,6 +158,10 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TransactionBufferNotExistOnTopicException extends BrokerServiceException {
+        public TransactionBufferNotExistOnTopicException(String msg) {super(msg);}
+    }
+
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }

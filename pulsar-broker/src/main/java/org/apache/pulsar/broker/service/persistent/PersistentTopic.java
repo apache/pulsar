@@ -46,6 +46,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
@@ -71,6 +72,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyExceptio
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TransactionBufferNotExistOnTopicException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
@@ -84,6 +86,8 @@ import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -150,6 +154,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
     private final CompactedTopic compactedTopic;
+
+    private Optional<TransactionBuffer> buffer = Optional.empty();
 
     private CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
             (MessageIdImpl)MessageId.earliest);
@@ -699,6 +705,48 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Void> deleteForcefully() {
         return delete(false, true, false);
     }
+
+    @Override
+    public CompletableFuture<TransactionBuffer> getTxnBuffer(boolean createIfAbsent) {
+        if (buffer.isPresent()) {
+            return CompletableFuture.completedFuture(buffer.get());
+        }
+        if (createIfAbsent) {
+            return createTransactionBuffer(createIfAbsent);
+        }
+        return FutureUtil.failedFuture(new TransactionBufferNotExistOnTopicException("Not found transaction buffer"));
+    }
+
+    private CompletableFuture<TransactionBuffer> createTransactionBuffer(boolean createIfAbsent) {
+        TopicName topicName = TopicName.get(topic);
+        String txnTopic = topic + "_txnlog";
+        TopicName txnTopicName = TopicName.get(txnTopic);
+        return brokerService.getManagedLedgerConfig(topicName)
+                            .thenApply(config -> config.setCreateIfMissing(createIfAbsent))
+                            .thenCompose(config -> openLedgerAsync(txnTopicName.getPersistenceNamingEncoding(), config))
+                            .thenCompose(txnLedger ->
+                                             PersistentTransactionBuffer
+                                                 .createTransactionBufferAsync(txnTopic, txnLedger, brokerService))
+                            .thenApply(txnBuffer -> buffer = Optional.of(txnBuffer))
+                            .thenApply(txnBuffer -> txnBuffer.get());
+    }
+
+    private CompletableFuture<ManagedLedger> openLedgerAsync(String topic, ManagedLedgerConfig config) {
+        CompletableFuture<ManagedLedger> openFuture = new CompletableFuture<>();
+        brokerService.getManagedLedgerFactory().asyncOpen(topic, config, new AsyncCallbacks.OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                openFuture.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                openFuture.completeExceptionally(exception);
+            }
+        }, null);
+        return openFuture;
+    }
+
 
     /**
      * Delete the managed ledger associated with this topic

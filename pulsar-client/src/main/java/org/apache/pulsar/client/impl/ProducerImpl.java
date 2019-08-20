@@ -462,6 +462,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             checksumType = ChecksumType.None;
         }
+        if (msgMetadata.hasTxnidLeastBits() && msgMetadata.hasTxnidMostBits()) {
+            return Commands.newSend(producerId, sequenceId, numMessages, msgMetadata.getTxnidLeastBits(),
+                                    msgMetadata.getTxnidMostBits(), checksumType, msgMetadata, compressedPayload);
+        }
         return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
     }
 

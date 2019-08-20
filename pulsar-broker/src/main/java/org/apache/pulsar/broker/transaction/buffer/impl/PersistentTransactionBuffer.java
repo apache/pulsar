@@ -86,18 +86,27 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         this.retentionCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
     }
 
+    public static CompletableFuture<TransactionBuffer> createTransactionBufferAsync(String topic, ManagedLedger ledger,
+                                                                                    BrokerService brokerService) {
+        try {
+            PersistentTransactionBuffer buffer = new PersistentTransactionBuffer(topic, ledger, brokerService);
+            return CompletableFuture.completedFuture(buffer);
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+    }
+
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
         return txnCursor.getTxnMeta(txnID, false);
     }
 
     @Override
-    public CompletableFuture<Void> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
-        return publishMessage(txnId, buffer, sequenceId).thenCompose(position -> appendBuffer(txnId, position,
-                                                                                             sequenceId));
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
+        return publishMessage(txnId, buffer, sequenceId).thenCompose(position -> appendBuffer(txnId, position, sequenceId));
     }
 
-    private CompletableFuture<Void> appendBuffer(TxnID txnID, Position position, long sequenceId) {
+    private CompletableFuture<Position> appendBuffer(TxnID txnID, Position position, long sequenceId) {
         return txnCursor.getTxnMeta(txnID, true).thenCompose(meta -> meta.appendEntry(sequenceId, position));
     }
 
