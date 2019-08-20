@@ -24,6 +24,7 @@ import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.protocol.schema.PostSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 
 import java.util.List;
 
@@ -40,6 +41,15 @@ public interface Schemas {
      * @throws PulsarAdminException
      */
     SchemaInfo getSchemaInfo(String topic) throws PulsarAdminException;
+
+    /**
+     * Retrieve the latest schema with verison of a topic.
+     *
+     * @param topic topic name, in fully qualified format
+     * @return latest schema with version
+     * @throws PulsarAdminException
+     */
+    SchemaInfoWithVersion getSchemaInfoWithVersion(String topic) throws PulsarAdminException;
 
     /**
      * Retrieve the schema of a topic at a given <tt>version</tt>.

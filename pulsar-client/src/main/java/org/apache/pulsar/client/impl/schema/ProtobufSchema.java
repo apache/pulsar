@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -94,7 +95,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     }
 
     @Override
-    protected SchemaReader<T> loadReader(byte[] schemaVersion) {
+    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         throw new RuntimeException("ProtobufSchema don't support schema versioning");
     }
 
