@@ -596,7 +596,7 @@ public abstract class AdminResource extends PulsarWebResource {
                     metadataFuture.completeExceptionally(ex);
                 } else if (metadata.partitions == 0 && allowAutoTopicCreation &&
                         TopicType.PARTITIONED.toString().equals(topicType)) {
-                    int configPartitions = pulsar.getConfiguration().getAllowAutoTopicCreationNumPartitions();
+                    int configPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
                     try {
                         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(configPartitions);
                         byte[] content = jsonMapper().writeValueAsBytes(configMetadata);
