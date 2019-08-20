@@ -68,6 +68,11 @@ kind: Deployment
 metadata:
     name: broker
 spec:
+    # Must match template:metdata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: broker
     replicas: 3
     template:
         metadata:

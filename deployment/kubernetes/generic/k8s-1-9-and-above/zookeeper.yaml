@@ -70,13 +70,19 @@ metadata:
         component: zookeeper
 spec:
     serviceName: zookeeper
+    # Must match template:metadata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: zookeeper
+            cluster: local
     replicas: 3
     template:
         metadata:
             labels:
                 app: pulsar
                 component: zookeeper
-                cluster: us-central
+                cluster: local
             annotations:
                 pod.alpha.kubernetes.io/initialized: "true"
                 prometheus.io/scrape: "true"

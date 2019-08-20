@@ -61,6 +61,11 @@ kind: Deployment
 metadata:
     name: proxy
 spec:
+    # Must match template:metadata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: proxy
     replicas: 2
     template:
         metadata:
