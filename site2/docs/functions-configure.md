@@ -1,4 +1,5 @@
-# Pulsar Functions configure
+# Configure Pulsar Functions
+When you configure Pulsar Functions, you can refer to the following modes, commands, and parameters. 
 
 ## localrun
 
