@@ -229,6 +229,14 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
+    public Range<T> lastRange() {
+        Entry<Long, BitSet> lastSet = rangeBitSetMap.lastEntry();
+        int upper = lastSet.getValue().previousSetBit(lastSet.getValue().size());
+        int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
+        return Range.openClosed(consumer.apply(lastSet.getKey(), lower), consumer.apply(lastSet.getKey(), upper));
+    }
+
+    @Override
     public int size() {
         if (updatedAfterCachedForSize) {
             AtomicInteger size = new AtomicInteger(0);

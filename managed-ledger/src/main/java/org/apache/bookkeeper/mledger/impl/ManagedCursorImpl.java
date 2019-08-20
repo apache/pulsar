@@ -2590,5 +2590,16 @@ public class ManagedCursorImpl implements ManagedCursor {
         return this.ledger;
     }
 
+    @Override
+    public Range<PositionImpl> getLastIndividualDeletedRange() {
+        return individualDeletedMessages.lastRange();
+    }
+
+    @Override
+    public void trimDeletedEntries(List<Entry> entries) {
+        entries.removeIf(entry -> ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) < 0
+                || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId()));
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
 }
