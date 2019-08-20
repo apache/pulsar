@@ -75,7 +75,6 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.broker.cache.TopicPoliciesCache;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -87,10 +86,10 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
-import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicService;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -154,6 +153,7 @@ public class PulsarService implements AutoCloseable {
     private WebSocketService webSocketService = null;
     private ConfigurationCacheService configurationCacheService = null;
     private LocalZooKeeperCacheService localZkCacheService = null;
+    private TopicPoliciesService topicPoliciesService = null;
     private BookKeeperClientFactory bkClientFactory;
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
@@ -191,9 +191,6 @@ public class PulsarService implements AutoCloseable {
     private ProtocolHandlers protocolHandlers = null;
 
     private ShutdownService shutdownService;
-
-    private NamespaceEventsSystemTopicService namespaceEventsSystemTopicService;
-    private TopicPoliciesCache topicPoliciesCache;
 
     private MetricsGenerator metricsGenerator;
     private TransactionMetadataStoreService transactionMetadataStoreService;
@@ -423,13 +420,12 @@ public class PulsarService implements AutoCloseable {
 
             brokerService.start();
 
-            if (config.isSystemTopicEnable()) {
-                namespaceEventsSystemTopicService = new NamespaceEventsSystemTopicService(getClient());
+            // Start topic level policies service
+            if (config.isTopicLevelPoliciesEnable() && config.isSystemTopicEnable()) {
+                this.topicPoliciesService = new TopicPoliciesService(this);
             }
 
-            if (config.isTopicLevelPoliciesEnable()) {
-                topicPoliciesCache = new TopicPoliciesCache();
-            }
+            brokerService.start();
 
             this.webService = new WebService(this);
             Map<String, Object> attributeMap = Maps.newHashMap();
@@ -1135,12 +1131,8 @@ public class PulsarService implements AutoCloseable {
         return metadataServiceUri;
     }
 
-    public NamespaceEventsSystemTopicService getNamespaceEventsSystemTopicService() {
-        return namespaceEventsSystemTopicService;
-    }
-
-    public TopicPoliciesCache getTopicPoliciesCache() {
-        return topicPoliciesCache;
+    public TopicPoliciesService getTopicPoliciesService() {
+        return topicPoliciesService;
     }
 
     private void startWorkerService(AuthenticationService authenticationService,

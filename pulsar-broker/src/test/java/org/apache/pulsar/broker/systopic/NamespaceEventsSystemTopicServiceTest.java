@@ -16,21 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.system;
+package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Sets;
-import org.apache.bookkeeper.common.util.JsonUtil.ParseJsonException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.systopic.ActionType;
-import org.apache.pulsar.broker.systopic.EventType;
-import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicService;
-import org.apache.pulsar.broker.systopic.PulsarEvent;
-import org.apache.pulsar.broker.systopic.SystemTopic;
-import org.apache.pulsar.broker.systopic.SystemTopicService;
-import org.apache.pulsar.broker.systopic.TopicEvent;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -42,8 +33,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
@@ -54,7 +43,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
     private static final String LOCAL_TOPIC_NAME = "__change_events";
 
-    private NamespaceEventsSystemTopicService systemTopicService;
+    private NamespaceEventsSystemTopicFactory systemTopicFactory;
 
     @BeforeMethod
     @Override
@@ -70,42 +59,8 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
     }
 
     @Test
-    public void testGetSystemTopic() {
-
-        SystemTopic systemTopicForNamespace1 = systemTopicService.getSystemTopic(NAMESPACE1, EventType.TOPIC_POLICY);
-        Assert.assertEquals(systemTopicForNamespace1.getTopicName().getNamespace(), NAMESPACE1);
-        Assert.assertEquals(systemTopicForNamespace1.getTopicName().getLocalName(), LOCAL_TOPIC_NAME);
-
-        SystemTopic systemTopicForNamespace2 = systemTopicService.getSystemTopic(NAMESPACE2, EventType.TOPIC_POLICY);
-        Assert.assertEquals(systemTopicForNamespace2.getTopicName().getNamespace(), NAMESPACE2);
-        Assert.assertEquals(systemTopicForNamespace2.getTopicName().getLocalName(), LOCAL_TOPIC_NAME);
-
-        SystemTopic systemTopicForNamespace3 = systemTopicService.getSystemTopic(NAMESPACE3, EventType.TOPIC_POLICY);
-        Assert.assertEquals(systemTopicForNamespace3.getTopicName().getNamespace(), NAMESPACE3);
-        Assert.assertEquals(systemTopicForNamespace3.getTopicName().getLocalName(), LOCAL_TOPIC_NAME);
-
-        SystemTopic cachedSystemTopicForNamespace1 = systemTopicService.getSystemTopic(NAMESPACE1, EventType.TOPIC_POLICY);
-        Assert.assertSame(cachedSystemTopicForNamespace1, systemTopicForNamespace1);
-
-        SystemTopic cachedSystemTopicForNamespace2 = systemTopicService.getSystemTopic(NAMESPACE2, EventType.TOPIC_POLICY);
-        Assert.assertSame(cachedSystemTopicForNamespace2, systemTopicForNamespace2);
-
-        SystemTopic cachedSystemTopicForNamespace3 = systemTopicService.getSystemTopic(NAMESPACE3, EventType.TOPIC_POLICY);
-        Assert.assertSame(cachedSystemTopicForNamespace3, systemTopicForNamespace3);
-    }
-
-    @Test
-    public void testDestroySystemTopic() {
-        SystemTopic systemTopicForNamespace1 = systemTopicService.getSystemTopic(NAMESPACE1, EventType.TOPIC_POLICY);
-        systemTopicService.invalidate(NAMESPACE1, EventType.TOPIC_POLICY);
-        SystemTopic systemTopicForNamespace2 = systemTopicService.getSystemTopic(NAMESPACE1, EventType.TOPIC_POLICY);
-        Assert.assertNotSame(systemTopicForNamespace1, systemTopicForNamespace2);
-        systemTopicService.invalidate(NAMESPACE1, EventType.TOPIC_POLICY);
-    }
-
-    @Test
     public void testSendAndReceiveNamespaceEvents() throws Exception {
-        SystemTopic systemTopicForNamespace1 = systemTopicService.getSystemTopic(NAMESPACE1, EventType.TOPIC_POLICY);
+        SystemTopic systemTopicForNamespace1 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE1), EventType.TOPIC_POLICY);
         TopicPolicies policies = TopicPolicies.builder()
             .maxProducerPerTopic(10)
             .build();
@@ -156,6 +111,6 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);
-        systemTopicService = new NamespaceEventsSystemTopicService(pulsarClient);
+        systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
     }
 }
