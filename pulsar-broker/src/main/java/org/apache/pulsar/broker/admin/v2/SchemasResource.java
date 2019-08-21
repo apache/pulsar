@@ -312,10 +312,18 @@ public class SchemasResource extends AdminResource {
     ) {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
 
+        byte[] data;
+        if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
+            data = DefaultImplementation
+                    .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
+        } else {
+            data = payload.getSchema().getBytes(Charsets.UTF_8);
+        }
+
         pulsar().getSchemaRegistryService().putSchemaIfAbsent(
             buildSchemaId(tenant, namespace, topic),
             SchemaData.builder()
-                .data(payload.getSchema().getBytes(Charsets.UTF_8))
+                .data(data)
                 .isDeleted(false)
                 .timestamp(clock.millis())
                 .type(SchemaType.valueOf(payload.getType()))
