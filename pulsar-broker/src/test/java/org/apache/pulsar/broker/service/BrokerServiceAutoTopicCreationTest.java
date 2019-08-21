@@ -87,7 +87,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
         pulsar.getConfiguration().setDefaultNumPartitions(3);
 
-        final String topicName = "persistent://prop/ns-abc/partitioned-topic";
+        final String topicName = "persistent://prop/ns-abc/test-topic-2";
         final String subscriptionName = "partitioned-topic-sub";
         admin.topics().createNonPartitionedTopic(topicName);
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
