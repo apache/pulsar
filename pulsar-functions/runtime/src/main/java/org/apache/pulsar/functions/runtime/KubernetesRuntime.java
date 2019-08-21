@@ -1021,8 +1021,12 @@ public class KubernetesRuntime implements Runtime {
                 functionDetails.getName());
     }
 
+    private static String toValidPodName(String ori) {
+        return ori.toLowerCase().replaceAll("[^a-z0-9]", "-");
+    }
+
     private static String createJobName(String tenant, String namespace, String functionName) {
-        return "pf-" + tenant + "-" + namespace + "-" + functionName;
+        return "pf-" + toValidPodName(tenant) + "-" + toValidPodName(namespace) + "-" + toValidPodName(functionName);
     }
 
     private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
