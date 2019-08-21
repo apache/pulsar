@@ -128,6 +128,9 @@ public class OverloadShedderTest {
             bundle.setShortTermData(db);
             loadData.getBundleData().put("bundle-" + i, bundle);
 
+            // Adds a bundle that does not belong to this broker, thus should not be selected.
+            loadData.getBundleData().put("bundle-" + (numBundles + i), bundle);
+
             brokerThroghput += throughput;
         }
 
