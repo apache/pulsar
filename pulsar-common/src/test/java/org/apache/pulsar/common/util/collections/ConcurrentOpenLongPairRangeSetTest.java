@@ -197,6 +197,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
     @Test
     public void testFirstRange() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        assertNull(set.firstRange());
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.add(range);
         assertEquals(set.firstRange(), range);
@@ -214,6 +215,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
     @Test
     public void testLastRange() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        assertNull(set.lastRange());
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
         set.add(range);
         assertEquals(set.lastRange(), range);

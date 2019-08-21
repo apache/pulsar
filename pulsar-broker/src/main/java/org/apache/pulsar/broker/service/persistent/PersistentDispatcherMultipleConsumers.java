@@ -73,7 +73,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
-    protected final Range<PositionImpl> lastIndividualDeletedRangeFromCursorRecovery;
+    protected volatile Range<PositionImpl> lastIndividualDeletedRangeFromCursorRecovery;
 
     private CompletableFuture<Void> closeFuture = null;
     LongPairSet messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2);
@@ -742,6 +742,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else {
             return 0;
         }
+    }
+
+    @Override
+    public void cursorIsReset() {
+        this.lastIndividualDeletedRangeFromCursorRecovery = null;
     }
 
     public PersistentTopic getTopic() {

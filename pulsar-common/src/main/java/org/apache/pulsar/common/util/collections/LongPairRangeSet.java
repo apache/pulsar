@@ -271,6 +271,9 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
 
         @Override
         public Range<T> lastRange() {
+            if (set.asRanges().isEmpty()) {
+                return null;
+            }
             List<Range<T>> list = Lists.newArrayList(set.asRanges().iterator());
             return list.get(list.size() - 1);
         }
