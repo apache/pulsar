@@ -553,3 +553,8 @@ Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
     - bcpkix-jdk15on-1.60.jar
     - bcprov-jdk15on-1.60.jar
+
+Creative Commons Attribution License -- licenses/LICENSE-jcip.txt
+ * jcip
+    - net.jcip-jcip-annotations-1.0.jar
+    - jcip-annotations-1.0.jar
