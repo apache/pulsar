@@ -4,7 +4,6 @@ title: Pulsar Functions CLI
 sidebar_label: Command line tool
 ---
 
-
 The following tables list Pulsar Functions command-line tools. You can learn Pulsar Functions modes, commands, and parameters.
 
 ## localrun
