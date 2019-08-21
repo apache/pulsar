@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
 import org.apache.pulsar.client.impl.ClientCnx;
-import org.apache.pulsar.client.impl.ConnectionHandler;
-import org.apache.pulsar.client.impl.HandlerState;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -37,36 +37,24 @@ import org.apache.pulsar.common.util.FutureUtil;
  * The implementation of {@link TransactionCoordinatorClient}.
  */
 @Slf4j
-public class TransactionCoordinatorClientImpl extends HandlerState implements TransactionCoordinatorClient, ConnectionHandler.Connection {
+public class TransactionCoordinatorClientImpl implements TransactionCoordinatorClient{
 
     private final PulsarClientImpl client;
-    private final ConnectionHandler connectionHandler;
+    private final Backoff backoff;
 
-    private long clientConnectTimeout;
+    private final ConcurrentHashMap<TopicName, ClientCnx> lookUpCache = new ConcurrentHashMap<>();
 
-    public TransactionCoordinatorClientImpl(PulsarClientImpl client, String topic) {
-        super(client, topic);
+
+    public TransactionCoordinatorClientImpl(PulsarClientImpl client) {
         this.client = client;
-        this.connectionHandler = createConnectionHandler();
-        this.clientConnectTimeout = client.getConfiguration().getOperationTimeoutMs() + System.currentTimeMillis();
-        grabCnx();
-    }
 
-    @VisibleForTesting
-    TransactionCoordinatorClientImpl(PulsarClientImpl client, String topic, ConnectionHandler connectionHandler) {
-        super(client, topic);
-        this.client = client;
-        this.connectionHandler = connectionHandler;
-        grabCnx();
-    }
-
-    ConnectionHandler createConnectionHandler() {
-        return new ConnectionHandler(this,
-                                     new BackoffBuilder().setInitialTime(100, TimeUnit.MILLISECONDS).setMax(60, TimeUnit.SECONDS)
-                                                         .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                                                         .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(),
-                                                                                     client.getConfiguration().getMaxBackoffIntervalNanos())
-                                                         .create(), this);
+        this.backoff = new BackoffBuilder()
+            .setInitialTime(100, TimeUnit.MILLISECONDS)
+            .setMax(60, TimeUnit.SECONDS)
+            .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+            .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(),
+                                        client.getConfiguration().getMaxBackoffIntervalNanos())
+            .create();
     }
 
     @Override
@@ -74,7 +62,7 @@ public class TransactionCoordinatorClientImpl extends HandlerState implements Tr
         long requestId = client.newRequestId();
         ByteBuf commitTxn = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits, topic,
                                                           PulsarApi.TxnAction.COMMIT);
-        return sendRequest(commitTxn, requestId);
+        return sendCommands(topic, commitTxn);
     }
 
     @Override
@@ -82,7 +70,7 @@ public class TransactionCoordinatorClientImpl extends HandlerState implements Tr
         long requestId = client.newRequestId();
         ByteBuf abortTxn = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits, topic,
                                                          PulsarApi.TxnAction.ABORT);
-        return sendRequest(abortTxn, requestId);
+        return sendCommands(topic, abortTxn);
     }
 
     @Override
@@ -95,47 +83,44 @@ public class TransactionCoordinatorClientImpl extends HandlerState implements Tr
         return FutureUtil.failedFuture(new UnsupportedOperationException("Not Implemented Yet"));
     }
 
-    CompletableFuture<Void> sendRequest(ByteBuf msg, long requestId) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        cnx().sendTxnRequestWithId(msg, requestId).whenComplete((response, err) -> {
-            if (err != null) {
-                future.completeExceptionally(err);
-                msg.release();
-            } else {
-                future.complete(null);
-                msg.release();
-            }
-        });
-        return future;
+    CompletableFuture<Void> sendCommands(String topic, ByteBuf commands) {
+        CompletableFuture<Void> sendFuture = new CompletableFuture<>();
+
+        getOrCreateClientCnx(topic)
+            .thenCompose(clientCnx -> clientCnx.sendTxnRequestToTBWithId(commands, client.newRequestId()))
+            .whenComplete((ignore, err) -> {
+                if (err != null && err.getCause() instanceof PulsarClientException) {
+                    sendFuture.completeExceptionally(err);
+                } else if (err != null) {
+                    if (lookUpCache.containsKey(TopicName.get(topic))) {
+                        lookUpCache.remove(TopicName.get(topic));
+                    }
+                    long delayMs = backoff.next();
+                    err.printStackTrace();
+                    log.info("[{}] Could not get connection to broker:  {} -- Will try again in {} s", topic,
+                             err.getMessage(), delayMs / 1000.0);
+                    client.timer().newTimeout(timeout -> {
+                        sendCommands(topic, commands);
+                    }, delayMs, TimeUnit.MILLISECONDS);
+                } else {
+                    sendFuture.complete(null);
+                }
+            });
+
+        return sendFuture;
     }
 
-    @Override
-    public void connectionFailed(PulsarClientException exception) {
-        if (System.currentTimeMillis() > clientConnectTimeout) {
-            setState(State.Failed);
-            log.warn("Transaction coordinator client connection timeout");
+    CompletableFuture<ClientCnx> getOrCreateClientCnx(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        if (lookUpCache.containsKey(topicName)) {
+            return CompletableFuture.completedFuture(lookUpCache.get(topicName));
         }
-    }
 
-    @Override
-    public void connectionOpened(ClientCnx cnx) {
-        setClientCnx(cnx);
-    }
-
-    @Override
-    protected String getHandlerName() {
-        return "TransactionCoordinatorClient";
-    }
-
-    void setClientCnx(ClientCnx clientCnx) {
-        this.connectionHandler.setClientCnx(clientCnx);
-    }
-
-    ClientCnx cnx() {
-        return this.connectionHandler.cnx();
-    }
-
-    void grabCnx() {
-        this.connectionHandler.grabCnx();
+        return client.getLookup().getBroker(topicName)
+                     .thenCompose(pair -> client.getCnxPool().getConnection(pair.getLeft(), pair.getRight()))
+                     .thenApply(clientCnx -> {
+                         lookUpCache.put(topicName, clientCnx);
+                         return clientCnx;
+                     });
     }
 }

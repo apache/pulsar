@@ -69,7 +69,7 @@ public class ClientCnxTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSendTxnRequestWithId() throws Exception {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -83,13 +83,13 @@ public class ClientCnxTest {
 
         clientCnx.setCtx(ctx);
 
-        clientCnx.sendTxnRequestWithId(Unpooled.EMPTY_BUFFER, 1);
+        clientCnx.sendTxnRequestToTBWithId(Unpooled.EMPTY_BUFFER, 1);
 
         verify(ctx, times(1)).writeAndFlush(eq(Unpooled.EMPTY_BUFFER));
         verify(listenerFuture, times(1)).addListener(any());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFailHandleEndTxnOnPartition() {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -103,7 +103,7 @@ public class ClientCnxTest {
 
         clientCnx.setState(ClientCnx.State.Ready);
 
-        CompletableFuture<TransactionResponse> future = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         clientCnx.getPendingTxnRequest().put(1L, future);
         PulsarApi.CommandEndTxnOnPartitionResponse res =
             PulsarApi.CommandEndTxnOnPartitionResponse.newBuilder().setRequestId(1L).setError(PulsarApi.ServerError.UnknownError).setMessage("Unknown error").build();
@@ -118,7 +118,7 @@ public class ClientCnxTest {
         res.recycle();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSuccessHandleEndTxnOnPartition() {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -132,7 +132,7 @@ public class ClientCnxTest {
 
         clientCnx.setState(ClientCnx.State.Ready);
 
-        CompletableFuture<TransactionResponse> future = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         clientCnx.getPendingTxnRequest().put(1L, future);
         PulsarApi.CommandEndTxnOnPartitionResponse res =
             PulsarApi.CommandEndTxnOnPartitionResponse.newBuilder()
@@ -142,11 +142,9 @@ public class ClientCnxTest {
 
         clientCnx.handleEndTxnOnPartitionResponse(res);
         try {
-            TransactionResponse response = future.get();
-            assertEquals(response.getTxnIdLeastBits(), 1L);
-            assertEquals(response.getTxnIdMostBits(), 1L);
+            future.get();
         } catch (Exception e) {
-            // no-op
+            assertTrue(e.getCause() instanceof PulsarClientException);
         }
         res.recycle();
     }
