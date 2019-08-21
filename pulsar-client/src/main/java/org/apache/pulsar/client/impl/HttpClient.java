@@ -152,6 +152,7 @@ public class HttpClient implements Closeable {
                 // auth complete, use a new builder
                 BoundRequestBuilder builder = httpClient.prepareGet(requestUrl)
                     .setHeader("Accept", "application/json");
+                builder.addQueryParam("checkAllowAutoCreation", "true");
 
                 if (authData.hasDataForHttp()) {
                     Set<Entry<String, String>> headers;

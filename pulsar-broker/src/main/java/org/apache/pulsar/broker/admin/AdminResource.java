@@ -609,9 +609,10 @@ public abstract class AdminResource extends PulsarWebResource {
                 // If topic is already exist, creating partitioned topic is not allowed.
                 } else if (metadata.partitions == 0 && !topicExist && allowAutoTopicCreation &&
                         TopicType.PARTITIONED.toString().equals(topicType)) {
-                    int configPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
+                    int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
+                    checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
                     try {
-                        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(configPartitions);
+                        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
                         byte[] content = jsonMapper().writeValueAsBytes(configMetadata);
                         ZkUtils.createFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(), path, content,
                                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.github.zafarkhaja.semver.Version;
@@ -375,6 +376,18 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
         try {
+            boolean topicExist = pulsar().getNamespaceService()
+                    .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                    .contains(topicName.toString());
+            if (topicExist) {
+                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                throw new RestException(Status.CONFLICT, "This topic already exists");
+            }
+        } catch (Exception e) {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        }
+        try {
             String path = ZkAdminPaths.partitionedTopicPath(topicName);
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
             zkCreateOptimistic(path, data);
@@ -444,8 +457,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative) {
-        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, authoritative, true);
+    protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative, boolean checkAllowAutoCreation) {
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
         if (metadata.partitions > 1) {
             validateClientVersion();
         }
