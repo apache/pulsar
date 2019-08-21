@@ -1,5 +1,5 @@
-# Configure Pulsar Functions
-When you configure Pulsar Functions, you can refer to the following modes, commands, and parameters. 
+# Pulsar Functions CLI
+The following tables list Pulsar Functions command-line tools. You can learn Pulsar Functions modes, commands, and parameters.
 
 ## localrun
 
