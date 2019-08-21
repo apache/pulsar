@@ -117,7 +117,8 @@
       "reference-terminology",
       "reference-cli-tools",
       "pulsar-admin",
-      "reference-configuration"
+      "reference-configuration",
+      "reference-metrics"
     ]
   },
   "docs-other": {
