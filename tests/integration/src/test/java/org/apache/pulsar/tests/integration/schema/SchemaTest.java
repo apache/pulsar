@@ -131,6 +131,7 @@ public class SchemaTest extends PulsarTestSuite {
                 tenant + "/" + namespace,
                 Sets.newHashSet(pulsarCluster.getClusterName())
         );
+
         Producer<Person> producer = client.newProducer(Schema.AVRO(
                 SchemaDefinition.<Person>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
@@ -157,6 +158,9 @@ public class SchemaTest extends PulsarTestSuite {
         assertEquals("Tom Hanks", personConsumeSchema.getName());
         assertEquals(60, personConsumeSchema.getAge());
         assertEquals("male", personConsumeSchema.getGender());
+
+        producer.close();
+        consumer.close();
         log.info("Successfully consumer personConsumeSchema : {}", personConsumeSchema);
     }
 
@@ -208,6 +212,9 @@ public class SchemaTest extends PulsarTestSuite {
         assertEquals(messageForSend.getTimestampMillis(), received.getTimestampMillis());
         assertEquals(messageForSend.getDate(), received.getDate());
 
+        producer.close();
+        consumer.close();
+
         log.info("Successfully consumer avro logical type message : {}", received);
     }
 
@@ -234,19 +241,6 @@ public class SchemaTest extends PulsarTestSuite {
                 .subscriptionName("test")
                 .subscribe();
 
-        new Thread(() -> {
-
-            GenericRecord genericRecord = null;
-            try {
-                genericRecord = consumer.receive().getValue();
-            } catch (PulsarClientException e) {
-                e.printStackTrace();
-            }
-            assertEquals(genericRecord.getField("name"), "Tom Hanks");
-            assertEquals(genericRecord.getField("age"), 60);
-            Thread.currentThread().interrupt();
-        }).start();
-
         Producer<Person> producer = client
                 .newProducer(Schema.AVRO(Person.class))
                 .topic(fqtn)
@@ -256,6 +250,14 @@ public class SchemaTest extends PulsarTestSuite {
         person.setName("Tom Hanks");
         person.setAge(60);
         producer.send(person);
+
+        GenericRecord genericRecord = consumer.receive().getValue();
+
+        assertEquals(genericRecord.getField("name"), "Tom Hanks");
+        assertEquals(genericRecord.getField("age"), 60);
+
+        consumer.close();
+        producer.close();
     }
 
 }
