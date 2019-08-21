@@ -746,7 +746,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void cursorIsReset() {
-        this.lastIndividualDeletedRangeFromCursorRecovery = null;
+        if (this.lastIndividualDeletedRangeFromCursorRecovery != null) {
+            this.lastIndividualDeletedRangeFromCursorRecovery = null;
+        }
     }
 
     public PersistentTopic getTopic() {
