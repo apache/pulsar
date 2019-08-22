@@ -25,9 +25,12 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopic;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -66,21 +69,23 @@ public class TopicPoliciesService {
             .removalListener((RemovalListener<NamespaceName, CompletableFuture<SystemTopic.Reader>>) notification -> {
                 NamespaceName namespaceName = notification.getKey();
                 if (log.isDebugEnabled()) {
-                    log.debug("Reader cache was evicted for namespace {}, current reader cache size is {} ", namespaceName,
+                    log.debug("[{}] Reader cache was evicted, current reader cache size is {} ", namespaceName,
                             TopicPoliciesService.this.readerCache.asMap().size());
                 }
                 policiesCache.entrySet().removeIf(entry -> entry.getKey().getNamespaceObject().equals(namespaceName));
                 if (log.isDebugEnabled()) {
-                    log.debug("Topic policies cache deleted success, current policies cache size is {} ", policiesCache.size());
+                    log.debug("[{}] Topic policies cache deleted success, current policies cache size is {} ",
+                            namespaceName, policiesCache.size());
                 }
                 notification.getValue().whenComplete((reader, ex) -> {
                     if (ex == null && reader != null) {
                         reader.closeAsync().whenComplete((v, e) -> {
                             if (e != null) {
-                                log.error("Close system topic reader error for reader cache expire", e);
+                                log.error("[{}] Close reader error for reader cache expire", namespaceName, e);
                             } else {
                                 if (log.isDebugEnabled()) {
-                                    log.debug("Reader for system topic {} is closed.", reader.getSystemTopic().getTopicName());
+                                    log.debug("[{}] Reader is closed for reader cache expire.",
+                                            reader.getSystemTopic().getTopicName());
                                 }
                             }
                         });
@@ -103,12 +108,56 @@ public class TopicPoliciesService {
             });
     }
 
+    public CompletableFuture<MessageId> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
+        createSystemTopicFactoryIfNeeded();
+        SystemTopic systemTopic = namespaceEventsSystemTopicFactory.createSystemTopic(topicName.getNamespaceObject(),
+                EventType.TOPIC_POLICY);
+        CompletableFuture<MessageId> result = new CompletableFuture<>();
+        CompletableFuture<SystemTopic.Writer> writerFuture = systemTopic.newWriterAsync();
+        writerFuture.whenComplete((writer, ex) -> {
+            if (ex != null) {
+                result.completeExceptionally(ex);
+            } else {
+                writer.writeAsync(
+                    PulsarEvent.builder()
+                        .actionType(ActionType.UPDATE)
+                        .eventType(EventType.TOPIC_POLICY)
+                        .topicPoliciesEvent(
+                            TopicPoliciesEvent.builder()
+                                .domain(topicName.getDomain().toString())
+                                .tenant(topicName.getTenant())
+                                .namespace(topicName.getNamespaceObject().getLocalName())
+                                .topic(topicName.getLocalName())
+                                .policies(policies)
+                                .build())
+                        .build()).whenComplete(((messageId, e) -> {
+                            if (e != null) {
+                                result.completeExceptionally(e);
+                            } else {
+                                result.complete(messageId);
+                            }
+                            writer.closeAsync().whenComplete((v, cause) -> {
+                                if (cause != null) {
+                                    log.error("[{}] Close writer error.", topicName, cause);
+                                } else {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] Close writer success.", topicName);
+                                    }
+                                }
+                            });
+                    })
+                );
+            }
+        });
+        return result;
+    }
+
     public CompletableFuture<TopicPolicies> getTopicPoliciesAsync(TopicName topicName) {
         CompletableFuture<SystemTopic.Reader> readerFuture = null;
         try {
             readerFuture = readerCache.get(topicName.getNamespaceObject());
         } catch (ExecutionException e) {
-            log.error("Load reader for system topic {} error.", topicName, e);
+            log.error("[{}] Load reader error.", topicName, e);
         }
         if (readerFuture == null) {
             return CompletableFuture.completedFuture(null);
@@ -159,11 +208,13 @@ public class TopicPoliciesService {
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
                 refreshFuture.completeExceptionally(ex);
+                readerCache.asMap().remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
             }
             if (hasMore) {
                 reader.readNextAsync().whenComplete((msg, e) -> {
                     if (e != null) {
                         refreshFuture.completeExceptionally(e);
+                        readerCache.asMap().remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
                     }
                     if (EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
                         TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
@@ -209,7 +260,7 @@ public class TopicPoliciesService {
                 future.complete(policies);
                 reader.closeAsync().whenComplete((v, e) -> {
                     if (e != null) {
-                        log.error("Close reader for system topic {} error.", topicName, e);
+                        log.error("[{}] Close reader error.", topicName, e);
                     }
                 });
             }

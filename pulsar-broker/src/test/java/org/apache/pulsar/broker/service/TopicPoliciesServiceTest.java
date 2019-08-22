@@ -20,12 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.common.events.ActionType;
-import org.apache.pulsar.common.events.EventType;
+
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
-import org.apache.pulsar.common.events.PulsarEvent;
-import org.apache.pulsar.broker.systopic.SystemTopic;
-import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -73,47 +69,41 @@ public class TopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetPolicy() throws PulsarClientException, ExecutionException, InterruptedException {
 
-        SystemTopic systemTopicForNamespace1 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE1), EventType.TOPIC_POLICY);
-
         // Update policy for TOPIC1
         TopicPolicies policies1 = TopicPolicies.builder()
                 .maxProducerPerTopic(1)
                 .build();
-        systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC1, policies1));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1).get();
 
         // Update policy for TOPIC2
         TopicPolicies policies2 = TopicPolicies.builder()
                 .maxProducerPerTopic(2)
                 .build();
-        systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC2, policies2));
-
-        SystemTopic systemTopicForNamespace2 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE2), EventType.TOPIC_POLICY);
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2).get();
 
         // Update policy for TOPIC3
         TopicPolicies policies3 = TopicPolicies.builder()
                 .maxProducerPerTopic(3)
                 .build();
-        systemTopicForNamespace2.newWriter().write(buildEvent(TOPIC3, policies3));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC3, policies3).get();
 
         // Update policy for TOPIC4
         TopicPolicies policies4 = TopicPolicies.builder()
                 .maxProducerPerTopic(4)
                 .build();
-        systemTopicForNamespace2.newWriter().write(buildEvent(TOPIC4, policies4));
-
-        SystemTopic systemTopicForNamespace3 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE3), EventType.TOPIC_POLICY);
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC4, policies4).get();
 
         // Update policy for TOPIC5
         TopicPolicies policies5 = TopicPolicies.builder()
                 .maxProducerPerTopic(5)
                 .build();
-        systemTopicForNamespace2.newWriter().write(buildEvent(TOPIC5, policies5));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC5, policies5).get();
 
         // Update policy for TOPIC6
         TopicPolicies policies6 = TopicPolicies.builder()
                 .maxProducerPerTopic(6)
                 .build();
-        systemTopicForNamespace3.newWriter().write(buildEvent(TOPIC6, policies6));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC6, policies6).get();
 
         TopicPolicies policiesGet1 = topicPoliciesService.getTopicPoliciesAsync(TOPIC1).get();
         TopicPolicies policiesGet2 = topicPoliciesService.getTopicPoliciesAsync(TOPIC2).get();
@@ -122,12 +112,12 @@ public class TopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
         TopicPolicies policiesGet5 = topicPoliciesService.getTopicPoliciesAsync(TOPIC5).get();
         TopicPolicies policiesGet6 = topicPoliciesService.getTopicPoliciesAsync(TOPIC6).get();
 
-        Assert.assertEquals(policies1, policiesGet1);
-        Assert.assertEquals(policies2, policiesGet2);
-        Assert.assertEquals(policies3, policiesGet3);
-        Assert.assertEquals(policies4, policiesGet4);
-        Assert.assertEquals(policies5, policiesGet5);
-        Assert.assertEquals(policies6, policiesGet6);
+        Assert.assertEquals(policiesGet1, policies1);
+        Assert.assertEquals(policiesGet2, policies2);
+        Assert.assertEquals(policiesGet3, policies3);
+        Assert.assertEquals(policiesGet4, policies4);
+        Assert.assertEquals(policiesGet5, policies5);
+        Assert.assertEquals(policiesGet6, policies6);
 
         // Only cache 2 readers, reader for NAMESPACE1 is evicted
         Assert.assertEquals(topicPoliciesService.getReaderCacheCount(), 3 - 1);
@@ -141,17 +131,17 @@ public class TopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(topicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
 
         policies1.setMaxProducerPerTopic(101);
-        systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC1, policies1));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
         policies2.setMaxProducerPerTopic(102);
-        systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC2, policies2));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2);
         policies2.setMaxProducerPerTopic(103);
-        systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC2, policies2));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2);
         policies1.setMaxProducerPerTopic(104);
-        systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC1, policies1));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
         policies2.setMaxProducerPerTopic(105);
-        systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC2, policies2));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC2, policies2);
         policies1.setMaxProducerPerTopic(106);
-        systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC1, policies1));
+        topicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
 
         // reader for NAMESPACE1 will back fill the reader cache
         policiesGet1 = topicPoliciesService.getTopicPoliciesAsync(TOPIC1).get();
@@ -167,20 +157,6 @@ public class TopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
         // Check get without cache
         policiesGet1 = topicPoliciesService.getTopicPoliciesWithoutCacheAsync(TOPIC1).get();
         Assert.assertEquals(policies1, policiesGet1);
-    }
-
-    private PulsarEvent buildEvent(TopicName topic, TopicPolicies policies) {
-        return PulsarEvent.builder()
-                .eventType(EventType.TOPIC_POLICY)
-                .actionType(ActionType.UPDATE)
-                .topicPoliciesEvent(TopicPoliciesEvent.builder()
-                        .domain(topic.getDomain().toString())
-                        .tenant(topic.getTenant())
-                        .namespace(topic.getNamespaceObject().getLocalName())
-                        .topic(topic.getLocalName())
-                        .policies(policies)
-                        .build())
-                .build();
     }
 
     private void prepareData() throws PulsarAdminException {
