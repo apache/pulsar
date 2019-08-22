@@ -473,4 +473,18 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
         }
         return retval;
     }
+
+    @POST
+    @ApiOperation(
+            value = "Reload the available built-in connectors, include Source and Sink",
+            response = Void.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/reloadBuiltInSources")
+    public void reloadSources() {
+        source.reloadConnectors();
+    }
 }

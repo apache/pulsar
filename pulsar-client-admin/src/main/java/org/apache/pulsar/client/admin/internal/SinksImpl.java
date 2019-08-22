@@ -301,4 +301,14 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             throw getApiException(e);
         }
     }
+
+    @Override
+    public void reloadBuiltInSinks() throws PulsarAdminException {
+        try {
+            request(sink.path("reloadBuiltInSinks"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 }
