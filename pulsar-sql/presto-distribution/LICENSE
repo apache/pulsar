@@ -209,7 +209,7 @@ The Apache Software License, Version 2.0
 
   * Jackson
     - jackson-annotations-2.8.11.jar
-    - jackson-databind-2.8.11.3.jar
+    - jackson-databind-2.8.11.4.jar
     - jackson-dataformat-smile-2.8.11.jar
     - jackson-datatype-guava-2.8.11.jar
     - jackson-datatype-guava-2.8.11.jar

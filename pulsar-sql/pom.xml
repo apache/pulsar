@@ -35,7 +35,7 @@
         <jackson.version>2.8.11</jackson.version>
         <!--fix Security Vulnerabilities-->
         <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
-        <jackson.databind.version>2.8.11.3</jackson.databind.version>
+        <jackson.databind.version>2.8.11.4</jackson.databind.version>
     </properties>
 
     <modules>
