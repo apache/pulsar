@@ -164,7 +164,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
                                       CreateProducerCallback callback) {
     if (!result) {
         ProducerImplBasePtr producer;
-        if (partitionMetadata->getPartitions() > 1) {
+        if (partitionMetadata->getPartitions() > 0) {
             producer = std::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
                                                                  partitionMetadata->getPartitions(), conf);
         } else {
@@ -221,7 +221,7 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
         return;
     }
 
-    if (partitionMetadata->getPartitions() > 1) {
+    if (partitionMetadata->getPartitions() > 0) {
         LOG_ERROR("Topic reader cannot be created on a partitioned topic: " << topicName->toString());
         callback(ResultOperationNotSupported, Reader());
         return;
@@ -360,7 +360,7 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
             conf.setConsumerName(generateRandomName());
         }
         ConsumerImplBasePtr consumer;
-        if (partitionMetadata->getPartitions() > 1) {
+        if (partitionMetadata->getPartitions() > 0) {
             if (conf.getReceiverQueueSize() == 0) {
                 LOG_ERROR("Can't use partitioned topic if the queue size is 0.");
                 callback(ResultInvalidConfiguration, Consumer());
@@ -435,7 +435,7 @@ void ClientImpl::handleGetPartitions(const Result result, const LookupDataResult
 
     StringList partitions;
 
-    if (partitionMetadata->getPartitions() > 1) {
+    if (partitionMetadata->getPartitions() > 0) {
         for (unsigned int i = 0; i < partitionMetadata->getPartitions(); i++) {
             partitions.push_back(topicName->getTopicPartitionName(i));
         }
