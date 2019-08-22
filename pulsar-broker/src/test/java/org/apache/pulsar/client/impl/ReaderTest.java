@@ -111,6 +111,10 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(keys.remove(message.getKey()));
         }
         Assert.assertTrue(keys.isEmpty());
+
+        Reader<byte[]> readLatest = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
+                                                .readerName(subscription + "latest").create();
+        Assert.assertFalse(readLatest.hasMessageAvailable());
     }
 
 
