@@ -20,16 +20,19 @@ package org.apache.pulsar.broker.admin;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
@@ -64,6 +67,12 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     public static class Foo {
         int intField;
+    }
+
+    public static class Foo1 {
+        int intField;
+
+        String file1;
     }
 
     private static Map<String, String> PROPS;
@@ -135,6 +144,38 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test
+    public void testPostSchemaCompatibilityStrategy() throws PulsarAdminException {
+        String namespace = "schematest/test";
+        String topicName = namespace + "/testStrategyChange";
+        SchemaInfo fooSchemaInfo = Schema.AVRO(SchemaDefinition.builder()
+                .withAlwaysAllowNull(false)
+                .withPojo(Foo.class).build())
+                .getSchemaInfo();
+
+        admin.schemas().createSchema(topicName, fooSchemaInfo);
+        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace, SchemaAutoUpdateCompatibilityStrategy.Backward);
+        SchemaInfo foo1SchemaInfo = Schema.AVRO(SchemaDefinition.builder()
+                .withAlwaysAllowNull(false)
+                .withPojo(Foo1.class).build())
+                .getSchemaInfo();
+
+        try {
+            admin.schemas().createSchema(topicName, foo1SchemaInfo);
+        } catch (PulsarAdminException.ConflictException e) {
+            assertTrue(e.getMessage().contains("HTTP 409 Conflict"));
+        }
+
+        namespace = "schematest/testnotfound";
+        topicName = namespace + "/testStrategyChange";
+
+        try {
+            admin.schemas().createSchema(topicName, fooSchemaInfo);
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
+        }
+    }
+
     private <T> void testSchemaInfoWithVersionApi(Schema<T> schema,
                                        String topicName) throws Exception {
         SchemaInfo si = schema.getSchemaInfo();
@@ -154,4 +195,5 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, readSi.getVersion());
 
     }
+
 }
