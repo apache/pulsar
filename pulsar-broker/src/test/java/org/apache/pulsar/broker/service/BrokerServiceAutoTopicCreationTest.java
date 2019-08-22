@@ -26,6 +26,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
