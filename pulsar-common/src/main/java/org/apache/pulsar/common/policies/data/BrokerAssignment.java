@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Definition of possible broker assignments.
+ */
 public enum BrokerAssignment {
     primary, secondary, shared
 }

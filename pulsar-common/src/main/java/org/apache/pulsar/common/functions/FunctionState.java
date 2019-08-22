@@ -28,6 +28,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+/**
+ * Function state.
+ */
 @Getter
 @Setter
 @Data
@@ -37,7 +40,6 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-@SuppressWarnings("checkstyle:JavadocType")
 public class FunctionState {
     private String key;
     private String stringValue;

@@ -22,7 +22,9 @@ import java.util.SortedSet;
 
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Basic defintion of an auto-failover policy.
+ */
 public abstract class AutoFailoverPolicy {
 
     /**

@@ -24,8 +24,10 @@ import java.util.List;
 import lombok.Data;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
+/**
+ * Status of Pulsar Sink.
+ */
 @Data
-@SuppressWarnings("checkstyle:JavadocType")
 public class SinkStatus {
     // The total number of sink instances that ought to be running
     public int numInstances;

@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Map;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Consumer statistics.
+ */
 public class ConsumerStats {
     /** Total rate of messages delivered to the consumer (msg/s). */
     public double msgRateOut;

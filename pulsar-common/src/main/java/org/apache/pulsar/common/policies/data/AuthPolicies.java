@@ -23,7 +23,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Authentication policies.
+ */
 public class AuthPolicies {
     @SuppressWarnings("checkstyle:MemberName")
     public final Map<String, Set<AuthAction>> namespace_auth;

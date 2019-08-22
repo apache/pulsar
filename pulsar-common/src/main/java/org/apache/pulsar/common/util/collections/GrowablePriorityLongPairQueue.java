@@ -51,12 +51,16 @@ public class GrowablePriorityLongPairQueue {
         Arrays.fill(data, 0, data.length, EmptyItem);
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Predicate to checks for a key-value pair where both of them have long types.
+     */
     public interface LongPairPredicate {
         boolean test(long v1, long v2);
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Represents a function that accepts two long arguments.
+     */
     public interface LongPairConsumer {
         void accept(long v1, long v2);
     }

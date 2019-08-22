@@ -94,7 +94,9 @@ public interface LongPairSet {
      */
     void clear();
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Predicate to checks for a key-value pair where both of them have long types.
+     */
     public interface LongPairPredicate {
         boolean test(long v1, long v2);
     }

@@ -76,7 +76,9 @@ import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Basic implementation of the channel handler to process inbound Pulsar data.
+ */
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     @Override

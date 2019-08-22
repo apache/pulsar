@@ -47,12 +47,16 @@ public class ConcurrentLongPairSet implements LongPairSet {
 
     private final Section[] sections;
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Represents a function that accepts an object of the {@code LongPair} type.
+     */
     public interface ConsumerLong {
         void accept(LongPair item);
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Represents a function that accepts two long arguments.
+     */
     public interface LongPairConsumer {
         void accept(long v1, long v2);
     }

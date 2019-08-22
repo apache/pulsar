@@ -114,7 +114,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      */
     Range<T> firstRange();
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Represents a function that accepts two long arguments and produces a result.
+     *
+     * @param <T> the type of the result.
+     */
     public interface LongPairConsumer<T> {
         T apply(long key, long value);
     }
@@ -169,7 +173,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Generic implementation of a default range set.
+     *
+     * @param <T> the type of values in ranges.
+     */
     class DefaultRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
         RangeSet<T> set = TreeRangeSet.create();

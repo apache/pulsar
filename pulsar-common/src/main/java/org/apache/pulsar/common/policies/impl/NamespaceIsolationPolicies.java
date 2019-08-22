@@ -28,7 +28,9 @@ import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Namespace isolation policies.
+ */
 public class NamespaceIsolationPolicies {
 
     private Map<String, NamespaceIsolationData> policies = null;

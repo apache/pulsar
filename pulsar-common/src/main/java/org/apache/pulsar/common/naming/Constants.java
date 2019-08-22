@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.naming;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Definition of constants.
+ */
 public class Constants {
 
     public static final String GLOBAL_CLUSTER = "global";

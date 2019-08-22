@@ -23,11 +23,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Response defining if a schema is compatible with existing topic's schema.
+ */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@SuppressWarnings("checkstyle:JavadocType")
 public class IsCompatibilityResponse {
     boolean isCompatibility;
     String schemaCompatibilityStrategy;

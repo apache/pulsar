@@ -24,19 +24,27 @@ import java.util.List;
 import lombok.Data;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
+/**
+ * Data lass containing status of Pulsar Function.
+ */
 @Data
-@SuppressWarnings("checkstyle:JavadocType")
 public class FunctionStatus {
 
     public int numInstances;
     public int numRunning;
     public List<FunctionInstanceStatus> instances = new LinkedList<>();
 
+    /**
+     * Function instance status.
+     */
     @Data
     public static class FunctionInstanceStatus {
         public int instanceId;
         public FunctionInstanceStatusData status;
 
+        /**
+         * Function instance status data.
+         */
         @Data
         public static class FunctionInstanceStatusData {
 

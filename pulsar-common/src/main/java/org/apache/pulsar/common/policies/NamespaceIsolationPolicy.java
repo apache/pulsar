@@ -25,7 +25,9 @@ import java.util.SortedSet;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Namespace isolation policy.
+ */
 public interface NamespaceIsolationPolicy {
 
     /**

@@ -24,8 +24,10 @@ import java.util.List;
 import lombok.Data;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
+/**
+ * Source status.
+ */
 @Data
-@SuppressWarnings("checkstyle:JavadocType")
 public class SourceStatus {
     // The total number of source instances that ought to be running
     public int numInstances;
@@ -33,14 +35,18 @@ public class SourceStatus {
     public int numRunning;
     public List<SourceInstanceStatus> instances = new LinkedList<>();
 
+    /**
+     * Source instance status.
+     */
     @Data
-    @SuppressWarnings("checkstyle:JavadocType")
     public static class SourceInstanceStatus {
         public int instanceId;
         public SourceInstanceStatusData status;
 
+        /**
+         * Source instance status data.
+         */
         @Data
-        @SuppressWarnings("checkstyle:JavadocType")
         public static class SourceInstanceStatusData {
             // Is this instance running?
             public boolean running;

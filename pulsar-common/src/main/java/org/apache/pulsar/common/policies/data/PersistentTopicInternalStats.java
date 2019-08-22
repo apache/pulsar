@@ -21,7 +21,9 @@ package org.apache.pulsar.common.policies.data;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Persistent topic internal statistics.
+ */
 public class PersistentTopicInternalStats {
 
     public long entriesAddedCounter;
@@ -42,7 +44,9 @@ public class PersistentTopicInternalStats {
     public List<LedgerInfo> ledgers;
     public Map<String, CursorStats> cursors;
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Ledger information.
+     */
     public static class LedgerInfo {
         public long ledgerId;
         public long entries;
@@ -50,7 +54,9 @@ public class PersistentTopicInternalStats {
         public boolean offloaded;
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Pulsar cursor statistics.
+     */
     public static class CursorStats {
         public String markDeletePosition;
         public String readPosition;

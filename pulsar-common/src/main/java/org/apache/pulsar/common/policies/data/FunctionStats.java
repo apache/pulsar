@@ -29,11 +29,13 @@ import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
+/**
+ * Statistics for Pulsar Function.
+ */
 @Data
 @JsonInclude(JsonInclude.Include.ALWAYS)
 @JsonPropertyOrder({"receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal", "userExceptionsTotal",
     "avgProcessLatency", "1min", "lastInvocation", "instances"})
-@SuppressWarnings("checkstyle:JavadocType")
 public class FunctionStats {
 
     /**
@@ -70,6 +72,9 @@ public class FunctionStats {
      **/
     public Long lastInvocation;
 
+    /**
+     * Function instance statistics.
+     */
     @Data
     @JsonInclude(JsonInclude.Include.ALWAYS)
     @JsonPropertyOrder({ "instanceId", "metrics" })
@@ -78,7 +83,10 @@ public class FunctionStats {
         /** Instance Id of function instance. **/
         public int instanceId;
 
-        @Data
+      /**
+       * Function instance statistics data base.
+       */
+      @Data
         @JsonInclude(JsonInclude.Include.ALWAYS)
         @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal",
             "userExceptionsTotal", "avgProcessLatency" })
@@ -109,6 +117,9 @@ public class FunctionStats {
             public Double avgProcessLatency;
         }
 
+        /**
+         * Function instance statistics data.
+         */
         @Data
         @JsonInclude(JsonInclude.Include.ALWAYS)
         @JsonPropertyOrder({ "receivedTotal", "processedSuccessfullyTotal", "systemExceptionsTotal",

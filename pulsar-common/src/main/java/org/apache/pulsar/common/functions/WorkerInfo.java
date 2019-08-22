@@ -24,11 +24,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+/**
+ * Worker information.
+ */
 @Getter
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @ToString
-@SuppressWarnings("checkstyle:JavadocType")
 public class WorkerInfo {
     private String workerId;
     private String workerHostname;

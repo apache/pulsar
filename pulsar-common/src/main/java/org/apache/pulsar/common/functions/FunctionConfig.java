@@ -32,6 +32,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+/**
+ * Configuration of Pulsar Function.
+ */
 @Getter
 @Setter
 @Data
@@ -41,17 +44,20 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-@SuppressWarnings("checkstyle:JavadocType")
 public class FunctionConfig {
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Definition of possible processing guarantees.
+     */
     public enum ProcessingGuarantees {
         ATLEAST_ONCE,
         ATMOST_ONCE,
         EFFECTIVELY_ONCE
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Definition of possible runtime environments.
+     */
     public enum Runtime {
         JAVA,
         PYTHON,

@@ -28,7 +28,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Implementation of the channel handler to process inbound Pulsar data.
+ */
 public abstract class PulsarHandler extends PulsarDecoder {
     protected ChannelHandlerContext ctx;
     protected SocketAddress remoteAddress;
