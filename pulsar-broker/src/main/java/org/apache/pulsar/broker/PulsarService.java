@@ -421,7 +421,7 @@ public class PulsarService implements AutoCloseable {
             brokerService.start();
 
             // Start topic level policies service
-            if (config.isTopicLevelPoliciesEnable() && config.isSystemTopicEnable()) {
+            if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
                 this.topicPoliciesService = new TopicPoliciesService(this);
             }
 

@@ -118,6 +118,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -931,9 +932,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
-                                PersistentTopic persistentTopic = isSystemTopic(topic)
-                                    ? new PersistentTopic(topic, ledger, BrokerService.this, true)
-                                    : new PersistentTopic(topic, ledger, BrokerService.this, false);
+                                PersistentTopic persistentTopic = new PersistentTopic(
+                                        topic, ledger, BrokerService.this, isSystemTopic(topic));
                                 CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
                                 replicationFuture.thenCompose(v -> {
                                     // Also check dedup status
@@ -2234,6 +2234,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return null;
     }
     private boolean isSystemTopic(String topic) {
-        return NamespaceEventsSystemTopicFactory.LOCAL_TOPIC_NAME.equals(TopicName.get(topic).getLocalName());
+        return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(TopicName.get(topic).getLocalName());
     }
 }

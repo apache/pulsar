@@ -25,10 +25,10 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.systopic.EventType;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopic;
-import org.apache.pulsar.broker.systopic.TopicEvent;
+import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -156,17 +156,17 @@ public class TopicPoliciesService {
     }
 
     private void refreshCacheIfNeeded(SystemTopic.Reader reader, CompletableFuture<Void> refreshFuture) {
-        reader.hasMoreEventsAsync().whenComplete((has, ex) -> {
+        reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
                 refreshFuture.completeExceptionally(ex);
             }
-            if (has) {
+            if (hasMore) {
                 reader.readNextAsync().whenComplete((msg, e) -> {
                     if (e != null) {
                         refreshFuture.completeExceptionally(e);
                     }
                     if (EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
-                        TopicEvent event = msg.getValue().getTopicEvent();
+                        TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
                         policiesCache.put(
                             TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic()),
                             event.getPolicies()
@@ -182,24 +182,24 @@ public class TopicPoliciesService {
 
     private void fetchTopicPoliciesAsyncAndCloseReader(SystemTopic.Reader reader, TopicName topicName, TopicPolicies policies,
                                                        CompletableFuture<TopicPolicies> future) {
-        reader.hasMoreEventsAsync().whenComplete((has, ex) -> {
+        reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
                 future.completeExceptionally(ex);
             }
-            if (has) {
+            if (hasMore) {
                 reader.readNextAsync().whenComplete((msg, e) -> {
                     if (e != null) {
                         future.completeExceptionally(e);
                     }
                     if (EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
-                        TopicEvent topicEvent = msg.getValue().getTopicEvent();
+                        TopicPoliciesEvent topicPoliciesEvent = msg.getValue().getTopicPoliciesEvent();
                         if (topicName.equals(TopicName.get(
-                                topicEvent.getDomain(),
-                                topicEvent.getTenant(),
-                                topicEvent.getNamespace(),
-                                topicEvent.getTopic()))
+                                topicPoliciesEvent.getDomain(),
+                                topicPoliciesEvent.getTenant(),
+                                topicPoliciesEvent.getNamespace(),
+                                topicPoliciesEvent.getTopic()))
                         ) {
-                            fetchTopicPoliciesAsyncAndCloseReader(reader, topicName, topicEvent.getPolicies(), future);
+                            fetchTopicPoliciesAsyncAndCloseReader(reader, topicName, topicPoliciesEvent.getPolicies(), future);
                         } else {
                             fetchTopicPoliciesAsyncAndCloseReader(reader, topicName, policies, future);
                         }
@@ -224,6 +224,11 @@ public class TopicPoliciesService {
     @VisibleForTesting
     long getReaderCacheCount() {
         return readerCache.size();
+    }
+
+    @VisibleForTesting
+    boolean checkReaderIsCached(NamespaceName namespaceName) {
+        return readerCache.getIfPresent(namespaceName) != null;
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicPoliciesService.class);

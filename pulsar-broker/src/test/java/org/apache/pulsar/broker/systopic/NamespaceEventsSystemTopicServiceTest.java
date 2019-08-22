@@ -22,6 +22,10 @@ import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.events.ActionType;
+import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.events.PulsarEvent;
+import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -40,8 +44,6 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
     private static final String NAMESPACE1 = "system-topic/namespace-1";
     private static final String NAMESPACE2 = "system-topic/namespace-2";
     private static final String NAMESPACE3 = "system-topic/namespace-3";
-
-    private static final String LOCAL_TOPIC_NAME = "__change_events";
 
     private NamespaceEventsSystemTopicFactory systemTopicFactory;
 
@@ -67,7 +69,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         PulsarEvent event = PulsarEvent.builder()
             .eventType(EventType.TOPIC_POLICY)
             .actionType(ActionType.INSERT)
-            .topicEvent(TopicEvent.builder()
+            .topicPoliciesEvent(TopicPoliciesEvent.builder()
                 .domain("persistent")
                 .tenant("system-topic")
                 .namespace(NamespaceName.get(NAMESPACE1).getLocalName())

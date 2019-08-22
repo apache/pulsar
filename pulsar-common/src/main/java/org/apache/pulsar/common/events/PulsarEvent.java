@@ -16,15 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.systopic;
+package org.apache.pulsar.common.events;
 
-/**
- * Pulsar event action type
- */
-public enum ActionType {
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    INSERT,
-    DELETE,
-    UPDATE,
-    NONE
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PulsarEvent {
+
+    private EventType eventType;
+    private ActionType actionType;
+    private TopicPoliciesEvent topicPoliciesEvent;
 }

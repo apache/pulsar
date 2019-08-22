@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,9 +35,9 @@ import java.util.concurrent.CompletableFuture;
 /**
  * System topic for topic policy
  */
-public class TopicPolicySystemTopic extends SystemTopicBase {
+public class TopicPoliciesSystemTopic extends SystemTopicBase {
 
-    public TopicPolicySystemTopic(PulsarClient client, TopicName topicName) {
+    public TopicPoliciesSystemTopic(PulsarClient client, TopicName topicName) {
         super(client, topicName);
     }
 
@@ -48,7 +49,7 @@ public class TopicPolicySystemTopic extends SystemTopicBase {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer, TopicPolicySystemTopic.this));
+                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer, TopicPoliciesSystemTopic.this));
                 });
     }
 
@@ -62,7 +63,7 @@ public class TopicPolicySystemTopic extends SystemTopicBase {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new reader is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader, TopicPolicySystemTopic.this));
+                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader, TopicPoliciesSystemTopic.this));
                 });
     }
 
@@ -87,10 +88,10 @@ public class TopicPolicySystemTopic extends SystemTopicBase {
         }
 
         private String getEventKey(PulsarEvent event) {
-            return TopicName.get(event.getTopicEvent().getDomain(),
-                event.getTopicEvent().getTenant(),
-                event.getTopicEvent().getNamespace(),
-                event.getTopicEvent().getTopic()).toString();
+            return TopicName.get(event.getTopicPoliciesEvent().getDomain(),
+                event.getTopicPoliciesEvent().getTenant(),
+                event.getTopicPoliciesEvent().getNamespace(),
+                event.getTopicPoliciesEvent().getTopic()).toString();
         }
 
         @Override
@@ -113,10 +114,10 @@ public class TopicPolicySystemTopic extends SystemTopicBase {
     private static class TopicPolicyReader implements Reader {
 
         private final org.apache.pulsar.client.api.Reader<PulsarEvent> reader;
-        private final TopicPolicySystemTopic systemTopic;
+        private final TopicPoliciesSystemTopic systemTopic;
 
         private TopicPolicyReader(org.apache.pulsar.client.api.Reader<PulsarEvent> reader,
-                                  TopicPolicySystemTopic systemTopic) {
+                                  TopicPoliciesSystemTopic systemTopic) {
             this.reader = reader;
             this.systemTopic = systemTopic;
         }
@@ -161,5 +162,5 @@ public class TopicPolicySystemTopic extends SystemTopicBase {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(TopicPolicySystemTopic.class);
+    private static final Logger log = LoggerFactory.getLogger(TopicPoliciesSystemTopic.class);
 }

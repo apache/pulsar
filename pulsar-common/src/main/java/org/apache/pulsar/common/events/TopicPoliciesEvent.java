@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.systopic;
+package org.apache.pulsar.common.events;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,7 +28,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TopicEvent {
+public class TopicPoliciesEvent {
 
     private String domain;
     private String tenant;

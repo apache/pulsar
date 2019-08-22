@@ -20,12 +20,12 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.systopic.ActionType;
-import org.apache.pulsar.broker.systopic.EventType;
+import org.apache.pulsar.common.events.ActionType;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
-import org.apache.pulsar.broker.systopic.PulsarEvent;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.broker.systopic.SystemTopic;
-import org.apache.pulsar.broker.systopic.TopicEvent;
+import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -129,6 +129,17 @@ public class TopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(policies5, policiesGet5);
         Assert.assertEquals(policies6, policiesGet6);
 
+        // Only cache 2 readers, reader for NAMESPACE1 is evicted
+        Assert.assertEquals(topicPoliciesService.getReaderCacheCount(), 3 - 1);
+
+        // Remove reader cache will remove policies cache
+        Assert.assertEquals(topicPoliciesService.getPoliciesCacheSize(), 6 - 2);
+
+        // Check reader cache is correct.
+        Assert.assertFalse(topicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE1)));
+        Assert.assertTrue(topicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE2)));
+        Assert.assertTrue(topicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
+
         policies1.setMaxProducerPerTopic(101);
         systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC1, policies1));
         policies2.setMaxProducerPerTopic(102);
@@ -142,16 +153,16 @@ public class TopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
         policies1.setMaxProducerPerTopic(106);
         systemTopicForNamespace1.newWriter().write(buildEvent(TOPIC1, policies1));
 
+        // reader for NAMESPACE1 will back fill the reader cache
         policiesGet1 = topicPoliciesService.getTopicPoliciesAsync(TOPIC1).get();
         policiesGet2 = topicPoliciesService.getTopicPoliciesAsync(TOPIC2).get();
         Assert.assertEquals(policies1, policiesGet1);
         Assert.assertEquals(policies2, policiesGet2);
 
-        // Only cache 2 readers
-        Assert.assertEquals(topicPoliciesService.getReaderCacheCount(), 3 - 1);
-
-        // Remove reader cache will remove policies cache
-        Assert.assertEquals(topicPoliciesService.getPoliciesCacheSize(), 6 - 2);
+        // Check reader cache is correct.
+        Assert.assertFalse(topicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE2)));
+        Assert.assertTrue(topicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE1)));
+        Assert.assertTrue(topicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
 
         // Check get without cache
         policiesGet1 = topicPoliciesService.getTopicPoliciesWithoutCacheAsync(TOPIC1).get();
@@ -162,7 +173,7 @@ public class TopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
         return PulsarEvent.builder()
                 .eventType(EventType.TOPIC_POLICY)
                 .actionType(ActionType.UPDATE)
-                .topicEvent(TopicEvent.builder()
+                .topicPoliciesEvent(TopicPoliciesEvent.builder()
                         .domain(topic.getDomain().toString())
                         .tenant(topic.getTenant())
                         .namespace(topic.getNamespaceObject().getLocalName())

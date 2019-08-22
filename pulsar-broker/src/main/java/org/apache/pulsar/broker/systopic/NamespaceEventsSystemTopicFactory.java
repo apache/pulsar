@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.systopic;
 
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
@@ -26,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 public class NamespaceEventsSystemTopicFactory {
 
-    public static final String LOCAL_TOPIC_NAME = "__change_events";
     private final PulsarClient client;
 
     public NamespaceEventsSystemTopicFactory(PulsarClient client) {
@@ -36,9 +37,10 @@ public class NamespaceEventsSystemTopicFactory {
     public SystemTopic createSystemTopic(NamespaceName namespaceName, EventType eventType) {
         switch (eventType) {
             case TOPIC_POLICY:
-                TopicName topicName = TopicName.get("persistent", namespaceName, LOCAL_TOPIC_NAME);
+                TopicName topicName = TopicName.get("persistent", namespaceName,
+                        EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
                 log.info("Create system topic {} for topic policy.", topicName.toString());
-                return new TopicPolicySystemTopic(client, topicName);
+                return new TopicPoliciesSystemTopic(client, topicName);
             default:
                 return null;
         }

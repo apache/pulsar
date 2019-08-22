@@ -16,20 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.systopic;
+package org.apache.pulsar.common.events;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+/**
+ * System topic name for the event type
+ */
+public class EventsTopicNames {
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class PulsarEvent {
 
-    private EventType eventType;
-    private ActionType actionType;
-    private TopicEvent topicEvent;
+    /**
+     * Local topic name for the namespace events.
+     */
+    public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
+
 }
