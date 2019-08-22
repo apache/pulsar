@@ -184,8 +184,10 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
                 if (e != null) {
+                    msg.release();
                     publishFuture.completeExceptionally(e);
                 } else {
+                    msg.release();
                     publishFuture.complete(PositionImpl.get(ledgerId, entryId));
                 }
             }

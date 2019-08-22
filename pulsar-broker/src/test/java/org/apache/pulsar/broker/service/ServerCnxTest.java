@@ -37,6 +37,7 @@ import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
@@ -1614,7 +1615,9 @@ public class ServerCnxTest {
         channel.writeInbound(newProduce);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
-        channel.writeInbound(ByteBufPair.coalesce(createSendCommand(producerName)));
+        ByteBuf txnCommand = ByteBufPair.coalesce(createSendCommand(producerName));
+        channel.writeInbound(txnCommand);
+        assertEquals(txnCommand.refCnt(), 0);
         Object obj = getResponse();
         assertEquals(obj.getClass(), CommandSendReceipt.class);
         CommandSendReceipt sendReceipt = (CommandSendReceipt) obj;
