@@ -1,0 +1,57 @@
+name: CI
+on: [pull_request]
+
+jobs:
+
+  build-unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+  
+      - name: run unit tests
+        run: |
+          java -version
+          javac -version
+          mvn install
+  
+      - uses: actions/upload-artifact@master
+        name: upload artifacts
+        with:
+          name: artifacts
+          path: distribution/server/target/apache-pulsar-.*-bin.tar.gz
+
+  build-integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
+      - name: run integration tests
+        run: |
+          java -version
+          javac -version
+          mvn install -Pdocker -DskipTests
+          mvn -f tests/pom.xml test -DintegrationTests\
+
+  cpp-integration:
+    name: C++ / Python tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
+      - name: run c++ tests
+        run: |
+          java -version
+          javac -version
+          mvn -B clean package -DskipTests
+          echo "Build C++ client library"
+          export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
+          pulsar-client-cpp/docker-build.sh
+          pulsar-client-cpp/docker-tests.sh
