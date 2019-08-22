@@ -1020,7 +1020,7 @@ public class ServerCnx extends PulsarHandler {
     protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
         checkArgument(state == State.Connected);
 
-        boolean isTxn = send.hasTxnidMostBits() && send.hasTxnidLeastBits();
+        boolean isTransactionalSend = send.hasTxnidMostBits() && send.hasTxnidLeastBits();
 
         CompletableFuture<Producer> producerFuture = producers.get(send.getProducerId());
 
