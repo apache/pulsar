@@ -31,6 +31,10 @@ public interface Runtime {
 
     void start() throws Exception;
 
+    default void reinitialize() {
+
+    }
+
     void join() throws Exception;
 
     void stop() throws Exception;

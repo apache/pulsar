@@ -247,9 +247,19 @@ public class KubernetesRuntime implements Runtime {
             throw e;
         }
 
-        if (channel == null && stub == null) {
+        setupGrpcChannelIfNeeded();
+    }
+
+    @Override
+    public void reinitialize() {
+        setupGrpcChannelIfNeeded();
+    }
+
+    private synchronized void setupGrpcChannelIfNeeded() {
+        if (channel == null || stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
             stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
+
             String jobName = createJobName(instanceConfig.getFunctionDetails());
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
                 String address = getServiceUrl(jobName, jobNamespace, i);
@@ -332,16 +342,16 @@ public class KubernetesRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
-        if (instanceId < 0 || instanceId >= stub.length) {
-            if (stub == null) {
-                retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
-                return retval;
-            }
-        }
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
+
+        if (instanceId < 0 || instanceId >= stub.length) {
+            retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
+            return retval;
+        }
+
         ListenableFuture<InstanceCommunication.MetricsData> response = stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getMetrics(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
             @Override

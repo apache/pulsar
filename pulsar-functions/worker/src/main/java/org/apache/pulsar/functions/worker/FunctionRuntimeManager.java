@@ -215,9 +215,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     }
                 }
             }
-            // start assignment tailer
-            this.functionAssignmentTailer.start();
-
         } catch (Exception e) {
             log.error("Failed to initialize function runtime manager: ", e.getMessage(), e);
             throw new RuntimeException(e);
@@ -229,7 +226,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public void start() {
         log.info("/** Starting Function Runtime Manager **/");
-        log.info("Initialize metrics sink...");
         log.info("Starting function assignment tailer...");
         this.functionAssignmentTailer.start();
     }
@@ -629,7 +625,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
             // changes to the function meta data of the instance
 
             if (runtimeFactory.externallyManaged()) {
-
                 // change in metadata thus need to potentially restart
                 if (!assignment.getInstance().equals(existingAssignment.getInstance())) {
                     //stop function
@@ -657,6 +652,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         RuntimeSpawner runtimeSpawner = functionActioner.getRuntimeSpawner(
                                 assignment.getInstance(),
                                 assignment.getInstance().getFunctionMetaData().getPackageLocation().getPackagePath());
+                        // re-initialize if necessary
+                        runtimeSpawner.getRuntime().reinitialize();
                         newFunctionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
                         this.functionRuntimeInfoMap.put(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
