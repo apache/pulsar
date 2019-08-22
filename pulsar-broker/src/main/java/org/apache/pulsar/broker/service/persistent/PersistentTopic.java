@@ -719,14 +719,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<TransactionBuffer> createTransactionBuffer(boolean createIfAbsent) {
         TopicName topicName = TopicName.get(topic);
-        String txnTopic = topic + "_txnlog";
-        TopicName txnTopicName = TopicName.get(txnTopic);
+        TopicName txnTopicName = topicName.getTransaction();
         return brokerService.getManagedLedgerConfig(topicName)
                             .thenApply(config -> config.setCreateIfMissing(createIfAbsent))
                             .thenCompose(config -> openLedgerAsync(txnTopicName.getPersistenceNamingEncoding(), config))
                             .thenCompose(txnLedger ->
                                              PersistentTransactionBuffer
-                                                 .createTransactionBufferAsync(txnTopic, txnLedger, brokerService))
+                                                 .createTransactionBufferAsync(txnTopicName.toString(), txnLedger, brokerService))
                             .thenApply(txnBuffer -> buffer = Optional.of(txnBuffer))
                             .thenApply(txnBuffer -> txnBuffer.get());
     }

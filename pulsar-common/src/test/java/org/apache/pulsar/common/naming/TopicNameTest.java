@@ -270,4 +270,20 @@ public class TopicNameTest {
             // Ok
         }
     }
+
+    @Test
+    public void testTransactionTopicName() {
+        TopicName tn = TopicName.get("short-topic");
+        TopicName txnTn = tn.getTransaction();
+        assertEquals(txnTn.getDomain(), TopicDomain.transaction);
+        assertEquals(txnTn.getTenant(), TopicName.PUBLIC_TENANT);
+        assertEquals(txnTn.getNamespacePortion(), TopicName.DEFAULT_NAMESPACE);
+        assertEquals(txnTn.getLocalName(), "short-topic");
+
+        txnTn = TopicName.get("transaction://test-tenant/test-namespace/test-short-topic");
+        assertEquals(txnTn.getDomain(), TopicDomain.transaction);
+        assertEquals(txnTn.getTenant(), "test-tenant");
+        assertEquals(txnTn.getNamespacePortion(), "test-namespace");
+        assertEquals(txnTn.getLocalName(), "test-short-topic");
+    }
 }

@@ -235,6 +235,10 @@ public class TopicName implements ServiceUnitId {
         return get(partitionName);
     }
 
+    public TopicName getTransaction() {
+        return get("transaction", this.namespaceName, this.localName);
+    }
+
     /**
      * @return partition index of the completeTopicName. It returns -1 if the completeTopicName (topic) is not partitioned.
      */

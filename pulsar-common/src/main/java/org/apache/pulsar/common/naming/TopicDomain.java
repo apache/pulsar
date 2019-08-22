@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.naming;
 
 public enum TopicDomain {
-    persistent("persistent"), non_persistent("non-persistent");
+    persistent("persistent"), non_persistent("non-persistent"), transaction("transaction");
 
     private String value;
 

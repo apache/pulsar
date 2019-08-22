@@ -1051,7 +1051,7 @@ public class ServerCnx extends PulsarHandler {
 
         startSendOperation();
 
-        if (isTxn) {
+        if (isTransactionalSend) {
             final long txnIdMostBits = send.getTxnidMostBits();
             final long txnIdLeastBits = send.getTxnidLeastBits();
             final long sequenceId = send.getSequenceId();
