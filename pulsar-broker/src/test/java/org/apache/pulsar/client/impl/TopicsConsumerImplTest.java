@@ -672,8 +672,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
-        MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
-
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
             producer1.send((messagePredicate + "producer1-" + i).getBytes());

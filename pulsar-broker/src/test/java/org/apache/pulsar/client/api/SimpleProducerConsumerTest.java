@@ -1181,14 +1181,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             consumerMsgSet2.add(msg);
         }
 
-        consumerMsgSet1.stream().forEach(m -> {
+        consumerMsgSet1.forEach(m -> {
             try {
                 consumer2.acknowledge(m);
             } catch (PulsarClientException e) {
                 fail();
             }
         });
-        consumerMsgSet2.stream().forEach(m -> {
+        consumerMsgSet2.forEach(m -> {
             try {
                 consumer1.acknowledge(m);
             } catch (PulsarClientException e) {
@@ -1400,7 +1400,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * Verify: Consumer1 which doesn't send ack will not impact Consumer2 which sends ack for consumed message.
      *
      *
-     * @param batchMessageDelayMs
      * @throws Exception
      */
     @Test
@@ -1717,7 +1716,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * Verify: Consumer2 sends ack of Consumer1 and consumer1 should be unblock if it is blocked due to unack-messages
      *
      *
-     * @param batchMessageDelayMs
      * @throws Exception
      */
     @Test

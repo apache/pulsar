@@ -130,8 +130,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         }
 
         JsonObject jsonObject = new Gson().fromJson(response.readEntity(String.class), JsonObject.class);
-        String serviceResponse = jsonObject.get("reason").getAsString();
-        return serviceResponse;
+        return jsonObject.get("reason").getAsString();
     }
 
     static class DiscoveryZooKeeperClientFactoryImpl implements ZooKeeperClientFactory {

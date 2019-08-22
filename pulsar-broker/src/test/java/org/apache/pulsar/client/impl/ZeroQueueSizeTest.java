@@ -278,12 +278,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             .topic("persistent://prop-xyz/use/ns-abc/topic1")
             .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
-        if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
-                    .batchingMaxMessages(5);
-        } else {
-            producerBuilder.enableBatching(false);
-        }
+        producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(5);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {

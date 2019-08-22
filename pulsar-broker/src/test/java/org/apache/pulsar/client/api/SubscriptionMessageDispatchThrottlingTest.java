@@ -488,9 +488,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName1).getDispatcher();
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
+            subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
+            subRateLimiter = subDispatcher.getRateLimiter().get();
         } else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
@@ -504,10 +504,10 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
 
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
-        } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
-        } else {
+            subRateLimiter = subDispatcher.getRateLimiter().get();
+        } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer)
+            subRateLimiter = subDispatcher.getRateLimiter().get();
+        else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
 
@@ -536,9 +536,9 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         subDispatcher = topic2.getSubscription(subName2).getDispatcher();
         if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            subRateLimiter = ((PersistentDispatcherMultipleConsumers) subDispatcher).getRateLimiter().get();
+            subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
-            subRateLimiter = ((PersistentDispatcherSingleActiveConsumer) subDispatcher).getRateLimiter().get();
+            subRateLimiter = subDispatcher.getRateLimiter().get();
         } else {
             Assert.fail("Should only have PersistentDispatcher in this test");
         }

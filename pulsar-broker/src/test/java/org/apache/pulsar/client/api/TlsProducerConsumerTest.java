@@ -40,7 +40,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
 
         internalSetUpForClient(true, "pulsar+ssl://localhost:" + BROKER_PORT_TLS);
         internalSetUpForNamespace();
@@ -74,7 +74,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
@@ -102,7 +102,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure

@@ -214,7 +214,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
     private void verifyResponseStatus(Client client, String url) {
         WebTarget webTarget = client.target(url);
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = (Response) invocationBuilder.get();
+        Response response = invocationBuilder.get();
         Assert.assertEquals(response.getStatus(), 200);
     }
 

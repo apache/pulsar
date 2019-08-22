@@ -179,14 +179,13 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         for (Pair<MessageIdData, Long> p : positions) {
             PositionImpl pos = new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
             Long got = CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get();
-            Assert.assertEquals(got, Long.valueOf(p.getRight()));
+            Assert.assertEquals(got, p.getRight());
         }
 
         // Check ids we know are in the gaps of the compacted ledger
         for (Pair<MessageIdData, Long> gap : idsInGaps) {
             PositionImpl pos = new PositionImpl(gap.getLeft().getLedgerId(), gap.getLeft().getEntryId());
-            Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
-                                Long.valueOf(gap.getRight()));
+            Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(), gap.getRight());
         }
     }
 

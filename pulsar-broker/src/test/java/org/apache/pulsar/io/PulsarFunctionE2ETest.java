@@ -96,11 +96,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
 import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 
 /**
  * Test Pulsar sink on function
@@ -153,7 +149,7 @@ public class PulsarFunctionE2ETest {
         File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         for (File file : foundFiles) {
-            file.delete();
+            assert file.delete();
         }
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -924,14 +920,14 @@ public class PulsarFunctionE2ETest {
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.avgProcessLatency, null);
+        assertNull(functionStats.avgProcessLatency);
         assertEquals(functionStats.oneMin.getReceivedTotal(), 0);
         assertEquals(functionStats.oneMin.getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.oneMin.getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.oneMin.getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.oneMin.getAvgProcessLatency(), null);
+        assertNull(functionStats.oneMin.getAvgProcessLatency());
         assertEquals(functionStats.getAvgProcessLatency(), functionStats.oneMin.getAvgProcessLatency());
-        assertEquals(functionStats.getLastInvocation(), null);
+        assertNull(functionStats.getLastInvocation());
 
         assertEquals(functionStats.instances.size(), 1);
         assertEquals(functionStats.instances.get(0).getInstanceId(), 0);
@@ -939,12 +935,12 @@ public class PulsarFunctionE2ETest {
         assertEquals(functionStats.instances.get(0).getMetrics().getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().avgProcessLatency, null);
+        assertNull(functionStats.instances.get(0).getMetrics().avgProcessLatency);
         assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getReceivedTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getUserExceptionsTotal(), 0);
-        assertEquals(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency(), null);
+        assertNull(functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
 
         assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.instances.get(0).getMetrics().oneMin.getAvgProcessLatency());
         assertEquals(functionStats.instances.get(0).getMetrics().getAvgProcessLatency(), functionStats.getAvgProcessLatency());
@@ -1512,7 +1508,7 @@ public class PulsarFunctionE2ETest {
         retryStrategically((test) -> {
             try {
                 FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return result.getParallelism() == 2 && result.getCleanupSubscription() == false;
+                return result.getParallelism() == 2 && !result.getCleanupSubscription();
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -1526,7 +1522,7 @@ public class PulsarFunctionE2ETest {
         retryStrategically((test) -> {
             try {
                 FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return result.getParallelism() == 2 && result.getCleanupSubscription() == false;
+                return result.getParallelism() == 2 && !result.getCleanupSubscription();
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -1583,7 +1579,7 @@ public class PulsarFunctionE2ETest {
             checkArgument(matcher.matches());
             String name = matcher.group(1);
             Metric m = new Metric();
-            m.value = Double.valueOf(matcher.group(3));
+            m.value = Double.parseDouble(matcher.group(3));
             String tags = matcher.group(2);
             Matcher tagsMatcher = tagsPattern.matcher(tags);
             while (tagsMatcher.find()) {

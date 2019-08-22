@@ -87,7 +87,7 @@ public class PulsarWorkerAssignmentTest {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
         bkEnsemble.start();
 
         final String brokerServiceUrl = "http://127.0.0.1:" + brokerServicePort;
@@ -313,8 +313,12 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace,
-                                                         String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         final String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 

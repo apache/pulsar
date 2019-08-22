@@ -139,13 +139,13 @@ public class PulsarFunctionLocalRunTest {
         File[] foundFiles = dir.listFiles((ignoredDir, name) -> name.startsWith("function"));
 
         for (File file : foundFiles) {
-            file.delete();
+            assert file.delete();
         }
 
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
         bkEnsemble.start();
 
         String brokerServiceUrl = "https://127.0.0.1:" + brokerWebServiceTlsPort;
@@ -330,7 +330,12 @@ public class PulsarFunctionLocalRunTest {
         return new WorkerService(workerConfig);
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -348,7 +353,10 @@ public class PulsarFunctionLocalRunTest {
         return functionConfig;
     }
 
-    private static SourceConfig createSourceConfig(String tenant, String namespace, String functionName, String sinkTopic) {
+    private static SourceConfig createSourceConfig(String tenant,
+                                                   String namespace,
+                                                   String functionName,
+                                                   String sinkTopic) {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);

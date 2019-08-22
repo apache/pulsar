@@ -846,7 +846,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     }
 
 
-    private class AlwaysTwoMessageRouter implements MessageRouter {
+    private static class AlwaysTwoMessageRouter implements MessageRouter {
         @Override
         public int choosePartition(Message<?> msg, TopicMetadata metadata) {
             return 2;

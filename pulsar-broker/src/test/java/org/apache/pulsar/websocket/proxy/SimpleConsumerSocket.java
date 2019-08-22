@@ -48,7 +48,7 @@ public class SimpleConsumerSocket {
 
     public SimpleConsumerSocket() {
         this.closeLatch = new CountDownLatch(1);
-        consumerBuffer = new ArrayList<String>();
+        consumerBuffer = new ArrayList<>();
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
@@ -63,7 +63,7 @@ public class SimpleConsumerSocket {
     }
 
     @OnWebSocketConnect
-    public void onConnect(Session session) throws InterruptedException {
+    public void onConnect(Session session) {
         log.info("Got connect: {}", session);
         this.session = session;
         log.debug("Got connected: {}", session);

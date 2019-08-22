@@ -35,7 +35,7 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
+    public void initialize(ServiceConfiguration config) {
 
     }
 

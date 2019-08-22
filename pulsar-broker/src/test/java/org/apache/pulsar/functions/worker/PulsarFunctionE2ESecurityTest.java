@@ -118,7 +118,7 @@ public class PulsarFunctionE2ESecurityTest {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
         bkEnsemble.start();
 
         brokerServiceUrl = "http://127.0.0.1:" + brokerWebServicePort;
@@ -246,7 +246,12 @@ public class PulsarFunctionE2ESecurityTest {
         return new WorkerService(workerConfig);
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -281,7 +286,8 @@ public class PulsarFunctionE2ESecurityTest {
                 PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).build())
         ) {
 
-            String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+            String jarFilePathUrl = Utils.FILE + ":" +
+                    getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
 
             FunctionConfig functionConfig = createFunctionConfig(TENANT, NAMESPACE, functionName,
                     sourceTopic, sinkTopic, subscriptionName);

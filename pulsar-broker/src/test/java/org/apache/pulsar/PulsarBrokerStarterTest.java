@@ -44,7 +44,7 @@ public class PulsarBrokerStarterTest {
     private File createValidBrokerConfigFile() throws FileNotFoundException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
-            testConfigFile.delete();
+            assert testConfigFile.delete();
         }
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
         printWriter.println("zookeeperServers=z1.example.com,z2.example.com,z3.example.com");
@@ -134,7 +134,7 @@ public class PulsarBrokerStarterTest {
 
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
-            testConfigFile.delete();
+            assert testConfigFile.delete();
         }
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
         printWriter.println("brokerDeleteInactiveTopicsEnabled=false");
@@ -168,7 +168,7 @@ public class PulsarBrokerStarterTest {
 
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
-            testConfigFile.delete();
+            assert testConfigFile.delete();
         }
 
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
@@ -217,7 +217,7 @@ public class PulsarBrokerStarterTest {
 
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
-            testConfigFile.delete();
+            assert testConfigFile.delete();
         }
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
         printWriter.println("zookeeperServers=z1.example.com,z2.example.com,z3.example.com");

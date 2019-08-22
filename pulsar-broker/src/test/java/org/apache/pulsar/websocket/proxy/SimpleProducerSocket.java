@@ -49,7 +49,7 @@ public class SimpleProducerSocket {
 
     public SimpleProducerSocket() {
         this.closeLatch = new CountDownLatch(1);
-        producerBuffer = new ArrayList<String>();
+        producerBuffer = new ArrayList<>();
     }
 
     private static String getTestJsonPayload(int index) throws JsonProcessingException {

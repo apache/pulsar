@@ -124,7 +124,7 @@ public class PulsarFunctionPublishTest {
         File[] foundFiles = dir.listFiles((ignoredDir, name) -> name.startsWith("function"));
 
         for (File file : foundFiles) {
-            file.delete();
+            assert file.delete();
         }
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -264,7 +264,12 @@ public class PulsarFunctionPublishTest {
         return new WorkerService(workerConfig);
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String publishTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String publishTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);

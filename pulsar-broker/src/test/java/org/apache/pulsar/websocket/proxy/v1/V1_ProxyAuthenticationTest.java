@@ -147,28 +147,22 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void authenticatedSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void anonymousSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut=10000)
-    public void unauthenticatedSocketTest() throws Exception{
-        Exception exception = null;
-        try {
-            socketTest();
-        } catch (Exception e) {
-            exception = e;
-        }
-        Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
+    @Test(timeOut = 10000, expectedExceptions = java.util.concurrent.ExecutionException.class)
+    public void unauthenticatedSocketTest() throws Exception {
+        socketTest();
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void statsTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic2";
         final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/my-sub";
@@ -219,7 +213,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
     private void verifyResponseStatus(Client client, String url) {
         WebTarget webTarget = client.target(url);
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = (Response) invocationBuilder.get();
+        Response response = invocationBuilder.get();
         Assert.assertEquals(response.getStatus(), 200);
     }
 

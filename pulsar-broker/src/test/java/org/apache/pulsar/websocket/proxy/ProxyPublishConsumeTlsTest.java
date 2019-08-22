@@ -93,7 +93,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    public void socketTest() throws InterruptedException, GeneralSecurityException {
+    public void socketTest() throws GeneralSecurityException {
         String consumerUri =
                 "wss://localhost:" + tlsPort + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
         String producerUri = "wss://localhost:" + tlsPort + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
