@@ -33,14 +33,18 @@ public class SinkStatus {
     public int numRunning;
     public List<SinkInstanceStatus> instances = new LinkedList<>();
 
+    /**
+     * Status of a Sink instance.
+     */
     @Data
-    @SuppressWarnings("checkstyle:JavadocType")
     public static class SinkInstanceStatus {
         public int instanceId;
         public SinkInstanceStatusData status;
 
+        /**
+         * Status data of a Sink instance.
+         */
         @Data
-        @SuppressWarnings("checkstyle:JavadocType")
         public static class SinkInstanceStatusData {
             // Is this instance running?
             public boolean running;

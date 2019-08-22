@@ -27,7 +27,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Definition of Pulsar policies.
+ */
 public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")

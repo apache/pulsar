@@ -20,7 +20,9 @@ package org.apache.pulsar.common.util;
 
 import io.netty.buffer.ByteBuf;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Custom number formatter for {@code io.netty.buffer.ByteBuf}.
+ */
 public class NumberFormat {
 
     static void format(ByteBuf out, long num) {

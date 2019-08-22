@@ -20,7 +20,9 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.ComparisonChain;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Information about the broker status.
+ */
 public class BrokerStatus implements Comparable<BrokerStatus> {
     private String brokerAddress;
     private boolean active;

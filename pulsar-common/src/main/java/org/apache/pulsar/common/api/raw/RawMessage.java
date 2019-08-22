@@ -28,7 +28,6 @@ import java.util.Optional;
  *
  * <p>The message needs to be released when the processing is done.
  */
-@SuppressWarnings("checkstyle:JavadocType")
 public interface RawMessage {
 
     /**

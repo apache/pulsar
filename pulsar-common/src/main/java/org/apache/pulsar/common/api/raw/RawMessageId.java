@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.api.raw;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Interface to uniquely identify an internal raw message.
+ */
 public interface RawMessageId {
 
 }

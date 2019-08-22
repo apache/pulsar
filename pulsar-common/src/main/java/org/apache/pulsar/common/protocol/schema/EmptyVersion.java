@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.protocol.schema;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Empty schema version.
+ */
 public final class EmptyVersion implements SchemaVersion {
     private static final byte[] EMPTY = new byte[]{};
 

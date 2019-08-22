@@ -34,12 +34,16 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 
+/**
+ * Helper class to work with a raw Pulsar entry payload.
+ */
 @UtilityClass
 @Slf4j
-@SuppressWarnings("checkstyle:JavadocType")
 public class MessageParser {
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Definition of an interface to process a raw Pulsar entry payload.
+     */
     public interface MessageProcessor {
         void process(RawMessage message);
     }

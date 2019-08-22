@@ -21,9 +21,11 @@ package org.apache.pulsar.common.io;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Basic information about a Pulsar connector.
+ */
 @Data
 @NoArgsConstructor
-@SuppressWarnings("checkstyle:JavadocType")
 public class ConnectorDefinition {
 
     /**
@@ -39,14 +41,14 @@ public class ConnectorDefinition {
     /**
      * The class name for the connector source implementation.
      *
-     * <p>If not defined, it will be assumed this connector cannot act as a data source
+     * <p>If not defined, it will be assumed this connector cannot act as a data source.
      */
     private String sourceClass;
 
     /**
      * The class name for the connector sink implementation.
      *
-     * <p>If not defined, it will be assumed this connector cannot act as a data si
+     * <p>If not defined, it will be assumed this connector cannot act as a data sink.
      */
     private String sinkClass;
 }

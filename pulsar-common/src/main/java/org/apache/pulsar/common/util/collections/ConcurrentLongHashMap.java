@@ -179,7 +179,11 @@ public class ConcurrentLongHashMap<V> {
         return values;
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Processor for one key-value entry, where the key is {@code long}.
+     *
+     * @param <V> type of the value.
+     */
     public interface EntryProcessor<V> {
         void accept(long key, V value);
     }

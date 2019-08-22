@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Definition of the retention policy.
+ */
 public class RetentionPolicies {
     private int retentionTimeInMinutes;
     private long retentionSizeInMB;

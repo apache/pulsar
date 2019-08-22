@@ -26,10 +26,12 @@ import lombok.ToString;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+/**
+ * Schema data.
+ */
 @Builder
 @Data
 @ToString
-@SuppressWarnings("checkstyle:JavadocType")
 public class SchemaData {
     private final SchemaType type;
     private final boolean isDeleted;

@@ -39,8 +39,10 @@ import java.util.jar.JarFile;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Helper class to unpack NARs.
+ */
 @Slf4j
-@SuppressWarnings("checkstyle:JavadocType")
 public class NarUnpacker {
 
     private final static String HASH_FILENAME = "nar-md5sum";

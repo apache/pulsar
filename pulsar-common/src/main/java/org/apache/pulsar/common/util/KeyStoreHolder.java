@@ -25,7 +25,11 @@ import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Holder for the secure key store.
+ *
+ * @see java.security.KeyStore
+ */
 public class KeyStoreHolder {
 
     private KeyStore keyStore = null;

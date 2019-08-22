@@ -33,6 +33,9 @@ import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 
+/**
+ * Configuration of Pulsar Sink.
+ */
 @Getter
 @Setter
 @Data
@@ -41,7 +44,6 @@ import org.apache.pulsar.common.functions.Resources;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@SuppressWarnings("checkstyle:JavadocType")
 public class SinkConfig {
 
     private String tenant;

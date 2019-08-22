@@ -41,7 +41,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * This class is responsible for providing JVM metrics.
+ */
 public class JvmMetrics {
 
     private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
