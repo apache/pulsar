@@ -4784,7 +4784,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "401" : {
@@ -8866,6 +8866,21 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
@@ -8886,21 +8901,6 @@
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
         }
       }
     },
@@ -9068,10 +9068,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -9739,10 +9739,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
