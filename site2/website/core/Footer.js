@@ -165,22 +165,6 @@ class Footer extends React.Component {
         <span>
         <script dangerouslySetInnerHTML={{__html: communityMenuJs }} />
         </span>
-        <span>
-        <script src={this.props.config.baseUrl + 'js/pjax-api.min.js'} />
-        <script dangerouslySetInnerHTML={{__html: `window.navfoo = new Pjax({
-            areas: [
-              // try to use the first query.
-              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
-              // fallback
-              'body'
-            ],
-            link: '.docsNavContainer:not(.docsSliderActive) a',
-            update: {
-              script: false,
-            }
-          });
-        `}}></script>
-        </span>
       </footer>
     );
   }
