@@ -349,8 +349,7 @@ $ pulsar-admin sinks create options
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that
- match the pattern. <br>`--input` and `--topics-Pattern` are mutually exclusive. <br>Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br>`--input` and `--topics-Pattern` are mutually exclusive. <br>Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
 
 ### `update`
 
@@ -386,8 +385,7 @@ $ pulsar-admin sinks update options
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that
- match the pattern. <br>`--input` and `--topics-Pattern` are mutually exclusive. <br>Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br>`--input` and `--topics-Pattern` are mutually exclusive. <br>Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
 | `--update-auth-data` | Whether or not to update the auth data.<br>**Default value: false.**
 
 ### `delete`
