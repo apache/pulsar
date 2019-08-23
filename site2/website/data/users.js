@@ -123,5 +123,10 @@ module.exports = [
         name: 'China Telecom',
         url: 'https://www.chinatelecom-h.com/',
         logo: 'https://www.chinatelecom-h.com/en/images/global/logo.png'
-    }
+    },
+    {
+        name: 'Kafkaesque',
+        url: 'https://kafkaesque.io/', 
+        logo: 'https://kafkaesque.io/wp-content/uploads/2019/04/color_logo_with_background.svg'
+    },
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
