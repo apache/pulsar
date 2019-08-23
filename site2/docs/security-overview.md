@@ -20,11 +20,12 @@ Apache Pulsar uses the [Authentication Provider](#authentication-providers) to e
 
 ## Authentication Providers
 
-Currently Pulsar supports three authentication providers:
+Currently Pulsar supports four authentication providers:
 
 - [TLS Authentication](security-tls-authentication.md)
 - [Athenz](security-athenz.md)
 - [Kerberos](security-kerberos.md)
+- JSON Web Token Authentication
 
 ## Contents
 
