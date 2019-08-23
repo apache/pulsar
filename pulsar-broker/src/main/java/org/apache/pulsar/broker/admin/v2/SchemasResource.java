@@ -312,6 +312,10 @@ public class SchemasResource extends AdminResource {
     ) {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
 
+        NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+        getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
+            SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
         byte[] data;
         if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
             data = DefaultImplementation
@@ -330,7 +334,7 @@ public class SchemasResource extends AdminResource {
                 .user(defaultIfEmpty(clientAppId(), ""))
                 .props(payload.getProperties())
                 .build(),
-            SchemaCompatibilityStrategy.FULL
+                schemaCompatibilityStrategy
         ).thenAccept(version ->
             response.resume(
                 Response.accepted().entity(
@@ -340,11 +344,24 @@ public class SchemasResource extends AdminResource {
                 ).build()
             )
         ).exceptionally(error -> {
-            if (error instanceof IncompatibleSchemaException) {
+            if (error.getCause() instanceof IncompatibleSchemaException) {
                 response.resume(Response.status(Response.Status.CONFLICT).build());
             } else if (error instanceof InvalidSchemaDataException) {
                 response.resume(Response.status(
-                    422, /* Unprocessable Entity */
+                        422, /* Unprocessable Entity */
+                        error.getMessage()
+                ).build());
+            } else {
+                response.resume(
+                        Response.serverError().build()
+                );
+            }
+            return null;
+        });
+        }).exceptionally(error -> {
+            if (error.getCause() instanceof RestException) {
+                response.resume(Response.status(
+                        ((RestException) error.getCause()).getResponse().getStatus(), /* Unprocessable Entity */
                     error.getMessage()
                 ).build());
             } else {

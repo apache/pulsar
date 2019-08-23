@@ -162,7 +162,8 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
     <bouncycastle.version>1.60</bouncycastle.version>
-    <jackson.version>2.9.8</jackson.version>
+    <jackson.version>2.9.9</jackson.version>
+    <jackson.databind.version>2.9.9.3</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.5.21</swagger.version>
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
@@ -644,7 +645,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
+        <version>${jackson.databind.version}</version>
       </dependency>
 
       <dependency>
