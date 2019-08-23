@@ -490,11 +490,12 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             response = Void.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/reloadBuiltInSinks")
     public void reloadSinks() {
-        sink.reloadConnectors();
+        sink.reloadConnectors(clientAppId());
     }
 }

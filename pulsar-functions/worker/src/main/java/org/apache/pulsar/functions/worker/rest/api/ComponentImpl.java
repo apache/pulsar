@@ -897,9 +897,15 @@ public abstract class ComponentImpl {
         return this.worker().getConnectorsManager().getConnectors();
     }
 
-    public void reloadConnectors() {
+    public void reloadConnectors(String clientRole) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
+        }
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            // Only superuser has permission to do this operation.
+            if (!isSuperUser(clientRole)) {
+                throw new RestException(Status.FORBIDDEN, "Need to admin authenticate to perform the request");
+            }
         }
         try {
             this.worker().getConnectorsManager().reloadConnectors(worker().getWorkerConfig());
