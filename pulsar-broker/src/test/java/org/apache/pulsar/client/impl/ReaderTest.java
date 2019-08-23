@@ -18,21 +18,25 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -41,15 +45,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 public class ReaderTest extends MockedPulsarServiceBaseTest {
 
@@ -185,9 +180,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
      * <pre>
      * 1. publish messages which are 5 hour old
      * 2. publish messages which are 1 hour old
-     * 3. Create reader with rollback time 2 hours 
+     * 3. Create reader with rollback time 2 hours
      * 4. Reader should be able to read only messages which are only 2 hours old
-     * </pre> 
+     * </pre>
      * @throws Exception
      */
     @Test
@@ -207,7 +202,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         long oldMsgPublishTime = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(5); // 5 hours old
         for (int i = 0; i < totalMsg; i++) {
             TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
-                    .value(("old" + i).getBytes());
+                .value(("old" + i).getBytes());
             Builder metadataBuilder = msg.getMetadataBuilder();
             metadataBuilder.setPublishTime(oldMsgPublishTime).setSequenceId(i);
             metadataBuilder.setProducerName(producer.getProducerName()).setReplicatedFrom("us-west1");
@@ -219,7 +214,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         MessageId firstMsgId = null;
         for (int i = 0; i < totalMsg; i++) {
             TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
-                    .value(("new" + i).getBytes());
+                .value(("new" + i).getBytes());
             Builder metadataBuilder = msg.getMetadataBuilder();
             metadataBuilder.setPublishTime(newMsgPublishTime);
             metadataBuilder.setProducerName(producer.getProducerName()).setReplicatedFrom("us-west1");
@@ -228,11 +223,11 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 firstMsgId = msgId;
             }
         }
-        
+
         // (3) Create reader and set position 1 hour back so, it should only read messages which are 2 hours old which
-        // published on step 2 
+        // published on step 2
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
-                .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
+            .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
 
         List<MessageId> receivedMessageIds = Lists.newArrayList();
 
@@ -251,5 +246,22 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         restartBroker();
 
         assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
+    public void testReaderCleanup() throws Exception {
+        String topic = "persistent://my-property/my-ns/testReaderCleanup";
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        PersistentTopic t = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        assertEquals(IterableUtils.size(t.getManagedLedger().getCursors()), 1);
+
+
+        reader.close();
+        // The non-durable managed cursor should have been cleaned up after the reader disconnects
+        assertEquals(IterableUtils.size(t.getManagedLedger().getCursors()), 0);
     }
 }

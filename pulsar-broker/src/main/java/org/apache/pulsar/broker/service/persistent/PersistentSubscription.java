@@ -282,6 +282,12 @@ public class PersistentSubscription implements Subscription {
                     return null;
                 });
 
+                try {
+                    cursor.getManagedLedger().deleteCursor(cursor.getName());
+                } catch (InterruptedException | ManagedLedgerException e) {
+                    log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                }
+
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
                 topic.getBrokerService().pulsar().getExecutor().submit(() ->{
