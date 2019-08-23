@@ -2986,8 +2986,7 @@ TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
     std::string subsName = topicName + "-sub-";
 
     // call admin api to make 1 partition
-    std::string url =
-            adminUrl + "admin/v2/persistent/public/default/" + topicName +  "/partitions";
+    std::string url = adminUrl + "admin/v2/persistent/public/default/" + topicName + "/partitions";
     int putRes = makePutRequest(url, "1");
     LOG_INFO("res = " << putRes);
     ASSERT_FALSE(putRes != 204 && putRes != 409);
@@ -3018,14 +3017,17 @@ TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
     // create messages
     int numMessages = 10;
     for (int i = 0; i < numMessages; i++) {
-        Message msg = MessageBuilder().setContent("test-" + topicName + std::to_string(i)).build();
+        Message msg = MessageBuilder().setContent("test-producer1-" + topicName + std::to_string(i)).build();
         producer1.send(msg);
+        msg = MessageBuilder().setContent("test-producer2-" + topicName + std::to_string(i)).build();
         producer2.send(msg);
     }
 
     // produced 10 messages by each producer.
     // expected receive 20 messages by each consumer.
     for (int i = 0; i < numMessages * 2; i++) {
+        LOG_INFO("begin to receive message " << i);
+
         Message msg;
         Result res = consumer1.receive(msg, 100);
         ASSERT_EQ(ResultOk, res);
