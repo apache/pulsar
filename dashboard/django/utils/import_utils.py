@@ -17,35 +17,11 @@
 # under the License.
 #
 
-FROM python:3.7
+import importlib
 
-MAINTAINER Pulsar
 
-RUN apt-get update
-RUN apt-get -y install postgresql python sudo nginx supervisor
-
-# Postgres configuration
-COPY conf/postgresql.conf /etc/postgresql/9.6/main/
-
-# Configure nginx and supervisor
-RUN echo "daemon off;" >> /etc/nginx/nginx.conf
-COPY conf/nginx-app.conf /etc/nginx/sites-available/default
-COPY conf/supervisor-app.conf /etc/supervisor/conf.d/
-
-# Copy web-app sources
-RUN mkdir /pulsar
-COPY . /pulsar/
-
-# Python dependencies
-RUN pip install -r /pulsar/requirements.txt
-
-# Collect all static files needed by Django in a
-# single place. Needed to run the app outside the
-# Django test web server
-RUN cd /pulsar/django && ./manage.py collectstatic --no-input
-
-RUN mkdir /data
-
-EXPOSE 80
-
-CMD ["/pulsar/start.sh"]
+def try_import(name):
+    try:
+        return importlib.import_module(name)
+    except ImportError:
+        return None
