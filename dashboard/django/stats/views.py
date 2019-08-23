@@ -37,6 +37,68 @@ pulsar = import_utils.try_import("pulsar")
 logger = logging.getLogger(__name__)
 
 
+class AdminPath:
+    v1 = "/admin"
+    v2 = "/admin/v2"
+
+    @staticmethod
+    def get(is_v2):
+        return AdminPath.v2 if is_v2 else AdminPath.v1
+
+
+class TopicName:
+    def __init__(self, topic_name):
+        try:
+            self.scheme, self.path = topic_name.split("://", 1)
+        except ValueError:
+            self.scheme, self.path = topic_name.split("/", 1)
+        self.namespace_path, self.name = self.path.rsplit("/", 1)
+        self.namespace = NamespaceName(self.namespace_path)
+
+    def is_v2(self):
+        return self.namespace.is_v2()
+
+    def url_name(self):
+        return "/".join([self.scheme, self.path])
+
+    def full_name(self):
+        return "://".join([self.scheme, self.path])
+
+    def short_name(self):
+        return self.name
+
+    def is_global(self):
+        return self.namespace.is_global()
+
+    def admin_path(self):
+        b = AdminPath.get(self.is_v2())
+        return settings.SERVICE_URL + b + "/" + self.url_name()
+
+
+class NamespaceName:
+
+    def __init__(self, namespace_name):
+        self.path = namespace_name.strip("/")
+        path_parts = self.path.split("/")
+        if len(path_parts) == 2:
+            self.tenant, self.namespace = path_parts
+            self.cluster = None
+        elif len(path_parts) == 3:
+            self.tenant, self.cluster, self.namespace = path_parts
+        else:
+            raise ValueError("invalid namespace:" + namespace_name)
+
+    def is_v2(self):
+        return self.cluster is None
+
+    def is_global(self):
+        return self.cluster == "global"
+
+    def admin_path(self):
+        b = AdminPath.get(self.is_v2())
+        return settings.SERVICE_URL + b + "/namespaces/" + self.path
+
+
 def get_timestamp():
     try:
         return LatestTimestamp.objects.get(name='latest').timestamp
@@ -139,8 +201,8 @@ def namespace(request, namespace_name):
     })
 
 
-def deleteNamespace(request, namespace_name):
-    url = settings.SERVICE_URL + '/admin/v2/namespaces/' + namespace_name
+def delete_namespace(request, namespace_name):
+    url = NamespaceName(namespace_name).admin_path()
     response = requests.delete(url)
     status = response.status_code
     logger.debug("Delete namespace " + namespace_name + " status - " + str(status))
@@ -148,9 +210,10 @@ def deleteNamespace(request, namespace_name):
         Namespace.objects.filter(name=namespace_name, timestamp=get_timestamp()).update(deleted=True)
     return redirect('property', property_name=namespace_name.split('/', 1)[0])
 
+
 def topic(request, topic_name):
     timestamp = get_timestamp()
-    topic_name = extract_topic_db_name(topic_name)
+    topic_name = TopicName(topic_name).full_name()
     cluster_name = request.GET.get('cluster')
     clusters = []
 
@@ -314,12 +377,12 @@ def clusters(request):
     })
 
 
-def clearSubscription(request, topic_name, subscription_name):
-    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name + '/skip_all'
+def clear_subscription(request, topic_name, subscription_name):
+    url = "%s/subscription/%s/skip_all" % (TopicName(topic_name).admin_path(), subscription_name)
     response = requests.post(url)
     if response.status_code == 204:
         ts = get_timestamp()
-        topic_db_name = extract_topic_db_name(topic_name)
+        topic_db_name = TopicName(topic_name).full_name()
         topic = Topic.objects.get(name=topic_db_name, timestamp=ts)
         subscription = Subscription.objects.get(name=subscription_name, topic=topic, timestamp=ts)
         topic.backlog = topic.backlog - subscription.msgBacklog
@@ -328,13 +391,14 @@ def clearSubscription(request, topic_name, subscription_name):
         subscription.save(update_fields=['msgBacklog'])
     return redirect('topic', topic_name=topic_name)
 
-def deleteSubscription(request, topic_name, subscription_name):
-    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name
+
+def delete_subscription(request, topic_name, subscription_name):
+    url = "%s/subscription/%s" % (TopicName(topic_name).admin_path(), subscription_name)
     response = requests.delete(url)
     status = response.status_code
     if status == 204:
         ts = get_timestamp()
-        topic_db_name = extract_topic_db_name(topic_name)
+        topic_db_name = TopicName(topic_name).full_name()
         topic = Topic.objects.get(name=topic_db_name, timestamp=ts)
         deleted_subscription = Subscription.objects.get(name=subscription_name, topic=topic, timestamp=ts)
         deleted_subscription.deleted = True
@@ -353,7 +417,8 @@ def deleteSubscription(request, topic_name, subscription_name):
 
 
 def messages(request, topic_name, subscription_name):
-    topic_db_name = extract_topic_db_name(topic_name)
+    topic_name_obj = TopicName(topic_name)
+    topic_db_name = topic_name_obj.full_name()
     timestamp = get_timestamp()
     cluster_name = request.GET.get('cluster')
 
@@ -371,7 +436,7 @@ def messages(request, topic_name, subscription_name):
     message = None
     message_position = request.GET.get('message-position')
     if message_position and message_position.isnumeric():
-        message = peek_message(topic_obj, subscription_name, message_position)
+        message = peek_message(topic_name_obj, subscription_name, message_position)
         if not isinstance(message, list):
             message = [message]
 
@@ -484,19 +549,12 @@ def get_message_from_http_response(response):
                                      memoryview(response.content))
 
 
-def peek_message(topic_obj, subscription_name, message_position):
+def peek_message(topic_name, subscription_name, message_position):
+    if not isinstance(topic_name, TopicName):
+        topic_name = TopicName(topic_name)
     peek_url = "%s/subscription/%s/position/%s" % (
-        topic_path(topic_obj), subscription_name, message_position)
+        topic_name.admin_path(), subscription_name, message_position)
     peek_response = requests.get(peek_url)
     if peek_response.status_code != 200:
         return {"ERROR": "%s(%d)" % (peek_response.reason, peek_response.status_code)}
     return get_message_from_http_response(peek_response)
-
-
-def topic_path(topic_obj):
-    admin_base = "/admin/v2/" if topic_obj.is_v2() else "/admin/"
-    return settings.SERVICE_URL + admin_base + topic_obj.url_name()
-
-
-def extract_topic_db_name(topic_name):
-    return 'persistent://' + topic_name.split('persistent/', 1)[1]
