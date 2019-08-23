@@ -20,7 +20,7 @@ module.exports = [
         logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Verizon_Media_2019_logo.svg/1200px-Verizon_Media_2019_logo.svg.png'
     },
     {
-        name: 'Yahoo! Japan',
+        name: 'Yahoo! JAPAN',
         url: 'https://www.yahoo.co.jp/',
         logo: 'https://s.yimg.jp/images/top/sp2/cmn/logo-170307.png'
     },
