@@ -2,7 +2,7 @@ function getSwaggerByVersion(){
     var params = window.location.search
     params = params.replace('?', '')
     const paramsList = params.split('&')
-    var version = 'next'
+    var version = 'master'
     for (var i in paramsList) {
         var param = paramsList[i].split('=')
         if (param[0] === 'version') {
