@@ -131,7 +131,7 @@ public class PulsarFunctionLocalRunTest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 20000)
     void setup(Method method) throws Exception {
 
         // delete all function temp files
@@ -145,7 +145,7 @@ public class PulsarFunctionLocalRunTest {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
         bkEnsemble.start();
 
         String brokerServiceUrl = "https://127.0.0.1:" + brokerWebServiceTlsPort;
@@ -279,7 +279,7 @@ public class PulsarFunctionLocalRunTest {
         fileServerThread.start();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         fileServer.stop(0);

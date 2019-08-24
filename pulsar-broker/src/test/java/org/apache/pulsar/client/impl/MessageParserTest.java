@@ -48,7 +48,7 @@ import avro.shaded.com.google.common.collect.Lists;
 
 public class MessageParserTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -59,13 +59,13 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testWithoutBatches() throws Exception {
         String topic = "persistent://my-tenant/my-ns/my-topic";
         TopicName topicName = TopicName.get(topic);
@@ -105,7 +105,7 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testWithBatches() throws Exception {
         String topic = "persistent://my-tenant/my-ns/my-topic-with-batch";
         TopicName topicName = TopicName.get(topic);

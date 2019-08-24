@@ -450,7 +450,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testClusterPolicyOverrideConfiguration() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

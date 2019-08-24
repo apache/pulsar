@@ -142,7 +142,7 @@ public class ModularLoadManagerImplTest {
         field.set(instance, value);
     }
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     void setup() throws Exception {
 
         // Start local bookkeeper ensemble
@@ -189,7 +189,7 @@ public class ModularLoadManagerImplTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();
@@ -218,7 +218,7 @@ public class ModularLoadManagerImplTest {
     }
 
     // Test disabled since it's depending on CPU usage in the machine
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testCandidateConsistency() throws Exception {
         boolean foundFirst = false;
         boolean foundSecond = false;
@@ -257,7 +257,7 @@ public class ModularLoadManagerImplTest {
     // Test that bundles belonging to the same namespace are distributed evenly among brokers.
 
     // Test disabled since it's depending on CPU usage in the machine
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testEvenBundleDistribution() throws Exception {
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test", 16);
         int numAssignedToPrimary = 0;
@@ -298,7 +298,7 @@ public class ModularLoadManagerImplTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testMaxTopicDistributionToBroker() throws Exception {
 
         final int totalBundles = 50;
@@ -321,7 +321,7 @@ public class ModularLoadManagerImplTest {
     }
 
     // Test that load shedding works
-    @Test
+    @Test(timeOut = 10000)
     public void testLoadShedding() throws Exception {
         final NamespaceBundleStats stats1 = new NamespaceBundleStats();
         final NamespaceBundleStats stats2 = new NamespaceBundleStats();
@@ -374,7 +374,7 @@ public class ModularLoadManagerImplTest {
     // Test that ModularLoadManagerImpl will determine that writing local data to ZooKeeper is necessary if certain
     // metrics change by a percentage threshold.
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNeedBrokerDataUpdate() throws Exception {
         final LocalBrokerData lastData = new LocalBrokerData();
         final LocalBrokerData currentData = new LocalBrokerData();
@@ -458,7 +458,7 @@ public class ModularLoadManagerImplTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerStopCacheUpdate() throws Exception {
         String secondaryBroker = pulsar2.getAdvertisedAddress() + ":" + SECONDARY_BROKER_WEBSERVICE_PORT;
         pulsar2.getLocalZkCache().getZooKeeper().delete(LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + secondaryBroker,
@@ -490,7 +490,7 @@ public class ModularLoadManagerImplTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers() throws Exception {
 
         final String tenant = "my-property";
@@ -594,7 +594,7 @@ public class ModularLoadManagerImplTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testOwnBrokerZnodeByMultipleBroker() throws Exception {
 
         ServiceConfiguration config = new ServiceConfiguration();

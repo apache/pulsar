@@ -51,7 +51,7 @@ public class MaxMessageSizeTest {
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final int BROKER_WEBSERVER_PORT = PortManager.nextFreePort();
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     void setup() {
         try {
             bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
@@ -85,7 +85,7 @@ public class MaxMessageSizeTest {
         }
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void shutdown() {
         try {
             pulsar.close();
@@ -95,7 +95,7 @@ public class MaxMessageSizeTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMaxMessageSetting() throws PulsarClientException {
 
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://127.0.0.1:" + BROKER_SERVICE_PORT).build();

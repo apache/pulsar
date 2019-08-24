@@ -41,19 +41,19 @@ import org.testng.annotations.Test;
 public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Override
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
     @Override
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDelayedDelivery()
             throws Exception {
         String topic = "testNegativeAcks-" + System.nanoTime();
@@ -108,7 +108,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testInterleavedMessages()
             throws Exception {
         String topic = "testInterleavedMessages-" + System.nanoTime();
@@ -160,7 +160,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testEverythingFilteredInMultipleReads()
             throws Exception {
         String topic = "testEverythingFilteredInMultipleReads-" + System.nanoTime();

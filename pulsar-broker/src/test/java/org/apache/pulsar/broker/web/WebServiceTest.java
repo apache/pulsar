@@ -89,7 +89,7 @@ public class WebServiceTest {
      * allowUnversionedClients to true, then making a request with no version, which should go through.
      *
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testDefaultClientVersion() throws Exception {
         setupEnv(true, "1.0", true, false, false, false);
 
@@ -107,7 +107,7 @@ public class WebServiceTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsEnabled() throws Exception {
         setupEnv(false, "1.0", false, true, false, false);
 
@@ -129,7 +129,7 @@ public class WebServiceTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsDisabled() throws Exception {
         setupEnv(false, "1.0", false, false, false, false);
 
@@ -153,7 +153,7 @@ public class WebServiceTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsAuthAllowInsecure() throws Exception {
         setupEnv(false, "1.0", false, true, true, true);
 
@@ -176,7 +176,7 @@ public class WebServiceTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsAuthDisallowInsecure() throws Exception {
         setupEnv(false, "1.0", false, true, true, false);
 
@@ -194,7 +194,7 @@ public class WebServiceTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSplitPath() {
         String result = PulsarWebResource.splitPath("prop/cluster/ns/topic1", 4);
         Assert.assertEquals(result, "topic1");
@@ -295,7 +295,7 @@ public class WebServiceTest {
         }
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod( timeOut = 10000, alwaysRun = true)
     void teardown() throws Exception {
         try {
             pulsar.close();

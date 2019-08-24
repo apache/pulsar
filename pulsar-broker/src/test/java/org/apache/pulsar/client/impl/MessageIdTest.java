@@ -65,13 +65,13 @@ import org.testng.annotations.Test;
 public class MessageIdTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(MessageIdTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     public void setup() throws Exception {
         baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
@@ -281,7 +281,7 @@ public class MessageIdTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testChecksumVersionComptability() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
 
@@ -350,7 +350,7 @@ public class MessageIdTest extends BrokerTestBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testChecksumReconnection() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
 
@@ -429,7 +429,7 @@ public class MessageIdTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testCorruptMessageRemove() throws Exception {
 
         final String topicName = "persistent://prop/use/ns-abc/retry-topic";

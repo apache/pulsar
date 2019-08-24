@@ -28,7 +28,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class TlsHostVerification extends TlsProducerConsumerBase {
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsHostVerificationAdminClient() throws Exception {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
@@ -47,7 +47,7 @@ public class TlsHostVerification extends TlsProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsHostVerificationDisabledAdminClient() throws Exception {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);

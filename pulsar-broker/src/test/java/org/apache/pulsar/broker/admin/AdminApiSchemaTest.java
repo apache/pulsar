@@ -47,7 +47,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -59,7 +59,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -116,12 +116,12 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         };
     }
 
-    @Test(dataProvider = "schemas")
+    @Test(timeOut = 10000, dataProvider = "schemas")
     public void testSchemaInfoApi(Schema<?> schema) throws Exception {
         testSchemaInfoApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
     }
 
-    @Test(dataProvider = "schemas")
+    @Test(timeOut = 10000, dataProvider = "schemas")
     public void testSchemaInfoWithVersionApi(Schema<?> schema) throws Exception {
         testSchemaInfoWithVersionApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
     }
@@ -144,7 +144,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPostSchemaCompatibilityStrategy() throws PulsarAdminException {
         String namespace = "schematest/test";
         String topicName = namespace + "/testStrategyChange";

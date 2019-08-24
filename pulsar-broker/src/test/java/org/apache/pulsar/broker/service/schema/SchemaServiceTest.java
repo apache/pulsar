@@ -82,7 +82,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaRegistryServiceImpl schemaRegistryService;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -94,14 +94,14 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
         schemaRegistryService.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void writeReadBackDeleteSchemaEntry() throws Exception {
         putSchema(schemaId1, schema1, version(0));
 
@@ -113,13 +113,13 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertNull(schemaRegistryService.getSchema(schemaId1).get());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void findSchemaVersionTest() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         assertEquals(0, schemaRegistryService.findSchemaVersion(schemaId1, schema1).get().longValue());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void deleteSchemaAndAddSchema() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         SchemaData latest = getLatestSchema(schemaId1, version(0));
@@ -136,7 +136,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void getReturnsTheLastWrittenEntry() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         putSchema(schemaId1, schema2, version(1));
@@ -146,7 +146,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void getByVersionReturnsTheCorrectEntry() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         putSchema(schemaId1, schema2, version(1));
@@ -155,7 +155,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(schema1, version0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void getByVersionReturnsTheCorrectEntry2() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         putSchema(schemaId1, schema2, version(1));
@@ -164,7 +164,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(schema2, version1);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void getByVersionReturnsTheCorrectEntry3() throws Exception {
         putSchema(schemaId1, schema1, version(0));
 
@@ -172,7 +172,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(schema1, version1);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void getAllVersionSchema() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         putSchema(schemaId1, schema2, version(1));
@@ -184,7 +184,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(schema3, allSchemas.get(2));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void addLotsOfEntriesThenDelete() throws Exception {
         SchemaData randomSchema1 = randomSchema();
         SchemaData randomSchema2 = randomSchema();
@@ -230,7 +230,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void writeSchemasToDifferentIds() throws Exception {
         SchemaData schemaWithDifferentId = schema3;
 
@@ -245,7 +245,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(schema3, withDifferentId);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void dontReAddExistingSchemaAtRoot() throws Exception {
         putSchema(schemaId1, schema1, version(0));
         putSchema(schemaId1, schema1, version(0));
@@ -253,7 +253,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     public void trimDeletedSchemaAndGetListTest() throws Exception {
         List<SchemaAndMetadata> list = new ArrayList<>();
         CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
@@ -278,7 +278,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void dontReAddExistingSchemaInMiddle() throws Exception {
         putSchema(schemaId1, randomSchema(), version(0));
         putSchema(schemaId1, schema2, version(1));
@@ -289,7 +289,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schema2, version(1));
     }
 
-    @Test(expectedExceptions = ExecutionException.class)
+    @Test(timeOut = 10000, expectedExceptions = ExecutionException.class)
     public void checkIsCompatible() throws Exception {
         String schemaJson1 =
                 "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +

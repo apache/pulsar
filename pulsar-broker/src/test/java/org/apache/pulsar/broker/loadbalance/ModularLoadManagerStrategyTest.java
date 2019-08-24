@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 
 public class ModularLoadManagerStrategyTest {
     // Test that least long term message rate works correctly.
-    @Test
+    @Test(timeOut = 10000)
     public void testLeastLongTermMessageRate() {
         BundleData bundleData = new BundleData();
         BrokerData brokerData1 = initBrokerData();

@@ -115,7 +115,7 @@ public class PulsarFunctionStateTest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 20000)
     void setup(Method method) throws Exception {
 
         // delete all function temp files
@@ -214,7 +214,7 @@ public class PulsarFunctionStateTest {
 
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         pulsarClient.close();
@@ -262,7 +262,12 @@ public class PulsarFunctionStateTest {
         return new WorkerService(workerConfig);
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);

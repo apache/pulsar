@@ -73,7 +73,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     final String successSubName = "successSub";
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup(Method m) throws Exception {
         super.setUp(m);
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
@@ -111,7 +111,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         }
     }
 
-    // @Test
+    // @Test(timeOut = 10000)
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -170,7 +170,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    // @Test
+    // @Test(timeOut = 10000)
     public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -233,7 +233,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    // @Test
+    // @Test(timeOut = 10000)
     public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -292,7 +292,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    // @Test
+    // @Test(timeOut = 10000)
     public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();

@@ -86,20 +86,20 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                 { ModularLoadManagerImpl.class.getCanonicalName() } };
     }
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test(dataProvider = "subscriptionType")
+    @Test(timeOut = 10000, dataProvider = "subscriptionType")
     public void testNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -138,7 +138,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     }
 
-    @Test(dataProvider = "subscriptionType")
+    @Test(timeOut = 10000, dataProvider = "subscriptionType")
     public void testPartitionedNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -181,7 +181,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     }
 
-    @Test(dataProvider = "subscriptionType")
+    @Test(timeOut = 10000, dataProvider = "subscriptionType")
     public void testPartitionedNonPersistentTopicWithTcpLookup(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -237,7 +237,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * It verifies that broker doesn't dispatch messages if consumer runs out of permits filled out with messages
      */
-    @Test(dataProvider = "subscriptionType")
+    @Test(timeOut = 10000, dataProvider = "subscriptionType")
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -280,7 +280,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * Verifies that broker should failed to publish message if producer publishes messages more than rate limit
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerRateLimit() throws Exception {
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
@@ -339,7 +339,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testMultipleSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -418,7 +418,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * verifies that broker is capturing topic stats correctly
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testTopicStats() throws Exception {
 
         final String topicName = "non-persistent://my-property/my-ns/unacked-topic";
@@ -473,7 +473,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * verifies that non-persistent topic replicates using replicator
      */
-    @Test
+    @Test(timeOut = 20000)
     public void testReplicator() throws Exception {
 
         ReplicationClusterManager replication = new ReplicationClusterManager();
@@ -626,7 +626,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      * 5. Create producer on that topic should fail
      * </pre>
      */
-    @Test(dataProvider = "loadManager")
+    @Test(timeOut = 10000, dataProvider = "loadManager")
     public void testLoadManagerAssignmentForNonPersistentTestAssignment(String loadManagerName) throws Exception {
 
         final String namespace = "my-property/my-ns";
@@ -681,7 +681,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      * @param loadManagerName
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testNonPersistentTopicUnderPersistentNamespace() throws Exception {
 
         final String namespace = "my-property/my-ns";
@@ -713,7 +713,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      * @param loadManagerName
      * @throws Exception
      */
-    @Test(dataProvider = "loadManager")
+    @Test(timeOut = 10000, dataProvider = "loadManager")
     public void testNonPersistentBrokerModeRejectPersistentTopic(String loadManagerName) throws Exception {
 
         final String namespace = "my-property/my-ns";
@@ -771,7 +771,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testMsgDropStat() throws Exception {
 
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();

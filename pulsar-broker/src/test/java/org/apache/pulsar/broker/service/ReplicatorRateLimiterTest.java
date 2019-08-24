@@ -48,7 +48,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
     }
@@ -83,7 +83,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testReplicatorRateLimiterDynamicallyChange() throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 

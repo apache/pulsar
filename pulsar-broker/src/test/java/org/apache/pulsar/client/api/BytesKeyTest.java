@@ -28,14 +28,14 @@ import org.testng.annotations.Test;
 
 public class BytesKeyTest extends ProducerConsumerBase {
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -64,12 +64,12 @@ public class BytesKeyTest extends ProducerConsumerBase {
         Assert.assertTrue(m.hasBase64EncodedKey());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBytesKeyBatch() throws Exception {
         byteKeysTest(true);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBytesKeyNoBatch() throws Exception {
         byteKeysTest(false);
     }

@@ -86,7 +86,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
@@ -104,7 +104,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -136,7 +136,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testIncrementPartitionsOfTopic() throws Exception {
         final String topicName = "increment-partitionedTopic";
         final String subName1 = topicName + "-my-sub-1/encode";
@@ -232,7 +232,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void nonPersistentTopics() throws Exception {
         final String topicName = "nonPersistentTopic";
 
@@ -291,7 +291,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testSetPersistencepolicies() throws Exception {
 
         final String namespace = "prop-xyz/ns2";
@@ -329,7 +329,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testUpdatePersistencePolicyUpdateManagedCursor() throws Exception {
 
         final String namespace = "prop-xyz/ns2";
@@ -372,7 +372,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "topicType")
+    @Test(timeOut = 10000, dataProvider = "topicType")
     public void testUnloadTopic(final String topicType) throws Exception {
 
         final String namespace = "prop-xyz/ns2";
@@ -529,7 +529,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testLoadReportApi() throws Exception {
 
         this.conf.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -554,7 +554,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         mockPulsarSetup2.cleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
                 new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
@@ -599,7 +599,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testReplicationPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
                 new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
@@ -651,7 +651,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void clusterFailureDomain() throws PulsarAdminException {
 
         final String cluster = pulsar.getConfiguration().getClusterName();
@@ -684,7 +684,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertTrue(domains.containsKey("domain-2"));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void namespaceAntiAffinity() throws PulsarAdminException {
         final String namespace = "prop-xyz/ns1";
         final String antiAffinityGroup = "group";
@@ -715,7 +715,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(namespaces2.size(), 0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNonPersistentTopics() throws Exception {
         final String namespace = "prop-xyz/ns2";
         final String topicName = "non-persistent://" + namespace + "/topic";
@@ -741,7 +741,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(topicsInNs.size(), 0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPublishConsumerStats() throws Exception {
         final String topicName = "statTopic";
         final String subscriberName = topicName + "-my-sub-1";
@@ -791,7 +791,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTenantNameWithUnderscore() throws Exception {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop_xyz", tenantInfo);
@@ -808,7 +808,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTenantNameWithInvalidCharacters() throws Exception {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
 
@@ -828,7 +828,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTenantWithNonexistentClusters() throws Exception {
         // Check non-existing cluster
         assertFalse(admin.clusters().getClusters().contains("cluster-non-existing"));
@@ -858,7 +858,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void brokerNamespaceIsolationPolicies() throws Exception {
 
         // create
@@ -901,7 +901,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void clustersList() throws PulsarAdminException {
         final String cluster = pulsar.getConfiguration().getClusterName();
         admin.clusters().createCluster("global", new ClusterData("http://localhost:6650"));
@@ -914,7 +914,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testClusterIsReadyBeforeCreateTopic() throws PulsarAdminException {
         final String topicName = "partitionedTopic";
         final int partitions = 4;
@@ -935,7 +935,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateNamespaceWithNoClusters() throws PulsarAdminException {
         String localCluster = pulsar.getConfiguration().getClusterName();
         String namespace = "prop-xyz/test-ns-with-no-clusters";

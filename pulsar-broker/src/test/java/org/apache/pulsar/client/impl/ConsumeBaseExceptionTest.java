@@ -28,20 +28,20 @@ import org.testng.annotations.Test;
 
 public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testClosedConsumer() throws PulsarClientException {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/topicName")
                 .subscriptionName("my-subscription").subscribe();
@@ -58,7 +58,7 @@ public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testListener() throws PulsarClientException {
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/topicName")

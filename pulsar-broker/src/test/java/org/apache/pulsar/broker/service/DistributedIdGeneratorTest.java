@@ -39,22 +39,22 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-@Test
+@Test(timeOut = 10000)
 public class DistributedIdGeneratorTest {
 
     private MockZooKeeper zkc;
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     public void setup() throws Exception {
         zkc = MockZooKeeper.newInstance();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     public void teardown() throws Exception {
         zkc.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void simple() throws Exception {
         DistributedIdGenerator gen1 = new DistributedIdGenerator(zkc, "/my/test/simple", "p");
 
@@ -74,7 +74,7 @@ public class DistributedIdGeneratorTest {
     /**
      * Use multiple threads to generate many Id. Ensure no holes and no dups in the sequence
      */
-    @Test
+    @Test(timeOut = 10000)
     public void concurrent() throws Exception {
         int Threads = 10;
         int Iterations = 100;
@@ -115,7 +115,7 @@ public class DistributedIdGeneratorTest {
         executor.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void invalidZnode() throws Exception {
         zkc.create("/my/test/invalid", "invalid-number".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 

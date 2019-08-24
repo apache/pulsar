@@ -92,7 +92,7 @@ public class PersistentSubscriptionTest {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsarMock = spy(new PulsarService(svcConfig));
@@ -143,7 +143,7 @@ public class PersistentSubscriptionTest {
         persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     public void teardown() throws Exception {
         brokerMock.close(); //to clear pulsarStats
         try {
@@ -154,7 +154,7 @@ public class PersistentSubscriptionTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCanAcknowledgeAndCommitForTransaction() throws TransactionConflictException {
         List<Position> expectedSinglePositions = new ArrayList<>();
         expectedSinglePositions.add(new PositionImpl(1, 1));
@@ -197,7 +197,7 @@ public class PersistentSubscriptionTest {
         verify(cursorMock, times(1)).asyncMarkDelete(any(), any(Map.class), any(), any());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCanAcknowledgeAndAbortForTransaction() throws TransactionConflictException, BrokerServiceException {
         List<Position> positions = new ArrayList<>();
         positions.add(new PositionImpl(2, 1));

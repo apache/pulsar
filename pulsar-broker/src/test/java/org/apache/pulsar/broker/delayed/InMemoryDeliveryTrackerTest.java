@@ -48,7 +48,7 @@ import org.testng.annotations.Test;
 
 public class InMemoryDeliveryTrackerTest {
 
-    @Test
+    @Test(timeOut = 10000)
     public void test() throws Exception {
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
 
@@ -103,7 +103,7 @@ public class InMemoryDeliveryTrackerTest {
         assertEquals(tracker.getScheduledMessages(10), Collections.emptySet());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testWithTimer() throws Exception {
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
         Timer timer = mock(Timer.class);

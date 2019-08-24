@@ -40,16 +40,16 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 
-@Test
+@Test(timeOut = 10000)
 public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -75,7 +75,7 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         return result != null && !result.schema.isDeleted();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGCWillDeleteSchema() throws Exception {
         // 1. Simple successful GC
         String topicName = "non-persistent://prop/ns-abc/topic-1";

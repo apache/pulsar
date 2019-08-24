@@ -88,7 +88,7 @@ public class PulsarFunctionTlsTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionTlsTest.class);
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -149,7 +149,7 @@ public class PulsarFunctionTlsTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         functionAdmin.close();
@@ -198,7 +198,7 @@ public class PulsarFunctionTlsTest {
         return new WorkerService(workerConfig);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthorization() throws Exception {
 
         final String namespacePortion = "io";

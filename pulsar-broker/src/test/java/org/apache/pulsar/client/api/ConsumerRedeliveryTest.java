@@ -38,7 +38,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 
 public class ConsumerRedeliveryTest extends ProducerConsumerBase {
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         conf.setManagedLedgerCacheEvictionFrequency(0.1);
@@ -46,7 +46,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -62,7 +62,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      * </pre>
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testOrderedRedelivery() throws Exception {
         String topic = "persistent://my-property/my-ns/redelivery";
 
@@ -128,7 +128,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         consumer2.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnAckMessageRedeliveryWithReceiveAsync() throws PulsarClientException, ExecutionException, InterruptedException {
         String topic = "persistent://my-property/my-ns/async-unack-redelivery";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

@@ -87,19 +87,19 @@ public class BrokerServiceTest extends BrokerTestBase {
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
-    @BeforeClass
+    @BeforeClass(timeOut = 60000)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(timeOut = 60000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOwnedNsCheck() throws Exception {
         final String topic = "persistent://prop/ns-abc/successTopic";
         BrokerService service = pulsar.getBrokerService();
@@ -133,7 +133,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         latch2.await();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerServicePersistentTopicStats() throws Exception {
         final String topicName = "persistent://prop/ns-abc/successTopic";
         final String subName = "successSub";
@@ -210,7 +210,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(subStats.msgBacklog, 0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerServicePersistentRedeliverTopicStats() throws Exception {
         final String topicName = "persistent://prop/ns-abc/successSharedTopic";
         final String subName = "successSharedSub";
@@ -299,7 +299,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(subStats.msgBacklog, 0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerStatsMetrics() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";
@@ -347,7 +347,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerServiceNamespaceStats() throws Exception {
         final int numBundles = 4;
         final String ns1 = "prop/stats1";
@@ -401,7 +401,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsDisabled() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";
@@ -440,7 +440,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsEnabled() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";
@@ -514,7 +514,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @SuppressWarnings("deprecation")
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsAuthAllowInsecure() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";
@@ -574,7 +574,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @SuppressWarnings("deprecation")
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsAuthDisallowInsecure() throws Exception {
         final String topicName = "persistent://prop/my-ns/newTopic";
         final String subName = "newSub";
@@ -633,7 +633,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @SuppressWarnings("deprecation")
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsAuthUseTrustCert() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";
@@ -695,7 +695,7 @@ public class BrokerServiceTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testLookupThrottlingForClientByClient() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
@@ -732,7 +732,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTopicLoadingOnDisableNamespaceBundle() throws Exception {
         final String namespace = "prop/disableBundle";
         admin.namespaces().createNamespace(namespace);
@@ -811,7 +811,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testLedgerOpenFailureShouldNotHaveDeadLock() throws Exception {
         final String namespace = "prop/ns-abc";
         final String deadLockTestTopic = "persistent://" + namespace + "/deadLockTestTopic";
@@ -869,7 +869,7 @@ public class BrokerServiceTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateNamespacePolicy() throws Exception {
         final String namespace = "prop/testPolicy";
         final int totalBundle = 3;

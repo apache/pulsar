@@ -39,19 +39,19 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
     String serviceUrl = "pulsar://non-existing-dns-name:" + BROKER_PORT;
 
-    @BeforeClass
+    @BeforeClass(timeOut = 60000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
     }
 
-    @AfterClass
+    @AfterClass(timeOut = 60000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSingleIpAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("test"));
@@ -70,7 +70,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testDoubleIpAddress() throws Exception {
         String serviceUrl = "pulsar://non-existing-dns-name:" + BROKER_PORT;
 

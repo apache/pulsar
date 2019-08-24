@@ -124,7 +124,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         if (!methodName.equals("testDefaultHostVerifier")) {
@@ -148,7 +148,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test(dataProvider = "hostnameVerification")
+    @Test(timeOut = 10000, dataProvider = "hostnameVerification")
     public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost(boolean hostnameVerificationEnabled)
             throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -191,7 +191,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testTlsSyncProducerAndConsumerCorrectBrokerHost() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -235,7 +235,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testDefaultHostVerifier() throws Exception {
         log.info("-- Starting {} test --", methodName);
         Method matchIdentityStrict = DefaultHostnameVerifier.class.getDeclaredMethod("matchIdentityStrict",

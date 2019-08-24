@@ -41,21 +41,21 @@ import io.netty.buffer.ByteBuf;
 
 /**
  */
-@Test
+@Test(timeOut = 10000)
 public class ChecksumTest extends BrokerTestBase {
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void verifyChecksumStoredInManagedLedger() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic0";
 
@@ -82,7 +82,7 @@ public class ChecksumTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void verifyChecksumSentToConsumer() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic-1";
 

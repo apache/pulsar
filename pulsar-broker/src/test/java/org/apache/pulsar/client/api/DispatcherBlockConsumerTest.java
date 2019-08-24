@@ -66,14 +66,14 @@ import com.google.common.collect.Sets;
 public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(DispatcherBlockConsumerTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -296,7 +296,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testCloseConsumerBlockedDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -514,7 +514,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBlockDispatcherStats() throws Exception {
 
         int orginalDispatcherLimit = conf.getMaxUnackedMessagesPerSubscription();
@@ -588,7 +588,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "gracefulUnload")
+    @Test(timeOut = 10000, dataProvider = "gracefulUnload")
     public void testBrokerSubscriptionRecovery(boolean unloadBundleGracefully) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -872,7 +872,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      */
     @SuppressWarnings("unchecked")
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerDispatchBlockAndSubAckBackRequiredMsgs() {
 
         log.info("-- Starting {} test --", methodName);

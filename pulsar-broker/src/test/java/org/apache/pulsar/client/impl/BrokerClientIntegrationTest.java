@@ -99,14 +99,14 @@ import com.google.common.collect.Sets;
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerClientIntegrationTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -132,7 +132,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    @Test
+    @Test(timeOut = 10000)
     public void testDisconnectClientWithoutClosingConnection() throws Exception {
 
         final String ns1 = "my-property/con-ns1";
@@ -252,7 +252,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testCloseBrokerService() throws Exception {
 
         final String ns1 = "my-property/brok-ns1";
@@ -676,7 +676,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         pulsarClient.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testInvalidDynamicConfiguration() throws Exception {
 
         // (1) try to update invalid loadManagerClass name
@@ -732,7 +732,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCleanProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

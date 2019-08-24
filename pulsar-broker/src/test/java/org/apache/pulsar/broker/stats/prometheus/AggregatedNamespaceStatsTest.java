@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class AggregatedNamespaceStatsTest {
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSimpleAggregation() throws Exception {
         final String namespace = "tenant/cluster/ns";
 

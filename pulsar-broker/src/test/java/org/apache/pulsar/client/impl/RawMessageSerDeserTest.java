@@ -33,7 +33,7 @@ import lombok.Cleanup;
 public class RawMessageSerDeserTest {
     static final Logger log = LoggerFactory.getLogger(RawMessageSerDeserTest.class);
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSerializationAndDeserialization() throws Exception {
         int payload = 0xbeefcafe;
         ByteBuf headersAndPayload = Unpooled.buffer(4);

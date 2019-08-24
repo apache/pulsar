@@ -81,7 +81,7 @@ public class PulsarWorkerAssignmentTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarWorkerAssignmentTest.class);
 
-    @BeforeMethod(timeOut = 60000)
+    @BeforeMethod( timeOut = 60000 )
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -128,7 +128,7 @@ public class PulsarWorkerAssignmentTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void shutdown() {
         log.info("--- Shutting down ---");
         try {
@@ -313,8 +313,12 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace,
-                                                         String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         final String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 

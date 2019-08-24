@@ -33,13 +33,13 @@ import com.google.common.collect.Sets;
 
 public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -48,7 +48,7 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
     /**
      * Verify we are able to recover when receiving a SessionExpired event on global ZK session
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testSessionExpired() throws Exception {
         admin.clusters().createCluster("my-cluster", new ClusterData("test-url"));
 

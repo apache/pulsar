@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
  */
 public class RestExceptionTest {
 
-    @Test
+    @Test(timeOut = 10000)
     public void testRestException() {
         RestException re = new RestException(Status.TEMPORARY_REDIRECT, "test rest exception");
         RestException testException = new RestException(re);
@@ -38,7 +38,7 @@ public class RestExceptionTest {
         assertEquals(re.getResponse().getEntity(), testException.getResponse().getEntity());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testWebApplicationException() {
         WebApplicationException wae = new WebApplicationException("test web application exception", Status.TEMPORARY_REDIRECT);
         RestException testException = new RestException(wae);
@@ -47,7 +47,7 @@ public class RestExceptionTest {
         assertEquals(wae.getResponse().getEntity(), testException.getResponse().getEntity());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOtherException() {
         Exception otherException = new Exception("test other exception");
         RestException testException = new RestException(otherException);

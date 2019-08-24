@@ -33,19 +33,19 @@ import org.testng.annotations.Test;
 
 public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
     @Override
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
     @Override
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void createReplicatedSubscription() throws Exception {
         String topic = "createReplicatedSubscription-" + System.nanoTime();
 
@@ -66,7 +66,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         assertTrue(stats.subscriptions.get("sub1").isReplicated);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void upgradeToReplicatedSubscription() throws Exception {
         String topic = "upgradeToReplicatedSubscription-" + System.nanoTime();
 
@@ -91,7 +91,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void upgradeToReplicatedSubscriptionAfterRestart() throws Exception {
         String topic = "upgradeToReplicatedSubscriptionAfterRestart-" + System.nanoTime();
 

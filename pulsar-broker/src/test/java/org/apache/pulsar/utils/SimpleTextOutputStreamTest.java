@@ -34,13 +34,13 @@ public class SimpleTextOutputStreamTest {
     private ByteBuf buf;
     private SimpleTextOutputStream stream;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void reset() {
         buf = Unpooled.buffer(4096);
         stream = new StatsOutputStream(buf);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBooleanFormat() {
         stream.write(false);
         assertEquals(str(), "false");
@@ -49,7 +49,7 @@ public class SimpleTextOutputStreamTest {
         assertEquals(str(), "true");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testLongFormat() {
         stream.write(0);
         assertEquals(str(), "0");
@@ -82,7 +82,7 @@ public class SimpleTextOutputStreamTest {
         assertEquals(str(), "-1000");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDoubleFormat() {
         stream.write(0.0);
         assertEquals(str(), "0.0");
@@ -106,7 +106,7 @@ public class SimpleTextOutputStreamTest {
         assertEquals(str(), "-123456.100");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testString() {
         stream.writeEncoded("�\b`~�ýý8ýH\\abcd\"");
         assertEquals(str(), "\\ufffd\\u0008`~\\ufffd\\u00fd\\u00fd8\\u00fdH\\\\abcd\\\"");

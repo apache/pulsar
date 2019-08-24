@@ -30,19 +30,19 @@ import org.testng.annotations.Test;
 
 public class NamespaceUnloadingTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnloadNotLoadedNamespace() throws Exception {
         admin.namespaces().createNamespace("prop/ns-test-1");
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-1", Sets.newHashSet("test"));
@@ -52,7 +52,7 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
         admin.namespaces().unload("prop/ns-test-1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnloadPartiallyLoadedNamespace() throws Exception {
         admin.namespaces().createNamespace("prop/ns-test-2", 16);
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-2", Sets.newHashSet("test"));

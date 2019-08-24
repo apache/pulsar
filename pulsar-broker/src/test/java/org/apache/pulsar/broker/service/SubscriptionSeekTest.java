@@ -38,21 +38,21 @@ import org.testng.annotations.Test;
 
 /**
  */
-@Test
+@Test(timeOut = 10000)
 public class SubscriptionSeekTest extends BrokerTestBase {
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSeek() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeek";
 
@@ -90,7 +90,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(sub.getNumberOfEntriesInBacklog(), 5);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSeekOnPartitionedTopic() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekPartitions";
 
@@ -106,7 +106,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSeekTime() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekTime";
         String resetTimeStr = "100s";
@@ -142,7 +142,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(sub.getNumberOfEntriesInBacklog(), 10);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSeekTimeOnPartitionedTopic() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekTimePartitions";
         long timestamp = 1550479732;

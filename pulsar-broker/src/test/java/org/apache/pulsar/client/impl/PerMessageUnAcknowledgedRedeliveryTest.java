@@ -42,13 +42,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
 
     @Override
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     public void setup() throws Exception {
         super.internalSetup();
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

@@ -57,7 +57,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     private ScheduledExecutorService compactionScheduler;
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -72,7 +72,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -112,7 +112,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         return keys;
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompaction() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
         final int numMessages = 1000;
@@ -139,7 +139,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         compactAndVerify(topic, expected);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactAddCompact() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -176,7 +176,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         compactAndVerify(topic, expected);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactedInOrder() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -207,7 +207,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(keyOrder, Lists.newArrayList("c", "b", "a"));
     }
 
-    @Test(expectedExceptions = ExecutionException.class)
+    @Test(timeOut = 20000, expectedExceptions = ExecutionException.class)
     public void testCompactEmptyTopic() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 

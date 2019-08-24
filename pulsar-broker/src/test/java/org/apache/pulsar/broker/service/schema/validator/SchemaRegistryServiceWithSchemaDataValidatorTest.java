@@ -48,13 +48,13 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
     private SchemaRegistryService underlyingService;
     private SchemaRegistryServiceWithSchemaDataValidator service;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() {
         this.underlyingService = mock(SchemaRegistryService.class);
         this.service = SchemaRegistryServiceWithSchemaDataValidator.of(underlyingService);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetLatestSchema() {
         String schemaId = "test-schema-id";
         CompletableFuture<SchemaAndMetadata> getFuture = new CompletableFuture<>();
@@ -63,7 +63,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         verify(underlyingService, times(1)).getSchema(eq(schemaId));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetSchemaByVersion() {
         String schemaId = "test-schema-id";
         CompletableFuture<SchemaAndMetadata> getFuture = new CompletableFuture<>();
@@ -74,7 +74,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .getSchema(eq(schemaId), same(SchemaVersion.Latest));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDeleteSchema() {
         String schemaId = "test-schema-id";
         String user = "test-user";
@@ -86,7 +86,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .deleteSchema(eq(schemaId), eq(user));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testIsCompatibleWithGoodSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
@@ -102,7 +102,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .isCompatible(eq(schemaId), same(schemaData), eq(strategy));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testIsCompatibleWithBadSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
@@ -123,7 +123,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .isCompatible(eq(schemaId), same(schemaData), eq(strategy));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPutSchemaIfAbsentWithGoodSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
@@ -139,7 +139,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPutSchemaIfAbsentWithBadSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;

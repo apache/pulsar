@@ -81,7 +81,7 @@ public class ZooKeeperClientAspectJTest {
         // AgentLoader.loadAgentClass(Agent.class.getName(), null);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testZkConnected() throws Exception {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         try {
@@ -100,7 +100,7 @@ public class ZooKeeperClientAspectJTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testInitZk() throws Exception {
         try {
             ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
@@ -124,13 +124,13 @@ public class ZooKeeperClientAspectJTest {
         }
     }
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     void setup() throws Exception {
         localZkS = new ZookeeperServerTest(LOCAL_ZOOKEEPER_PORT);
         localZkS.start();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void teardown() throws Exception {
         localZkS.close();
     }

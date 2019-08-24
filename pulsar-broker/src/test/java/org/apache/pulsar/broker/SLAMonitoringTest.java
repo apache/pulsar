@@ -69,7 +69,7 @@ public class SLAMonitoringTest {
     private PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
     private ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     void setup() throws Exception {
         log.info("---- Initializing SLAMonitoringTest -----");
         // Start local bookkeeper ensemble
@@ -124,7 +124,7 @@ public class SLAMonitoringTest {
         pulsarAdmin.tenants().createTenant("sla-monitor", adminConfig);
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();
@@ -137,7 +137,7 @@ public class SLAMonitoringTest {
         bkEnsemble.stop();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOwnershipAfterSetup() {
         for (int i = 0; i < BROKER_COUNT; i++) {
             try {
@@ -150,7 +150,7 @@ public class SLAMonitoringTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOwnedNamespaces() {
         testOwnershipViaAdminAfterSetup();
         try {
@@ -169,7 +169,7 @@ public class SLAMonitoringTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOwnershipViaAdminAfterSetup() {
         for (int i = 0; i < BROKER_COUNT; i++) {
             try {
@@ -186,7 +186,7 @@ public class SLAMonitoringTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnloadIfBrokerCrashes() {
         int crashIndex = BROKER_COUNT / 2;
         log.info("Trying to close the broker at index = {}", crashIndex);

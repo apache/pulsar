@@ -114,7 +114,7 @@ import org.testng.annotations.Test;
 
 /**
  */
-@Test
+@Test(timeOut = 10000)
 @SuppressWarnings("unchecked")
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
@@ -140,7 +140,7 @@ public class ServerCnxTest {
     private ManagedLedger ledgerMock = mock(ManagedLedger.class);
     private ManagedCursor cursorMock = mock(ManagedCursor.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     public void setup() throws Exception {
         svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
@@ -193,7 +193,7 @@ public class ServerCnxTest {
         return (int) TimeUnit.SECONDS.convert(time, unit);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     public void teardown() throws Exception {
         serverCnx.close();
         channel.close();

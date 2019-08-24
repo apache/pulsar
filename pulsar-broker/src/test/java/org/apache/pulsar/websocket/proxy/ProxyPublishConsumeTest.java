@@ -80,7 +80,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         conf.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
 
@@ -99,7 +99,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     protected void cleanup() throws Exception {
         super.resetConfig();
         super.internalCleanup();
@@ -283,7 +283,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test// (timeOut = 30000)
+    @Test(timeOut = 10000)// (timeOut = 30000)
     public void producerBacklogQuotaExceededTest() throws Exception {
         String namespace = "my-property/ns-ws-quota";
         admin.namespaces().createNamespace(namespace);

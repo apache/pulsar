@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     private final Random r = new Random(0);
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -67,7 +67,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -134,7 +134,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         return Triple.of(lh.getId(), positions, idsInGaps);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testEntryLookup() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, Optional.empty(), null);
@@ -190,7 +190,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCleanupOldCompactedTopicLedger() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, Optional.empty(), null);

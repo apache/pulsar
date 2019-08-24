@@ -152,24 +152,30 @@ public abstract class MockedPulsarServiceBaseTest {
             // an NPE in shutdown, obscuring the real error
             if (admin != null) {
                 admin.close();
+                admin = null;
             }
             if (pulsarClient != null) {
                 pulsarClient.close();
             }
             if (pulsar != null) {
                 pulsar.close();
+                pulsar = null;
             }
             if (mockBookKeeper != null) {
                 mockBookKeeper.reallyShutdown();
+                mockBookKeeper = null;
             }
             if (mockZookKeeper != null) {
                 mockZookKeeper.shutdown();
+                mockZookKeeper = null;
             }
             if (sameThreadOrderedSafeExecutor != null) {
                 sameThreadOrderedSafeExecutor.shutdown();
+                sameThreadOrderedSafeExecutor = null;
             }
             if (bkExecutor != null) {
                 bkExecutor.shutdown();
+                bkExecutor = null;
             }
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);

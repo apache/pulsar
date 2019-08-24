@@ -56,20 +56,20 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         };
     }
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 20000, dataProvider = "batch")
     public void testSendAndReceiveWithHashRangeStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
@@ -120,7 +120,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheck(checkList);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 20000, dataProvider = "batch")
     public void testConsumerCrashSendAndReceiveWithHashRangeStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException, InterruptedException {
 
         this.conf.setSubscriptionKeySharedEnable(true);
@@ -192,7 +192,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 20000, dataProvider = "batch")
     public void testNonKeySendAndReceiveWithHashRangeStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_none_key-" + UUID.randomUUID();
@@ -231,7 +231,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheck(checkList);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 20000, dataProvider = "batch")
     public void testOrderingKeyWithHashRangeStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_ordering_key-" + UUID.randomUUID();
@@ -283,7 +283,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheck(checkList);
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
+    @Test(timeOut = 10000, expectedExceptions = PulsarClientException.class)
     public void testDisableKeySharedSubscription() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(false);
         String topic = "persistent://public/default/key_shared_disabled";

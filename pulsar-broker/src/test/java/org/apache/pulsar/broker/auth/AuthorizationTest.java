@@ -36,14 +36,14 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
-@Test
+@Test(timeOut = 10000)
 public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
     public AuthorizationTest() {
         super();
     }
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         conf.setClusterName("c1");
@@ -53,13 +53,13 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         internalSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void simple() throws Exception {
         AuthorizationService auth = pulsar.getBrokerService().getAuthorizationService();
 

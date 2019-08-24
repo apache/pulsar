@@ -50,20 +50,20 @@ import static org.testng.Assert.assertTrue;
 
 public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testServiceException() throws Exception {
         URL url = new URL("http://localhost:15000");
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
@@ -91,12 +91,12 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertTrue(client.getApiException(new ServerErrorException(500)) instanceof ServerSideErrorException);
         assertTrue(client.getApiException(new ServerErrorException(503)) instanceof PulsarAdminException);
 
-        log.info("Client: ", client);
+        log.info("Client: {}", client);
 
         admin.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testTopicInternalStats() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

@@ -55,7 +55,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
 
     @Override
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     public void setup() throws Exception {
         // set isTcpLookup = true, to use BinaryProtoLookupService to get topics for a pattern.
         isTcpLookup = true;
@@ -64,7 +64,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

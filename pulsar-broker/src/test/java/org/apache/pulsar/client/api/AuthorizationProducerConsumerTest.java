@@ -80,7 +80,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         super.init();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -97,7 +97,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerAndConsumerAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -151,7 +151,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -248,7 +248,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
     
-    @Test
+    @Test(timeOut = 10000)
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -289,7 +289,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGrantPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -308,7 +308,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

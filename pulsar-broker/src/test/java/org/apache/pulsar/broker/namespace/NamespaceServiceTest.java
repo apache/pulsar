@@ -83,19 +83,19 @@ import org.testng.annotations.Test;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSplitAndOwnBundles() throws Exception {
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -160,7 +160,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSplitMapWithRefreshedStatMap() throws Exception {
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -210,7 +210,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testIsServiceUnitDisabled() throws Exception {
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -233,7 +233,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testremoveOwnershipNamespaceBundle() throws Exception {
 
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -257,7 +257,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNull(ownershipCache.getOwnedBundle(bundle));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnloadNamespaceBundleFailure() throws Exception {
 
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
@@ -340,7 +340,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
      * </pre>
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testLoadReportDeserialize() throws Exception {
 
         final String candidateBroker1 = "http://localhost:8000";
@@ -367,7 +367,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         System.out.println(result2);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateNamespaceWithDefaultNumberOfBundles() throws Exception {
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
         doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
@@ -431,7 +431,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testRemoveOwnershipAndSplitBundle() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
         doNothing().when(ownershipCache).disableOwnership(any(NamespaceBundle.class));

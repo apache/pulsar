@@ -39,7 +39,7 @@ public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
     /**
      * Test that sequence id from a producer is correct when there are send errors
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckSequenceId() throws Exception {
         admin.namespaces().createNamespace("prop/my-test", Collections.singleton("usc"));
 
@@ -78,12 +78,12 @@ public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
         client.close();
     }
 
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
         // Ignore test
     }
 
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testSkipCorruptDataLedger() throws Exception {
         // Ignore test
     }

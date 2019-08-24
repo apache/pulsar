@@ -48,15 +48,15 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
+@Test(timeOut = 10000)
 public class TopicTerminationTest extends BrokerTestBase {
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -64,7 +64,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     private final String topicName = "persistent://prop/ns-abc/topic0";
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSimpleTermination() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -86,7 +86,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateProducerOnTerminatedTopic() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -156,7 +156,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDoubleTerminate() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -175,7 +175,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertEquals(lastMessageId, msgId3);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTerminatePartitionedTopic() throws Exception {
         admin.topics().createPartitionedTopic(topicName, 4);
 

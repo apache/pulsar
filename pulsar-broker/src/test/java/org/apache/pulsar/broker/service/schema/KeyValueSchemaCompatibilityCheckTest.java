@@ -56,14 +56,14 @@ public class KeyValueSchemaCompatibilityCheckTest {
         private boolean field1;
     }
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     protected void setup() {
         checkers.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
         checkers.put(SchemaType.JSON, new JsonSchemaCompatibilityCheck());
         checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueAvroCompatibilityFull() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -77,7 +77,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueAvroInCompatibilityFull() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -91,7 +91,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueAvroCompatibilityBackward() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -105,7 +105,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueAvroInCompatibilityBackward() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -119,7 +119,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueAvroCompatibilityForward() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -133,7 +133,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueAvroInCompatibilityForward() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -147,7 +147,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueJsonCompatibilityFull() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -161,7 +161,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueJsonInCompatibilityFull() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -175,7 +175,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueJsonCompatibilityBackward() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -189,7 +189,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueJsonInCompatibilityBackWard() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -203,7 +203,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueJsonCompatibilityForward() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -217,7 +217,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyValueJsonInCompatibilityForward() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -231,7 +231,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyAvroValueJsonCompatibilityFull() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -245,7 +245,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyAvroValueJsonInCompatibilityFull() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -259,7 +259,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyAvroValueJsonCompatibilityBackward() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -273,7 +273,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyAvroValueJsonInCompatibilityBackward() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -287,7 +287,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyAvroValueJsonCompatibilityForward() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -301,7 +301,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyAvroValueJsonInCompatibilityForward() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -315,7 +315,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyJsonValueAvroCompatibilityFull() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -329,7 +329,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyJsonValueAvroInCompatibilityFull() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -343,7 +343,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyJsonValueAvroCompatibilityBackward() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -357,7 +357,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.BACKWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyJsonValueAvroInCompatibilityBackward() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -372,7 +372,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyJsonValueAvroCompatibilityForward() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -386,7 +386,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyJsonValueAvroInCompatibilityForward() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -400,7 +400,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyJsonValueAvroKeyTypeInCompatibility() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -417,7 +417,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckKeyJsonValueAvroValueTypeInCompatibility() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -434,7 +434,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertFalse(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FORWARD));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckPropertiesNullTypeCompatibility() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -451,7 +451,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckSchemaTypeNullCompatibility() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -464,7 +464,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.FULL));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckSchemaTypeAlwaysCompatibility() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -476,7 +476,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Assert.assertTrue(checkers.get(SchemaType.KEY_VALUE).isCompatible(fromSchemaData, toSchemaData, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCheckSchemaTypeOtherCompatibility() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());

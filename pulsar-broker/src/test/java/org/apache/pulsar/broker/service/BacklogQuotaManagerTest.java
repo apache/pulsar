@@ -69,11 +69,11 @@ public class BacklogQuotaManagerTest {
     protected final int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     void setup() throws Exception {
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
             bkEnsemble.start();
 
             // start pulsar service
@@ -110,7 +110,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     void shutdown() throws Exception {
         try {
             admin.close();
@@ -126,7 +126,7 @@ public class BacklogQuotaManagerTest {
         pulsar.getBrokerService().updateRates();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConsumerBacklogEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 ConfigHelper.backlogQuotaMap(config));
@@ -158,7 +158,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConsumerBacklogEvictionWithAck() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 ConfigHelper.backlogQuotaMap(config));
@@ -190,7 +190,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConcurrentAckAndEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 ConfigHelper.backlogQuotaMap(config));
@@ -263,7 +263,7 @@ public class BacklogQuotaManagerTest {
         client2.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNoEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 ConfigHelper.backlogQuotaMap(config));
@@ -329,7 +329,7 @@ public class BacklogQuotaManagerTest {
         client2.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testEvictionMulti() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 ConfigHelper.backlogQuotaMap(config));
@@ -438,7 +438,7 @@ public class BacklogQuotaManagerTest {
         client3.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAheadProducerOnHold() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 ConfigHelper.backlogQuotaMap(config));
@@ -477,7 +477,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAheadProducerOnHoldTimeout() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 ConfigHelper.backlogQuotaMap(config));
@@ -512,7 +512,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerException() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 ConfigHelper.backlogQuotaMap(config));
@@ -549,7 +549,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testProducerExceptionAndThenUnblock() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 ConfigHelper.backlogQuotaMap(config));

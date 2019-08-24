@@ -53,7 +53,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
     private ExecutorService executor;
 
-    @BeforeClass
+    @BeforeClass(timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -62,7 +62,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("PartitionedProducerConsumerTest"));
     }
 
-    @AfterClass
+    @AfterClass(timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -648,7 +648,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetPartitionsForTopic() throws Exception {
         int numPartitions = 4;
         String topic = "persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis();
@@ -668,7 +668,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
                 Collections.singletonList(nonPartitionedTopic));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMessageIdForSubscribeToSinglePartition() throws Exception {
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         TopicName topicName = null;

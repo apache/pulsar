@@ -37,7 +37,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
@@ -55,14 +55,14 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
         mockPulsarSetup.cleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testIncrementPartitionsOfTopicOnUnusedTopic() throws Exception {
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic";
 
@@ -73,7 +73,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testIncrementPartitionsOfTopic() throws Exception {
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic-2";
 

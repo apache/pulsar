@@ -28,20 +28,20 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class ClientDeduplicationTest extends ProducerConsumerBase {
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerSequenceAfterReconnect() throws Exception {
         String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
@@ -72,7 +72,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerSequenceAfterRestart() throws Exception {
         String topic = "persistent://my-property/my-ns/testProducerSequenceAfterRestart";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);

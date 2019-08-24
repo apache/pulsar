@@ -43,14 +43,14 @@ import org.testng.annotations.Test;
 public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Override
-    @BeforeClass
+    @BeforeClass(timeOut = 60000)
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
     @Override
-    @AfterClass
+    @AfterClass(timeOut = 60000)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -97,7 +97,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "variations")
+    @Test(timeOut = 10000, dataProvider = "variations")
     public void testNegativeAcks(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
             int negAcksDelayMillis, int ackTimeout)
             throws Exception {

@@ -30,7 +30,7 @@ import java.util.UUID;
 
 public class HashRangeStickyKeyConsumerSelectorTest {
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConsumerSelect() throws ConsumerAssignException {
 
         HashRangeStickyKeyConsumerSelector selector = new HashRangeStickyKeyConsumerSelector();
@@ -135,7 +135,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
         }
     }
 
-    @Test(expectedExceptions = ConsumerAssignException.class)
+    @Test(timeOut = 10000, expectedExceptions = ConsumerAssignException.class)
     public void testSplitExceed() throws ConsumerAssignException {
         StickyKeyConsumerSelector selector = new HashRangeStickyKeyConsumerSelector(16);
         for (int i = 0; i <= 16; i++) {
@@ -143,12 +143,12 @@ public class HashRangeStickyKeyConsumerSelectorTest {
         }
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(timeOut = 10000, expectedExceptions = IllegalArgumentException.class)
     public void testRangeSizeLessThan2() {
         new HashRangeStickyKeyConsumerSelector(1);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(timeOut = 10000, expectedExceptions = IllegalArgumentException.class)
     public void testRangeSizePower2() {
         new HashRangeStickyKeyConsumerSelector(6);
     }
