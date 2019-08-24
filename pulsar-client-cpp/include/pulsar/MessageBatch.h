@@ -16,30 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <boost/python.hpp>
 
-#include <pulsar/Client.h>
-#include <pulsar/MessageBatch.h>
+#ifndef LIB_MESSAGE_BATCH_H
+#define LIB_MESSAGE_BATCH_H
+#include <vector>
 
-using namespace pulsar;
+#include <pulsar/defines.h>
+#include <pulsar/Message.h>
 
-namespace py = boost::python;
+namespace pulsar {
 
-struct PulsarException {
-    Result _result;
-    PulsarException(Result res) :
-            _result(res) {}
+class PULSAR_PUBLIC MessageBatch {
+   public:
+    MessageBatch();
+
+    MessageBatch& withMessageId(const MessageId& messageId);
+
+    MessageBatch& parseFrom(const std::string& payload, uint32_t batchSize);
+
+    MessageBatch& parseFrom(const SharedBuffer& payload, uint32_t batchSize);
+
+    const std::vector<Message>& messages();
+
+   private:
+    typedef std::shared_ptr<MessageImpl> MessageImplPtr;
+    MessageImplPtr impl_;
+    Message batchMessage_;
+
+    std::vector<Message> batch_;
 };
-
-inline void CHECK_RESULT(Result res) {
-    if (res != ResultOk) {
-        throw PulsarException(res);
-    }
-}
-
-struct AuthenticationWrapper {
-    AuthenticationPtr auth;
-
-    AuthenticationWrapper();
-    AuthenticationWrapper(const std::string& dynamicLibPath, const std::string& authParamsString);
-};
+}  // namespace pulsar
+#endif  // LIB_MESSAGE_BATCH_H
