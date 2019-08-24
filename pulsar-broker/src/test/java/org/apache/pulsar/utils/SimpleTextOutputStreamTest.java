@@ -34,7 +34,7 @@ public class SimpleTextOutputStreamTest {
     private ByteBuf buf;
     private SimpleTextOutputStream stream;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void reset() {
         buf = Unpooled.buffer(4096);
         stream = new StatsOutputStream(buf);

@@ -79,7 +79,7 @@ public class HttpTopicLookupv2Test {
     private Set<String> clusters;
 
     @SuppressWarnings("unchecked")
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setUp() throws Exception {
         pulsar = mock(PulsarService.class);
         ns = mock(NamespaceService.class);

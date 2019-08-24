@@ -31,13 +31,13 @@ import org.testng.annotations.Test;
  */
 @Test(timeOut = 10000)
 public class PartitionKeyTest extends BrokerTestBase {
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

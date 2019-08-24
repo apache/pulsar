@@ -70,7 +70,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -85,7 +85,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, Optional.empty(), null);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

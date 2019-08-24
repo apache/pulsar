@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     private final Random r = new Random(0);
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -67,7 +67,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

@@ -69,7 +69,7 @@ public class ResourceQuotaCacheTest {
         doReturn(localCache).when(pulsar).getLocalZkCacheService();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     public void teardown() {
         executor.shutdown();
     }

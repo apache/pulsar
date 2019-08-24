@@ -136,7 +136,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private NamespaceBundleFactory bundleFactory;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
@@ -166,7 +166,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     public void cleanup() throws Exception {
         adminTls.close();

@@ -124,7 +124,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     protected void cleanup() throws Exception {
         if (!methodName.equals("testDefaultHostVerifier")) {

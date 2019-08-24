@@ -66,14 +66,14 @@ import com.google.common.collect.Sets;
 public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(DispatcherBlockConsumerTest.class);
 
-    @BeforeMethod(timeOut = 10000)
+    @BeforeMethod(timeOut = 20000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod(timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

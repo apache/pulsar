@@ -124,13 +124,13 @@ public class ZooKeeperClientAspectJTest {
         }
     }
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     void setup() throws Exception {
         localZkS = new ZookeeperServerTest(LOCAL_ZOOKEEPER_PORT);
         localZkS.start();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     void teardown() throws Exception {
         localZkS.close();
     }

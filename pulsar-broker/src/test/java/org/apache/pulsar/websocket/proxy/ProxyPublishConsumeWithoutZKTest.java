@@ -50,7 +50,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     private ProxyServer proxyServer;
     private WebSocketService service;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();

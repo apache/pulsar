@@ -495,7 +495,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         : createNonPersistentTopic(topicName);
             });
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Illegalargument exception when loading topic", topic, e);
+            log.warn("[{}] Illegal argument exception when loading topic", topic, e);
             return failedFuture(e);
         } catch (RuntimeException e) {
             Throwable cause = e.getCause();

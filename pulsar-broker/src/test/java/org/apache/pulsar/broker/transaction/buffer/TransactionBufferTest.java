@@ -63,12 +63,12 @@ public class TransactionBufferTest {
         this.provider = TransactionBufferProvider.newProvider(providerClassName);
     }
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         this.buffer = this.provider.newTransactionBuffer().get();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     public void teardown() throws Exception {
         this.buffer.closeAsync();
     }

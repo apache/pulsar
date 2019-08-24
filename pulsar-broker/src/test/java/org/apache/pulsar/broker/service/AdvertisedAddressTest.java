@@ -45,7 +45,7 @@ public class AdvertisedAddressTest {
 
     private final String advertisedAddress = "pulsar-usc.example.com";
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
@@ -62,7 +62,7 @@ public class AdvertisedAddressTest {
         pulsar.start();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     public void shutdown() throws Exception {
         pulsar.close();
         bkEnsemble.stop();

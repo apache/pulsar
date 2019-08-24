@@ -116,7 +116,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic_txn";
     private static final Logger log = LoggerFactory.getLogger(PersistentTransactionBufferTest.class);
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
@@ -311,7 +311,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     public void teardown() throws Exception {
         brokerService.getTopics().clear();
         brokerService.close(); //to clear pulsarStats

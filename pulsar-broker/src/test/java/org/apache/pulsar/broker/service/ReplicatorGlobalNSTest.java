@@ -39,7 +39,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void beforeMethod(Method m) {
         methodName = m.getName();
     }

@@ -88,7 +88,7 @@ public class PulsarFunctionTlsTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionTlsTest.class);
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -149,7 +149,7 @@ public class PulsarFunctionTlsTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         functionAdmin.close();

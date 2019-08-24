@@ -101,14 +101,14 @@ import org.testng.annotations.Test;
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
-    @BeforeMethod(timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod(timeOut = 10000)
+    @AfterMethod(timeOut = 30000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

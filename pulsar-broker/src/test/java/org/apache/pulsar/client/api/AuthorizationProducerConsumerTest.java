@@ -80,7 +80,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         super.init();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

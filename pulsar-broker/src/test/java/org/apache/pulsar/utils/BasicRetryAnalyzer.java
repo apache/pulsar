@@ -23,13 +23,12 @@ import org.testng.ITestResult;
 
 public class BasicRetryAnalyzer implements IRetryAnalyzer {
 
-    int counter = 0;
-	int retryLimit = 2;
+    private int counter = 1;
+	private final int retryLimit = 5;
 
     @Override
-    public boolean retry(ITestResult result) {
-        if(counter < retryLimit)
-		{
+    public boolean retry(final ITestResult result) {
+        if(counter < retryLimit) {
 			counter++;
 			return true;
 		}

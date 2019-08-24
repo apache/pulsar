@@ -82,7 +82,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaRegistryServiceImpl schemaRegistryService;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -94,7 +94,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 public class ProxyConfigurationTest extends ProducerConsumerBase {
     private WebSocketProxyConfiguration config;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
@@ -48,7 +48,7 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         config.setConfigurationStoreServers("dummy-zk-servers");
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }

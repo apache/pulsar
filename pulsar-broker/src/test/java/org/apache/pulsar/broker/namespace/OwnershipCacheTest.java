@@ -69,7 +69,7 @@ public class OwnershipCacheTest {
     private BrokerService brokerService;
     private OrderedScheduler executor;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         final int port = 8080;
         selfBrokerUrl = "tcp://localhost:" + port;
@@ -99,7 +99,7 @@ public class OwnershipCacheTest {
         doReturn(selfBrokerUrl).when(pulsar).getSafeBrokerServiceUrl();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     public void teardown() throws Exception {
         executor.shutdown();
     }

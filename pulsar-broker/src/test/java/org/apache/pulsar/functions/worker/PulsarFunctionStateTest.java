@@ -214,7 +214,7 @@ public class PulsarFunctionStateTest {
 
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         pulsarClient.close();

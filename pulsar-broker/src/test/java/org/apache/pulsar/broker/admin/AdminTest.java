@@ -115,7 +115,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         super.internalSetup();
 
@@ -203,7 +203,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

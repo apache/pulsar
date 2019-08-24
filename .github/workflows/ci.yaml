@@ -17,11 +17,11 @@ jobs:
           javac -version
           mvn install
   
-      - uses: actions/upload-artifact@master
-        name: upload artifacts
-        with:
-          name: artifacts
-          path: distribution/server/target/apache-pulsar-.*-bin.tar.gz
+      # - uses: actions/upload-artifact@master
+      #   name: upload artifacts
+      #   with:
+      #     name: artifacts
+      #     path: distribution/server/target/apache-pulsar-.*-bin.tar.gz
 
   build-integration:
     name: Integration tests
@@ -36,7 +36,7 @@ jobs:
           java -version
           javac -version
           mvn install -Pdocker -DskipTests
-          mvn -f tests/pom.xml test -DintegrationTests\
+          mvn -f tests/pom.xml test -DintegrationTests
 
   cpp-integration:
     name: C++ / Python tests

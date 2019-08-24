@@ -142,7 +142,7 @@ public class ModularLoadManagerImplTest {
         field.set(instance, value);
     }
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     void setup() throws Exception {
 
         // Start local bookkeeper ensemble
@@ -189,7 +189,7 @@ public class ModularLoadManagerImplTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();

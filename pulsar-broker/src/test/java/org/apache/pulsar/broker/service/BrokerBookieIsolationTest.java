@@ -92,14 +92,14 @@ public class BrokerBookieIsolationTest {
 
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     protected void setup() throws Exception {
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(4, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     protected void cleanup() throws Exception {
         if (pulsarService != null) {
             pulsarService.close();

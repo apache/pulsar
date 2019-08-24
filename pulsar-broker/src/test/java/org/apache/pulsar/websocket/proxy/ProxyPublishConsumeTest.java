@@ -80,7 +80,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         conf.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
 
@@ -99,7 +99,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     protected void cleanup() throws Exception {
         super.resetConfig();
         super.internalCleanup();

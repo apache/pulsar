@@ -193,7 +193,7 @@ public class ServerCnxTest {
         return (int) TimeUnit.SECONDS.convert(time, unit);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     public void teardown() throws Exception {
         serverCnx.close();
         channel.close();

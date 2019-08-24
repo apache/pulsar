@@ -86,13 +86,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 
-        // create otherbroker to test redirect on calls that need
+        // create other broker to test redirect on calls that need
         // namespace ownership
         mockPulsarSetup = new MockedPulsarService(this.conf);
         mockPulsarSetup.setup();
@@ -104,7 +104,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

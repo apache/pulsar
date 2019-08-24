@@ -123,7 +123,7 @@ public class SimpleLoadManagerImplTest {
         System.setProperty("test.basePort", "16100");
     }
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     void setup() throws Exception {
 
         // Start local bookkeeper ensemble
@@ -166,7 +166,7 @@ public class SimpleLoadManagerImplTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();

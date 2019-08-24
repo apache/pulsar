@@ -54,7 +54,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
     private ReplicatedSubscriptionsController controller;
     private List<ByteBuf> markers;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() {
         clock = mock(Clock.class);
         when(clock.millis()).thenAnswer(invocation -> currentTime);

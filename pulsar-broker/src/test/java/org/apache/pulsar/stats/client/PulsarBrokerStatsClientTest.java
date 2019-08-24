@@ -43,6 +43,7 @@ import org.testng.annotations.Test;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 import java.net.URL;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.spy;
@@ -84,24 +85,25 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         } catch (PulsarAdminException e) {
             // Ok
         }
+
+        assertTrue(client.getApiException(new ClientErrorException(400)) != null);
         assertTrue(client.getApiException(new ClientErrorException(403)) instanceof NotAuthorizedException);
         assertTrue(client.getApiException(new ClientErrorException(404)) instanceof NotFoundException);
         assertTrue(client.getApiException(new ClientErrorException(409)) instanceof ConflictException);
         assertTrue(client.getApiException(new ClientErrorException(412)) instanceof PreconditionFailedException);
-        assertTrue(client.getApiException(new ClientErrorException(400)) instanceof PulsarAdminException);
         assertTrue(client.getApiException(new ServerErrorException(500)) instanceof ServerSideErrorException);
-        assertTrue(client.getApiException(new ServerErrorException(503)) instanceof PulsarAdminException);
+        assertTrue(client.getApiException(new ServerErrorException(503)) != null);
 
         log.info("Client: {}", client);
 
         admin.close();
     }
 
-    @Test(timeOut = 20000, retryAnalyzer = BasicRetryAnalyzer.class)
+    @Test(timeOut = 10000, retryAnalyzer = BasicRetryAnalyzer.class)
     public void testTopicInternalStats() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
+        final String topicName = "persistent://my-property/my-ns/my-topic1" + new Random().nextInt(10);
         final String subscriptionName = "my-subscriber-name";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
@@ -122,11 +124,14 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         }
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        // TODO: Adding Thread.sleep(1000); here before topic.getInternalStats() causes the test to fail
+        // TODO: Have to investigate why that is
         PersistentTopicInternalStats internalStats = topic.getInternalStats();
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
-        assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0
-                && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
+        assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0,
+                "totalNonContiguousDeletedMessagesRange = " + cursor.totalNonContiguousDeletedMessagesRange);
+        assertTrue(cursor.totalNonContiguousDeletedMessagesRange < numberOfMsgs / 2);
 
         producer.close();
         consumer.close();

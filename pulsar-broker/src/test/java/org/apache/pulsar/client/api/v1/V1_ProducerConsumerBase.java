@@ -32,8 +32,8 @@ import org.testng.annotations.BeforeMethod;
 public abstract class V1_ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
-    @BeforeMethod( timeOut = 10000)
-    public void beforeMethod(Method m) throws Exception {
+    @BeforeMethod(timeOut = 10000)
+    public void beforeMethod(Method m) {
         methodName = m.getName();
     }
 

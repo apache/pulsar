@@ -92,7 +92,7 @@ public class PersistentSubscriptionTest {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsarMock = spy(new PulsarService(svcConfig));
@@ -143,7 +143,7 @@ public class PersistentSubscriptionTest {
         persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     public void teardown() throws Exception {
         brokerMock.close(); //to clear pulsarStats
         try {

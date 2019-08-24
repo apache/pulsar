@@ -57,14 +57,14 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
     private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

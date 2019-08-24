@@ -48,7 +48,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
     private SchemaRegistryService underlyingService;
     private SchemaRegistryServiceWithSchemaDataValidator service;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void setup() {
         this.underlyingService = mock(SchemaRegistryService.class);
         this.service = SchemaRegistryServiceWithSchemaDataValidator.of(underlyingService);

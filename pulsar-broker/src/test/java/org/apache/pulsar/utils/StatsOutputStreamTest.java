@@ -33,7 +33,7 @@ public class StatsOutputStreamTest {
     private ByteBuf buf;
     private StatsOutputStream stream;
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     public void reset() {
         buf = Unpooled.buffer(4096);
         stream = new StatsOutputStream(buf);

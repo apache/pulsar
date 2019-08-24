@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 
 public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     public void setup() throws Exception {
         conf.setManagedLedgerMaxEntriesPerLedger(10);
@@ -61,7 +61,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

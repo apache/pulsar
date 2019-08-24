@@ -49,7 +49,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiSchemaValidationEnforced.class);
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -59,7 +59,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         admin.tenants().createTenant("schema-validation-enforced", tenantInfo);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

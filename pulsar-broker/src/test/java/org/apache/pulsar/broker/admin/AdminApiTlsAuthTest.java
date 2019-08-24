@@ -60,7 +60,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         return String.format("./src/test/resources/authentication/tls-http/%s.pem", name);
     }
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
@@ -89,7 +89,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         admin.close();
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

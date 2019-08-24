@@ -128,7 +128,7 @@ public class PulsarWorkerAssignmentTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     void shutdown() {
         log.info("--- Shutting down ---");
         try {

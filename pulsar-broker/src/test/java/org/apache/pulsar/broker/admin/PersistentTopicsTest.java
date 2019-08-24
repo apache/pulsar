@@ -74,7 +74,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     protected void setup() throws Exception {
         super.internalSetup();
         persistentTopics = spy(new PersistentTopics());
@@ -114,7 +114,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }

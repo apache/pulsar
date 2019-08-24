@@ -60,7 +60,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 30000)
     protected void setup() throws Exception {
         super.internalSetup();
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
@@ -85,7 +85,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod( timeOut = 10000)
+    @AfterMethod(timeOut = 20000)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
