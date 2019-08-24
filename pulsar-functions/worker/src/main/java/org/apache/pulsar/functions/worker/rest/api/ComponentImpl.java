@@ -904,7 +904,7 @@ public abstract class ComponentImpl {
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             // Only superuser has permission to do this operation.
             if (!isSuperUser(clientRole)) {
-                throw new RestException(Status.FORBIDDEN, "Need to admin authenticate to perform the request");
+                throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
             }
         }
         try {
