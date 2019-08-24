@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
+import org.apache.pulsar.utils.BasicRetryAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -96,7 +97,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         admin.close();
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 20000, retryAnalyzer = BasicRetryAnalyzer.class)
     public void testTopicInternalStats() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

@@ -85,6 +85,7 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -103,7 +104,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
 
-    @BeforeMethod( timeOut = 10000)
+    @BeforeMethod(timeOut = 10000)
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         PulsarService pulsar = spy(new PulsarService(svcConfig));
@@ -188,11 +189,23 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     }
 
+    @AfterMethod(timeOut = 10000)
+    public void cleanup() throws Exception {
+        mlFactoryMock = null;
+        configCacheService = null;
+        brokerService = null;
+        consumerChanges = null;
+        channelCtx = null;
+        serverCnx = null;
+        serverCnxWithOldVersion = null;
+    }
+
+
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursor.class);
 
-        doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
+        doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
@@ -297,7 +310,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(channelCtx, times(1)).writeAndFlush(any(), any());
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 20000)
     public void testAddRemoveConsumer() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 

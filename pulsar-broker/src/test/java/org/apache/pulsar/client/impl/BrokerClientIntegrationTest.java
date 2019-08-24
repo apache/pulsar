@@ -84,6 +84,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.utils.BasicRetryAnalyzer;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -304,7 +305,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @param subType
      * @throws Exception
      */
-    @Test(timeOut = 7000, dataProvider = "subType")
+    @Test(timeOut = 7000, dataProvider = "subType", retryAnalyzer = BasicRetryAnalyzer.class)
     public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
