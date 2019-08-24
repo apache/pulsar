@@ -444,7 +444,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      *  1. Update cluster-throttling-config: topic rate-limiter has cluster-config
      *  2. Update namespace-throttling-config: topic rate-limiter has namespace-config
      *  3. Disable namespace-throttling-config: topic rate-limiter has cluster-config
-     *  4. Create new topic with disable namespace-config and enabled cluster-config: it takes cluster-config
+     *  4. Create new topic with disable namespace-config andenabled cluster-config: it takes cluster-config
      *
      * </pre>
      *

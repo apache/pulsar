@@ -2553,7 +2553,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
          * Redelivery functionality guarantees that customer will get a chance to process the message again.
          * In case of shared subscription eventually every client will get a chance to process the message, till one of them acks it.
          *
-         * For client with Encryption enabled where in cases like a new production rollout or a buggy client configuration, we might have a mismatch of consumers
+         * For client with Encryptionenabled where in cases like a new production rollout or a buggy client configuration, we might have a mismatch of consumers
          * - few which can decrypt, few which can't (due to errors or cryptoReader not configured).
          *
          * In that case eventually all messages should be acked as long as there is a single consumer who can decrypt the message.
@@ -2626,7 +2626,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test(timeOut = 30000,groups = "encryption")
     public void testEncryptionFailure() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

@@ -41,7 +41,7 @@ public class TlsHostVerification extends TlsProducerConsumerBase {
 
         try {
             adminClientTls.tenants().getTenants();
-            Assert.fail("Admin call should be failed due to hostnameVerification enabled");
+            Assert.fail("Admin call should be failed due to hostnameVerificationenabled");
         } catch (PulsarAdminException e) {
             // Ok
         }

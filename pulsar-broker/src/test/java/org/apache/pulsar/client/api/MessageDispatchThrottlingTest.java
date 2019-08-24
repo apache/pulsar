@@ -229,7 +229,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      * @param dispatchRateType
      * @throws Exception
      */
-    @Test()
+    @Test
     public void testClusterMsgByteRateLimitingClusterConfig() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -706,7 +706,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the flag is enabled
+     * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the flag isenabled
      *
      * @param subscription
      * @throws Exception
@@ -780,7 +780,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      *  1. Update cluster-throttling-config: topic rate-limiter has cluster-config
      *  2. Update namespace-throttling-config: topic rate-limiter has namespace-config
      *  3. Disable namespace-throttling-config: topic rate-limiter has cluster-config
-     *  4. Create new topic with disable namespace-config and enabled cluster-config: it takes cluster-config
+     *  4. Create new topic with disable namespace-config andenabled cluster-config: it takes cluster-config
      *
      * </pre>
      *

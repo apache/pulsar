@@ -19,17 +19,6 @@
 package org.apache.pulsar.websocket.service;
 
 import com.google.common.collect.Lists;
-
-import java.net.MalformedURLException;
-import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TimeZone;
-
-import javax.servlet.Servlet;
-import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
-
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
@@ -50,6 +39,14 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import javax.websocket.DeploymentException;
+import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TimeZone;
 
 public class ProxyServer {
     private final Server server;
@@ -90,7 +87,7 @@ public class ProxyServer {
 
         // Limit number of concurrent HTTP connections to avoid getting out of
         // file descriptors
-        connectors.stream().forEach(c -> c.setAcceptQueueSize(1024 / connectors.size()));
+        connectors.forEach(c -> c.setAcceptQueueSize(1024 / connectors.size()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 

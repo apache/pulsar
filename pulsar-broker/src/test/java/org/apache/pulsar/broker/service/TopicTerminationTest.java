@@ -108,7 +108,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testTerminateWhilePublishing() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -187,7 +187,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testSimpleTerminationConsumer() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -225,7 +225,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertTrue(consumer.hasReachedEndOfTopic());
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testSimpleTerminationMessageListener() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -265,7 +265,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertTrue(consumer.hasReachedEndOfTopic());
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testSimpleTerminationReader() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -297,7 +297,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertTrue(reader.hasReachedEndOfTopic());
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testSimpleTerminationReaderListener() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -334,7 +334,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertTrue(reader.hasReachedEndOfTopic());
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testSubscribeOnTerminatedTopic() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -353,7 +353,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertTrue(consumer.hasReachedEndOfTopic());
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testSubscribeOnTerminatedTopicWithNoMessages() throws Exception {
         pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)

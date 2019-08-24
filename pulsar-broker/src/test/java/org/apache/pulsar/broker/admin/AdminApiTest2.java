@@ -92,7 +92,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 
-        // create otherbroker to test redirect on calls that need
+        // create other broker to test redirect on calls that need
         // namespace ownership
         mockPulsarSetup = new MockedPulsarService(this.conf);
         mockPulsarSetup.setup();

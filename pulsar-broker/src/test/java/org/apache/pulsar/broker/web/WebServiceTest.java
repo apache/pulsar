@@ -103,7 +103,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is enabled, WebServcie is available both on HTTP and HTTPS.
+     * Test that if enableTls option isenabled, WebServcie is available both on HTTP and HTTPS.
      *
      * @throws Exception
      */
@@ -148,7 +148,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option and allowInsecure option are enabled, WebServcie requires trusted/untrusted client
+     * Test that if enableAuth option and allowInsecure option areenabled, WebServcie requires trusted/untrusted client
      * certificate.
      *
      * @throws Exception
@@ -172,7 +172,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option is enabled, WebServcie requires trusted client certificate.
+     * Test that if enableAuth option isenabled, WebServcie requires trusted client certificate.
      *
      * @throws Exception
      */
@@ -295,7 +295,7 @@ public class WebServiceTest {
         }
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod(  alwaysRun = true)
     void teardown() throws Exception {
         try {
             pulsar.close();

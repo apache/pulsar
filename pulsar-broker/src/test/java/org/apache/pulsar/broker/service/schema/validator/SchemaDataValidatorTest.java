@@ -80,7 +80,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "primitiveSchemas", expectedExceptions = InvalidSchemaDataException.class)
+    @Test(dataProvider = "primitiveSchemas",expectedExceptions = InvalidSchemaDataException.class)
     public void testPrimitiveValidatorInvalid(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -89,7 +89,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "clientSchemas", expectedExceptions = InvalidSchemaDataException.class)
+    @Test(dataProvider = "clientSchemas",expectedExceptions = InvalidSchemaDataException.class)
     public void testValidateClientSchemas(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -108,7 +108,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "structSchemas", expectedExceptions = InvalidSchemaDataException.class)
+    @Test(dataProvider = "structSchemas",expectedExceptions = InvalidSchemaDataException.class)
     public void testStructValidatorInvalid(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)

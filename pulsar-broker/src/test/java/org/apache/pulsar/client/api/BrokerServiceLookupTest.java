@@ -242,7 +242,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // enable authorization: so, broker can validate cluster and redirect if finds different cluster
         pulsar.getConfiguration().setAuthorizationEnabled(true);
-        // restart broker with authorization enabled: it initialize AuthorizationService
+        // restart broker with authorizationenabled: it initialize AuthorizationService
         stopBroker();
         startBroker();
 
@@ -394,7 +394,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setZookeeperServers("localhost:2181");
         PulsarService pulsar2 = startBroker(conf2);
 
-        // restart broker1 with tls enabled
+        // restart broker1 with tlsenabled
         conf.setBrokerServicePortTls(Optional.ofNullable(BROKER_PORT_TLS));
         conf.setWebServicePortTls(Optional.ofNullable(BROKER_WEBSERVICE_PORT_TLS));
         conf.setTlsAllowInsecureConnection(true);
@@ -526,7 +526,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
         final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
-        // (1) restart broker1 with tls enabled
+        // (1) restart broker1 with tlsenabled
         conf.setBrokerServicePortTls(Optional.ofNullable(BROKER_PORT_TLS));
         conf.setWebServicePortTls(Optional.ofNullable(BROKER_WEBSERVICE_PORT_TLS));
         conf.setTlsAllowInsecureConnection(true);
@@ -794,7 +794,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test
     public void testSplitUnloadLookupTest() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -896,7 +896,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test
     public void testModularLoadManagerSplitBundle() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -1011,7 +1011,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
 
         final String cluster = "use2";

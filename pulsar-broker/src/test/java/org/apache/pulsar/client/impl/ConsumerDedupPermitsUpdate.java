@@ -37,6 +37,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ConsumerDedupPermitsUpdate extends ProducerConsumerBase {
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -64,7 +65,7 @@ public class ConsumerDedupPermitsUpdate extends ProducerConsumerBase {
         };
     }
 
-    @Test(timeOut = 30000, dataProvider = "combinations")
+    @Test(timeOut = 30000,dataProvider = "combinations")
     public void testConsumerDedup(boolean batchingEnabled, int receiverQueueSize) throws Exception {
         String topic = "persistent://my-property/my-ns/my-topic-" + System.nanoTime();
 

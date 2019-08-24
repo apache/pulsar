@@ -77,7 +77,7 @@ public class MessageIdTest extends BrokerTestBase {
         internalCleanup();
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void producerSendAsync() throws PulsarClientException {
         // 1. Basic Config
         String key = "producerSendAsync";
@@ -134,7 +134,7 @@ public class MessageIdTest extends BrokerTestBase {
         consumer.unsubscribe();
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void producerSend() throws PulsarClientException {
         // 1. Basic Config
         String key = "producerSend";
@@ -170,7 +170,7 @@ public class MessageIdTest extends BrokerTestBase {
         ;
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void partitionedProducerSendAsync() throws PulsarClientException, PulsarAdminException {
         // 1. Basic Config
         String key = "partitionedProducerSendAsync";
@@ -222,7 +222,7 @@ public class MessageIdTest extends BrokerTestBase {
         consumer.unsubscribe();
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void partitionedProducerSend() throws PulsarClientException, PulsarAdminException {
         // 1. Basic Config
         String key = "partitionedProducerSend";

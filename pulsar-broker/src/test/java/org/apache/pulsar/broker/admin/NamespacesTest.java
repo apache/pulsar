@@ -1050,7 +1050,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         assertTrue(consumer.isConnected());
 
-        // Subscribe Rate Limiter is enabled, will limited by broker
+        // Subscribe Rate Limiter isenabled, will limited by broker
         pulsarClient.updateServiceUrl(lookupUrl.toString());
         Thread.sleep(1000L);
         assertFalse(consumer.isConnected());

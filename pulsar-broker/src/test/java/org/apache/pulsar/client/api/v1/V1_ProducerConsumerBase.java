@@ -33,7 +33,7 @@ public abstract class V1_ProducerConsumerBase extends MockedPulsarServiceBaseTes
     protected String methodName;
 
     @BeforeMethod
-    public void beforeMethod(Method m) throws Exception {
+    public void beforeMethod(Method m) {
         methodName = m.getName();
     }
 

@@ -166,7 +166,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 p.send("junkdata".getBytes(UTF_8));
             } else {
                 Assert.fail("Shouldn't be able to connect to a schema'd topic with no schema"
-                    + " if SchemaValidationEnabled is enabled");
+                    + " if SchemaValidationEnabled isenabled");
             }
         } catch (PulsarClientException e) {
             if (schemaValidationEnforced) {

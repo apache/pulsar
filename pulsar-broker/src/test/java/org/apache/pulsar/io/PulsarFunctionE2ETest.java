@@ -346,7 +346,12 @@ public class PulsarFunctionE2ETest {
         return new WorkerService(workerConfig);
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 
         FunctionConfig functionConfig = new FunctionConfig();
@@ -494,7 +499,7 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testE2EPulsarFunctionWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         testE2EPulsarFunction(jarFilePathUrl);
@@ -724,7 +729,7 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarSinkStatsWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         testPulsarSinkStats(jarFilePathUrl);
@@ -863,7 +868,7 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarSourceStatsWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         testPulsarSourceStats(jarFilePathUrl);
@@ -875,7 +880,7 @@ public class PulsarFunctionE2ETest {
         testPulsarSourceStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarFunctionStats() throws Exception {
 
         final String namespacePortion = "io";
@@ -1211,7 +1216,7 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarFunctionStatus() throws Exception {
 
         final String namespacePortion = "io";
@@ -1321,7 +1326,7 @@ public class PulsarFunctionE2ETest {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testFunctionStopAndRestartApi() throws Exception {
 
         final String namespacePortion = "io";
@@ -1388,7 +1393,7 @@ public class PulsarFunctionE2ETest {
         producer.close();
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testFunctionAutomaticSubCleanup() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -1583,7 +1588,7 @@ public class PulsarFunctionE2ETest {
             checkArgument(matcher.matches());
             String name = matcher.group(1);
             Metric m = new Metric();
-            m.value = Double.valueOf(matcher.group(3));
+            m.value = Double.parseDouble(matcher.group(3));
             String tags = matcher.group(2);
             Matcher tagsMatcher = tagsPattern.matcher(tags);
             while (tagsMatcher.find()) {

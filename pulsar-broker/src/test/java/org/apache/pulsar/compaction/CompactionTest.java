@@ -123,7 +123,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
 
-        // consumer with readCompacted enabled only get compacted entries
+        // consumer with readCompactedenabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             while (true) {
@@ -185,7 +185,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
 
 
-        // consumer with readCompacted enabled only get compacted entries
+        // consumer with readCompactedenabled only get compacted entries
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
                 .startMessageId(MessageId.earliest).create()) {
             while (true) {
@@ -1250,7 +1250,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testCompactionWithLastDeletedKey() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -1269,7 +1269,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         compactor.compact(topic).get();
 
         Set<String> expected = Sets.newHashSet("3");
-        // consumer with readCompacted enabled only get compacted entries
+        // consumer with readCompactedenabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -1277,7 +1277,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testEmptyCompactionLedger() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -1294,7 +1294,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
 
-        // consumer with readCompacted enabled only get compacted entries
+        // consumer with readCompactedenabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);

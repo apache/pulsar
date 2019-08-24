@@ -90,7 +90,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test
     public void testConsumerBlockingWithUnAckedMessagesAtDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -198,7 +198,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    @Test(timeOut = 10000)
+    @Test
     public void testConsumerBlockingWithUnAckedMessagesAndRedelivery() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -382,7 +382,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test
     public void testRedeliveryOnBlockedDistpatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -670,7 +670,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test
     public void testBlockBrokerDispatching() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

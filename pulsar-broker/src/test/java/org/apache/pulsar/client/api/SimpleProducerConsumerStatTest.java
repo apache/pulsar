@@ -80,7 +80,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic1").subscriptionName("my-subscriber-name");
 
-        // Cumulative Ack-counter works if ackTimeOutTimer-task is enabled
+        // Cumulative Ack-counter works if ackTimeOutTimer-task isenabled
         boolean isAckTimeoutTaskEnabledForCumulativeAck = ackTimeoutSec > 0;
         if (ackTimeoutSec > 0) {
             consumerBuilder.ackTimeout(ackTimeoutSec, TimeUnit.SECONDS);

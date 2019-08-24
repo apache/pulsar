@@ -34,6 +34,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {

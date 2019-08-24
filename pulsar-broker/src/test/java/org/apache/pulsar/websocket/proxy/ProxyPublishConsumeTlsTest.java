@@ -75,7 +75,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         config.setConfigurationStoreServers("dummy-zk-servers");
         config.setBrokerClientAuthenticationParameters("tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT_TLS).toString();
+        config.setNumHttpServerThreads(6);
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);
@@ -89,11 +89,10 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         service.close();
         proxyServer.stop();
         log.info("Finished Cleaning Up Test setup");
-
     }
 
     @Test(timeOut = 30000)
-    public void socketTest() throws InterruptedException, GeneralSecurityException {
+    public void socketTest() throws GeneralSecurityException {
         String consumerUri =
                 "wss://localhost:" + tlsPort + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
         String producerUri = "wss://localhost:" + tlsPort + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";

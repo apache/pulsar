@@ -89,7 +89,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
     }
 
-    @Test()
+    @Test
     public void zeroQueueSizeNormalConsumer() throws PulsarClientException {
         String key = "nonZeroQueueSizeNormalConsumer";
 
@@ -126,7 +126,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test
     public void zeroQueueSizeConsumerListener() throws Exception {
         String key = "zeroQueueSizeConsumerListener";
 
@@ -170,7 +170,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test
     public void zeroQueueSizeSharedSubscription() throws PulsarClientException {
         String key = "zeroQueueSizeSharedSubscription";
 
@@ -211,7 +211,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test
     public void zeroQueueSizeFailoverSubscription() throws PulsarClientException {
         String key = "zeroQueueSizeFailoverSubscription";
 
@@ -266,7 +266,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test
     public void testFailedZeroQueueSizeBatchMessage() throws PulsarClientException {
 
         int batchMessageDelayMs = 100;

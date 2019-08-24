@@ -171,8 +171,17 @@ public abstract class MockedPulsarServiceBaseTest {
             if (bkExecutor != null) {
                 bkExecutor.shutdown();
             }
+
+            admin = null;
+            pulsarClient = null;
+            pulsar = null;
+            mockBookKeeper = null;
+            mockZookKeeper = null;
+            sameThreadOrderedSafeExecutor = null;
+            bkExecutor = null;
+
         } catch (Exception e) {
-            log.warn("Failed to clean up mocked pulsar service:", e);
+            log.warn("Failed to clean up mocked pulsar service :", e);
             throw e;
         }
     }

@@ -108,7 +108,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Finished Cleaning Up Test setup");
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void socketTest() throws Exception {
         final String consumerUri = "ws://localhost:" + port
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
@@ -184,7 +184,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void emptySubcriptionConsumerTest() throws Exception {
 
         // Empty subcription name
@@ -211,7 +211,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void conflictingConsumerTest() throws Exception {
         final String consumerUri = "ws://localhost:" + port
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic3/sub1?subscriptionType=Exclusive";
@@ -247,7 +247,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void conflictingProducerTest() throws Exception {
         final String producerUri = "ws://localhost:" + port
                 + "/ws/v2/producer/persistent/my-property/my-ns/my-topic4?producerName=my-producer";
@@ -356,7 +356,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test
     public void testProxyStats() throws Exception {
         final String topic = "my-property/my-ns/my-topic6";
         final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic
@@ -429,7 +429,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void consumeMessagesInPartitionedTopicTest() throws Exception {
         final String namespace = "my-property/my-ns";
         final String topic = namespace + "/" + "my-topic7";
@@ -470,7 +470,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void socketPullModeTest() throws Exception {
         final String topic = "my-property/my-ns/my-topic8";
         final String subscription = "my-sub";

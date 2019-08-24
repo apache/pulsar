@@ -169,7 +169,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
             pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                     .subscriptionName("my-subscriber-name").subscribe();
             if (hostnameVerificationEnabled) {
-                Assert.fail("Connection should be failed due to hostnameVerification enabled");
+                Assert.fail("Connection should be failed due to hostnameVerificationenabled");
             }
         } catch (PulsarClientException e) {
             if (!hostnameVerificationEnabled) {

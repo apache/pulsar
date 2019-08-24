@@ -118,7 +118,7 @@ public class PulsarFunctionE2ESecurityTest {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
         bkEnsemble.start();
 
         brokerServiceUrl = "http://127.0.0.1:" + brokerWebServicePort;
@@ -246,7 +246,12 @@ public class PulsarFunctionE2ESecurityTest {
         return new WorkerService(workerConfig);
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -297,7 +302,7 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            // grant permissions to annoynmous role
+            // grant permissions to anonymous role
             Set<AuthAction> actions = new HashSet<>();
             actions.add(AuthAction.functions);
             actions.add(AuthAction.produce);

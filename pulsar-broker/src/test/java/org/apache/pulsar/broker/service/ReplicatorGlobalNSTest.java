@@ -45,13 +45,13 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 300000)
+    @BeforeClass
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
+    @AfterClass
     void shutdown() throws Exception {
         super.shutdown();
     }

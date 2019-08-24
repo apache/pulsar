@@ -145,7 +145,7 @@ public class PulsarFunctionLocalRunTest {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
         bkEnsemble.start();
 
         String brokerServiceUrl = "https://127.0.0.1:" + brokerWebServiceTlsPort;
@@ -487,12 +487,12 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testE2EPulsarFunctionLocalRun() throws Exception {
         testE2EPulsarFunctionLocalRun(null);
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testE2EPulsarFunctionLocalRunWithJar() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         testE2EPulsarFunctionLocalRun(jarFilePathUrl);
@@ -587,12 +587,12 @@ public class PulsarFunctionLocalRunTest {
     }
 
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarSourceLocalRunNoArchive() throws Exception {
         testPulsarSourceLocalRun(null);
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarSourceLocalRunWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         testPulsarSourceLocalRun(jarFilePathUrl);
@@ -692,12 +692,12 @@ public class PulsarFunctionLocalRunTest {
 
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarSinkStatsNoArchive() throws Exception {
         testPulsarSinkStats(null);
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testPulsarSinkStatsWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         testPulsarSinkStats(jarFilePathUrl);

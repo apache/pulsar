@@ -74,6 +74,7 @@ import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.utils.BasicRetryAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -197,7 +198,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch", timeOut = 100000)
+    @Test(dataProvider = "batch")
     public void testMessageListener(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -628,7 +629,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test( retryAnalyzer = BasicRetryAnalyzer.class)
     public void testActiveAndInActiveConsumerEntryCacheBehavior() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

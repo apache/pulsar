@@ -84,6 +84,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.utils.BasicRetryAnalyzer;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,8 +223,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertEquals(State.Ready, prod2.getState());
 
         // unload ns-bundle2 as well
-        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2);
-        // let producer2 give some time to get disconnect signal and get disconencted
+        pulsar.getNamespaceService().unloadNamespaceBundle(bundle2);
+        // let producer2 give some time to get disconnect signal and get disconnected
         Thread.sleep(200);
         verify(producer2, atLeastOnce()).connectionClosed(any());
 
@@ -304,7 +305,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @param subType
      * @throws Exception
      */
-    @Test(timeOut = 7000, dataProvider = "subType")
+    @Test(timeOut = 7000,dataProvider = "subType", retryAnalyzer = BasicRetryAnalyzer.class)
     public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -394,7 +395,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 10000, dataProvider = "subType")
+    @Test(dataProvider = "subType")
     public void testResetCursor(SubscriptionType subType) throws Exception {
         final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
         final TopicName topicName = TopicName.get("persistent://my-property/my-ns/unacked-topic");
@@ -783,7 +784,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test
     public void testAddEntryOperationTimeout() throws Exception {
 
         log.info("-- Starting {} test --", methodName);

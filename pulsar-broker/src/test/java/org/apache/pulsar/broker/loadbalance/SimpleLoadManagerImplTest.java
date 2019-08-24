@@ -206,7 +206,7 @@ public class SimpleLoadManagerImplTest {
 
     }
 
-    @Test(enabled = true)
+    @Test
     public void testBasicBrokerSelection() throws Exception {
         LoadManager loadManager = new SimpleLoadManagerImpl(pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -380,7 +380,7 @@ public class SimpleLoadManagerImplTest {
                 0);
     }
 
-    @Test(enabled = true)
+    @Test
     public void testDoLoadShedding() throws Exception {
         LoadManager loadManager = spy(new SimpleLoadManagerImpl(pulsar1));
         PulsarResourceDescription rd = new PulsarResourceDescription();

@@ -59,10 +59,10 @@ public class ResourceQuotaCacheTest {
 
         // set mock pulsar localzkcache
         LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
+        ZooKeeperDataCache<LocalPolicies> policiesCache = mock(ZooKeeperDataCache.class);
         when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
-        when(localZkCache.policiesCache()).thenReturn(poilciesCache);
-        doNothing().when(poilciesCache).registerListener(any());
+        when(localZkCache.policiesCache()).thenReturn(policiesCache);
+        doNothing().when(policiesCache).registerListener(any());
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
         doReturn(zkCache).when(pulsar).getLocalZkCache();

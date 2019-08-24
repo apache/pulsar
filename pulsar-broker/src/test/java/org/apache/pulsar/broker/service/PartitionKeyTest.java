@@ -43,14 +43,14 @@ public class PartitionKeyTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testPartitionKey() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testPartitionKey";
 
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscription").subscribe();
 
-        // 1. producer with batch enabled
+        // 1. producer with batchenabled
         Producer<byte[]> producerWithBatches = pulsarClient.newProducer().topic(topicName).enableBatching(true)
                 .create();
 

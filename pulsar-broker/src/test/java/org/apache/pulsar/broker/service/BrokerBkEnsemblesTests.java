@@ -342,7 +342,7 @@ public class BrokerBkEnsemblesTests {
         client.close();
     }
 
-    @Test(timeOut=20000)
+    @Test
     public void testTopicWithWildCardChar() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();

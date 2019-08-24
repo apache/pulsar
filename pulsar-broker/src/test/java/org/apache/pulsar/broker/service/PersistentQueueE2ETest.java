@@ -377,7 +377,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertEquals(receivedConsumer2, totalMessages);
     }
 
-    @Test(timeOut = 60000)
+    @Test
     public void testCancelReadRequestOnLastDisconnect() throws Exception {
         String key = "testCancelReadRequestOnLastDisconnect";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;

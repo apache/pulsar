@@ -18,25 +18,7 @@
  */
 package org.apache.pulsar.websocket.proxy.v1;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
-import java.net.URI;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.client.api.v1.V1_ProducerConsumerBase;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -54,6 +36,22 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.net.URI;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
@@ -118,7 +116,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
     }
 
-    public void socketTest() throws Exception {
+    private void checkSocket() throws Exception {
         final String topic = "prop/use/my-ns/my-topic1";
         final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/my-sub";
         final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic;
@@ -147,28 +145,28 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
     }
 
-    @Test(timeOut=10000)
+    @Test
     public void authenticatedSocketTest() throws Exception {
-        socketTest();
+        checkSocket();
     }
 
-    @Test(timeOut=10000)
+    @Test
     public void anonymousSocketTest() throws Exception {
-        socketTest();
+        checkSocket();
     }
 
-    @Test(timeOut=10000)
-    public void unauthenticatedSocketTest() throws Exception{
+    @Test
+    public void unauthenticatedSocketTest() {
         Exception exception = null;
         try {
-            socketTest();
+            checkSocket();
         } catch (Exception e) {
             exception = e;
         }
         Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
     }
 
-    @Test(timeOut=10000)
+    @Test
     public void statsTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic2";
         final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/my-sub";

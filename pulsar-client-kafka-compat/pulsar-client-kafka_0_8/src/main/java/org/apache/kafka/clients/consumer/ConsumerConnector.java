@@ -51,7 +51,7 @@ import kafka.serializer.Decoder;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * It replaces : kafka.javaapi.consumer.ConsumerConnector but not extending kafka-interface because its method has
+ * It replaces : kafka.java.api.consumer.ConsumerConnector but not extending kafka-interface because its method has
  * KafkaStream api signature and KafkaStream is a scala class which creates unresolvable dependency conflict src:
  * https://github.com/apache/kafka/blob/0.8.2.2/core/src/main/scala/kafka/javaapi/consumer/ConsumerConnector.java
  */

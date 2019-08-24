@@ -142,17 +142,17 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
     }
 
-    @Test(timeOut=10000)
+    @Test
     public void authenticatedSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut=10000)
+    @Test
     public void anonymousSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut=10000)
+    @Test
     public void unauthenticatedSocketTest() throws Exception{
         Exception exception = null;
         try {
@@ -163,7 +163,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
     }
 
-    @Test(timeOut=10000)
+    @Test
     public void statsTest() throws Exception {
         final String topic = "persistent/my-property/my-ns/my-topic2";
         final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/" + topic + "/my-sub";

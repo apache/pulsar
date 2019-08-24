@@ -81,7 +81,7 @@ public class PulsarWorkerAssignmentTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarWorkerAssignmentTest.class);
 
-    @BeforeMethod(timeOut = 60000)
+    @BeforeMethod
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -168,7 +168,7 @@ public class PulsarWorkerAssignmentTest {
         return new WorkerService(workerConfig);
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000,enabled = false)
     public void testFunctionAssignments() throws Exception {
 
         final String namespacePortion = "assignment-test";
@@ -218,7 +218,7 @@ public class PulsarWorkerAssignmentTest {
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
     }
 
-    @Test(timeOut = 60000, enabled = false)
+    @Test(timeOut = 60000,enabled = false)
     public void testFunctionAssignmentsWithRestart() throws Exception {
 
         final String namespacePortion = "assignment-test";
@@ -313,8 +313,12 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace,
-                                                         String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         final String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 

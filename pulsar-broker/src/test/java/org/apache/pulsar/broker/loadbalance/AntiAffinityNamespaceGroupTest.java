@@ -289,7 +289,7 @@ public class AntiAffinityNamespaceGroupTest {
     }
 
     /**
-     * It verifies anti-affinity-namespace assignment without failure-domain enabled
+     * It verifies anti-affinity-namespace assignment without failure-domainenabled
      *
      * <pre>
      *  Anti-affinity-namespace assignment
@@ -374,7 +374,7 @@ public class AntiAffinityNamespaceGroupTest {
     }
 
     /**
-     * It verifies anti-affinity with failure domain enabled with 2 brokers.
+     * It verifies anti-affinity with failure domainenabled with 2 brokers.
      *
      * <pre>
      * 1. Register brokers to domain: domain-1: broker1 & domain-2: broker2

@@ -48,13 +48,13 @@ import com.google.common.collect.Sets;
 public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @Override
-    @BeforeClass(timeOut = 300000)
+    @BeforeClass
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
+    @AfterClass
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -81,7 +81,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      * @param protocol
      * @throws Exception
      */
-    @Test(dataProvider = "lookupType", timeOut = 10000)
+    @Test(dataProvider = "lookupType")
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
      // clean up peer-clusters
@@ -158,7 +158,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testGetPeerClusters() throws Exception {
 
         // clean up peer-clusters

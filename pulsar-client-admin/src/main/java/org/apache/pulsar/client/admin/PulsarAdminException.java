@@ -148,7 +148,7 @@ public class PulsarAdminException extends Exception {
         }
 
         public ServerSideErrorException(ServerErrorException e) {
-            super(e, "Some error occourred on the server");
+            super(e, "Some error occurred on the server");
         }
     }
 

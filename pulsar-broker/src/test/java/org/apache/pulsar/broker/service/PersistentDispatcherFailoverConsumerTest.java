@@ -85,6 +85,7 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -188,11 +189,23 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     }
 
+    @AfterMethod
+    public void cleanup() throws Exception {
+        mlFactoryMock = null;
+        configCacheService = null;
+        brokerService = null;
+        consumerChanges = null;
+        channelCtx = null;
+        serverCnx = null;
+        serverCnxWithOldVersion = null;
+    }
+
+
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursor.class);
 
-        doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
+        doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
