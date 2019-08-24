@@ -35,7 +35,7 @@ import com.github.zafarkhaja.semver.Version;
 
 public class BrokerVersionFilterTest {
 
-    @Test
+    @Test(timeOut = 10000)
     public void testLatestVersion() {
         LoadData loadData = initLoadData();
         Set<String> brokers = new TreeSet<>();

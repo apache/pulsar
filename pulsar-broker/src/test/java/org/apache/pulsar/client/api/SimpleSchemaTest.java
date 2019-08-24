@@ -57,7 +57,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         conf.setSchemaValidationEnforced(schemaValidationEnforced);
@@ -66,13 +66,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testString() throws Exception {
         try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic1")
@@ -116,7 +116,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void newProducerNewTopicNewSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
@@ -125,7 +125,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void newProducerTopicExistsWithoutSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create()) {
@@ -138,7 +138,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void newProducerTopicExistsWithSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
@@ -152,7 +152,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void newProducerWithoutSchemaOnTopicWithSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -185,7 +185,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void newConsumerWithSchemaOnNewTopic() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -198,7 +198,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void newConsumerWithSchemaOnExistingTopicWithoutSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -211,7 +211,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void newConsumerWithSchemaTopicHasSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -224,7 +224,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void newBytesConsumerWithTopicWithSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -235,12 +235,12 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void getSchemaVersionFromMessagesBatchingDisabled() throws Exception {
         getSchemaVersionFromMessages(false);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void getSchemaVersionFromMessagesBatchingEnabled() throws Exception {
         getSchemaVersionFromMessages(true);
     }
@@ -265,7 +265,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batchingModes")
+    @Test(timeOut = 10000, dataProvider = "batchingModes")
     public void testAutoConsume(boolean batching) throws Exception {
         String topic = "my-property/my-ns/schema-test-auto-consume-" + batching;
 
@@ -294,7 +294,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batchingModes")
+    @Test(timeOut = 10000, dataProvider = "batchingModes")
     public void testAutoKeyValueConsume(boolean batching) throws Exception {
         String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-" + batching;
 

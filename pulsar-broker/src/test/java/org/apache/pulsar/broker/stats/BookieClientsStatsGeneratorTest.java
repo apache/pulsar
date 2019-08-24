@@ -37,26 +37,26 @@ import io.netty.buffer.PooledByteBufAllocator;
  */
 public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBookieClientStatsGenerator() throws Exception {
         // should not generate any NPE or other exceptions..
         Map<String, Map<String, PendingBookieOpsStats>> stats = BookieClientStatsGenerator.generate(super.getPulsar());
         assertTrue(stats.isEmpty());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testJvmDirectMemoryUsedMetric() throws Exception {
         PooledByteBufAllocator allocator = new PooledByteBufAllocator( //
                 true, // preferDirect

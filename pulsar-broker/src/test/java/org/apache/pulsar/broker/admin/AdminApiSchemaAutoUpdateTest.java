@@ -48,7 +48,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiSchemaAutoUpdateTest.class);
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -63,7 +63,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/test/ns2");
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -248,49 +248,49 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBackwardV2() throws Exception {
         testAutoUpdateBackward("prop-xyz/ns1", "persistent://prop-xyz/ns1/backward");
         testAutoUpdateBackward("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/backward-np");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testForwardV2() throws Exception {
         testAutoUpdateForward("prop-xyz/ns1", "persistent://prop-xyz/ns1/forward");
         testAutoUpdateForward("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/forward-np");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFullV2() throws Exception {
         testAutoUpdateFull("prop-xyz/ns1", "persistent://prop-xyz/ns1/full");
         testAutoUpdateFull("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/full-np");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDisabledV2() throws Exception {
         testAutoUpdateDisabled("prop-xyz/ns1", "persistent://prop-xyz/ns1/disabled");
         testAutoUpdateDisabled("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/disabled-np");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBackwardV1() throws Exception {
         testAutoUpdateBackward("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/backward");
         testAutoUpdateBackward("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/backward-np");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testForwardV1() throws Exception {
         testAutoUpdateForward("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/forward");
         testAutoUpdateForward("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/forward-np");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFullV1() throws Exception {
         testAutoUpdateFull("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/full");
         testAutoUpdateFull("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/full-np");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDisabledV1() throws Exception {
         testAutoUpdateDisabled("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/disabled");
         testAutoUpdateDisabled("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/disabled-np");

@@ -79,7 +79,7 @@ public class HttpTopicLookupv2Test {
     private Set<String> clusters;
 
     @SuppressWarnings("unchecked")
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setUp() throws Exception {
         pulsar = mock(PulsarService.class);
         ns = mock(NamespaceService.class);
@@ -116,7 +116,7 @@ public class HttpTopicLookupv2Test {
         doReturn(new Semaphore(1000)).when(brokerService).getLookupRequestSemaphore();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void crossColoLookup() throws Exception {
 
         TopicLookup destLookup = spy(new TopicLookup());
@@ -143,7 +143,7 @@ public class HttpTopicLookupv2Test {
     }
     
     
-    @Test
+    @Test(timeOut = 10000)
     public void testNotEnoughLookupPermits() throws Exception {
 
         BrokerService brokerService = pulsar.getBrokerService();
@@ -172,7 +172,7 @@ public class HttpTopicLookupv2Test {
         assertEquals(wae.getResponse().getStatus(), Status.SERVICE_UNAVAILABLE.getStatusCode());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testValidateReplicationSettingsOnNamespace() throws Exception {
 
         final String property = "my-prop";
@@ -215,7 +215,7 @@ public class HttpTopicLookupv2Test {
         assertEquals(arg2.getValue().getClass(), RestException.class);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDataPojo() {
         final String url = "localhost:8080";
         NamespaceData data1 = new NamespaceData(url);

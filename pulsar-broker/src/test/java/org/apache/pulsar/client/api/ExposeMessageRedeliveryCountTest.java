@@ -28,14 +28,14 @@ import java.util.concurrent.TimeUnit;
 
 public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

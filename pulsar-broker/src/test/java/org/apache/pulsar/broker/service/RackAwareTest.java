@@ -50,7 +50,7 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
         super(0);
     }
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     protected void setup() throws Exception {
         super.setup();
 
@@ -81,7 +81,7 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
 
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     protected void shutdown() throws Exception {
         super.shutdown();
 
@@ -92,7 +92,7 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
         bookies.clear();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPlacement() throws Exception {
         for (int i = 0; i < NUM_BOOKIES; i++) {
             String bookie = bookies.get(i).getLocalAddress().toString();
@@ -120,17 +120,17 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
         }
     }
 
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
         // Ignore test
     }
 
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testSkipCorruptDataLedger() throws Exception {
         // Ignore test
     }
 
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testTopicWithWildCardChar() throws Exception {
         // Ignore test
     }

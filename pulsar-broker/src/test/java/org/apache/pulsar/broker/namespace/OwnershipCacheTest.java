@@ -69,7 +69,7 @@ public class OwnershipCacheTest {
     private BrokerService brokerService;
     private OrderedScheduler executor;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         final int port = 8080;
         selfBrokerUrl = "tcp://localhost:" + port;
@@ -99,19 +99,19 @@ public class OwnershipCacheTest {
         doReturn(selfBrokerUrl).when(pulsar).getSafeBrokerServiceUrl();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     public void teardown() throws Exception {
         executor.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConstructor() {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory);
         assertNotNull(cache);
         assertNotNull(cache.getOwnedBundles());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDisableOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory);
 
@@ -127,7 +127,7 @@ public class OwnershipCacheTest {
         assertTrue(data1.isDisabled());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetOrSetOwner() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory);
         NamespaceBundle testFullBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-2"));
@@ -158,7 +158,7 @@ public class OwnershipCacheTest {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetOwner() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory);
         NamespaceBundle testBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-3"));
@@ -186,7 +186,7 @@ public class OwnershipCacheTest {
         assertFalse(res.isPresent());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetOwnedServiceUnit() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-5");
@@ -235,7 +235,7 @@ public class OwnershipCacheTest {
         assertNotNull(cache.getOwnedBundle(testBundle));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetOwnedServiceUnits() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-6");
@@ -270,7 +270,7 @@ public class OwnershipCacheTest {
         assertEquals(cache.getOwnedBundles().size(), 1);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testRemoveOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-7");

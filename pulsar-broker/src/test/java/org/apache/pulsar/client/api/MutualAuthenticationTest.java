@@ -182,7 +182,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         }
     }
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         mutualAuth = new MutualAuthentication();
@@ -203,13 +203,13 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthentication() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

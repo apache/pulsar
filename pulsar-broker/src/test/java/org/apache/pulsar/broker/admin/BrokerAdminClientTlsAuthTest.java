@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
     }
@@ -54,7 +54,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         return String.format("./src/test/resources/authentication/tls-http/%s.pem", name);
     }
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
@@ -81,7 +81,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setTlsAllowInsecureConnection(true); 
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -105,7 +105,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
      *           => Run list topics command
      * @throws Exception 
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testPersistentList() throws Exception {
         log.info("-- Starting {} test --", methodName);
         

@@ -52,13 +52,13 @@ import com.google.common.collect.Maps;
  */
 public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -69,7 +69,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testThrottlingLookupRequestSemaphore() throws Exception {
         BrokerService service = pulsar.getBrokerService();
         assertNotEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
@@ -84,7 +84,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testLookupThrottlingForClientByBroker0Permit() throws Exception {
 
         final String topicName = "persistent://prop/ns-abc/newTopic";
@@ -126,7 +126,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
@@ -187,7 +187,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
 
         final String topicName = "persistent://prop/ns-abc/newTopic";

@@ -51,14 +51,14 @@ import com.google.gson.JsonObject;
 public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetupForStatsTest();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -74,7 +74,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         return new Object[][] { { 0, 0 }, { 0, 2 }, { 1000, 0 }, { 1000, 2 } };
     }
 
-    @Test(dataProvider = "batch_with_timeout")
+    @Test(timeOut = 10000, dataProvider = "batch_with_timeout")
     public void testSyncProducerAndConsumer(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
@@ -121,7 +121,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch_with_timeout")
+    @Test(timeOut = 10000, dataProvider = "batch_with_timeout")
     public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
@@ -178,7 +178,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch_with_timeout")
+    @Test(timeOut = 10000, dataProvider = "batch_with_timeout")
     public void testAsyncProducerAndReceiveAsyncAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec)
             throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -286,7 +286,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 10000, dataProvider = "batch")
     public void testSendTimeout(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -375,7 +375,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAddBrokerLatencyStats() throws Exception {
 
         log.info("-- Starting {} test --", methodName);

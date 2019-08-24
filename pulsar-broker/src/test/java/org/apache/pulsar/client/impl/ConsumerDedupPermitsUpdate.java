@@ -37,14 +37,15 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ConsumerDedupPermitsUpdate extends ProducerConsumerBase {
-    @BeforeClass
+
+    @BeforeClass(timeOut = 60000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass(timeOut = 60000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

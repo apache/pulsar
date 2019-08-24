@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
 public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -52,7 +52,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         this.conf.setClusterName("test");
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -97,7 +97,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testMessageRateDynamicallyChange() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -229,7 +229,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      * @param dispatchRateType
      * @throws Exception
      */
-    @Test()
+    @Test(timeOut = 10000)
     public void testClusterMsgByteRateLimitingClusterConfig() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -641,7 +641,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testGlobalNamespaceThrottling() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -786,7 +786,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testClusterPolicyOverrideConfiguration() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

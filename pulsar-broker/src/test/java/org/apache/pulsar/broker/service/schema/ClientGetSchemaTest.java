@@ -54,7 +54,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         public int age;
     }
 
-    @BeforeClass
+    @BeforeClass(timeOut = 60000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -72,7 +72,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
 
     }
 
-    @AfterClass
+    @AfterClass(timeOut = 60000)
     @Override
     protected void cleanup() throws Exception {
         producers.forEach(t -> {
@@ -90,7 +90,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
                 "http://" + pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT };
     }
 
-    @Test(dataProvider = "serviceUrl")
+    @Test(timeOut = 10000, dataProvider = "serviceUrl")
     public void testGetSchema(String serviceUrl) throws Exception {
         @Cleanup
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl(serviceUrl).build();

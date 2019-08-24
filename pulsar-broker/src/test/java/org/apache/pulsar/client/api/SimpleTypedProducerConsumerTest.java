@@ -56,20 +56,20 @@ import org.testng.annotations.Test;
 public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleTypedProducerConsumerTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testJsonProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -114,7 +114,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testJsonProducerAndConsumerWithPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -157,7 +157,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testWrongCorruptedSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -184,7 +184,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProtobufProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -233,7 +233,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class})
+    @Test(timeOut = 10000, expectedExceptions = {PulsarClientException.class})
     public void testProtobufConsumerWithWrongPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -264,7 +264,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-   @Test
+   @Test(timeOut = 10000)
    public void testAvroProducerAndConsumer() throws Exception {
        log.info("-- Starting {} test --", methodName);
 
@@ -311,7 +311,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
    }
 
-    @Test(expectedExceptions = {PulsarClientException.class})
+    @Test(timeOut = 10000, expectedExceptions = {PulsarClientException.class})
     public void testAvroConsumerWithWrongPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -434,7 +434,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAvroProducerAndAutoSchemaConsumer() throws Exception {
        log.info("-- Starting {} test --", methodName);
 
@@ -483,7 +483,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
    }
 
-   @Test
+   @Test(timeOut = 10000)
     public void testAvroProducerAndAutoSchemaReader() throws Exception {
        log.info("-- Starting {} test --", methodName);
 
@@ -530,7 +530,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
    }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAutoBytesProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -604,7 +604,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMessageBuilderLoadConf() throws Exception {
         String topic = "my-topic-" + System.nanoTime();
 

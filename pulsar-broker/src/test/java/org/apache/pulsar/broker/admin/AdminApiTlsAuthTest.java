@@ -60,7 +60,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         return String.format("./src/test/resources/authentication/tls-http/%s.pem", name);
     }
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
@@ -89,7 +89,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         admin.close();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -137,7 +137,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             .tlsTrustCertsFilePath(getTLSFile("ca.cert")).build();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -147,7 +147,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProxyRoleCantListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -162,7 +162,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProxyRoleCantListNamespacesEvenWithAccess() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -178,7 +178,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -194,7 +194,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                             .get(new GenericType<List<String>>() {}));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnauthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -214,7 +214,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthorizedUserAsOriginalPrincipalButProxyNotAuthorized() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -234,7 +234,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthorizedUserAsOriginalPrincipalProxyIsSuperUser() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -250,7 +250,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                             .get(new GenericType<List<String>>() {}));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnauthorizedUserAsOriginalPrincipalProxyIsSuperUser() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -270,7 +270,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProxyUserViaProxy() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -290,7 +290,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSuperProxyUserAndAdminCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -305,7 +305,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                             .get(new GenericType<List<String>>() {}));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSuperProxyUserAndNonAdminCannotListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -324,7 +324,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProxyCannotSetOriginalPrincipalAsEmpty() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -345,7 +345,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     }
 
     // For https://github.com/apache/pulsar/issues/2880
-    @Test
+    @Test(timeOut = 10000)
     public void testDeleteNamespace() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             log.info("Creating tenant");

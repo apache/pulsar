@@ -45,13 +45,13 @@ public class ResendRequestTest extends BrokerTestBase {
     private static final long testTimeout = 60000; // 1 min
     private static final Logger log = LoggerFactory.getLogger(ResendRequestTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

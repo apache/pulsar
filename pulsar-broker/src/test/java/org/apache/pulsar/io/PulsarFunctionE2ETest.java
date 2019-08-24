@@ -145,7 +145,7 @@ public class PulsarFunctionE2ETest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 20000)
     void setup(Method method) throws Exception {
 
         // delete all function temp files
@@ -295,7 +295,7 @@ public class PulsarFunctionE2ETest {
         fileServerThread.start();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 20000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         fileServer.stop(0);
@@ -346,7 +346,12 @@ public class PulsarFunctionE2ETest {
         return new WorkerService(workerConfig);
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 
         FunctionConfig functionConfig = new FunctionConfig();
@@ -1292,7 +1297,7 @@ public class PulsarFunctionE2ETest {
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
     }
 
-    @Test(dataProvider = "validRoleName")
+    @Test(timeOut = 10000, dataProvider = "validRoleName")
     public void testAuthorization(boolean validRoleName) throws Exception {
 
         final String namespacePortion = "io";
@@ -1583,7 +1588,7 @@ public class PulsarFunctionE2ETest {
             checkArgument(matcher.matches());
             String name = matcher.group(1);
             Metric m = new Metric();
-            m.value = Double.valueOf(matcher.group(3));
+            m.value = Double.parseDouble(matcher.group(3));
             String tags = matcher.group(2);
             Matcher tagsMatcher = tagsPattern.matcher(tags);
             while (tagsMatcher.find()) {

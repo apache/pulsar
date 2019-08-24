@@ -51,7 +51,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         super();
     }
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         conf.setClusterName(configClusterName);
@@ -69,14 +69,14 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         service.start();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
         service.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void test() throws Exception {
         AuthorizationService auth = service.getAuthorizationService();
 

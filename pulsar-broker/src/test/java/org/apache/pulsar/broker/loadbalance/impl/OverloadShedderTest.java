@@ -45,13 +45,13 @@ public class OverloadShedderTest {
         conf.setLoadBalancerBrokerOverloadedThresholdPercentage(85);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNoBrokers() {
         LoadData loadData = new LoadData();
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokersWithNoBundles() {
         LoadData loadData = new LoadData();
 
@@ -63,7 +63,7 @@ public class OverloadShedderTest {
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerNotOverloaded() {
         LoadData loadData = new LoadData();
 
@@ -84,7 +84,7 @@ public class OverloadShedderTest {
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerWithSingleBundle() {
         LoadData loadData = new LoadData();
 
@@ -105,7 +105,7 @@ public class OverloadShedderTest {
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerWithMultipleBundles() {
         int numBundles = 10;
         LoadData loadData = new LoadData();
@@ -141,7 +141,7 @@ public class OverloadShedderTest {
         assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-10", "bundle-9"));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFilterRecentlyUnloaded() {
         int numBundles = 10;
         LoadData loadData = new LoadData();

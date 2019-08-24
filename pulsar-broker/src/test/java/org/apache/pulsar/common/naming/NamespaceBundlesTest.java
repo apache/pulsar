@@ -59,7 +59,7 @@ public class NamespaceBundlesTest {
     private final NamespaceBundleFactory factory = getNamespaceBundleFactory();
 
     @SuppressWarnings("unchecked")
-    @Test
+    @Test(timeOut = 10000)
     public void testConstructor() throws Exception {
         try {
             new NamespaceBundles(null, (SortedSet<Long>) null, null);
@@ -134,7 +134,7 @@ public class NamespaceBundlesTest {
         return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFindBundle() throws Exception {
         SortedSet<Long> partitions = Sets.newTreeSet();
         partitions.add(0l);
@@ -174,7 +174,7 @@ public class NamespaceBundlesTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testsplitBundles() throws Exception {
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
@@ -217,7 +217,7 @@ public class NamespaceBundlesTest {
         assertEquals(totalExpectedSplitBundles, splitChildBundles2.getLeft().getBundles().size());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSplitBundleInTwo() throws Exception {
         final int NO_BUNDLES = 2;
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");

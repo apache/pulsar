@@ -38,19 +38,19 @@ public class ConsumerUnsubscribeTest {
     private static final int BROKER_SERVICE_PORT = PortManager.nextFreePort();
     private static final int BROKER_SERVICE_TLS_PORT = PortManager.nextFreePort();
 
-    @BeforeClass
+    @BeforeClass(timeOut = 60000)
     public void setup() {
         mockBrokerService = new MockBrokerService(WEB_SERVICE_PORT, WEB_SERVICE_TLS_PORT, BROKER_SERVICE_PORT,
                 BROKER_SERVICE_TLS_PORT);
         mockBrokerService.start();
     }
 
-    @AfterClass
+    @AfterClass(timeOut = 60000)
     public void teardown() {
         mockBrokerService.stop();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConsumerUnsubscribeReference() throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl("pulsar://127.0.0.1:" + BROKER_SERVICE_PORT).build();

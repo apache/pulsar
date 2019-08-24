@@ -70,7 +70,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -85,7 +85,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, Optional.empty(), null);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -93,7 +93,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         compactionScheduler.shutdownNow();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompaction() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
         final int numMessages = 20;
@@ -152,7 +152,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactionWithReader() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
         final int numMessages = 20;
@@ -215,7 +215,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReadCompactedBeforeCompaction() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -256,7 +256,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReadEntriesAfterCompaction() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -288,7 +288,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSeekEarliestAfterCompaction() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -330,7 +330,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerRestartAfterCompaction() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -373,7 +373,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactEmptyTopic() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -396,7 +396,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFirstMessageRetained() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -438,7 +438,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBatchMessageIdsDontChange() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -497,7 +497,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testWholeBatchCompactedOut() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -534,7 +534,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testKeyLessMessagesPassThrough() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -592,7 +592,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     public void testEmptyPayloadDeletes() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -675,7 +675,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testEmptyPayloadDeletesWhenCompressed() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -757,7 +757,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     // test compact no keys
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactorReadsCompacted() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -858,7 +858,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactCompressedNoBatch() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -898,7 +898,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactCompressedBatching() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -978,7 +978,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactEncryptedNoBatch() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -1021,7 +1021,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactEncryptedBatching() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -1072,7 +1072,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactEncryptedAndCompressedNoBatch() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -1116,7 +1116,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactEncryptedAndCompressedBatching() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -1168,7 +1168,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testEmptyPayloadDeletesWhenEncrypted() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 

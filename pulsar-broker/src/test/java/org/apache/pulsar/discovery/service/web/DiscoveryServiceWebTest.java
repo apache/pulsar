@@ -57,14 +57,14 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
     private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -76,7 +76,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testRedirectUrlWithServerStarted() throws Exception {
         // 1. start server
         int port = PortManager.nextFreePort();

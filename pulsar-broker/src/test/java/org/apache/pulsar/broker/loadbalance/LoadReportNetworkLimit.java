@@ -28,7 +28,7 @@ import static org.testng.Assert.*;
 
 public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
@@ -36,13 +36,13 @@ public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
         super.internalSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void checkLoadReportNicSpeed() throws Exception {
         // Since we have overridden the NIC speed in the configuration, the load report for the broker should always
 

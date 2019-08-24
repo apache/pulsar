@@ -54,7 +54,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
     private ReplicatedSubscriptionsController controller;
     private List<ByteBuf> markers;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() {
         clock = mock(Clock.class);
         when(clock.millis()).thenAnswer(invocation -> currentTime);
@@ -75,7 +75,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
                 .writeMarker(any(ByteBuf.class));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBuildSnapshotWith2Clusters() throws Exception {
         List<String> remoteClusters = Arrays.asList("b");
 
@@ -116,7 +116,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(snapshot.getLocalMessageId().getEntryId(), 1);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBuildSnapshotWith3Clusters() throws Exception {
         List<String> remoteClusters = Arrays.asList("b", "c");
 
@@ -206,7 +206,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(snapshot.getLocalMessageId().getEntryId(), 4);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBuildTimeout() throws Exception {
         List<String> remoteClusters = Arrays.asList("b");
 

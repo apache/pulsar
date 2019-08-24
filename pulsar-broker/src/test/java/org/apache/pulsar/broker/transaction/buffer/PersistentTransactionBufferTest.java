@@ -116,7 +116,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic_txn";
     private static final Logger log = LoggerFactory.getLogger(PersistentTransactionBufferTest.class);
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
@@ -311,7 +311,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     public void teardown() throws Exception {
         brokerService.getTopics().clear();
         brokerService.close(); //to clear pulsarStats
@@ -326,7 +326,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     private final TxnID txnID = new TxnID(1234L, 5678L);
     private PersistentTransactionBuffer buffer;
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetANonExistTxn() throws InterruptedException {
         try {
             buffer.getTransactionMeta(txnID).get();
@@ -335,7 +335,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOpenReaderOnNonExistentTxn() throws InterruptedException{
         try {
             buffer.openTransactionBufferReader(txnID, 0L).get();
@@ -344,7 +344,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOpenReadOnAnOpenTxn() throws InterruptedException {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
@@ -365,7 +365,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOpenReaderOnCommittedTxn() throws ExecutionException, InterruptedException {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
@@ -391,7 +391,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCommitNonExistentTxn() throws ExecutionException, InterruptedException {
         try {
             buffer.commitTxn(txnID, 22L, 33L).get();
@@ -400,7 +400,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCommitTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
@@ -416,7 +416,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(meta.status(), TxnStatus.COMMITTED);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCommitTxnMultiTimes() throws ExecutionException, InterruptedException {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
@@ -441,7 +441,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(meta.numEntries(), numEntries);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAbortNonExistentTxn() throws Exception {
         try {
             buffer.abortTxn(txnID).get();
@@ -451,7 +451,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAbortCommittedTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
@@ -476,7 +476,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.COMMITTED, meta.status());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAbortTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
@@ -488,7 +488,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         verifyTxnNotExist(txnID);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPurgeTxns() throws Exception {
         final int numEntries = 10;
         TxnID txnId1 = new TxnID(1234L, 2345L);
@@ -541,7 +541,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.COMMITTED, meta3.status());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAppendEntry() throws ExecutionException, InterruptedException, ManagedLedgerException,
                                          BrokerServiceException.NamingException {
         ManagedLedger ledger = factory.open("test_ledger");
@@ -567,7 +567,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         verifyEntries(ledger, copy, meta.getEntries());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCommitMarker() throws Exception {
         ManagedLedger ledger = factory.open("test_commit_ledger");
         PersistentTransactionBuffer commitBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
@@ -595,7 +595,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAbortMarker() throws Exception {
         ManagedLedger ledger = factory.open("test_abort_ledger");
         PersistentTransactionBuffer abortBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
@@ -642,7 +642,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         return readEntry.get(0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNoDeduplicateMessage()
         throws ManagedLedgerException, InterruptedException, BrokerServiceException.NamingException,
                ExecutionException {

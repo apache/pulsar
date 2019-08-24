@@ -62,7 +62,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
     private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         if (methodName.equals("testAnonymousSyncProducerAndConsumer")) {
@@ -116,7 +116,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 .enableTls(true).build();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -159,7 +159,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 10000, dataProvider = "batch")
     public void testTlsSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -181,7 +181,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 10000, dataProvider = "batch")
     public void testBasicCryptSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         AuthenticationBasic authPassword = new AuthenticationBasic();
@@ -199,7 +199,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 10000, dataProvider = "batch")
     public void testBasicArp1SyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         AuthenticationBasic authPassword = new AuthenticationBasic();
@@ -217,7 +217,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(timeOut = 10000, dataProvider = "batch")
     public void testAnonymousSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -265,7 +265,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthenticationFilterNegative() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -296,7 +296,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testInternalServerExceptionOnLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

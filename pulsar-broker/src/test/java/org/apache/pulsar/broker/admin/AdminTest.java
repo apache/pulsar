@@ -91,7 +91,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
+@Test(timeOut = 10000)
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private final String configClusterName = "use";
     private ConfigurationCacheService configurationCache;
@@ -115,7 +115,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         super.internalSetup();
 
@@ -203,12 +203,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void internalConfiguration() throws Exception {
         InternalConfigurationData expectedData = new InternalConfigurationData(
             pulsar.getConfiguration().getZookeeperServers(),
@@ -219,7 +219,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(brokers.getInternalConfigurationData(), expectedData);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void clusters() throws Exception {
         assertEquals(clusters.getClusters(), Lists.newArrayList());
         verify(clusters, never()).validateSuperUserAccess();
@@ -369,7 +369,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void properties() throws Exception {
         assertEquals(properties.getTenants(), Lists.newArrayList());
         verify(properties, times(1)).validateSuperUserAccess();
@@ -517,7 +517,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         properties.deleteTenant("tenant-config-is-null");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void brokers() throws Exception {
         clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com",
                 "https://broker.messaging.use.example.com:4443"));
@@ -535,7 +535,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void resourceQuotas() throws Exception {
         // get Default Resource Quota
         ResourceQuota quota = resourceQuotas.getDefaultResourceQuota();
@@ -597,7 +597,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(defaultBandwidth, bundleQuota.getBandwidthOut());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void brokerStats() throws Exception {
         doReturn("client-id").when(brokerStats).clientAppId();
         Collection<Metrics> metrics = brokerStats.getMetrics();
@@ -621,7 +621,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void persistentTopics() throws Exception {
 
         final String property = "prop-xyz";
@@ -671,7 +671,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertTrue(permission.isEmpty());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testRestExceptionMessage() {
         String message = "my-message";
         RestException exception = new RestException(Status.PRECONDITION_FAILED, message);

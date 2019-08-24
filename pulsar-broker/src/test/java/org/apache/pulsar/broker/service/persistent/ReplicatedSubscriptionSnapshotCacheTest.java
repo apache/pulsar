@@ -28,7 +28,7 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsS
 import org.testng.annotations.Test;
 
 public class ReplicatedSubscriptionSnapshotCacheTest {
-    @Test
+    @Test(timeOut = 10000)
     public void testSnashotCache() {
         ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 10);
 
@@ -70,7 +70,7 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         assertNull(cache.advancedMarkDeletePosition(new PositionImpl(5, 5)));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSnashotCachePruning() {
         ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 3);
 

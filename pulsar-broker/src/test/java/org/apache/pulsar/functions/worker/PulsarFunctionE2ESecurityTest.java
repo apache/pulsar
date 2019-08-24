@@ -112,13 +112,13 @@ public class PulsarFunctionE2ESecurityTest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 20000)
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager::nextFreePort);
         bkEnsemble.start();
 
         brokerServiceUrl = "http://127.0.0.1:" + brokerWebServicePort;
@@ -198,7 +198,7 @@ public class PulsarFunctionE2ESecurityTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         pulsarClient.close();
@@ -246,7 +246,12 @@ public class PulsarFunctionE2ESecurityTest {
         return new WorkerService(workerConfig);
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -264,7 +269,7 @@ public class PulsarFunctionE2ESecurityTest {
         return functionConfig;
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthorizationWithAnonymousUser() throws Exception {
 
         final String replNamespace = TENANT + "/" + NAMESPACE;
@@ -297,7 +302,7 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            // grant permissions to annoynmous role
+            // grant permissions to anonymous role
             Set<AuthAction> actions = new HashSet<>();
             actions.add(AuthAction.functions);
             actions.add(AuthAction.produce);
@@ -520,7 +525,7 @@ public class PulsarFunctionE2ESecurityTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthorization() throws Exception {
         String token1 = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
         String token2 = AuthTokenUtils.createToken(secretKey, "wrong-subject", Optional.empty());

@@ -58,13 +58,13 @@ import org.testng.annotations.Test;
 
 public class PersistentFailoverE2ETest extends BrokerTestBase {
 
-    @BeforeClass
+    @BeforeClass(timeOut = 60000)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(timeOut = 60000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -131,7 +131,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSimpleConsumerEventsWithoutPartition() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/failover-topic1";
         final String subName = "sub1";
@@ -259,7 +259,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         admin.topics().delete(topicName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSimpleConsumerEventsWithPartition() throws Exception {
         int numPartitions = 4;
 
@@ -455,7 +455,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         admin.topics().deletePartitionedTopic(topicName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testActiveConsumerFailoverWithDelay() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/failover-topic3";
         final String subName = "sub1";

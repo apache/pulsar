@@ -49,7 +49,7 @@ public class ServiceConfigurationTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testInit() throws Exception {
         final String zookeeperServer = "localhost:2184";
         final int brokerServicePort = 1000;
@@ -61,7 +61,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getBootstrapNamespaces().get(1), "ns2");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOptionalSettingEmpty() throws Exception {
         String confFile = "loadBalancerOverrideBrokerNicSpeedGbps=\n";
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
@@ -69,7 +69,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.empty());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOptionalSettingPresent() throws Exception {
         String confFile = "loadBalancerOverrideBrokerNicSpeedGbps=5\n";
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
@@ -82,7 +82,7 @@ public class ServiceConfigurationTest {
      *
      * @throws Exception
      */
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(timeOut = 10000, expectedExceptions = IllegalArgumentException.class)
     public void testInitFailure() throws Exception {
         final String zookeeperServer = "localhost:2184";
         InputStream newStream = updateProp(zookeeperServer, String.valueOf("invalid-string"), null);

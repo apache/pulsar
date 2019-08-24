@@ -53,19 +53,19 @@ public class ClientErrorsTest {
 
     private final String ASSERTION_ERROR = "AssertionError";
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     public void setup() {
         mockBrokerService = new MockBrokerService(WEB_SERVICE_PORT, WEB_SERVICE_TLS_PORT, BROKER_SERVICE_PORT,
                 BROKER_SERVICE_TLS_PORT);
         mockBrokerService.start();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     public void teardown() {
         mockBrokerService.stop();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMockBrokerService() throws Exception {
         // test default actions of mock broker service
         try {
@@ -89,12 +89,12 @@ public class ClientErrorsTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerCreateFailWithoutRetry() throws Exception {
         producerCreateFailWithoutRetry("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedProducerCreateFailWithoutRetry() throws Exception {
         producerCreateFailWithoutRetry("persistent://prop/use/ns/part-t1");
     }
@@ -125,12 +125,12 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerCreateSuccessAfterRetry() throws Exception {
         producerCreateSuccessAfterRetry("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedProducerCreateSuccessAfterRetry() throws Exception {
         producerCreateSuccessAfterRetry("persistent://prop/use/ns/part-t1");
     }
@@ -157,12 +157,12 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerCreateFailAfterRetryTimeout() throws Exception {
         producerCreateFailAfterRetryTimeout("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedProducerCreateFailAfterRetryTimeout() throws Exception {
         producerCreateFailAfterRetryTimeout("persistent://prop/use/ns/part-t1");
     }
@@ -195,12 +195,12 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerFailDoesNotFailOtherProducer() throws Exception {
         producerFailDoesNotFailOtherProducer("persistent://prop/use/ns/t1", "persistent://prop/use/ns/t2");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedProducerFailDoesNotFailOtherProducer() throws Exception {
         producerFailDoesNotFailOtherProducer("persistent://prop/use/ns/part-t1", "persistent://prop/use/ns/part-t2");
     }
@@ -236,12 +236,12 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testProducerContinuousRetryAfterSendFail() throws Exception {
         producerContinuousRetryAfterSendFail("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedProducerContinuousRetryAfterSendFail() throws Exception {
         producerContinuousRetryAfterSendFail("persistent://prop/use/ns/part-t1");
     }
@@ -282,17 +282,17 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSubscribeFailWithoutRetry() throws Exception {
         subscribeFailWithoutRetry("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedSubscribeFailWithoutRetry() throws Exception {
         subscribeFailWithoutRetry("persistent://prop/use/ns/part-t1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testLookupWithDisconnection() throws Exception {
         final String brokerUrl = "pulsar://127.0.0.1:" + BROKER_SERVICE_PORT;
         PulsarClient client = PulsarClient.builder().serviceUrl(brokerUrl).build();
@@ -353,12 +353,12 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSubscribeSuccessAfterRetry() throws Exception {
         subscribeSuccessAfterRetry("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedSubscribeSuccessAfterRetry() throws Exception {
         subscribeSuccessAfterRetry("persistent://prop/use/ns/part-t1");
     }
@@ -385,12 +385,12 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSubscribeFailAfterRetryTimeout() throws Exception {
         subscribeFailAfterRetryTimeout("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedSubscribeFailAfterRetryTimeout() throws Exception {
         subscribeFailAfterRetryTimeout("persistent://prop/use/ns/part-t1");
     }
@@ -423,12 +423,12 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSubscribeFailDoesNotFailOtherConsumer() throws Exception {
         subscribeFailDoesNotFailOtherConsumer("persistent://prop/use/ns/t1", "persistent://prop/use/ns/t2");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedSubscribeFailDoesNotFailOtherConsumer() throws Exception {
         subscribeFailDoesNotFailOtherConsumer("persistent://prop/use/ns/part-t1", "persistent://prop/use/ns/part-t2");
     }
@@ -467,7 +467,7 @@ public class ClientErrorsTest {
 
     // if a producer fails to connect while creating partitioned producer, it should close all successful connections of
     // other producers and fail
-    @Test
+    @Test(timeOut = 10000)
     public void testOneProducerFailShouldCloseAllProducersInPartitionedProducer() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("http://127.0.0.1:" + WEB_SERVICE_PORT).build();
         final AtomicInteger producerCounter = new AtomicInteger(0);
@@ -502,7 +502,7 @@ public class ClientErrorsTest {
 
     // if a consumer fails to subscribe while creating partitioned consumer, it should close all successful connections
     // of other consumers and fail
-    @Test
+    @Test(timeOut = 10000)
     public void testOneConsumerFailShouldCloseAllConsumersInPartitionedConsumer() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("http://127.0.0.1:" + WEB_SERVICE_PORT).build();
         final AtomicInteger subscribeCounter = new AtomicInteger(0);
@@ -536,7 +536,7 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFlowSendWhenPartitionedSubscribeCompletes() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("http://127.0.0.1:" + WEB_SERVICE_PORT).build();
 
@@ -567,7 +567,7 @@ public class ClientErrorsTest {
     }
 
     // Run this test multiple times to reproduce race conditions on reconnection logic
-    @Test(invocationCount = 10)
+    @Test(timeOut = 10000, invocationCount = 10)
     public void testProducerReconnect() throws Exception {
         AtomicInteger numOfConnections = new AtomicInteger();
         AtomicReference<ChannelHandlerContext> channelCtx = new AtomicReference<>();
@@ -607,7 +607,7 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConsumerReconnect() throws Exception {
         AtomicInteger numOfConnections = new AtomicInteger();
         AtomicReference<ChannelHandlerContext> channelCtx = new AtomicReference<>();

@@ -39,19 +39,19 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void beforeMethod(Method m) {
         methodName = m.getName();
     }
 
     @Override
-    @BeforeClass(timeOut = 300000)
+    @BeforeClass( timeOut = 300000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
+    @AfterClass( timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -62,7 +62,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testRemoveLocalClusterOnGlobalNamespace() throws Exception {
         log.info("--- Starting ReplicatorTest::testRemoveLocalClusterOnGlobalNamespace ---");
 
@@ -98,7 +98,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         client2.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testForcefullyTopicDeletion() throws Exception {
         log.info("--- Starting ReplicatorTest::testForcefullyTopicDeletion ---");
 

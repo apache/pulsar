@@ -139,7 +139,7 @@ public class PersistentTopicTest {
     final String successSubName3 = "successSub3";
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
@@ -187,7 +187,7 @@ public class PersistentTopicTest {
         setupMLAsyncCallbackMocks();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     public void teardown() throws Exception {
         brokerService.getTopics().clear();
         brokerService.close(); //to clear pulsarStats
@@ -199,7 +199,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateTopic() throws Exception {
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
@@ -229,7 +229,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateTopicMLFailure() throws Exception {
         final String jinxedTopicName = "persistent://prop/use/ns-abc/topic3";
         doAnswer(new Answer<Object>() {
@@ -258,7 +258,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPublishMessage() throws Exception {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
@@ -278,7 +278,7 @@ public class PersistentTopicTest {
         assertTrue(latch.await(1, TimeUnit.SECONDS));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDispatcherMultiConsumerReadFailed() throws Exception {
         PersistentTopic topic = spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         ManagedCursor cursor = mock(ManagedCursor.class);
@@ -288,7 +288,7 @@ public class PersistentTopicTest {
         verify(topic, atLeast(1)).getBrokerService();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDispatcherSingleConsumerReadFailed() throws Exception {
         PersistentTopic topic = spy(new PersistentTopic(successTopicName, ledgerMock, brokerService));
         ManagedCursor cursor = mock(ManagedCursor.class);
@@ -300,7 +300,7 @@ public class PersistentTopicTest {
         verify(topic, atLeast(1)).getBrokerService();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPublishMessageMLFailure() throws Exception {
         final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
 
@@ -338,7 +338,7 @@ public class PersistentTopicTest {
         assertTrue(latch.await(1, TimeUnit.SECONDS));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAddRemoveProducer() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
@@ -400,7 +400,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMaxProducersForBroker() throws Exception {
         // set max clients
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
@@ -409,7 +409,7 @@ public class PersistentTopicTest {
         testMaxProducers();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMaxProducersForNamespace() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         doReturn(svcConfig).when(pulsar).getConfiguration();
@@ -422,7 +422,7 @@ public class PersistentTopicTest {
         testMaxProducers();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSubscribeFail() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
@@ -442,7 +442,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSubscribeUnsubscribe() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
@@ -475,7 +475,7 @@ public class PersistentTopicTest {
         assertNull(topic.getSubscription(successSubName));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAddRemoveConsumer() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
@@ -570,7 +570,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMaxConsumersSharedForBroker() throws Exception {
         // set max clients
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
@@ -581,7 +581,7 @@ public class PersistentTopicTest {
         testMaxConsumersShared();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMaxConsumersSharedForNamespace() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         doReturn(svcConfig).when(pulsar).getConfiguration();
@@ -661,7 +661,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMaxConsumersFailoverForBroker() throws Exception {
         // set max clients
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
@@ -672,7 +672,7 @@ public class PersistentTopicTest {
         testMaxConsumersFailover();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testMaxConsumersFailoverForNamespace() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         doReturn(svcConfig).when(pulsar).getConfiguration();
@@ -688,7 +688,7 @@ public class PersistentTopicTest {
         testMaxConsumersFailover();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUbsubscribeRaceConditions() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
@@ -721,7 +721,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDeleteTopic() throws Exception {
         // create topic
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -753,7 +753,7 @@ public class PersistentTopicTest {
         topic.unsubscribe(successSubName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDeleteAndUnsubscribeTopic() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -808,7 +808,7 @@ public class PersistentTopicTest {
         assertFalse(gotException.get());
     }
 
-    // @Test
+    // @Test(timeOut = 10000)
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -868,7 +868,7 @@ public class PersistentTopicTest {
         assertFalse(gotException.get());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDeleteTopicRaceConditions() throws Exception {
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
 
@@ -1023,7 +1023,7 @@ public class PersistentTopicTest {
             }).when(cursorMock).asyncMarkDelete(any(), any(), any(MarkDeleteCallback.class), any());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFailoverSubscription() throws Exception {
         PersistentTopic topic1 = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
@@ -1177,7 +1177,7 @@ public class PersistentTopicTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testAtomicReplicationRemoval() throws Exception {
         final String globalTopicName = "persistent://prop/global/ns-abc/successTopic";
         String localCluster = "local";
@@ -1223,7 +1223,7 @@ public class PersistentTopicTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test
+    @Test(timeOut = 10000)
     public void testClosingReplicationProducerTwice() throws Exception {
         final String globalTopicName = "persistent://prop/global/ns/testClosingReplicationProducerTwice";
         String localCluster = "local";
@@ -1261,7 +1261,7 @@ public class PersistentTopicTest {
         verify(clientImpl, Mockito.times(2)).createProducerAsync(any(), any(), any());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactorSubscription() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
@@ -1276,7 +1276,7 @@ public class PersistentTopicTest {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactorSubscriptionUpdatedOnInit() throws Exception {
         long ledgerId = 0xc0bfefeL;
         Map<String, Long> properties = ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId);
@@ -1291,7 +1291,7 @@ public class PersistentTopicTest {
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactionTriggeredAfterThresholdFirstInvocation() throws Exception {
         CompletableFuture<Long> compactPromise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();
@@ -1319,7 +1319,7 @@ public class PersistentTopicTest {
         verify(compactor, times(1)).compact(anyString());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactionTriggeredAfterThresholdSecondInvocation() throws Exception {
         CompletableFuture<Long> compactPromise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();
@@ -1351,7 +1351,7 @@ public class PersistentTopicTest {
         verify(compactor, times(1)).compact(anyString());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactionDisabledWithZeroThreshold() throws Exception {
         CompletableFuture<Long> compactPromise = new CompletableFuture<>();
         Compactor compactor = pulsar.getCompactor();

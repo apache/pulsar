@@ -123,7 +123,7 @@ public class SimpleLoadManagerImplTest {
         System.setProperty("test.basePort", "16100");
     }
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     void setup() throws Exception {
 
         // Start local bookkeeper ensemble
@@ -166,7 +166,7 @@ public class SimpleLoadManagerImplTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();
@@ -206,7 +206,7 @@ public class SimpleLoadManagerImplTest {
 
     }
 
-    @Test(enabled = true)
+    @Test(timeOut = 10000)
     public void testBasicBrokerSelection() throws Exception {
         LoadManager loadManager = new SimpleLoadManagerImpl(pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -240,7 +240,7 @@ public class SimpleLoadManagerImplTest {
         field.set(objInstance, newValue);
     }
 
-    @Test(enabled = true)
+    @Test(timeOut = 10000, enabled = true)
     public void testPrimary() throws Exception {
         createNamespacePolicies(pulsar1);
         LoadManager loadManager = new SimpleLoadManagerImpl(pulsar1);
@@ -280,7 +280,7 @@ public class SimpleLoadManagerImplTest {
 
     }
 
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testPrimarySecondary() throws Exception {
         createNamespacePolicies(pulsar1);
         LocalZooKeeperCache mockCache = mock(LocalZooKeeperCache.class);
@@ -336,7 +336,7 @@ public class SimpleLoadManagerImplTest {
         zkCacheField.set(pulsar1, originalLZK1);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testResourceDescription() {
 
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -360,7 +360,7 @@ public class SimpleLoadManagerImplTest {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testLoadReportParsing() throws Exception {
 
         ObjectMapper mapper = ObjectMapperFactory.create();
@@ -380,7 +380,7 @@ public class SimpleLoadManagerImplTest {
                 0);
     }
 
-    @Test(enabled = true)
+    @Test(timeOut = 10000)
     public void testDoLoadShedding() throws Exception {
         LoadManager loadManager = spy(new SimpleLoadManagerImpl(pulsar1));
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -429,7 +429,7 @@ public class SimpleLoadManagerImplTest {
     }
 
     // Test that bundles belonging to the same namespace are evenly distributed.
-    @Test
+    @Test(timeOut = 10000)
     public void testEvenBundleDistribution() throws Exception {
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils
                 .makeBundles(pulsar1.getNamespaceService().getNamespaceBundleFactory(), "pulsar", "use", "test", 16);
@@ -459,7 +459,7 @@ public class SimpleLoadManagerImplTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNamespaceBundleStats() {
         NamespaceBundleStats nsb1 = new NamespaceBundleStats();
         nsb1.msgRateOut = 10000;
@@ -485,7 +485,7 @@ public class SimpleLoadManagerImplTest {
         assertEquals(-1, nsb1.compareByBandwidthIn(nsb2));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerHostUsage() {
         BrokerHostUsage brokerUsage;
         if (SystemUtils.IS_OS_LINUX) {
@@ -497,7 +497,7 @@ public class SimpleLoadManagerImplTest {
         // Ok
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testTask() throws Exception {
         LoadManager loadManager = mock(LoadManager.class);
         AtomicReference<LoadManager> atomicLoadManager = new AtomicReference<>(loadManager);
@@ -510,7 +510,7 @@ public class SimpleLoadManagerImplTest {
         verify(loadManager, times(1)).doLoadShedding();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUsage() {
         Map<String, Object> metrics = Maps.newHashMap();
         metrics.put("brk_conn_cnt", new Long(1));

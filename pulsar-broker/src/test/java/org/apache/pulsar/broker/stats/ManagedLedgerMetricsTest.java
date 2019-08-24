@@ -38,19 +38,19 @@ import org.testng.annotations.Test;
  */
 public class ManagedLedgerMetricsTest extends BrokerTestBase {
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testManagedLedgerMetrics() throws Exception {
         ManagedLedgerMetrics metrics = new ManagedLedgerMetrics(pulsar);
 

@@ -38,20 +38,20 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(InterceptorsTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testProducerInterceptor() throws PulsarClientException {
         ProducerInterceptor<String> interceptor1 = new ProducerInterceptor<String>() {
             @Override
@@ -117,7 +117,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testProducerInterceptorsWithExceptions() throws PulsarClientException {
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
@@ -145,7 +145,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testProducerInterceptorsWithErrors() throws PulsarClientException {
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
@@ -173,7 +173,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 120000)
     public void testConsumerInterceptorWithErrors() throws PulsarClientException {
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
@@ -246,7 +246,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer2.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testConsumerInterceptorWithSingleTopicSubscribe() throws PulsarClientException {
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
@@ -309,7 +309,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testConsumerInterceptorWithMultiTopicSubscribe() throws PulsarClientException {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
@@ -381,7 +381,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testConsumerInterceptorWithPatternTopicSubscribe() throws PulsarClientException {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
@@ -453,7 +453,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testConsumerInterceptorForAcknowledgeCumulative() throws PulsarClientException {
 
         List<MessageId> ackHolder = new ArrayList<>();
@@ -529,7 +529,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testConsumerInterceptorForNegativeAcksSend() throws PulsarClientException, InterruptedException {
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
@@ -599,7 +599,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testConsumerInterceptorForAckTimeoutSend() throws PulsarClientException, InterruptedException {
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);

@@ -33,7 +33,7 @@ import org.testng.collections.Lists;
 public class ReplicatorTlsTest extends ReplicatorTestBase {
 
     @Override
-    @BeforeClass(timeOut = 300000)
+    @BeforeClass( timeOut = 300000)
     void setup() throws Exception {
         config1.setBrokerClientTlsEnabled(true);
         config2.setBrokerClientTlsEnabled(true);
@@ -42,12 +42,12 @@ public class ReplicatorTlsTest extends ReplicatorTestBase {
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
+    @AfterClass( timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReplicationClient() throws Exception {
         log.info("--- Starting ReplicatorTlsTest::testReplicationClient ---");
         for (BrokerService ns : Lists.newArrayList(ns1, ns2, ns3)) {

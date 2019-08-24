@@ -112,7 +112,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         return future;
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testPersistentMessageFinder() throws Exception {
         final String ledgerAndCursorName = "testPersistentMessageFinder";
         int entriesPerLedger = 2;
@@ -205,7 +205,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
      * 
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     void testMessageExpiryWithNonRecoverableException() throws Exception {
 
         final String ledgerAndCursorName = "testPersistentMessageExpiryWithNonRecoverableLedgers";

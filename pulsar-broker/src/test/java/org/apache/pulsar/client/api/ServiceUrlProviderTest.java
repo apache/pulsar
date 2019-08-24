@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -44,13 +44,13 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     }
 
-    @AfterClass
+    @AfterClass( timeOut = 60000 )
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateClientWithServiceUrlProvider() throws Exception {
 
         PulsarClient client = PulsarClient.builder()
@@ -84,7 +84,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateClientWithAutoChangedServiceUrlProvider() throws Exception {
 
         AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getSafeBrokerServiceUrl());

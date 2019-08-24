@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
  */
 public class TransactionEntryImplTest {
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCloseShouldReleaseBuffer() {
         ByteBuf buffer = Unpooled.copiedBuffer("test-value", UTF_8);
         TransactionEntryImpl entry = new TransactionEntryImpl(

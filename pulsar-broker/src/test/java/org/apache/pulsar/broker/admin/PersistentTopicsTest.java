@@ -66,7 +66,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     protected UriInfo uriInfo;
     private NonPersistentTopics nonPersistentTopic;
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     public void initPersistentTopics() throws Exception {
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
@@ -74,7 +74,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     protected void setup() throws Exception {
         super.internalSetup();
         persistentTopics = spy(new PersistentTopics());
@@ -114,12 +114,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetSubscriptions() {
         String testLocalTopicName = "topic-not-found";
 
@@ -191,7 +191,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNonPartitionedTopics() {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         final String nonPartitionTopic = "non-partitioned-topic";
@@ -216,7 +216,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCreateNonPartitionedTopic() {
         final String topicName = "standard-topic";
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
@@ -225,14 +225,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(pMetadata.partitions, 0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnloadTopic() {
         final String topicName = "standard-topic-to-be-unload";
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
         persistentTopics.unloadTopic(testTenant, testNamespace, topicName, true);
     }
 
-    @Test(expectedExceptions = RestException.class)
+    @Test(timeOut = 10000, expectedExceptions = RestException.class)
     public void testUnloadTopicShallThrowNotFoundWhenTopicNotExist() {
         try {
             persistentTopics.unloadTopic(testTenant, testNamespace,"non-existent-topic", true);
@@ -242,7 +242,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetPartitionedTopicsList() throws KeeperException, InterruptedException, PulsarAdminException {
 
         persistentTopics.createPartitionedTopic(testTenant, testNamespace, "test-topic1", 3);

@@ -45,7 +45,7 @@ public class AdvertisedAddressTest {
 
     private final String advertisedAddress = "pulsar-usc.example.com";
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
@@ -62,13 +62,13 @@ public class AdvertisedAddressTest {
         pulsar.start();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     public void shutdown() throws Exception {
         pulsar.close();
         bkEnsemble.stop();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAdvertisedAddress() throws Exception {
         Assert.assertEquals( pulsar.getAdvertisedAddress(), advertisedAddress );
         Assert.assertEquals( pulsar.getSafeBrokerServiceUrl(), String.format("pulsar://%s:%d", advertisedAddress, BROKER_SERVICE_PORT) );

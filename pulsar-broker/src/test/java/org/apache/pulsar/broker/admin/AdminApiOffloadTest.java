@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 
 public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         conf.setManagedLedgerMaxEntriesPerLedger(10);
@@ -61,7 +61,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -125,14 +125,14 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOffloadV2() throws Exception {
         String topicName = "persistent://prop-xyz/ns1/topic1";
         String mlName = "prop-xyz/ns1/persistent/topic1";
         testOffload(topicName, mlName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testOffloadV1() throws Exception {
         String topicName = "persistent://prop-xyz/test/ns1/topic2";
         String mlName = "prop-xyz/test/ns1/persistent/topic2";

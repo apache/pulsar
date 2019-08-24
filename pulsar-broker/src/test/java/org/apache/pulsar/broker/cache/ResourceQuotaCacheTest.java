@@ -50,7 +50,7 @@ public class ResourceQuotaCacheTest {
     private NamespaceBundleFactory bundleFactory;
     private OrderedScheduler executor;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
@@ -69,12 +69,12 @@ public class ResourceQuotaCacheTest {
         doReturn(localCache).when(pulsar).getLocalZkCacheService();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     public void teardown() {
         executor.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetSetDefaultQuota() throws Exception {
         ResourceQuotaCache cache = new ResourceQuotaCache(zkCache);
         ResourceQuota quota1 = ResourceQuotaCache.getInitialQuotaValue();
@@ -91,7 +91,7 @@ public class ResourceQuotaCacheTest {
         assertEquals(cache.getDefaultQuota(), quota2);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetSetBundleQuota() throws Exception {
         ResourceQuotaCache cache = new ResourceQuotaCache(zkCache);
         NamespaceBundle testBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-2"));

@@ -92,14 +92,14 @@ public class BrokerBookieIsolationTest {
 
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     protected void setup() throws Exception {
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(4, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     protected void cleanup() throws Exception {
         if (pulsarService != null) {
             pulsarService.close();
@@ -120,7 +120,7 @@ public class BrokerBookieIsolationTest {
      * 
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testBookieIsolation() throws Exception {
 
         final String tenant1 = "tenant1";
@@ -247,7 +247,7 @@ public class BrokerBookieIsolationTest {
      * 
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testBookieIsilationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
@@ -373,7 +373,7 @@ public class BrokerBookieIsolationTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDeleteIsolationGroup() throws Exception {
 
         final String tenant1 = "tenant1";

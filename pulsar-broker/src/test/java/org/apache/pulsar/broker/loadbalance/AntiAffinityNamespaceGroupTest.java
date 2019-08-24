@@ -107,7 +107,7 @@ public class AntiAffinityNamespaceGroupTest {
         return field.get(instance);
     }
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     void setup() throws Exception {
 
         // Start local bookkeeper ensemble
@@ -156,7 +156,7 @@ public class AntiAffinityNamespaceGroupTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();
@@ -177,7 +177,7 @@ public class AntiAffinityNamespaceGroupTest {
                 Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testClusterDomain() {
 
     }
@@ -205,7 +205,7 @@ public class AntiAffinityNamespaceGroupTest {
      * </pre>
      *
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testAntiAffinityNamespaceFilteringWithDomain() throws Exception {
 
         final String namespace = "my-tenant/use/my-ns";
@@ -303,7 +303,7 @@ public class AntiAffinityNamespaceGroupTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testAntiAffinityNamespaceFilteringWithoutDomain() throws Exception {
 
         final String namespace = "my-tenant/use/my-ns";
@@ -386,7 +386,7 @@ public class AntiAffinityNamespaceGroupTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testBrokerSelectionForAntiAffinityGroup() throws Exception {
 
         final String broker1 = primaryHost;
@@ -439,7 +439,7 @@ public class AntiAffinityNamespaceGroupTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testLoadSheddingUtilWithAntiAffinityNamespace() throws Exception {
 
         final String namespace = "my-tenant/use/my-ns";
@@ -492,7 +492,7 @@ public class AntiAffinityNamespaceGroupTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testLoadSheddingWithAntiAffinityNamespace() throws Exception {
 
         final String namespace = "my-tenant/use/my-ns";

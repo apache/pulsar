@@ -71,7 +71,7 @@ public class SchemaDataValidatorTest {
         };
     }
 
-    @Test(dataProvider = "primitiveSchemas")
+    @Test(timeOut = 10000, dataProvider = "primitiveSchemas")
     public void testPrimitiveValidatorSuccess(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -80,7 +80,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "primitiveSchemas", expectedExceptions = InvalidSchemaDataException.class)
+    @Test(timeOut = 10000, dataProvider = "primitiveSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testPrimitiveValidatorInvalid(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -89,7 +89,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "clientSchemas", expectedExceptions = InvalidSchemaDataException.class)
+    @Test(timeOut = 10000, dataProvider = "clientSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testValidateClientSchemas(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -98,7 +98,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "structSchemas")
+    @Test(timeOut = 10000, dataProvider = "structSchemas")
     public void testStructValidatorSuccess(SchemaType type) throws Exception {
         Schema<Foo> schema = Schema.AVRO(Foo.class);
         SchemaData data = SchemaData.builder()
@@ -108,7 +108,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "structSchemas", expectedExceptions = InvalidSchemaDataException.class)
+    @Test(timeOut = 10000, dataProvider = "structSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testStructValidatorInvalid(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -117,7 +117,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testJsonSchemaTypeWithJsonSchemaData() throws Exception {
         ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
         SchemaData data = SchemaData.builder()

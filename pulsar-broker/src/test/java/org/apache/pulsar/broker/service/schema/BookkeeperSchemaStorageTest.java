@@ -31,7 +31,7 @@ import static org.testng.Assert.assertEquals;
 
 public class BookkeeperSchemaStorageTest {
 
-    @Test
+    @Test(timeOut = 10000)
     public void testBkException() {
         Exception ex = bkException("test", BKException.Code.ReadException, 1, -1);
         assertEquals("Error while reading ledger -  ledger=1 - operation=test", ex.getMessage());
@@ -46,7 +46,7 @@ public class BookkeeperSchemaStorageTest {
                 ex.getMessage());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testVersionFromBytes() {
         long version = System.currentTimeMillis();
 

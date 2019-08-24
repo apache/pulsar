@@ -89,7 +89,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
     }
@@ -111,7 +111,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConfigChange() throws Exception {
         log.info("--- Starting ReplicatorTest::testConfigChange ---");
         // This test is to verify that the config change on global namespace is successfully applied in broker during
@@ -249,7 +249,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         return new Object[][] { { "pulsar/ns" }, { "pulsar/global/ns" } };
     }
 
-    @Test(dataProvider = "namespace")
+    @Test(timeOut = 10000, dataProvider = "namespace")
     public void testReplication(String namespace) throws Exception {
         log.info("--- Starting ReplicatorTest::testReplication ---");
 
@@ -327,7 +327,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer3.receive(1);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReplicationOverrides() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicationOverrides ---");
 
@@ -388,7 +388,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test()
+    @Test(timeOut = 10000)
     public void testFailures() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testFailures ---");
@@ -434,7 +434,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void testReplicatorClearBacklog() throws Exception {
 
         // This test is to verify that reset cursor fails on global topic
-        SortedSet<String> testDests = new TreeSet<String>();
+        SortedSet<String> testDests = new TreeSet<>();
 
         final TopicName dest = TopicName.get("persistent://pulsar/ns/clearBacklogTopic");
         testDests.add(dest.toString());
@@ -459,7 +459,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.replicationBacklog, 0);
     }
 
-    @Test(enabled = true, timeOut = 30000)
+    @Test(timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testResetCursorNotFail ---");
@@ -484,7 +484,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.topics().resetCursor(dest.toString(), "sub-id", System.currentTimeMillis());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReplicationForBatchMessages() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicationForBatchMessages ---");
 
@@ -611,7 +611,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * @throws Exception
      */
 
-    @Test(timeOut = 60000, enabled = true, priority = -1)
+    @Test(timeOut = 60000, priority = -1)
     public void testResumptionAfterBacklogRelaxed() throws Exception {
         List<RetentionPolicy> policies = Lists.newArrayList();
         policies.add(RetentionPolicy.producer_exception);
@@ -761,7 +761,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * @param isPartitionedTopic
      * @throws Exception
      */
-    @Test(dataProvider = "partitionedTopic")
+    @Test(timeOut = 10000, dataProvider = "partitionedTopic")
     public void testReplicatorOnPartitionedTopic(boolean isPartitionedTopic) throws Exception {
 
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
@@ -814,7 +814,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReplicatedCluster() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplicatedCluster ---");

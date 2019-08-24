@@ -50,7 +50,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     private ProxyServer proxyServer;
     private WebSocketService service;
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
@@ -68,7 +68,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     protected void cleanup() throws Exception {
         super.internalCleanup();
         service.close();
@@ -76,7 +76,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         log.info("Finished Cleaning Up Test setup");
     }
 
-    @Test(timeOut=30000)
+    @Test(timeOut = 30000)
     public void socketTest() throws Exception {
 
         String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";

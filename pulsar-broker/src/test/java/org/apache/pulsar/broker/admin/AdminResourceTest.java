@@ -41,7 +41,7 @@ public class AdminResourceTest {
         };
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testValidatePartitionedTopicNameSuccess() {
         String tenant = "test-tenant";
         String namespace = "test-namespace";
@@ -51,7 +51,7 @@ public class AdminResourceTest {
         resource.validatePartitionedTopicName(tenant, namespace, topic);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testValidatePartitionedTopicNameInvalid() {
         String tenant = "test-tenant";
         String namespace = "test-namespace";

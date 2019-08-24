@@ -42,7 +42,7 @@ import com.google.common.hash.Hashing;
 public class NamespaceBundleTest {
     private final NamespaceBundleFactory factory = getNamespaceBundleFactory();
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConstructor() {
         try {
             new NamespaceBundle(null, null, null);
@@ -126,7 +126,7 @@ public class NamespaceBundleTest {
         return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetBundle() throws Exception {
         NamespaceBundle bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0L, BoundType.CLOSED, 0xffffffffL, BoundType.CLOSED));
@@ -138,7 +138,7 @@ public class NamespaceBundleTest {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompareTo() throws Exception {
         NamespaceBundle bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
@@ -168,7 +168,7 @@ public class NamespaceBundleTest {
         assertTrue(otherBundle.compareTo(bundle0) > 0);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testEquals() throws Exception {
         NamespaceBundle bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
@@ -185,7 +185,7 @@ public class NamespaceBundleTest {
         assertNotEquals(bundle, otherBundle);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testIncludes() throws Exception {
         TopicName topicName = TopicName.get("persistent://pulsar/use/ns1/topic-1");
         Long hashKey = factory.getLongHashCode(topicName.toString());
@@ -203,7 +203,7 @@ public class NamespaceBundleTest {
         assertFalse(otherBundle.includes(topicName));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testToString() throws Exception {
         NamespaceBundle bundle0 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x10000000L, BoundType.OPEN));

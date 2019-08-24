@@ -26,29 +26,29 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.Test;
 
-@Test
+@Test(timeOut = 10000)
 public class MessageIdSerialization {
 
-    @Test
+    @Test(timeOut = 10000)
     void testProtobufSerialization1() throws Exception {
         MessageId id = new MessageIdImpl(1, 2, 3);
         byte[] serializedId = id.toByteArray();
         assertEquals(MessageId.fromByteArray(serializedId), id);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testProtobufSerialization2() throws Exception {
         MessageId id = new MessageIdImpl(1, 2, -1);
         byte[] serializedId = id.toByteArray();
         assertEquals(MessageId.fromByteArray(serializedId), id);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(timeOut = 10000, expectedExceptions = NullPointerException.class)
     void testProtobufSerializationNull() throws Exception {
         MessageId.fromByteArray(null);
     }
 
-    @Test(expectedExceptions = IOException.class)
+    @Test(timeOut = 10000, expectedExceptions = IOException.class)
     void testProtobufSerializationEmpty() throws Exception {
         MessageId.fromByteArray(new byte[0]);
     }

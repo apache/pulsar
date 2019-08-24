@@ -48,7 +48,7 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
         return new JsonSchemaCompatibilityCheck();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testJsonSchemaBackwardsCompatibility() throws JsonProcessingException {
 
         SchemaData from = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();

@@ -37,20 +37,20 @@ import org.testng.annotations.Test;
 
 public class CreateSubscriptionTest extends ProducerConsumerBase {
 
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     @Override
     public void setup() throws Exception {
         super.internalSetup();
         producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void createSubscriptionSingleTopic() throws Exception {
         String topic = "persistent://my-property/my-ns/my-topic";
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
@@ -83,7 +83,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-5").msgBacklog, 1);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void createSubscriptionOnPartitionedTopic() throws Exception {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 10);
@@ -104,7 +104,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         }
     }
     
-    @Test
+    @Test(timeOut = 10000)
     public void createSubscriptionOnPartitionedTopicWithPartialFailure() throws Exception {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 10);

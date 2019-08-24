@@ -33,20 +33,20 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(DeadLetterTopicTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testDeadLetterTopic() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
@@ -120,7 +120,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
      * The test is disabled {@link https://github.com/apache/pulsar/issues/2647}.
      * @throws Exception
      */
-    @Test(enabled = false)
+    @Test(timeOut = 10000, enabled = false)
     public void testDeadLetterTopicWithMultiTopic() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/dead-letter-topic-1";
         final String topic2 = "persistent://my-property/my-ns/dead-letter-topic-2";
@@ -199,7 +199,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testDeadLetterTopicByCustomTopicName() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
         final int maxRedeliveryCount = 2;

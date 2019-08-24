@@ -34,20 +34,21 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
-    @BeforeMethod
+
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testCompactedOutMessages() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/my-topic";
 

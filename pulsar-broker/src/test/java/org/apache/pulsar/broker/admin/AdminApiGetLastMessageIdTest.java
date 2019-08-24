@@ -52,7 +52,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     protected Field uriField;
     protected UriInfo uriInfo;
 
-    @BeforeClass
+    @BeforeClass( timeOut = 60000 )
     public void initPersistentTopics() throws Exception {
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
@@ -60,7 +60,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @BeforeMethod
+    @BeforeMethod( timeOut = 10000)
     protected void setup() throws Exception {
         super.internalSetup();
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
@@ -85,12 +85,12 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod( timeOut = 10000)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testGetLastMessageId() throws Exception {
         try {
             persistentTopics.getLastMessageId(testTenant, testNamespace, "my-topic", true);

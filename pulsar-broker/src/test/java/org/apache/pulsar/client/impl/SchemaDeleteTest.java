@@ -38,7 +38,7 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-sub";
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
 
@@ -52,13 +52,13 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void createTopicDeleteTopicCreateTopic() throws Exception {
         String namespace = "my-property/my-ns";
         String topic = namespace + "/topic1";

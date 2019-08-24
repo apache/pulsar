@@ -48,13 +48,13 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
 
     @Override
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     public void setup() throws Exception {
         super.baseSetup();
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -336,7 +336,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(ackCount1 + messageCount2, totalMessages);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAckTimeoutMinValue() throws PulsarClientException {
         try {
             pulsarClient.newConsumer().ackTimeout(999, TimeUnit.MILLISECONDS);
@@ -393,7 +393,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSingleMessageBatch() throws Exception {
         String topicName = "prop/ns-abc/topic-estSingleMessageBatch";
 

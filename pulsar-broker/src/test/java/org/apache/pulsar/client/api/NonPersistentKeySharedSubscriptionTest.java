@@ -47,20 +47,20 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
     private static final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
 
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testSendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared";
@@ -111,7 +111,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         receiveAndCheck(checkList);
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testConsumerCrashSendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException, InterruptedException {
 
         this.conf.setSubscriptionKeySharedEnable(true);
@@ -182,7 +182,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         receiveAndCheck(checkList);
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testNonKeySendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared_none_key";
@@ -221,7 +221,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         receiveAndCheck(checkList);
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testOrderingKeyWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared_ordering_key";
@@ -273,7 +273,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         receiveAndCheck(checkList);
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
+    @Test(timeOut = 20000, expectedExceptions = PulsarClientException.class)
     public void testDisableKeySharedSubscription() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(false);
         String topic = "persistent://public/default/key_shared_disabled";

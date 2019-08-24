@@ -46,29 +46,29 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(ZeroQueueSizeTest.class);
     private final int totalMessages = 10;
 
-    @BeforeClass
+    @BeforeClass(timeOut = 60000)
     @Override
     public void setup() throws Exception {
         baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(timeOut = 60000)
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void validQueueSizeConfig() {
         pulsarClient.newConsumer().receiverQueueSize(0);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(timeOut = 10000, expectedExceptions = IllegalArgumentException.class)
     public void InvalidQueueSizeConfig() {
         pulsarClient.newConsumer().receiverQueueSize(-1);
     }
 
-    @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
+    @Test(timeOut = 10000, expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
     public void zeroQueueSizeReceieveAsyncInCompatibility() throws PulsarClientException {
         String key = "zeroQueueSizeReceieveAsyncInCompatibility";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -79,7 +79,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         consumer.receive(10, TimeUnit.SECONDS);
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
+    @Test(timeOut = 10000, expectedExceptions = PulsarClientException.class)
     public void zeroQueueSizePartitionedTopicInCompatibility() throws PulsarClientException, PulsarAdminException {
         String key = "zeroQueueSizePartitionedTopicInCompatibility";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -89,7 +89,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
     }
 
-    @Test()
+    @Test(timeOut = 10000)
     public void zeroQueueSizeNormalConsumer() throws PulsarClientException {
         String key = "nonZeroQueueSizeNormalConsumer";
 
@@ -126,7 +126,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test(timeOut = 10000)
     public void zeroQueueSizeConsumerListener() throws Exception {
         String key = "zeroQueueSizeConsumerListener";
 
@@ -170,7 +170,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test(timeOut = 10000)
     public void zeroQueueSizeSharedSubscription() throws PulsarClientException {
         String key = "zeroQueueSizeSharedSubscription";
 
@@ -211,7 +211,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test(timeOut = 10000)
     public void zeroQueueSizeFailoverSubscription() throws PulsarClientException {
         String key = "zeroQueueSizeFailoverSubscription";
 
@@ -266,7 +266,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test()
+    @Test(timeOut = 10000)
     public void testFailedZeroQueueSizeBatchMessage() throws PulsarClientException {
 
         int batchMessageDelayMs = 100;

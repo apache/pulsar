@@ -83,7 +83,7 @@ public class BrokerBkEnsemblesTests {
         this.numberOfBookies = numberOfBookies;
     }
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     protected void setup() throws Exception {
         try {
             int ZOOKEEPER_PORT = PortManager.nextFreePort();
@@ -120,7 +120,7 @@ public class BrokerBkEnsemblesTests {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     protected void shutdown() throws Exception {
         try {
             admin.close();
@@ -145,7 +145,7 @@ public class BrokerBkEnsemblesTests {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
 
         ZooKeeper zk = bkEnsemble.getZkClient();
@@ -238,7 +238,7 @@ public class BrokerBkEnsemblesTests {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testSkipCorruptDataLedger() throws Exception {
         // Ensure intended state for autoSkipNonRecoverableData
         admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "false");
@@ -342,7 +342,7 @@ public class BrokerBkEnsemblesTests {
         client.close();
     }
 
-    @Test(timeOut=20000)
+    @Test(timeOut = 20000)
     public void testTopicWithWildCardChar() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();

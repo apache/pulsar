@@ -58,7 +58,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
     private WebSocketClient consumeClient;
     private WebSocketClient produceClient;
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
@@ -88,7 +88,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     protected void cleanup() throws Exception {
         ExecutorService executor = newFixedThreadPool(1);
         try {
@@ -142,17 +142,17 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void authenticatedSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void anonymousSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void unauthenticatedSocketTest() throws Exception{
         Exception exception = null;
         try {
@@ -163,7 +163,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void statsTest() throws Exception {
         final String topic = "persistent/my-property/my-ns/my-topic2";
         final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/" + topic + "/my-sub";

@@ -33,14 +33,14 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
     private static final int BATCHING_MAX_MESSAGES_THRESHOLD = 2;
 
     @Override
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }

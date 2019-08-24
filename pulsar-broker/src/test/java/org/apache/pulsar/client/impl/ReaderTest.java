@@ -41,7 +41,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-sub";
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -53,7 +53,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -84,13 +84,13 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         return keys;
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReadMessageWithoutBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic";
         testReadMessages(topic, false);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReadMessageWithBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching";
         testReadMessages(topic, true);
@@ -114,7 +114,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     public void testReadFromPartition() throws Exception {
         String topic = "persistent://my-property/my-ns/testReadFromPartition";
         String partition0 = topic + "-partition-0";
