@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Information about the namespace's ownership.
+ */
 public class NamespaceOwnershipStatus {
 
     @SuppressWarnings("checkstyle:MemberName")

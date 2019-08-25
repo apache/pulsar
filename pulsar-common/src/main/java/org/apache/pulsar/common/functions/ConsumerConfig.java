@@ -24,12 +24,14 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+/**
+ * Configuration of a consumer.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
-@SuppressWarnings("checkstyle:JavadocType")
 public class ConsumerConfig {
     private String schemaType;
     private String serdeClassName;

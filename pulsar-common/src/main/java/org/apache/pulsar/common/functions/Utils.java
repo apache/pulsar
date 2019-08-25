@@ -25,7 +25,9 @@ import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Helper class to work with configuration.
+ */
 public class Utils {
     public final static String HTTP = "http";
     public final static String FILE = "file";

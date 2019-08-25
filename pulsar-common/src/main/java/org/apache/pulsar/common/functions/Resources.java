@@ -27,6 +27,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+/**
+ * Class representing resources, such as CPU, RAM, and disk size.
+ */
 @Getter
 @Setter
 @Data
@@ -35,7 +38,6 @@ import lombok.ToString;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder(toBuilder = true)
-@SuppressWarnings("checkstyle:JavadocType")
 public class Resources {
 
     private static final Resources DEFAULT = new Resources();

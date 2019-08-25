@@ -24,7 +24,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Configuration for a rack of BookKeepers.
+ */
 public class BookiesRackConfiguration extends TreeMap<String, Map<String, BookieInfo>> {
 
     public boolean removeBookie(String address) {

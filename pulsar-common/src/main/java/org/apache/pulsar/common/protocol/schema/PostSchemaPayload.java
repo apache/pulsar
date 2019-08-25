@@ -23,10 +23,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Payload with information about a schema.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@SuppressWarnings("checkstyle:JavadocType")
 public class PostSchemaPayload {
     private String type;
     private String schema;

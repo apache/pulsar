@@ -25,7 +25,9 @@ import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Statistics for a non-persistent topic.
+ */
 public class NonPersistentTopicStats extends TopicStats {
 
     /**

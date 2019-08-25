@@ -27,7 +27,9 @@ import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Class working with file's modified time.
+ */
 public class FileModifiedTimeUpdater {
     @Getter
     String fileName;

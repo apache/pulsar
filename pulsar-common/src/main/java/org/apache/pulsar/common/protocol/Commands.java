@@ -1570,7 +1570,9 @@ public class Commands {
         return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getNumber();
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Definition of possible checksum types.
+     */
     public enum ChecksumType {
         Crc32c,
         None;

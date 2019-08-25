@@ -20,7 +20,9 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Statistics about a replicator.
+ */
 public class ReplicatorStats {
 
     /** Total rate of messages received from the remote cluster (msg/s). */

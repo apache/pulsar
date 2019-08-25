@@ -22,8 +22,10 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.experimental.UtilityClass;
 
+/**
+ * Parser for relative time.
+ */
 @UtilityClass
-@SuppressWarnings("checkstyle:JavadocType")
 public class RelativeTimeUtil {
     public static long parseRelativeTimeInSeconds(String relativeTime) {
         if (relativeTime.isEmpty()) {

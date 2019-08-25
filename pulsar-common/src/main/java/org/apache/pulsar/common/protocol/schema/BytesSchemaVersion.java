@@ -147,7 +147,9 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
      */
     public final static ByteArrayComparator BYTES_LEXICO_COMPARATOR = new LexicographicByteArrayComparator();
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * This interface helps to compare byte arrays.
+     */
     public interface ByteArrayComparator extends Comparator<byte[]>, Serializable {
 
         int compare(final byte[] buffer1, int offset1, int length1,

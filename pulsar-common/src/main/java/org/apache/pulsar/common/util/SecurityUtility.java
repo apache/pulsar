@@ -53,7 +53,9 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Helper class for the security domain.
+ */
 public class SecurityUtility {
 
     static {

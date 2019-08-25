@@ -25,7 +25,9 @@ import java.security.GeneralSecurityException;
 import java.util.Set;
 import javax.net.ssl.SSLException;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * SSL context builder for Netty.
+ */
 public class NettySslContextBuilder extends SslContextAutoRefreshBuilder<SslContext> {
     private volatile SslContext sslNettyContext;
 

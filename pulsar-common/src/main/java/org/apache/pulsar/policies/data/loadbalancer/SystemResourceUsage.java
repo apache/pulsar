@@ -23,7 +23,9 @@ package org.apache.pulsar.policies.data.loadbalancer;
  */
 public class SystemResourceUsage {
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Definition of possible resource types.
+     */
     public enum ResourceType {
         CPU, Memory, BandwidthIn, BandwidthOut
     }

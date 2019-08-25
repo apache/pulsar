@@ -26,8 +26,10 @@ import org.apache.pulsar.common.api.proto.PulsarApi.Schema;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+/**
+ * Class helping to initialize schemas.
+ */
 @UtilityClass
-@SuppressWarnings("checkstyle:JavadocType")
 public class SchemaInfoUtil {
 
     public static SchemaInfo newSchemaInfo(String name, SchemaData data) {

@@ -28,7 +28,9 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Parser of a value from the namespace field provided in configuration.
+ */
 public class NamespaceName implements ServiceUnitId {
 
     private final String namespace;

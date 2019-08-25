@@ -49,7 +49,9 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
         }
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Metrics for the Garbage Collector.
+     */
     static class GCMetrics {
         volatile long accumulatedGcCount = 0;
         volatile long currentGcCount = 0;

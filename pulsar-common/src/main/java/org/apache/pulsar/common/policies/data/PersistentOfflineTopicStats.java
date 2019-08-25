@@ -69,7 +69,9 @@ public class PersistentOfflineTopicStats {
         this.statGeneratedAt.setTime(System.currentTimeMillis());
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Details about a cursor.
+     */
     public class CursorDetails {
         public long cursorBacklog;
         public long cursorLedgerId;
@@ -88,7 +90,9 @@ public class PersistentOfflineTopicStats {
         this.dataLedgerDetails.add(new LedgerDetails(entries, timestamp, size, ledgerId));
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Details about a ledger.
+     */
     public class LedgerDetails {
         public long entries;
         public long timestamp;

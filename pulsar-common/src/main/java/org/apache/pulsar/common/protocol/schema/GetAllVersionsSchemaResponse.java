@@ -24,11 +24,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Response containing all schemas.
+ */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@SuppressWarnings("checkstyle:JavadocType")
 public class GetAllVersionsSchemaResponse {
     private List<GetSchemaResponse> getSchemaResponses;
 }

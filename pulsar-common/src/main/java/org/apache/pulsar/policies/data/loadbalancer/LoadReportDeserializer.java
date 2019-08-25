@@ -27,7 +27,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Deserializer for a load report.
+ */
 public class LoadReportDeserializer extends JsonDeserializer<LoadManagerReport> {
     @Override
     public LoadManagerReport deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)

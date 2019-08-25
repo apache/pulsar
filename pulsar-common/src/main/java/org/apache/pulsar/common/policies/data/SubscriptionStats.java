@@ -24,7 +24,9 @@ import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Statistics about subscription.
+ */
 public class SubscriptionStats {
     /** Total rate of messages delivered on this subscription (msg/s). */
     public double msgRateOut;

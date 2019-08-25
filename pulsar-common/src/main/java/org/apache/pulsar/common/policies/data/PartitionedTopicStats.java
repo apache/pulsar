@@ -22,7 +22,9 @@ import com.google.common.collect.Maps;
 import java.util.Map;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Statistics for a partitioned topic.
+ */
 public class PartitionedTopicStats extends TopicStats {
 
     public PartitionedTopicMetadata metadata;

@@ -22,7 +22,9 @@ import com.google.common.base.MoreObjects;
 import java.util.List;
 import java.util.Objects;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Holder for bundles.
+ */
 public class BundlesData {
     public List<String> boundaries;
     public int numBundles;

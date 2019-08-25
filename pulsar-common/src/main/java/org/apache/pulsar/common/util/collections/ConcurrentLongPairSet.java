@@ -504,7 +504,9 @@ public class ConcurrentLongPairSet implements LongPairSet {
         }
     }
 
-    @SuppressWarnings("checkstyle:JavadocType")
+    /**
+     * Class representing two long values.
+     */
     public static class LongPair implements Comparable<LongPair> {
         public final long first;
         public final long second;

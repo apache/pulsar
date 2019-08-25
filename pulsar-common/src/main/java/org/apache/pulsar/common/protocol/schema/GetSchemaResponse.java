@@ -25,11 +25,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.schema.SchemaType;
 
+/**
+ * Response containing information about a schema.
+ */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@SuppressWarnings("checkstyle:JavadocType")
 public class GetSchemaResponse {
     private long version;
     private SchemaType type;

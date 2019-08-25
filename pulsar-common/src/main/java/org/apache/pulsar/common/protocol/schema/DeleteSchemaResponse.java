@@ -23,11 +23,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Response for schema deletion.
+ */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@SuppressWarnings("checkstyle:JavadocType")
 public class DeleteSchemaResponse {
     private long version;
 }

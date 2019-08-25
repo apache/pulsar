@@ -20,7 +20,9 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Statistics for a non-persistent replicator.
+ */
 public class NonPersistentReplicatorStats extends ReplicatorStats {
 
     /**

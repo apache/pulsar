@@ -23,11 +23,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Response with the version of a schema.
+ */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@SuppressWarnings("checkstyle:JavadocType")
 public class PostSchemaResponse {
     private SchemaVersion version;
 }

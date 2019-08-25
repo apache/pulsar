@@ -30,7 +30,9 @@ import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Implementation of the namespace isolation policy.
+ */
 public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
     private List<String> namespaces;

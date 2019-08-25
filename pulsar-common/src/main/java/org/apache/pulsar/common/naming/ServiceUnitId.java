@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.naming;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * Basic interface for service unit's identification.
+ */
 public interface ServiceUnitId {
 
     @Override

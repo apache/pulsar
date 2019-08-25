@@ -25,8 +25,16 @@ import lombok.experimental.UtilityClass;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 
+/**
+ * Provider of compression codecs used in Pulsar.
+ *
+ * @see CompressionCodecNone
+ * @see CompressionCodecLZ4
+ * @see CompressionCodecZLib
+ * @see CompressionCodecZstd
+ * @see CompressionCodecSnappy
+ */
 @UtilityClass
-@SuppressWarnings("checkstyle:JavadocType")
 public class CompressionCodecProvider {
     private static final EnumMap<PulsarApi.CompressionType, CompressionCodec> codecs;
 

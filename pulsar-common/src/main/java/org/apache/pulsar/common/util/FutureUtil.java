@@ -22,7 +22,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-@SuppressWarnings("checkstyle:JavadocType")
+/**
+ * This class is aimed at simplifying work with {@code CompletableFuture}.
+ */
 public class FutureUtil {
 
     /**
