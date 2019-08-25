@@ -421,15 +421,14 @@ def format_message_metas(properties):
                                           ensure_ascii=False, indent=2)
 
 
-def format_single_message(message_id, properties, message_view):
+def format_single_message(message_id, properties, data):
     message = {
         message_id: format_message_metas(properties),
-        "Hex": hexdump.hexdump(message_view, result='return'),
+        "Hex": hexdump.hexdump(data, result='return'),
     }
     try:
-        message_bytes = message_view.tobytes()
-        text = str(message_bytes,
-                   encoding=chardet.detect(message_bytes)['encoding'],
+        text = str(data,
+                   encoding=chardet.detect(data)['encoding'],
                    errors='strict')
         message["Text"] = text
         message["JSON"] = json.dumps(json.loads(text),
@@ -474,14 +473,16 @@ def get_message_from_http_response(response):
             if batch_size == 1:
                 message_id = message_id + ":0"
                 message_view = message_skip_meta(memoryview(response.content))
-                return format_single_message(message_id, {}, message_view)
+                return format_single_message(message_id,
+                                             {},
+                                             message_view.tobytes())
             else:
                 return {"Batch": "(size=%d)<omitted>" % batch_size}
     else:
         get_properties_from_http_header(response)
         return format_single_message(message_id,
                                      get_properties_from_http_header(response),
-                                     memoryview(response.content))
+                                     response.content)
 
 
 def peek_message(topic_obj, subscription_name, message_position):
