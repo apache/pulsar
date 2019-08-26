@@ -202,7 +202,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
                     messageMetadata.setOrderingKey(ByteString.copyFrom(msg.getOrderingKey()));
                 }
                 batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                        .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES));
+                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
                 firstCallback = callback;
             }
             if (previousCallback != null) {

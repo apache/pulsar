@@ -70,7 +70,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             sequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
             this.firstCallback = callback;
             batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                    .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES));
+                    .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
         }
 
         if (previousCallback != null) {
