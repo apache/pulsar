@@ -75,8 +75,8 @@ Sometimes when the thrown class cannot be found, you can look at whether there i
 08:21:54.132 [main] INFO  org.apache.pulsar.common.nar.NarClassLoader - Created class loader with paths: [file:/tmp/pulsar-nar/pulsar-io-mongo-2.4.0.nar-unpacked/, file:/tmp/pulsar-nar/pulsar-io-mongo-2.4.0.nar-unpacked/META-INF/bundled-dependencies/,
 ```
 
-This information shows some basic information about this sink, such as which tenant it belongs to, namespace, name of sink used, usage of configuration information resources, etc.
-This information can be used to check whether your sink is configured correctly.
+This information shows some basic information about this Sink, such as which tenant it belongs to, namespace, name of Sink used, usage of configuration information resources, etc.
+This information can be used to check whether your Sink is configured correctly.
 
 ```bash
 08:21:55.390 [main] INFO  org.apache.pulsar.functions.runtime.ThreadRuntime - ThreadContainer starting function with instance config InstanceConfig(instanceId=0, functionId=853d60a1-0c48-44d5-9a5c-6917386476b2, functionVersion=c2ce1458-b69e-4175-88c0-a0a856a2be8c, functionDetails=tenant: "public"
@@ -230,7 +230,7 @@ Start Mongo Sink.
 ./bin/pulsar-admin sinks create --archive pulsar-io-mongo-2.4.0.nar --tenant public --namespace default --inputs test-mongo --name pulsar-mongo-sink --sink-config-file mongo-sink-config.yaml --parallelism 1
 ```
 
-### Use the get command to get the basic information of sink
+### Use the get command to get the basic information of Sink
 
 ```bash
 ./bin/pulsar-admin sinks get --tenant public --namespace default  --name pulsar-mongo-sink
@@ -258,9 +258,9 @@ Start Mongo Sink.
 }
 ```
 
-### Use the status command to get the running status of sink
+### Use the status command to get the running status of Sink
 
-This command can be used to obtain the confidence of the sink's running status, instance id, workerId, etc.
+This command can be used to obtain the confidence of the Sink's running status, instance id, workerId, etc.
 WorkerId can help us locate the specific worker on which Sink is running when there are multiple workers.
 
 ```bash
