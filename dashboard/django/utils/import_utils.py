@@ -1,4 +1,3 @@
-#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,11 +17,11 @@
 # under the License.
 #
 
-set -e
+import importlib
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
 
-docker pull apachepulsar/pulsar-build:debian-9
-
-docker run -i -v $ROOT_DIR:/pulsar apachepulsar/pulsar-build:debian-9 \
-        /pulsar/pulsar-client-cpp/pkg/deb/build-deb.sh
+def try_import(name):
+    try:
+        return importlib.import_module(name)
+    except ImportError:
+        return None

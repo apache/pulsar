@@ -253,7 +253,7 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public T getValue() {
-        if (SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
+        if (schema.getSchemaInfo() != null && SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();
             } else {
