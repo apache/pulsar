@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -30,6 +31,8 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.util.concurrent.ExecutionException;
+
 /**
  * Auto detect schema.
  */
@@ -37,6 +40,12 @@ import org.apache.pulsar.common.schema.SchemaType;
 public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private Schema<GenericRecord> schema;
+
+    private String topicName;
+
+    private String componentName;
+
+    private SchemaInfoProvider schemaInfoProvider;
 
     public void setSchema(Schema<GenericRecord> schema) {
         this.schema = schema;
@@ -67,20 +76,40 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
+        if (schema == null) {
+            SchemaInfo schemaInfo = null;
+            try {
+                schemaInfo = schemaInfoProvider.getLatestSchema().get();
+            } catch (InterruptedException | ExecutionException e ) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                log.error("Con't get last schema for topic {} use AutoConsumeSchema", topicName);
+                throw new SchemaSerializationException(e.getCause());
+            }
+            schema = generateSchema(schemaInfo);
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+            log.info("Configure {} schema for topic {} : {}",
+                    componentName, topicName, schemaInfo.getSchemaDefinition());
+        }
         ensureSchemaInitialized();
-
         return schema.decode(bytes, schemaVersion);
     }
 
     @Override
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
-        schema.setSchemaInfoProvider(schemaInfoProvider);
+        if (schema == null) {
+            this.schemaInfoProvider = schemaInfoProvider;
+        } else {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
     }
 
     @Override
     public SchemaInfo getSchemaInfo() {
-        ensureSchemaInitialized();
-
+        if (schema == null) {
+            return null;
+        }
         return schema.getSchemaInfo();
     }
 
@@ -93,16 +122,24 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     public void configureSchemaInfo(String topicName,
                                     String componentName,
                                     SchemaInfo schemaInfo) {
+        this.topicName = topicName;
+        this.componentName = componentName;
+        if (schemaInfo != null) {
+            GenericSchema genericSchema = generateSchema(schemaInfo);
+            setSchema(genericSchema);
+            log.info("Configure {} schema for topic {} : {}",
+                    componentName, topicName, schemaInfo.getSchemaDefinition());
+        }
+    }
+
+    private GenericSchema generateSchema(SchemaInfo schemaInfo) {
         if (schemaInfo.getType() != SchemaType.AVRO
             && schemaInfo.getType() != SchemaType.JSON) {
             throw new RuntimeException("Currently auto consume only works for topics with avro or json schemas");
         }
         // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
         // to decode the messages.
-        GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
-        setSchema(genericSchema);
-        log.info("Configure {} schema for topic {} : {}",
-            componentName, topicName, schemaInfo.getSchemaDefinition());
+        return GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
     }
 
     public static Schema<?> getSchema(SchemaInfo schemaInfo) {

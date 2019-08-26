@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -131,37 +132,36 @@ public class SchemaTest extends PulsarTestSuite {
                 Sets.newHashSet(pulsarCluster.getClusterName())
         );
 
-        // Create a topic with `Person`
-        try (Producer<Person> producer = client.newProducer(Schema.AVRO(
+        Producer<Person> producer = client.newProducer(Schema.AVRO(
                 SchemaDefinition.<Person>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
                         withPojo(Person.class).build()))
                 .topic(fqtn)
-                .create()
-        ) {
-            Person person = new Person();
-            person.setName("Tom Hanks");
-            person.setAge(60);
+                .create();
 
-            producer.send(person);
+        Person person = new Person();
+        person.setName("Tom Hanks");
+        person.setAge(60);
 
-            log.info("Successfully published person : {}", person);
-        }
-
-        //Create a consumer for MultiVersionSchema
-        try (Consumer<PersonConsumeSchema> consumer = client.newConsumer(Schema.AVRO(
+        Consumer<PersonConsumeSchema> consumer = client.newConsumer(Schema.AVRO(
                 SchemaDefinition.<PersonConsumeSchema>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
                         withPojo(PersonConsumeSchema.class).build()))
+                .subscriptionName("test")
                 .topic(fqtn)
                 .subscribe();
-        ) {
-            PersonConsumeSchema personConsumeSchema = consumer.receive().getValue();
-            assertEquals("Tom Hanks", personConsumeSchema.getName());
-            assertEquals(60, personConsumeSchema.getAge());
-            assertEquals("man", personConsumeSchema.getGender());
-            log.info("Successfully consumer personConsumeSchema : {}", personConsumeSchema);
-        }
+
+        producer.send(person);
+        log.info("Successfully published person : {}", person);
+
+        PersonConsumeSchema personConsumeSchema = consumer.receive().getValue();
+        assertEquals("Tom Hanks", personConsumeSchema.getName());
+        assertEquals(60, personConsumeSchema.getAge());
+        assertEquals("male", personConsumeSchema.getGender());
+
+        producer.close();
+        consumer.close();
+        log.info("Successfully consumer personConsumeSchema : {}", personConsumeSchema);
     }
 
     @Test
@@ -190,32 +190,75 @@ public class SchemaTest extends PulsarTestSuite {
                 .date(LocalDate.now())
                 .build();
 
-        try (Producer<AvroLogicalType> producer = client
+        Producer<AvroLogicalType> producer = client
                 .newProducer(Schema.AVRO(AvroLogicalType.class))
                 .topic(fqtn)
-                .create()
-        ) {
-            producer.send(messageForSend);
-            log.info("Successfully published avro logical type message : {}", messageForSend);
-        }
+                .create();
 
-        try (Consumer<AvroLogicalType> consumer = client
+        Consumer<AvroLogicalType> consumer = client
                 .newConsumer(Schema.AVRO(AvroLogicalType.class))
                 .topic(fqtn)
-                .subscribe()
-        ) {
-            AvroLogicalType received = consumer.receive().getValue();
-            assertEquals(messageForSend.getDecimal(), received.getDecimal());
-            assertEquals(messageForSend.getTimeMicros(), received.getTimeMicros());
-            assertEquals(messageForSend.getTimeMillis(), received.getTimeMillis());
-            assertEquals(messageForSend.getTimestampMicros(), received.getTimestampMicros());
-            assertEquals(messageForSend.getTimestampMillis(), received.getTimestampMillis());
-            assertEquals(messageForSend.getDate(), received.getDate());
+                .subscriptionName("test")
+                .subscribe();
 
-            log.info("Successfully consumer avro logical type message : {}", received);
-        }
+        producer.send(messageForSend);
+        log.info("Successfully published avro logical type message : {}", messageForSend);
 
+        AvroLogicalType received = consumer.receive().getValue();
+        assertEquals(messageForSend.getDecimal(), received.getDecimal());
+        assertEquals(messageForSend.getTimeMicros(), received.getTimeMicros());
+        assertEquals(messageForSend.getTimeMillis(), received.getTimeMillis());
+        assertEquals(messageForSend.getTimestampMicros(), received.getTimestampMicros());
+        assertEquals(messageForSend.getTimestampMillis(), received.getTimestampMillis());
+        assertEquals(messageForSend.getDate(), received.getDate());
 
+        producer.close();
+        consumer.close();
+
+        log.info("Successfully consumer avro logical type message : {}", received);
+    }
+
+    @Test
+    public void testAutoConsumeSchemaSubscribeFirst() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topic = "test-auto-consume-schema";
+        final String fqtn = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topic
+        ).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(pulsarCluster.getClusterName())
+        );
+
+        Consumer<GenericRecord> consumer = client
+                .newConsumer(Schema.AUTO_CONSUME())
+                .topic(fqtn)
+                .subscriptionName("test")
+                .subscribe();
+
+        Producer<Person> producer = client
+                .newProducer(Schema.AVRO(Person.class))
+                .topic(fqtn)
+                .create();
+
+        Person person = new Person();
+        person.setName("Tom Hanks");
+        person.setAge(60);
+        producer.send(person);
+
+        GenericRecord genericRecord = consumer.receive().getValue();
+
+        assertEquals(genericRecord.getField("name"), "Tom Hanks");
+        assertEquals(genericRecord.getField("age"), 60);
+
+        consumer.close();
+        producer.close();
     }
 
 }
+

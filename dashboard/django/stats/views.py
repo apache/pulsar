@@ -20,21 +20,23 @@
 import logging
 import struct
 import chardet
+import hexdump
+import requests
+import json
+import re
 
 from django.shortcuts import render, get_object_or_404, redirect
-from django.template import loader
-from django.urls import reverse
 from django.views import generic
-from django.db.models import Q, IntegerField
 from dashboard import settings
-import hexdump
-import requests, json, re
 
-from django.http import HttpResponseRedirect, HttpResponse
-from .models import *
-
+from stats.models import *
 from stats.templatetags.table import Table
+from utils import import_utils
+
+pulsar = import_utils.try_import("pulsar")
 logger = logging.getLogger(__name__)
+
+
 def get_timestamp():
     try:
         return LatestTimestamp.objects.get(name='latest').timestamp
@@ -370,6 +372,8 @@ def messages(request, topic_name, subscription_name):
     message_position = request.GET.get('message-position')
     if message_position and message_position.isnumeric():
         message = peek_message(topic_obj, subscription_name, message_position)
+        if not isinstance(message, list):
+            message = [message]
 
     return render(request, 'stats/messages.html', {
         'topic': topic_obj,
@@ -391,35 +395,102 @@ def message_skip_meta(message_view):
     return message_view[message_index:]
 
 
-def get_message_from_http_response(response):
-    if response.status_code != 200:
-        return {"ERROR": "%s(%d)" % (response.reason, response.status_code)}
-    message_view = memoryview(response.content)
-    if 'X-Pulsar-num-batch-message' in response.headers:
-        batch_size = int(response.headers['X-Pulsar-num-batch-message'])
-        if batch_size == 1:
-            message_view = message_skip_meta(message_view)
-        else:
-            # TODO: can not figure out multi-message batch for now
-            return {"Batch": "(size=%d)<omitted>" % batch_size}
-    message = {"Hex": hexdump.hexdump(message_view, result='return')}
+def parse_batch_message_supported():
+    if pulsar is None:
+        return False
     try:
-        message_bytes = message_view.tobytes()
-        text = str(message_bytes,
-                   encoding=chardet.detect(message_bytes)['encoding'],
+        _ = pulsar.MessageBatch
+        return True
+    except AttributeError:
+        return False
+
+
+def parse_batch_message_entry(response, message_id, batch_size):
+    message_id_parts = message_id.split(':')
+    batch_message_id = pulsar.MessageId(-1,
+                                        int(message_id_parts[0]),
+                                        int(message_id_parts[1]),
+                                        -1)
+    return pulsar.MessageBatch()\
+        .with_message_id(batch_message_id)\
+        .parse_from(response.content, batch_size)
+
+
+def format_message_metas(properties):
+    return "Properties:\n%s" % json.dumps(properties,
+                                          ensure_ascii=False, indent=2)
+
+
+def format_single_message(message_id, properties, data):
+    message = {
+        message_id: format_message_metas(properties),
+        "Hex": hexdump.hexdump(data, result='return'),
+    }
+    try:
+        text = str(data,
+                   encoding=chardet.detect(data)['encoding'],
                    errors='strict')
         message["Text"] = text
         message["JSON"] = json.dumps(json.loads(text),
-                                     ensure_ascii=False, indent=4)
+                                     ensure_ascii=False, indent=2)
     except Exception:
         pass
     return message
+
+
+def get_batch_message_from_http_response(response, message_id, batch_size):
+    entries = parse_batch_message_entry(response, message_id, batch_size)
+    message_list = []
+    for entry in entries:
+        single_msg_id = entry.message_id()
+        single_msg_id = "%s:%s:%s" % (single_msg_id.ledger_id(),
+                                      single_msg_id.entry_id(),
+                                      single_msg_id.batch_index(),)
+        message_list.append(format_single_message(single_msg_id,
+                                                  entry.properties(),
+                                                  entry.data()))
+    return message_list
+
+
+def get_properties_from_http_header(response):
+    properties = {}
+    for k, v in response.headers.items():
+        if k.startswith("X-Pulsar-PROPERTY-"):
+            properties[k.replace("X-Pulsar-PROPERTY-", "", 1)] = v
+    return properties
+
+
+def get_message_from_http_response(response):
+    message_id = response.headers.get("X-Pulsar-Message-ID")
+    if message_id is None:
+        raise ValueError("invalid peek response")
+    batch_size = response.headers.get('X-Pulsar-num-batch-message')
+    if batch_size is not None:
+        batch_size = int(batch_size)
+        if parse_batch_message_supported():
+            return get_batch_message_from_http_response(response, message_id, batch_size)
+        else:
+            if batch_size == 1:
+                message_id = message_id + ":0"
+                message_view = message_skip_meta(memoryview(response.content))
+                return format_single_message(message_id,
+                                             {},
+                                             message_view.tobytes())
+            else:
+                return {"Batch": "(size=%d)<omitted>" % batch_size}
+    else:
+        get_properties_from_http_header(response)
+        return format_single_message(message_id,
+                                     get_properties_from_http_header(response),
+                                     response.content)
 
 
 def peek_message(topic_obj, subscription_name, message_position):
     peek_url = "%s/subscription/%s/position/%s" % (
         topic_path(topic_obj), subscription_name, message_position)
     peek_response = requests.get(peek_url)
+    if peek_response.status_code != 200:
+        return {"ERROR": "%s(%d)" % (peek_response.reason, peek_response.status_code)}
     return get_message_from_http_response(peek_response)
 
 

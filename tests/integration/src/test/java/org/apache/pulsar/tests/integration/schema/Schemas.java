@@ -31,10 +31,12 @@
  */
 package org.apache.pulsar.tests.integration.schema;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.avro.reflect.AvroDefault;
@@ -99,7 +101,11 @@ public final class Schemas {
     }
 
     @Data
+    @Getter
+    @Setter
     @ToString
+    @NoArgsConstructor
+    @AllArgsConstructor
     @EqualsAndHashCode
     @Builder
     public static class AvroLogicalType{

@@ -44,6 +44,7 @@
       "functions-develop",
       "functions-debug",
       "functions-deploy",
+      "functions-cli",
       "functions-configure",
       "functions-monitor",
       "functions-secure",
