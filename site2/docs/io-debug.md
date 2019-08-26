@@ -171,53 +171,6 @@ This information shows some configuration information of consumers and clients, 
 }
 ```
 
-The `topics stats` is also a very useful command. Through this command, we can see in more detail whether our Sink is running normally, whether the topic has received messages, whether there is a backlog of messages, and the availablePermits and other key information.
-```bash
-./bin/pulsar-admin topics stats test-mongo
-{
-  "msgRateIn" : 0.0,
-  "msgThroughputIn" : 0.0,
-  "msgRateOut" : 0.0,
-  "msgThroughputOut" : 0.0,
-  "averageMsgSize" : 0.0,
-  "storageSize" : 1,
-  "publishers" : [ ],
-  "subscriptions" : {
-    "public/default/pulsar-mongo-sink" : {
-      "msgRateOut" : 0.0,
-      "msgThroughputOut" : 0.0,
-      "msgRateRedeliver" : 0.0,
-      "msgBacklog" : 0,
-      "blockedSubscriptionOnUnackedMsgs" : false,
-      "msgDelayed" : 0,
-      "unackedMessages" : 0,
-      "type" : "Shared",
-      "msgRateExpired" : 0.0,
-      "consumers" : [ {
-        "msgRateOut" : 0.0,
-        "msgThroughputOut" : 0.0,
-        "msgRateRedeliver" : 0.0,
-        "consumerName" : "dffdd",
-        "availablePermits" : 999,
-        "unackedMessages" : 0,
-        "blockedConsumerOnUnackedMsgs" : false,
-        "metadata" : {
-          "instance_id" : "0",
-          "application" : "pulsar-sink",
-          "id" : "public/default/pulsar-mongo-sink"
-        },
-        "connectedSince" : "2019-08-26T08:48:07.582Z",
-        "clientVersion" : "2.4.0",
-        "address" : "/172.17.0.3:57790"
-      } ],
-      "isReplicated" : false
-    }
-  },
-  "replication" : { },
-  "deduplicationStatus" : "Disabled"
-}
-```
-
 This is the process of running Sink in localrun mode, through testing in localrun mode, the problem can be located very quickly. this is a very useful tool.
 
 ## Use Sink CLI
@@ -284,6 +237,55 @@ WorkerId can help us locate the specific worker on which Sink is running when th
       "workerId" : "c-standalone-fw-5d202832fd18-8080"
     }
   } ]
+}
+```
+
+### Get statistics on topic by using the topic stats command 
+
+The `topics stats` is also a very useful command. Through this command, we can see in more detail whether our Sink is running normally, whether the topic has received messages, whether there is a backlog of messages, and the availablePermits and other key information.
+```bash
+./bin/pulsar-admin topics stats test-mongo
+{
+  "msgRateIn" : 0.0,
+  "msgThroughputIn" : 0.0,
+  "msgRateOut" : 0.0,
+  "msgThroughputOut" : 0.0,
+  "averageMsgSize" : 0.0,
+  "storageSize" : 1,
+  "publishers" : [ ],
+  "subscriptions" : {
+    "public/default/pulsar-mongo-sink" : {
+      "msgRateOut" : 0.0,
+      "msgThroughputOut" : 0.0,
+      "msgRateRedeliver" : 0.0,
+      "msgBacklog" : 0,
+      "blockedSubscriptionOnUnackedMsgs" : false,
+      "msgDelayed" : 0,
+      "unackedMessages" : 0,
+      "type" : "Shared",
+      "msgRateExpired" : 0.0,
+      "consumers" : [ {
+        "msgRateOut" : 0.0,
+        "msgThroughputOut" : 0.0,
+        "msgRateRedeliver" : 0.0,
+        "consumerName" : "dffdd",
+        "availablePermits" : 999,
+        "unackedMessages" : 0,
+        "blockedConsumerOnUnackedMsgs" : false,
+        "metadata" : {
+          "instance_id" : "0",
+          "application" : "pulsar-sink",
+          "id" : "public/default/pulsar-mongo-sink"
+        },
+        "connectedSince" : "2019-08-26T08:48:07.582Z",
+        "clientVersion" : "2.4.0",
+        "address" : "/172.17.0.3:57790"
+      } ],
+      "isReplicated" : false
+    }
+  },
+  "replication" : { },
+  "deduplicationStatus" : "Disabled"
 }
 ```
 
