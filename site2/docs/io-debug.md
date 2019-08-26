@@ -115,7 +115,7 @@ This information shows the status of connection to mongo and some configuration 
 08:21:56.326 [cluster-ClusterId{value='5d6396a3c9e77c0569ff00eb', description='null'}-pulsar-mongo:27017] INFO  org.mongodb.driver.cluster - Monitor thread successfully connected to server with description ServerDescription{address=pulsar-mongo:27017, type=STANDALONE, state=CONNECTED, ok=true, version=ServerVersion{versionList=[4, 2, 0]}, minWireVersion=0, maxWireVersion=8, maxDocumentSize=16777216, logicalSessionTimeoutMinutes=30, roundTripTimeNanos=89058800}
 ```
 
-This information shows some configuration information of consumers and clients, including the subject name used, subscription name, subscription type, whether the client has turned on authentication, etc.
+This information shows some configuration information of consumers and clients, including the Topic name used, subscription name, subscription type, whether the client has turned on authentication, etc.
 
 ```bash
 08:21:56.719 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl - Starting Pulsar consumer perf with config: {
