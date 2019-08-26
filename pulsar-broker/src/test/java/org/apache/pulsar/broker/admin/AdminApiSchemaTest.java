@@ -203,6 +203,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         admin.schemas().createSchema(topicName,
                 keyValueSchema.getSchemaInfo());
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
+
         assertEquals(schemaInfo, keyValueSchema.getSchemaInfo());
     }
 }

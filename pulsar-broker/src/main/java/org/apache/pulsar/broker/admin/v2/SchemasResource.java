@@ -323,7 +323,6 @@ public class SchemasResource extends AdminResource {
         } else {
             data = payload.getSchema().getBytes(Charsets.UTF_8);
         }
-
         pulsar().getSchemaRegistryService().putSchemaIfAbsent(
             buildSchemaId(tenant, namespace, topic),
             SchemaData.builder()
