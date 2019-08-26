@@ -14,20 +14,20 @@ You can use the same certificate authority that the server certificates used to 
 
 The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** which that client will be authenticated as.
 
-First, you need to generate the key.
+First, you need to generate the key using the follwing command:
 
 ```bash
 $ openssl genrsa -out admin.key.pem 2048
 ```
 
-Similar to the broker, the client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so convert it.
+Similar to the broker, the client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so you need to convert it by running the follwing command:
 
 ```bash
 $ openssl pkcs8 -topk8 -inform PEM -outform PEM \
       -in admin.key.pem -out admin.key-pk8.pem -nocrypt
 ```
 
-Next, generate the certificate request. When you are asked for a **common name**, enter the **role token** that you want this key pair to authenticate a client as.
+Next, generate the certificate request using the command below. When you are asked for a **common name**, enter the **role token** that you want this key pair to authenticate a client as.
 
 ```bash
 $ openssl req -config openssl.cnf \
@@ -36,7 +36,7 @@ $ openssl req -config openssl.cnf \
 > Note
 > If openssl.cnf is not given, please read [Certificate authority](http://pulsar.apache.org/docs/en/security-tls-transport/#certificate-authority) to get the openssl.cnf.
 
-Then, sign with request with the certificate authority. Note that that client certs uses the **usr_cert** extension, which allows the cert to be used for client authentication.
+Then, sign with request with the certificate authority using the command below. Note that that client certs uses the **usr_cert** extension, which allows the cert to be used for client authentication.
 
 ```bash
 $ openssl ca -config openssl.cnf -extensions usr_cert \
