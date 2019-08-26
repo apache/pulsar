@@ -6,11 +6,11 @@ sidebar_label: Authentication using TLS
 
 ## TLS Authentication Overview
 
-TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md). Not only servers have keys and certs that the client uses to verify the server's identity, clients also have keys and certs that the server uses to verify the client's identity. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
+TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients . You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
 ### Creat client certificates
 
-You can use the same certificate authority that the server certificates used to generate the server certificates for generating client certificates. 
+The server certificates use a certificate authority to generate the server certificates. You can use the same certificate authority as the server used to generate client certificates.
 
 The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** which that client will be authenticated as.
 
@@ -34,7 +34,7 @@ $ openssl req -config openssl.cnf \
       -key admin.key.pem -new -sha256 -out admin.csr.pem
 ```
 > Note
-> If openssl.cnf is not given, please read [Certificate authority](http://pulsar.apache.org/docs/en/security-tls-transport/#certificate-authority) to get the openssl.cnf.
+> If openssl.cnf is not specified, read [Certificate authority](http://pulsar.apache.org/docs/en/security-tls-transport/#certificate-authority) to get the openssl.cnf.
 
 Then, sign with request with the certificate authority using the command below. Note that that client certs uses the **usr_cert** extension, which allows the cert to be used for client authentication.
 
@@ -44,10 +44,10 @@ $ openssl ca -config openssl.cnf -extensions usr_cert \
       -in admin.csr.pem -out admin.cert.pem
 ```
 
-This will give you a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem`. With `ca.cert.pem`, clients can used this cert and this key to authenticate themselves to brokers and proxies as the role token ``admin``.
+This command gives you a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem`. With `ca.cert.pem`, clients can used this cert and this key to authenticate themselves to brokers and proxies as the role token ``admin``.
 
 > Note
-> If you get the "unable to load CA private key" error and the reason of this error is "No such file or directory: /etc/pki/CA/private/cakey.pem" in this step. Please try the command below:
+> If the "unable to load CA private key" error occurs and the reason of this error is "No such file or directory: /etc/pki/CA/private/cakey.pem" in this step. Try the command below:
 >
 > ```bash
 > $ cd /etc/pki/tls/misc/CA
@@ -60,7 +60,7 @@ This will give you a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem`. Wit
 
 ### ... on Brokers
 
-To configure brokers to authenticate clients, put the following in `broker.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#broker-configuration):
+To configure brokers to authenticate clients, put the following parameters in `broker.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#broker-configuration):
 
 ```properties
 # Configuration to enable authentication
@@ -70,7 +70,7 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 
 ### ... on Proxies
 
-To configure proxies to authenticate clients, put the following in `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
+To configure proxies to authenticate clients, put the following parameters in `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
 
 The proxy should have its own client key pair for connecting to brokers. You need to configure the role token for this key pair in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
@@ -92,7 +92,7 @@ The client needs to connect via TLS transport for TLS authentication. So you nee
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
-You need to add the following parameters to that file to use TLS authentication with Pulsar's CLI tools:
+You need to add the following parameters to that file to use TLS authentication with the CLI tools of Pulsar:
 
 ```properties
 webServiceUrl=https://broker.example.com:8443/
