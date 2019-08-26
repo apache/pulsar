@@ -162,21 +162,23 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     config.setMessageListener(std::bind(&MultiTopicsConsumerImpl::messageReceived, shared_from_this(),
                                         std::placeholders::_1, std::placeholders::_2));
 
-    int numPartitions = partitionMetadata->getPartitions() >= 1 ? partitionMetadata->getPartitions() : 1;
+    int numPartitions = partitionMetadata->getPartitions();
+    int partitions = numPartitions == 0 ? 1 : numPartitions;
+
     // Apply total limit of receiver queue size across partitions
     config.setReceiverQueueSize(
         std::min(conf_.getReceiverQueueSize(),
-                 (int)(conf_.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions)));
+                 (int)(conf_.getMaxTotalReceiverQueueSizeAcrossPartitions() / partitions)));
 
     Lock lock(mutex_);
-    topicsPartitions_.insert(std::make_pair(topicName->toString(), numPartitions));
+    topicsPartitions_.insert(std::make_pair(topicName->toString(), partitions));
     lock.unlock();
-    numberTopicPartitions_->fetch_add(numPartitions);
+    numberTopicPartitions_->fetch_add(partitions);
 
-    std::shared_ptr<std::atomic<int>> partitionsNeedCreate =
-        std::make_shared<std::atomic<int>>(numPartitions);
+    std::shared_ptr<std::atomic<int>> partitionsNeedCreate = std::make_shared<std::atomic<int>>(partitions);
 
-    if (numPartitions == 1) {
+    // non-partitioned topic
+    if (numPartitions == 0) {
         // We don't have to add partition-n suffix
         consumer = std::make_shared<ConsumerImpl>(client_, topicName->toString(), subscriptionName_, config,
                                                   internalListenerExecutor, NonPartitioned);
