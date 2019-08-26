@@ -29,7 +29,7 @@ authentication on a Pulsar cluster.
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
-You need to add the following parameters to that file to use the token authentication with Pulsar's CLI tools:
+You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
 
 ```properties
 webServiceUrl=http://broker.example.com:8080/
