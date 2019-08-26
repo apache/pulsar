@@ -283,7 +283,7 @@ public class PersistentSubscription implements Subscription {
                 });
 
                 try {
-                    cursor.getManagedLedger().deleteCursor(cursor.getName());
+                    topic.getManagedLedger().deleteCursor(cursor.getName());
                 } catch (InterruptedException | ManagedLedgerException e) {
                     log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
                 }
