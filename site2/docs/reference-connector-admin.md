@@ -105,7 +105,7 @@ $ pulsar-admin sources update options
 
 ### `delete`
 
-Stops a Pulsar IO source connector.
+Delete a Pulsar IO source connector.
 
 #### Usage
 
@@ -123,7 +123,7 @@ $ pulsar-admin sources delete options
 
 ### `get`
 
-Gets the information about a Pulsar IO source connector.
+Get the information about a Pulsar IO source connector.
 
 #### Usage
 
@@ -141,7 +141,7 @@ $ pulsar-admin sources get options
 
 ### `status`
 
-Check the current status of a Pulsar Source
+Check the current status of a Pulsar Source.
 
 #### Usage
 
@@ -178,7 +178,7 @@ $ pulsar-admin sources list options
 
 ### `stop`
 
-Stop source instance.
+Stop a source instance.
 
 #### Usage
 
@@ -197,7 +197,7 @@ $ pulsar-admin sources stop options
 
 ### `start`
 
-Start source instance.
+Start a source instance.
 
 #### Usage
 
@@ -217,7 +217,7 @@ $ pulsar-admin sources start options
 
 ### `restart`
 
-Restart source instance.
+Restart a source instance.
 
 #### Usage
 
@@ -390,7 +390,7 @@ $ pulsar-admin sinks update options
 
 ### `delete`
 
-Stops a Pulsar IO sink connector.
+Delete a Pulsar IO sink connector.
 
 #### Usage
 
@@ -408,7 +408,7 @@ $ pulsar-admin sinks delete options
 
 ### `get`
 
-Gets the information about a Pulsar IO sink connector.
+Get the information about a Pulsar IO sink connector.
 
 #### Usage
 
@@ -426,7 +426,7 @@ $ pulsar-admin sinks get options
 
 ### `status`
 
-Check the current status of a Pulsar sink
+Check the current status of a Pulsar sink.
 
 #### Usage
 
@@ -464,7 +464,7 @@ $ pulsar-admin sinks list options
 
 ### `stop`
 
-Stop sink instance.
+Stop a sink instance.
 
 #### Usage
 
@@ -483,7 +483,7 @@ $ pulsar-admin sinks stop options
 
 ### `start`
 
-Start sink instance.
+Start a sink instance.
 
 #### Usage
 
@@ -503,7 +503,7 @@ $ pulsar-admin sinks start options
 
 ### `restart`
 
-Restart sink instance.
+Restart a sink instance.
 
 #### Usage
 
@@ -512,6 +512,7 @@ $ pulsar-admin sinks restart options
 ```
 
 #### Options
+
 |Flag|Description|
 |---|---|
 |`--instance-id`|The sink instanceID.<br>If `instance-id` is not provided, Pulsar restarts all instances.
