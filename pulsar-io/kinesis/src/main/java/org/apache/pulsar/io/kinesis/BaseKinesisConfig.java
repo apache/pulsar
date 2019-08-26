@@ -23,7 +23,6 @@ import java.io.Serializable;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 import lombok.Data;
-import lombok.experimental.Accessors;
 
 @Data
 public abstract class BaseKinesisConfig implements Serializable {
@@ -38,7 +37,7 @@ public abstract class BaseKinesisConfig implements Serializable {
     private String awsEndpoint;
     
     @FieldDoc(
-        required = true,
+        required = false,
         defaultValue = "",
         help = "Appropriate aws region. E.g. us-west-1, us-west-2"
     )

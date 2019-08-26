@@ -41,7 +41,7 @@ public class KinesisRecord implements Record<byte[]> {
     private final HashMap<String, String> userProperties = new HashMap<String, String> ();
     
     public KinesisRecord(com.amazonaws.services.kinesis.model.Record record) {
-        this.key = Optional.of(record.getPartitionKey() + "-" + record.getSequenceNumber());
+        this.key = Optional.of(record.getPartitionKey());
         setProperty(ARRIVAL_TIMESTAMP, record.getApproximateArrivalTimestamp().toString());
         setProperty(ENCRYPTION_TYPE, record.getEncryptionType());
         setProperty(PARTITION_KEY, record.getPartitionKey());

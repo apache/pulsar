@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -43,7 +40,7 @@ public class KinesisRecordProcessor implements IRecordProcessor {
     private final long backoffTime;
     
     private final LinkedBlockingQueue<KinesisRecord> queue;
-    private long nextCheckpointTimeInMillis;
+    private long nextCheckpointTimeInNanos;
     private String kinesisShardId;
     
     public KinesisRecordProcessor(LinkedBlockingQueue<KinesisRecord> queue, KinesisSourceConfig config) {
@@ -66,14 +63,14 @@ public class KinesisRecordProcessor implements IRecordProcessor {
            try {
                queue.put(new KinesisRecord(record));
            } catch (InterruptedException e) {
-               log.error("unable to create KinesisRecord ", e);
+               log.warn("unable to create KinesisRecord ", e);
            }
         }
 
        // Checkpoint once every checkpoint interval.
-        if (System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+        if (System.nanoTime() > nextCheckpointTimeInNanos) {
             checkpoint(checkpointer);
-            nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointInterval;
+            nextCheckpointTimeInNanos = System.nanoTime() + checkpointInterval;
         }
     }
 
@@ -89,18 +86,28 @@ public class KinesisRecordProcessor implements IRecordProcessor {
         log.info("Checkpointing shard " + kinesisShardId);
         
         for (int i = 0; i < numRetries; i++) {
-
             try {
                 checkpointer.checkpoint();
-            } catch (KinesisClientLibDependencyException | InvalidStateException | ThrottlingException
-                    | ShutdownException e1) {
                 break;
+            } catch (ShutdownException se) {
+                // Ignore checkpoint if the processor instance has been shutdown.
+                log.info("Caught shutdown exception, skipping checkpoint.", se);
+                break;
+            } catch (InvalidStateException e) {
+                log.error("Cannot save checkpoint to the DynamoDB table.", e);
+                break;
+            } catch (ThrottlingException e) {
+                // Back off and re-attempt checkpoint upon transient failures
+                if (i >= (numRetries - 1)) {
+                    log.error("Checkpoint failed after " + (i + 1) + "attempts.", e);
+                    break;
+                }
             }
-
+            
             try {
                 Thread.sleep(backoffTime);
             } catch (InterruptedException e) {
-                
+                log.debug("Interrupted sleep", e);
             }
         }
     }
