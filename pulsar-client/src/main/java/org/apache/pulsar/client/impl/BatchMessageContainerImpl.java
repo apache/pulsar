@@ -57,7 +57,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     protected SendCallback firstCallback;
 
     @Override
-    public void add(MessageImpl<?> msg, SendCallback callback) {
+    public boolean add(MessageImpl<?> msg, SendCallback callback) {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] add message to batch, num messages in batch so far {}", topicName, producerName,
@@ -79,6 +79,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         previousCallback = callback;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         messages.add(msg);
+
+        return isBatchFull();
     }
 
     private ByteBuf getCompressedBatchMetadataAndPayload() {

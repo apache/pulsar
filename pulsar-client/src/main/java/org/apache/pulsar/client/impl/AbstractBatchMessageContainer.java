@@ -37,6 +37,7 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected ProducerImpl producer;
 
     protected int maxNumMessagesInBatch;
+    protected int maxBytesInBatch;
     protected int numMessagesInBatch = 0;
     protected long currentBatchSizeBytes = 0;
 
@@ -50,8 +51,13 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
         int messageSize = msg.getDataBuffer().readableBytes();
-        return ((messageSize + currentBatchSizeBytes) <= MAX_MESSAGE_BATCH_SIZE_BYTES
-                && numMessagesInBatch < maxNumMessagesInBatch);
+        return ((messageSize + currentBatchSizeBytes) <= maxBytesInBatch
+                && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch));
+    }
+
+    protected boolean isBatchFull() {
+        return currentBatchSizeBytes >= maxBytesInBatch
+            || (maxNumMessagesInBatch > 0 && numMessagesInBatch >= maxNumMessagesInBatch);
     }
 
     @Override
@@ -83,5 +89,9 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
                 .convertToWireProtocol(producer.getConfiguration().getCompressionType());
         this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);
         this.maxNumMessagesInBatch = producer.getConfiguration().getBatchingMaxMessages();
+        this.maxBytesInBatch = producer.getConfiguration().getBatchingMaxBytes();
+        if (this.maxBytesInBatch <= 0) {
+            this.maxBytesInBatch = MAX_MESSAGE_BATCH_SIZE_BYTES;
+        }
     }
 }

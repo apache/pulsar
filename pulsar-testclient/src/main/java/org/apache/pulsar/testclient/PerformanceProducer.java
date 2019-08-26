@@ -157,6 +157,16 @@ public class PerformanceProducer {
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
 
+        @Parameter(names = {
+            "-bm", "--batch-max-messages"
+        }, description = "Maximum number of messages per batch")
+        public int batchMaxMessages = 0;
+
+        @Parameter(names = {
+            "-bb", "--batch-max-bytes"
+        }, description = "Maximum number of bytes per batch")
+        public int batchMaxBytes = 4 * 1024 * 1024;
+
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
         public long testTime = 0;
@@ -405,8 +415,12 @@ public class PerformanceProducer {
                 producerBuilder.enableBatching(false);
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
-                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS)
-                        .enableBatching(true);
+                producerBuilder
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS)
+                    .batchingMaxMessages(arguments.batchMaxMessages)
+                    .batchingMaxBytes(arguments.batchMaxBytes);
+
             }
 
             // Block if queue is full else we will start seeing errors in sendAsync
