@@ -451,7 +451,7 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
   * Apache Zookeeper
-    - zookeeper-3.4.13.jar
+    - zookeeper-3.5.5.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.5.0.jar
   * Swagger
