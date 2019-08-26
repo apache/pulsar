@@ -41,8 +41,7 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected int numMessagesInBatch = 0;
     protected long currentBatchSizeBytes = 0;
 
-    protected static final int INITIAL_BATCH_BUFFER_SIZE = 1024;
-    protected static final int MAX_MESSAGE_BATCH_SIZE_BYTES = 128 * 1024;
+    protected static final int INITIAL_BATCH_BUFFER_SIZE = 128 * 1024;
 
     // This will be the largest size for a batch sent from this particular producer. This is used as a baseline to
     // allocate a new buffer that can hold the entire batch without needing costly reallocations
@@ -51,12 +50,12 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
         int messageSize = msg.getDataBuffer().readableBytes();
-        return ((messageSize + currentBatchSizeBytes) <= maxBytesInBatch
-                && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch));
+        return (maxBytesInBatch <= 0 || (messageSize + currentBatchSizeBytes) <= maxBytesInBatch)
+                && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch);
     }
 
     protected boolean isBatchFull() {
-        return currentBatchSizeBytes >= maxBytesInBatch
+        return (maxBytesInBatch > 0 &&  currentBatchSizeBytes >= maxBytesInBatch)
             || (maxNumMessagesInBatch > 0 && numMessagesInBatch >= maxNumMessagesInBatch);
     }
 
@@ -90,8 +89,5 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);
         this.maxNumMessagesInBatch = producer.getConfiguration().getBatchingMaxMessages();
         this.maxBytesInBatch = producer.getConfiguration().getBatchingMaxBytes();
-        if (this.maxBytesInBatch <= 0) {
-            this.maxBytesInBatch = MAX_MESSAGE_BATCH_SIZE_BYTES;
-        }
     }
 }
