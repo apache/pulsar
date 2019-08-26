@@ -1033,6 +1033,7 @@ public class KubernetesRuntime implements Runtime {
         if (jobName.equals(convertedJobName)) {
             return jobName;
         }
+        // toValidPodName may cause naming collisions, add a short hash here to avoid it
         final String shortHash = DigestUtils.sha1Hex(jobNameContent).toLowerCase().substring(0, 8);
         return convertedJobName + "-" + shortHash;
     }
