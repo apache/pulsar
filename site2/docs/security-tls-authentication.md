@@ -44,7 +44,7 @@ $ openssl ca -config openssl.cnf -extensions usr_cert \
       -in admin.csr.pem -out admin.cert.pem
 ```
 
-This command gives you a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem`. With `ca.cert.pem`, clients can used this cert and this key to authenticate themselves to brokers and proxies as the role token ``admin``.
+You can get a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem` from this command. With `ca.cert.pem`, clients can used this cert and this key to authenticate themselves to brokers and proxies as the role token ``admin``.
 
 > Note
 > If the "unable to load CA private key" error occurs and the reason of this error is "No such file or directory: /etc/pki/CA/private/cakey.pem" in this step. Try the command below:
@@ -70,7 +70,7 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 
 ### ... on Proxies
 
-To configure proxies to authenticate clients, put the following parameters in `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
+To configure proxies to authenticate clients, add the following parameters to `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
 
 The proxy should have its own client key pair for connecting to brokers. You need to configure the role token for this key pair in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
