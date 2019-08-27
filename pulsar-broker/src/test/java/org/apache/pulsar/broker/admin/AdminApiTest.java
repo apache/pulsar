@@ -470,7 +470,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
-        
+
         // (4) try to update dynamic-field with special char "/" and "%"
         String user1 = "test/test%&$*/^";
         String user2 = "user2/password";
@@ -482,7 +482,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user1));
         assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user2));
 
-        
+
         admin.brokers().updateDynamicConfiguration("loadManagerClassName", SimpleLoadManagerImpl.class.getName());
         retryStrategically((test) -> pulsar.getConfiguration().getLoadManagerClassName()
                 .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
@@ -1741,7 +1741,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis() + 90000);
-        consumer = client.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
         consumer.close();
         client.close();
 

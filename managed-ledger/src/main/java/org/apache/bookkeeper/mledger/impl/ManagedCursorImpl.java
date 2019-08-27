@@ -892,7 +892,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                         log.info("[{}] reset position to {} skipping from current read position {} on cursor {}",
                                 ledger.getName(), newPosition, oldReadPosition, name);
                     }
-                    readPosition = newPosition;
+
+                    rewind();
                 } finally {
                     lock.writeLock().unlock();
                 }
@@ -903,8 +904,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 ledger.getName(), newPosition, name);
                     }
                 }
-                callback.resetComplete(newPosition);
 
+                callback.resetComplete(newPosition);
+                notifyEntriesAvailable();
             }
 
             @Override

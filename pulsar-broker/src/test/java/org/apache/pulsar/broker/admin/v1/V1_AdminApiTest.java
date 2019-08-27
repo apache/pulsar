@@ -1650,7 +1650,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis() + 90000);
-        consumer = client.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
         consumer.close();
         client.close();
 
