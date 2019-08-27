@@ -107,6 +107,10 @@ public interface Producer<T> extends Closeable {
      */
     TypedMessageBuilder<T> newMessage();
 
+    default TypedMessageBuilder<T> newMessage(long schemaVersion) {
+        return newMessage();
+    }
+
     /**
      * Get the last sequence id that was published by this producer.
      * <p>

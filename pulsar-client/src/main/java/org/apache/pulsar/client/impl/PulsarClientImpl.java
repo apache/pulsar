@@ -231,10 +231,22 @@ public class PulsarClientImpl implements PulsarClient {
 
         if (schema instanceof AutoProduceBytesSchema) {
             AutoProduceBytesSchema autoProduceBytesSchema = (AutoProduceBytesSchema) schema;
-            return lookup.getSchema(TopicName.get(conf.getTopicName()))
+            return lookup.getSchema(TopicName.get(topic))
                     .thenCompose(schemaInfoOptional -> {
                         if (schemaInfoOptional.isPresent()) {
-                            autoProduceBytesSchema.setSchema(Schema.getSchema(schemaInfoOptional.get()));
+                            Schema<?> actualSchema = Schema.getSchema(schemaInfoOptional.get());
+                            SchemaInfoProvider schemaInfoProvider;
+                            try {
+                                 schemaInfoProvider =
+                                         PulsarClientImpl.this.getSchemaProviderLoadingCache()
+                                                              .get(topic);
+                            } catch (ExecutionException e) {
+                                log.error("Failed to load schema info provider for topic {}",
+                                          topic, e);
+                                return FutureUtil.failedFuture(e.getCause());
+                            }
+                            actualSchema.setSchemaInfoProvider(schemaInfoProvider);
+                            autoProduceBytesSchema.setSchema(actualSchema);
                         } else {
                             autoProduceBytesSchema.setSchema(Schema.BYTES);
                         }

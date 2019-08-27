@@ -36,6 +36,8 @@ import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -338,7 +340,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
-        if (schemaVersion.isPresent()) {
+        if (!msgMetadataBuilder.hasSchemaVersion() && schemaVersion.isPresent()) {
             msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.get()));
         }
 

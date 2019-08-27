@@ -18,13 +18,19 @@
  */
 package org.apache.pulsar.client.api;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
@@ -116,6 +122,14 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    static class V2Data {
+        int i;
+        Integer j;
+    }
+
     @Test
     public void newProducerNewTopicNewSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
@@ -182,6 +196,39 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             p.send("junkdata".getBytes(UTF_8));
         } catch (PulsarClientException e) {
             assertTrue(e.getCause() instanceof SchemaSerializationException);
+        }
+    }
+
+    @Test
+    public void newProducerWithoutSchemaOnTopicWithMultiVersionSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+
+        try (Producer<V1Data> ignored = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+                                                    .topic(topic).create()) {
+        }
+        try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class))
+                                                    .topic(topic).create()) {
+            p.send(new V2Data(-1, -1));
+        }
+        V1Data msgV1 = new V1Data(2);
+        V2Data msgV2 = new V2Data(3, 5);
+        byte[] contentV1 = new AvroWriter<V1Data>(
+                ReflectData.AllowNull.get().getSchema(V1Data.class)).write(msgV1);
+        byte[] contentV2 = new AvroWriter<V2Data>(
+                ReflectData.AllowNull.get().getSchema(V2Data.class)).write(msgV2);
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                                              .topic(topic).create();
+             Consumer<V2Data> c = pulsarClient.newConsumer(Schema.AVRO(V2Data.class))
+                                              .topic(topic)
+                                              .subscriptionName("sub1").subscribe()) {
+            Assert.expectThrows(SchemaSerializationException.class, () -> p.send(contentV1));
+
+            p.newMessage(0).value(contentV1).send();
+            p.send(contentV2);
+            V2Data msg1 = c.receive().getValue();
+            Assert.assertEquals(msgV1.i, msg1.i);
+            Assert.assertNull(msg1.j);
+            Assert.assertEquals(msgV2, c.receive().getValue());
         }
     }
 

@@ -73,6 +73,11 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return new TypedMessageBuilderImpl<>(this, schema);
     }
 
+    @Override
+    public TypedMessageBuilder<T> newMessage(long schemaVersion) {
+        return new TypedMessageBuilderImpl<>(this, schema, schemaVersion);
+    }
+
     // TODO: add this method to the Producer interface
     // @Override
     public TypedMessageBuilder<T> newMessage(Transaction txn) {

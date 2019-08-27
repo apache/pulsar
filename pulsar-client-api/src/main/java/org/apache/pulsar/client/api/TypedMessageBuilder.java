@@ -252,6 +252,8 @@ public interface TypedMessageBuilder<T> extends Serializable {
      */
     TypedMessageBuilder<T> loadConf(Map<String, Object> config);
 
+    TypedMessageBuilder<T> schemaVersion(long schemaVersion);
+
     static final String CONF_KEY = "key";
     static final String CONF_PROPERTIES = "properties";
     static final String CONF_EVENT_TIME = "eventTime";

@@ -530,6 +530,12 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             return this;
         }
 
+        @Override
+        public TypedMessageBuilder<O> schemaVersion(long schemaVersion) {
+            underlyingBuilder.schemaVersion(schemaVersion);
+            return this;
+        }
+
         public void setUnderlyingBuilder(TypedMessageBuilder<O> underlyingBuilder) {
             this.underlyingBuilder = underlyingBuilder;
         }

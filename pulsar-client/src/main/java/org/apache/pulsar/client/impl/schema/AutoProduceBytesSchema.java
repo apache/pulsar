@@ -21,8 +21,11 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+
+import java.util.Arrays;
 
 /**
  * Auto detect schema.
@@ -57,6 +60,18 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
         if (requireSchemaValidation) {
             // verify if the message can be decoded by the underlying schema
             schema.validate(message);
+        }
+
+        return message;
+    }
+
+    @Override
+    public byte[] encode(byte[] message, byte[] schemaVersion) {
+        ensureSchemaInitialized();
+
+        if (requireSchemaValidation) {
+            // verify if the message can be decoded by the underlying schema
+            schema.validate(message, schemaVersion);
         }
 
         return message;

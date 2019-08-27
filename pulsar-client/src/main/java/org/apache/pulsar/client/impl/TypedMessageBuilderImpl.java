@@ -59,6 +59,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         this(producer, schema, null);
     }
 
+    public TypedMessageBuilderImpl(ProducerBase<T> producer, Schema<T> schema, long schemaVersion) {
+        this(producer, schema, null);
+        this.msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(
+                ByteBuffer.allocate(Long.BYTES).putLong(schemaVersion).array()));
+    }
+
     public TypedMessageBuilderImpl(ProducerBase<T> producer,
                                    Schema<T> schema,
                                    TransactionImpl txn) {
@@ -152,7 +158,13 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 return this;
             }
         }
-        this.content = ByteBuffer.wrap(schema.encode(value));
+
+        if (msgMetadataBuilder.hasSchemaVersion()) {
+            byte[] schemaVersion = msgMetadataBuilder.getSchemaVersion().toByteArray();
+            this.content = ByteBuffer.wrap(schema.encode(value, schemaVersion));
+        } else {
+            this.content = ByteBuffer.wrap(schema.encode(value));
+        }
         return this;
     }
 
@@ -213,6 +225,13 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> deliverAt(long timestamp) {
         msgMetadataBuilder.setDeliverAtTime(timestamp);
+        return this;
+    }
+
+    @Override
+    public TypedMessageBuilder<T> schemaVersion(long schemaVersion) {
+        msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(
+                ByteBuffer.allocate(Long.BYTES).putLong(schemaVersion).array()));
         return this;
     }
 

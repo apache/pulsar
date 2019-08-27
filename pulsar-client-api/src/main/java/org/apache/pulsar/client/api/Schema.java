@@ -54,6 +54,14 @@ public interface Schema<T> {
         decode(message);
     }
 
+    default void validate(byte[] message, byte[] schemaVersion) {
+        if (schemaVersion == null) {
+            decode(message);
+        } else {
+            decode(message, schemaVersion);
+        }
+    }
+
     /**
      * Encode an object representing the message content into a byte array.
      *
@@ -64,6 +72,10 @@ public interface Schema<T> {
      *             if the serialization fails
      */
     byte[] encode(T message);
+
+    default byte[] encode(T message, byte[] schemaVersion) {
+        return encode(message);
+    }
 
     /**
      * Returns whether this schema supports versioning.
