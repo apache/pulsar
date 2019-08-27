@@ -20,7 +20,7 @@ The compact representation of a signed JWT is a string that looks like as the fo
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 ```
 
-Application specifies the token when the application is creating the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
+Application specifies the token when you are creating the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
 
 See [Token authentication admin](security-token-admin.md) for a reference on how to enable token
 authentication on a Pulsar cluster.
