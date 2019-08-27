@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -61,7 +62,7 @@ public class NonPersistentSubscription implements Subscription {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
-        this.fullName = "PersistentSubscription{topic=" + topicName + ", name=" + subName + "}";
+        this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
     }
 

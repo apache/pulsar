@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 
+import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -138,7 +139,7 @@ public class PersistentSubscription implements Subscription {
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
-        this.fullName = "PersistentSubscription{topic=" + topicName + ", name=" + subName + "}";
+        this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
         this.setReplicated(replicated);
         IS_FENCED_UPDATER.set(this, FALSE);
