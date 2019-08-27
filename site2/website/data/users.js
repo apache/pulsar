@@ -126,7 +126,60 @@ module.exports = [
     },
     {
         name: 'Kafkaesque',
-        url: 'https://kafkaesque.io/', 
+        url: 'https://kafkaesque.io/',
         logo: 'https://kafkaesque.io/wp-content/uploads/2019/04/color_logo_with_background.svg'
+    },
+    {
+        name: 'OKCoin',
+        url: 'https://www.okcoin.com/',
+        logo: 'http://img.bafang.com/cdn/assets/imgs/MjAxOTM/784CCB28D9026D43DA6A5F257DA74BF2.png',
+        logo_white: true
+    },
+    {
+        name: 'BestPay',
+        url: 'https://www.bestpay.com.cn/',
+        logo: 'https://www.bestpay.com.cn/global/oig/images/logo.png'
+    },
+    {
+        name: '360',
+        url: 'https://www.360.cn/',
+        logo: 'http://p2.ssl.qhimg.com/t01d91636862957f76e.png'
+    },
+    {
+        name: 'Lakala',
+        url: 'http://www.lakala.com/',
+        logo: 'http://www.lakala.com/templets/default/image/temp/logo.png'
+    },
+    {
+        name: 'Huya',
+        url: 'https://www.huya.com/',
+        logo: 'https://a.msstatic.com/huya/main/img/logo2.png',
+        logo_white: true
+    },
+    {
+        name: 'CTWing',
+        url: 'https://www.ctwing.cn/',
+        logo: 'https://www.ctwing.cn/static/img/logo.168f8b7.svg'
+    },
+    {
+        name: 'Globalegrow E-Commerce',
+        url: 'https://www.globalegrow.com/',
+        logo: 'https://static.globalegrow.com/dist/images/domeimg/ch/logo.jpg'
+    },
+    {
+        name: 'YunZhiHuLian',
+        url: 'https://www.weihudashi.com',
+        logo: 'https://www.weihudashi.com/image/header-logo.png'
+    },
+    {
+        name: 'XiaoDuoAI',
+        url: 'https://www.xiaoduoai.com/',
+        logo: 'https://cdn.xiaoduoai.com/official-site/dist/assets/img/indexPage/xiaoduo_logo_en_white.843927.png',
+        logo_white: true
+    },
+    {
+        name: 'Shihong',
+        url: 'https://shihong.net.cn',
+        logo: 'https://shihong.net.cn/website/static/src/img/shihong1.png'
     },
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
