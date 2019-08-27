@@ -771,6 +771,36 @@ public class ServiceConfiguration implements PulsarConfiguration {
             "preference) to read all entries for a ledger.")
     private boolean bookkeeperEnableStickyReads = true;
 
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the client security provider factory class name. "
+            + "Default: org.apache.bookkeeper.tls.TLSContextFactory")
+    private String bookkeeperTLSProviderFactoryClass = "org.apache.bookkeeper.tls.TLSContextFactory";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable tls authentication with bookie")
+    private boolean bookkeeperTLSClientAuthentication = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Supported type: PEM, JKS, PKCS12. Default value: PEM")
+    private String bookkeeperTLSKeyFileType = "PEM";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Supported type: PEM, JKS, PKCS12. Default value: PEM")
+    private String bookkeeperTLSTrustCertTypes = "PEM";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path to file containing keystore password, "
+            + "if the client keystore is password protected.")
+    private String bookkeeperTLSKeyStorePasswordPath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path to file containing truststore password, "
+            + "if the client truststore is password protected.")
+    private String bookkeeperTLSTrustStorePasswordPath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the TLS private key file")
+    private String bookkeeperTLSKeyFilePath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the TLS certificate file")
+    private String bookkeeperTLSCertificateFilePath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
+    private String bookkeeperTLSTrustCertsFilePath;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
