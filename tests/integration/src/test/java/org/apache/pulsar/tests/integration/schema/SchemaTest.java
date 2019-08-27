@@ -289,23 +289,23 @@ public class SchemaTest extends PulsarTestSuite {
                     if (schemaProducer == null) {
                         client.newProducer()
                                 .topic(topicName)
-                                .create();
+                                .create().close();
                     } else {
                         client.newProducer(schemaProducer)
                                 .topic(topicName)
-                                .create();
+                                .create().close();
                     }
 
                     if (schemaConsumer == null) {
                         client.newConsumer()
                                 .topic(topicName)
                                 .subscriptionName("test")
-                                .subscribe();
+                                .subscribe().close();
                     } else {
                         client.newConsumer(schemaConsumer)
                                 .topic(topicName)
                                 .subscriptionName("test")
-                                .subscribe();
+                                .subscribe().close();
                     }
 
                     assertEquals(schemaProducer.getSchemaInfo().getType(),
