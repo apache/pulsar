@@ -38,6 +38,8 @@ Subcommands are:
   
 * `available-sources`
 
+* `reload`
+
 
 ### `create`
 
@@ -282,6 +284,16 @@ Get the list of Pulsar IO connector sources supported by Pulsar cluster.
 $ pulsar-admin sources available-sources
 ```
 
+### `reload`
+
+Reload the available built-in connectors.
+
+#### Usage
+
+```bash
+$ pulsar-admin sources reload
+```
+
 ## `sinks`
 
 An interface for managing Pulsar IO sinks (egress data from Pulsar).
@@ -313,6 +325,8 @@ Subcommands are:
 * `localrun`
   
 * `available-sinks`
+
+* `reload`
 
 
 ### `create`
@@ -574,4 +588,13 @@ Get the list of Pulsar IO connector sinks supported by Pulsar cluster.
 $ pulsar-admin sinks available-sinks
 ```
 
+### `reload`
+
+Reload the available built-in connectors.
+
+#### Usage
+
+```bash
+$ pulsar-admin sinks reload
+```
 
