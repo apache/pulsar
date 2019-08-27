@@ -312,31 +312,49 @@ public class SchemasResource extends AdminResource {
     ) {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
 
-        pulsar().getSchemaRegistryService().putSchemaIfAbsent(
-            buildSchemaId(tenant, namespace, topic),
-            SchemaData.builder()
-                .data(payload.getSchema().getBytes(Charsets.UTF_8))
-                .isDeleted(false)
-                .timestamp(clock.millis())
-                .type(SchemaType.valueOf(payload.getType()))
-                .user(defaultIfEmpty(clientAppId(), ""))
-                .props(payload.getProperties())
-                .build(),
-            SchemaCompatibilityStrategy.FULL
-        ).thenAccept(version ->
-            response.resume(
-                Response.accepted().entity(
-                    PostSchemaResponse.builder()
-                        .version(version)
-                        .build()
-                ).build()
-            )
-        ).exceptionally(error -> {
-            if (error instanceof IncompatibleSchemaException) {
-                response.resume(Response.status(Response.Status.CONFLICT).build());
-            } else if (error instanceof InvalidSchemaDataException) {
+        NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+        getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
+            SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+            pulsar().getSchemaRegistryService().putSchemaIfAbsent(
+                    buildSchemaId(tenant, namespace, topic),
+                    SchemaData.builder()
+                            .data(payload.getSchema().getBytes(Charsets.UTF_8))
+                            .isDeleted(false)
+                            .timestamp(clock.millis())
+                            .type(SchemaType.valueOf(payload.getType()))
+                            .user(defaultIfEmpty(clientAppId(), ""))
+                            .props(payload.getProperties())
+                            .build(),
+                    schemaCompatibilityStrategy
+
+            ).thenAccept(version ->
+                    response.resume(
+                            Response.accepted().entity(
+                                    PostSchemaResponse.builder()
+                                            .version(version)
+                                            .build()
+                            ).build()
+                    )
+            ).exceptionally(error -> {
+                if (error.getCause() instanceof IncompatibleSchemaException) {
+                    response.resume(Response.status(Response.Status.CONFLICT).build());
+                } else if (error instanceof InvalidSchemaDataException) {
+                    response.resume(Response.status(
+                            422, /* Unprocessable Entity */
+                            error.getMessage()
+                    ).build());
+                } else {
+                    response.resume(
+                            Response.serverError().build()
+                    );
+                }
+                return null;
+            });
+        }).exceptionally(error -> {
+            if (error.getCause() instanceof RestException) {
                 response.resume(Response.status(
-                    422, /* Unprocessable Entity */
+                        ((RestException) error.getCause()).getResponse().getStatus(), /* Unprocessable Entity */
                     error.getMessage()
                 ).build());
             } else {

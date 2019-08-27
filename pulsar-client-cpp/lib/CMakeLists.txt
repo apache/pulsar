@@ -25,11 +25,18 @@ set (CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -D_PULSAR_VERSION_=\\\"${PV}\\\"")
 if (NOT PROTOC_PATH)
     set(PROTOC_PATH protoc)
 endif()
+
+set(LIB_AUTOGEN_DIR ${AUTOGEN_DIR}/lib)
+file(MAKE_DIRECTORY ${LIB_AUTOGEN_DIR})
+include_directories(${LIB_AUTOGEN_DIR})
+
 # Protobuf generation is only supported natively starting from CMake 3.8
 # Using custom command for now
+set(PROTO_SOURCES ${LIB_AUTOGEN_DIR}/PulsarApi.pb.cc ${LIB_AUTOGEN_DIR}/PulsarApi.pb.h)
+set(PULSAR_SOURCES ${PULSAR_SOURCES} ${PROTO_SOURCES})
 ADD_CUSTOM_COMMAND(
-         OUTPUT ${CMAKE_SOURCE_DIR}/lib/PulsarApi.pb.h ${CMAKE_SOURCE_DIR}/lib/PulsarApi.pb.cc
-         COMMAND ${PROTOC_PATH} -I ../../pulsar-common/src/main/proto ../../pulsar-common/src/main/proto/PulsarApi.proto --cpp_out=${CMAKE_SOURCE_DIR}/lib
+         OUTPUT ${PROTO_SOURCES}
+         COMMAND ${PROTOC_PATH} -I ../../pulsar-common/src/main/proto ../../pulsar-common/src/main/proto/PulsarApi.proto --cpp_out=${LIB_AUTOGEN_DIR}
          DEPENDS
          ../../pulsar-common/src/main/proto/PulsarApi.proto
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
@@ -50,11 +57,11 @@ if (WIN32)
     string(APPEND LIB_NAME_SHARED dll)
 endif()
 
-add_library(pulsarShared SHARED ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
+add_library(pulsarShared SHARED ${PULSAR_SOURCES})
 set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME_SHARED} VERSION ${LIBRARY_VERSION})
 target_link_libraries(pulsarShared ${COMMON_LIBS} ${CMAKE_DL_LIBS})
 
-add_library(pulsarStatic STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
+add_library(pulsarStatic STATIC ${PULSAR_SOURCES})
 set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
 target_compile_definitions(pulsarStatic PRIVATE PULSAR_STATIC)
 
@@ -84,7 +91,7 @@ if (LINK_STATIC)
             set(${OUTLIST} ${TEMP_OUT} PARENT_SCOPE)
         endfunction(remove_libtype)
 
-        add_library(pulsarStaticWithDeps STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
+        add_library(pulsarStaticWithDeps STATIC ${PULSAR_SOURCES})
         target_include_directories(pulsarStaticWithDeps PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
         remove_libtype("${COMMON_LIBS}" "optimized" DEBUG_STATIC_LIBS)
         remove_libtype("${COMMON_LIBS}" "debug" STATIC_LIBS)

@@ -79,6 +79,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -742,10 +743,12 @@ public class PulsarClientImpl implements PulsarClient {
             if (schema.requireFetchingSchemaInfo()) {
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
-                        // no schema info is found
-                        return FutureUtil.failedFuture(
-                            new PulsarClientException.NotFoundException(
-                                "No latest schema found for topic " + topicName));
+                        if (!(schema instanceof AutoConsumeSchema)) {
+                            // no schema info is found
+                            return FutureUtil.failedFuture(
+                                    new PulsarClientException.NotFoundException(
+                                            "No latest schema found for topic " + topicName));
+                        }
                     }
                     try {
                         log.info("Configuring schema for topic {} : {}", topicName, schemaInfo);
