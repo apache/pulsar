@@ -470,7 +470,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public String toString() {
-        return "NonPersistentSubscription{topic=" + topicName + ", name=" + subName + "}";
+        return "PersistentSubscription{topic=" + topicName + ", name=" + subName + "}";
     }
 
     @Override
