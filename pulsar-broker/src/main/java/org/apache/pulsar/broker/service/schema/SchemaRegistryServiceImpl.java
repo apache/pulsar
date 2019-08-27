@@ -216,9 +216,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                  SchemaCompatibilityStrategy strategy) {
         HashCode existingHash = hashFunction.hashBytes(existingSchema.schema.getData());
         HashCode newHash = hashFunction.hashBytes(newSchema.getData());
+        SchemaData existingSchemaData = existingSchema.schema;
+        if (existingSchemaData.getType().isPrimitive()) {
+            return newSchema.getType() == existingSchemaData.getType();
+        }
         return newHash.equals(existingHash) ||
             compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-            .isCompatible(existingSchema.schema, newSchema, strategy);
+            .isCompatible(existingSchemaData, newSchema, strategy);
     }
 
     public CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData) {
