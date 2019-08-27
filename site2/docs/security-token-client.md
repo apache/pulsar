@@ -10,9 +10,9 @@ Pulsar supports authenticating clients using security tokens that are based on
 [JSON Web Tokens](https://jwt.io/introduction/) ([RFC-7519](https://tools.ietf.org/html/rfc7519)).
 
 You can use tokens to identify a Pulsar client and associate with some "principal" (or "role") that
-will be then granted permissions to do some actions (eg: publish or consume from a topic).
+is permitted to do some actions (eg: publish or consume from a topic) then.
 
-The administrator (or some automated service) will typically give a user a token string.
+The administrator (or some automated service) typically gives a user a token string.
 
 The compact representation of a signed JWT is a string that looks like as the follwing:
 
@@ -20,7 +20,7 @@ The compact representation of a signed JWT is a string that looks like as the fo
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 ```
 
-Application will specify the token when the application is creating the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
+Application specifies the token when the application is creating the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
 
 See [Token authentication admin](security-token-admin.md) for a reference on how to enable token
 authentication on a Pulsar cluster.
