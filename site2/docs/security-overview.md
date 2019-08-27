@@ -25,6 +25,7 @@ Currently Pulsar supports three authentication providers:
 - [TLS Authentication](security-tls-authentication.md)
 - [Athenz](security-athenz.md)
 - [Kerberos](security-kerberos.md)
+- JSON Web Token Authentication
 
 ## Contents
 
