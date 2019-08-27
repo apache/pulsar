@@ -85,6 +85,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -153,7 +154,7 @@ public class PulsarService implements AutoCloseable {
     private WebSocketService webSocketService = null;
     private ConfigurationCacheService configurationCacheService = null;
     private LocalZooKeeperCacheService localZkCacheService = null;
-    private TopicPoliciesService topicPoliciesService = null;
+    private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
@@ -422,7 +423,7 @@ public class PulsarService implements AutoCloseable {
 
             // Start topic level policies service
             if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
-                this.topicPoliciesService = new TopicPoliciesService(this);
+                this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
             }
 
             brokerService.start();
