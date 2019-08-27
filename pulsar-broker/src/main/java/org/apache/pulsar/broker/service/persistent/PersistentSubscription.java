@@ -470,7 +470,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        return "NonPersistentSubscription{topic=" + topicName + ", name=" + subName + "}";
     }
 
     @Override
