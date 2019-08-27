@@ -213,7 +213,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType, this.stats);
+                collectorRegistry, metricsLabels, this.componentType, this.stats, stateTable);
     }
 
     /**
@@ -232,10 +232,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     this.componentType);
 
             javaInstance = setupJavaInstance();
-            if (null != stateTable) {
-                StateContextImpl stateContext = new StateContextImpl(stateTable);
-                javaInstance.getContext().setStateContext(stateContext);
-            }
             while (true) {
                 currentRecord = readInput();
 
