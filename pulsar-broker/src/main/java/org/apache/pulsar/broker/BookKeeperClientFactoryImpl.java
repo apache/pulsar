@@ -74,6 +74,18 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setProperty(conf.getBookkeeperClientAuthenticationParametersName(),
                     conf.getBookkeeperClientAuthenticationParameters());
         }
+        
+        if (conf.isBookkeeperTLSClientAuthentication()) {
+            bkConf.setTLSClientAuthentication(true);
+            bkConf.setTLSCertificatePath(conf.getBookkeeperTLSCertificateFilePath());
+            bkConf.setTLSKeyStore(conf.getBookkeeperTLSKeyFilePath());
+            bkConf.setTLSKeyStoreType(conf.getBookkeeperTLSKeyFileType());
+            bkConf.setTLSKeyStorePasswordPath(conf.getBookkeeperTLSKeyStorePasswordPath());
+            bkConf.setTLSProviderFactoryClass(conf.getBookkeeperTLSProviderFactoryClass());
+            bkConf.setTLSTrustStore(conf.getBookkeeperTLSTrustCertsFilePath());
+            bkConf.setTLSTrustStoreType(conf.getBookkeeperTLSTrustCertTypes());
+            bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
+        }
 
         bkConf.setThrottleValue(0);
         bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
