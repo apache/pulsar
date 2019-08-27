@@ -22,38 +22,6 @@ PULSAR_PATH=$(git rev-parse --show-toplevel)
 
 cd $PULSAR_PATH
 
-git checkout v2.3.0
-echo "Generating swagger json file for 2.3.0 ..."
-mvn -am -pl pulsar-broker install -DskipTests -Pswagger
-echo "Swagger json file is generated for 2.3.0"
-
-cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/2.3.0/
-echo "Copied swagger json file for 2.3.0."
-
-git checkout v2.3.1
-echo "Generating swagger json file for 2.3.1 ..."
-mvn -am -pl pulsar-broker install -DskipTests -Pswagger
-echo "Swagger json file is generated for 2.3.1"
-
-cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/2.3.1/
-echo "Copied swagger json file for 2.3.1."
-
-git checkout v2.3.2
-echo "Generating swagger json file for 2.3.2 ..."
-mvn -am -pl pulsar-broker install -DskipTests -Pswagger
-echo "Swagger json file is generated for 2.3.2"
-
-cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/2.3.2/
-echo "Copied swagger json file for 2.3.2."
-
-git checkout v2.4.0
-echo "Generating swagger json file for 2.4.0 ..."
-mvn -am -pl pulsar-broker install -DskipTests -Pswagger
-echo "Swagger json file is generated for 2.4.0."
-
-cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/2.4.0/
-echo "Copied swagger json file for 2.4.0."
-
 git checkout master
 echo "Generating swagger json file for master ..."
 mvn -am -pl pulsar-broker install -DskipTests -Pswagger
