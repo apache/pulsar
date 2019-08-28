@@ -182,4 +182,25 @@ module.exports = [
         url: 'https://shihong.net.cn',
         logo: 'https://shihong.net.cn/website/static/src/img/shihong1.png'
     },
+    {
+        name: 'CleverCloud',
+        url: 'https://www.clever-cloud.com/en/',
+        logo: 'https://www.clever-cloud.com/images/brand-assets/logos/v2/logo_on_white.svg'
+    },
+    {
+        name: 'BrandsEye',
+        url: 'https://www.brandseye.com/',
+        logo: 'https://www.brandseye.com/theme-images/brandseye-logo-v2.png'
+    },
+    {
+        name: 'Max Kelsen',
+        url: 'https://maxkelsen.com/',
+        logo: 'https://maxkelsen.com/imgs/logo/Max-Kelsen-logo-black.png'
+    },
+    {
+        name: 'HSL Developer Community of Helsinki Regional Transport Authority',
+        url: 'https://dev.hsl.fi/',
+        logo: 'https://dev.hsl.fi/logo.png',
+        logo_white: true
+    }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
