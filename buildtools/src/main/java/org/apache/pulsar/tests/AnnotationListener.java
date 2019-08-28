@@ -22,6 +22,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.math.NumberUtils;
 import org.testng.IAnnotationTransformer;
 import org.testng.annotations.ITestAnnotation;
 
@@ -29,6 +30,14 @@ import org.testng.annotations.ITestAnnotation;
 public class AnnotationListener implements IAnnotationTransformer {
 
     private static final long DEFAULT_TEST_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(5);
+
+    private static final long TEST_TIMEOUT_MILLIS_PROPERTY =
+            Integer.parseInt(System.getProperty("testTimeOut", Long.toString(DEFAULT_TEST_TIMEOUT_MILLIS)));
+
+     private static final long TEST_TIMEOUT_MILLIS_ENV =
+            NumberUtils.toLong(System.getenv("TEST_TIMEOUT_ENV_MILLIS"), DEFAULT_TEST_TIMEOUT_MILLIS);
+
+     private static final long TEST_TIMEOUT_MILLIS = Math.max(TEST_TIMEOUT_MILLIS_PROPERTY, TEST_TIMEOUT_MILLIS_ENV);
 
     public AnnotationListener() {
         System.out.println("Created annotation listener");
@@ -40,7 +49,7 @@ public class AnnotationListener implements IAnnotationTransformer {
 
         // Enforce default test timeout
         if (annotation.getTimeOut() == 0) {
-            annotation.setTimeOut(DEFAULT_TEST_TIMEOUT_MILLIS);
+            annotation.setTimeOut(TEST_TIMEOUT_MILLIS);
         }
     }
 }
