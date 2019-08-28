@@ -114,6 +114,9 @@ public class OverloadShedderTest {
         broker1.setBandwidthIn(new ResourceUsage(999, 1000));
         broker1.setBandwidthOut(new ResourceUsage(999, 1000));
 
+        LocalBrokerData anotherBroker = new LocalBrokerData();
+        String anotherBrokerName = "another-broker";
+
         double brokerThroghput = 0;
 
         for (int i = 1; i <= numBundles; i++) {
@@ -128,6 +131,11 @@ public class OverloadShedderTest {
             bundle.setShortTermData(db);
             loadData.getBundleData().put("bundle-" + i, bundle);
 
+            // This bundle should not be selected for `broker1` since it is belong to another broker.
+            String anotherBundleName = anotherBrokerName + "-bundle-" + (numBundles + i);
+            loadData.getBundleData().put(anotherBundleName, bundle);
+            anotherBroker.getBundles().add(anotherBundleName);
+
             brokerThroghput += throughput;
         }
 
@@ -135,6 +143,7 @@ public class OverloadShedderTest {
         broker1.setMsgThroughputOut(brokerThroghput);
 
         loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+        loadData.getBrokerData().put(anotherBrokerName, new BrokerData(anotherBroker));
 
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
