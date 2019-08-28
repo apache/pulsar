@@ -1,0 +1,22 @@
+name: CI
+on: [pull_request]
+
+jobs:
+  
+  cpp-integration:
+    name: C++ / Python tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
+      - name: run c++ tests
+        run: |
+          java -version
+          javac -version
+          mvn -B clean package -DskipTests
+          echo "Build C++ client library"
+          export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
+          pulsar-client-cpp/docker-build.sh
+          pulsar-client-cpp/docker-tests.sh 

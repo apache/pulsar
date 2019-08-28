@@ -1,0 +1,19 @@
+name: CI
+on: [pull_request]
+
+jobs:
+    
+  build-integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
+      - name: run integration tests
+        run: |
+          java -version
+          javac -version
+          mvn install -Pdocker -DskipTests
+          mvn -f tests/pom.xml test -DintegrationTests

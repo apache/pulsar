@@ -1,0 +1,20 @@
+name: CI
+on: [pull_request]
+
+jobs:
+
+  build-unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
+      - name: run unit tests
+        run: |
+          java -version
+          javac -version
+          export TEST_TIMEOUT_ENV_MILLIS=30000
+          export TEST_RETRY_COUNT=3
+          mvn install
