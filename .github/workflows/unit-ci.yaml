@@ -8,13 +8,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
       - name: Checkout code
         uses: actions/checkout@master
 
       - name: run unit tests
         run: |
-          java -version
-          javac -version
           export TEST_TIMEOUT_ENV_MILLIS=30000
           export TEST_RETRY_COUNT=3
-          mvn install
+          mvn -B clean license:check install
+          src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
