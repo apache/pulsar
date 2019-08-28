@@ -17,12 +17,14 @@ module.exports = [
     {
         name: 'Verizon Media',
         url: 'https://www.verizonmedia.com/',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Verizon_Media_2019_logo.svg/1200px-Verizon_Media_2019_logo.svg.png'
+        logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Verizon_Media_2019_logo.svg/1200px-Verizon_Media_2019_logo.svg.png',
+        featured: 1
     },
     {
         name: 'Yahoo! JAPAN',
         url: 'https://www.yahoo.co.jp/',
-        logo: 'https://s.yimg.jp/images/top/sp2/cmn/logo-170307.png'
+        logo: 'https://s.yimg.jp/images/top/sp2/cmn/logo-170307.png',
+        featured: 2
     },
     {
         name: 'Zhaopin',
@@ -47,7 +49,8 @@ module.exports = [
     {
         name: 'Nutanix',
         url: 'https://www.nutanix.com/',
-        logo: 'https://www.zuora.com/wp-content/uploads/2017/05/nutanix.png'
+        logo: 'https://www.zuora.com/wp-content/uploads/2017/05/nutanix.png',
+        featured: 4
     },
     {
         name: 'The Hut Group',
@@ -87,7 +90,8 @@ module.exports = [
     {
         name: 'Tencent',
         url: 'https://www.tencent.com',
-        logo: 'http://pluspng.com/img-png/tencent-png-tencent-logo-logotype-emblem-2-7537.png'
+        logo: 'http://pluspng.com/img-png/tencent-png-tencent-logo-logotype-emblem-2-7537.png',
+        featured: 3
     },
     {
         name: 'Comcast',
@@ -202,5 +206,15 @@ module.exports = [
         url: 'https://dev.hsl.fi/',
         logo: 'https://dev.hsl.fi/logo.png',
         logo_white: true
+    },
+    {
+        name: 'Ottoo',
+        url: 'https://ottoo.com',
+        logo: 'https://ottoo.com/assets/images/ottoo-logo.svg'
+    },
+    {
+        name: 'MercadoLibre',
+        url: 'https://www.mercadolibre.com/',
+        logo: 'https://d1.awsstatic.com/case-studies/LATAM/mercadolibre.1d9d3766bb06e60948f1c5ce8851ce0eac63b349.png'
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
