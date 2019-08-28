@@ -36,6 +36,27 @@
         }
       }
     },
+    "/sinks/reloadBuiltInSinks" : {
+      "post" : {
+        "tags" : [ "sinks" ],
+        "summary" : "Reload the available built-in connectors, include Source and Sink",
+        "description" : "",
+        "operationId" : "reloadSinks",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "401" : {
+            "description" : "This operation requires super-user access"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
+          }
+        }
+      }
+    },
     "/sinks/{tenant}/{namespace}" : {
       "get" : {
         "tags" : [ "sinks" ],
