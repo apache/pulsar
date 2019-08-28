@@ -4,7 +4,7 @@ title: Transport Encryption using TLS
 sidebar_label: Transport Encryption using TLS
 ---
 
-## TLS Overview
+## TLS overview
 
 By default, Apache Pulsar clients communicate with the Apache Pulsar service in plain text. This means that all data is sent in the clear. You can use TLS to encrypt this traffic to protect the traffic from the snooping of a man-in-the-middle attacker.
 
@@ -14,7 +14,7 @@ You can also configure TLS for both encryption and authentication. Use this guid
 
 ## TLS concepts
 
-TLS is a form of [public key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography). Using a key pairs consisting of a public key and a private key can perform the encryption. The public key encrpyts the messages and the private key decrypts the messages.
+TLS is a form of [public key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography). Using key pairs consisting of a public key and a private key can perform the encryption. The public key encrpyts the messages and the private key decrypts the messages.
 
 To use TLS transport encryption, you need two kinds of key pairs, **server key pairs** and a **certificate authority**.
 
@@ -26,19 +26,19 @@ For both client and server key pairs, the administrator first generates a privat
 
 For TLS transport encryption, the clients can use the **trust cert** to verify that the server has a key pair that the certificate authority signed when the clients are talking to the server. A man-in-the-middle attacker does not have access to the certificate authority, so they couldn't create a server with such a key pair.
 
-For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signed. The Common Name of the **client cert** is then used as the client's role token (see [Overview](security-overview.md)).
+For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signed. The common name of the **client cert** is then used as the client's role token (see [Overview](security-overview.md)).
 
-## Creat TLS Certificates
+## Create TLS certificates
 
 Creating TLS certificates for Pulsar involves creating a [certificate authority](#certificate-authority) (CA), [server certificate](#server-certificate), and [client certificate](#client-certificate).
 
-Follow the abridged guide below to set up a certificate authority. You can also refer to plenty of resources on the internet for a more detailed guide. We recommend [this guide](https://jamielinux.com/docs/openssl-certificate-authority/index.html) for your detailed reference.
+Follow the guide below to set up a certificate authority. You can also refer to plenty of resources on the internet for more details. We recommend [this guide](https://jamielinux.com/docs/openssl-certificate-authority/index.html) for your detailed reference.
 
 ### Certificate authority
 
-First, create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party will trust the others. You should store CA in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).
+1. Create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party will trust the others. You should store CA in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).
 
-Next, create a directory for your CA using the follwing command, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needed.
+2. Create a directory for your CA using the follwing command, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needed.
 
 ```bash
 $ mkdir my-ca
@@ -47,7 +47,7 @@ $ wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/stat
 $ export CA_HOME=$(pwd)
 ```
 
-Then, run the commands below to create the necessary directories, keys and certs.
+3. Run the commands below to create the necessary directories, keys and certs.
 
 ```bash
 $ mkdir certs crl newcerts private
@@ -62,7 +62,7 @@ $ openssl req -config openssl.cnf -key private/ca.key.pem \
 $ chmod 444 certs/ca.cert.pem
 ```
 
-After you answer the question prompts, CA-related files are stored in the `./my-ca` directory. Within that directory:
+4. After you answer the question prompts, CA-related files are stored in the `./my-ca` directory. Within that directory:
 
 * `certs/ca.cert.pem` is the public certificate. This public certificates is meant to be distributed to all parties involved.
 * `private/ca.key.pem` is the private key. You only need it when you are signing a new certificate for either broker or clients and you must safely guard this private key.
@@ -81,7 +81,7 @@ The following commands ask you a few questions and then create the certificates.
 > should configure the client to disable TLS hostname verification. For more
 > details, you can see [the host verification section in client configuration](#hostname-verification).
 
-First, generate the key using the command below.
+1. Generate the key using the command below.
 
 ```bash
 $ openssl genrsa -out broker.key.pem 2048
@@ -94,14 +94,14 @@ $ openssl pkcs8 -topk8 -inform PEM -outform PEM \
       -in broker.key.pem -out broker.key-pk8.pem -nocrypt
 ```
 
-Next, use the follwing command to generate the certificate request...
+2. Use the follwing command to generate the certificate request...
 
 ```bash
 $ openssl req -config openssl.cnf \
       -key broker.key.pem -new -sha256 -out broker.csr.pem
 ```
 
-... and sign it with the certificate authority by running the command below.
+3. Sign it with the certificate authority by running the command below.
 
 ```bash
 $ openssl ca -config openssl.cnf -extensions server_cert \
