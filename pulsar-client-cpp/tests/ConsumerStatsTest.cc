@@ -318,5 +318,5 @@ TEST(ConsumerStatsTest, testAsyncCallOnPartitionedTopic) {
                                                    std::placeholders::_2, 10, latch, 3, true));
 
     // Wait for ten seconds only
-    ASSERT_TRUE(latch.wait(std::chrono::seconds(10)));
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(30)));
 }
