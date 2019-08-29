@@ -38,7 +38,7 @@ Follow the guide below to set up a certificate authority. You can also refer to 
 
 1. Create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party will trust the others. You should store CA in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).
 
-2. Create a directory for your CA using the follwing command, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needed.
+2. Entering the follwing command to create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
 
 ```bash
 $ mkdir my-ca
@@ -47,7 +47,7 @@ $ wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/stat
 $ export CA_HOME=$(pwd)
 ```
 
-3. Run the commands below to create the necessary directories, keys and certs.
+3. Enter the commands below to create the necessary directories, keys and certs.
 
 ```bash
 $ mkdir certs crl newcerts private
@@ -71,7 +71,7 @@ $ chmod 444 certs/ca.cert.pem
 
 Once you have created a CA certificate, you can create certificate requests and sign them with the CA.
 
-The following commands ask you a few questions and then create the certificates. When you are asked for the common name, you should match the hostname of the broker. You could also use a wildcard to match a group of broker hostnames, for example `*.broker.usw.example.com`. This ensures that multiple machines can reuse the same certificate.
+The following commands ask you a few questions and then create the certificates. When you are asked for the common name, you should match the hostname of the broker. You can also use a wildcard to match a group of broker hostnames, for example, `*.broker.usw.example.com`. This ensures that multiple machines can reuse the same certificate.
 
 > #### Tips
 > 
@@ -81,27 +81,27 @@ The following commands ask you a few questions and then create the certificates.
 > should configure the client to disable TLS hostname verification. For more
 > details, you can see [the host verification section in client configuration](#hostname-verification).
 
-1. Generate the key using the command below.
+1. Enter the command below to generate the key.
 
 ```bash
 $ openssl genrsa -out broker.key.pem 2048
 ```
 
-The broker expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so run the following command to convert it.
+The broker expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so enter the following command to convert it.
 
 ```bash
 $ openssl pkcs8 -topk8 -inform PEM -outform PEM \
       -in broker.key.pem -out broker.key-pk8.pem -nocrypt
 ```
 
-2. Use the follwing command to generate the certificate request...
+2. Enter the follwing command to generate the certificate request.
 
 ```bash
 $ openssl req -config openssl.cnf \
       -key broker.key.pem -new -sha256 -out broker.csr.pem
 ```
 
-3. Sign it with the certificate authority by running the command below.
+3. Sign it with the certificate authority by entering the command below.
 
 ```bash
 $ openssl ca -config openssl.cnf -extensions server_cert \
@@ -180,7 +180,7 @@ The examples below show hostname verification being disabled for the Java client
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
-You need to add the following parameters to that file to use TLS transport with CLI tools of Pulsar:
+You need to add the following parameters to that file to use TLS transport with the CLI tools of Pulsar:
 
 ```properties
 webServiceUrl=https://broker.example.com:8443/
