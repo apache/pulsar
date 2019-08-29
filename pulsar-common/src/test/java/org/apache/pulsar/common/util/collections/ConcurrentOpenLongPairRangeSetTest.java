@@ -348,6 +348,18 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(set.rangeContaining(position.getKey(), position.getValue()), gSet.rangeContaining(position));
     }
 
+    /**
+     * fix : #4895
+     */
+    @Test
+    public void testCacheFlagConflict() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        set.add(Range.openClosed(new LongPair(0, 1), new LongPair(0, 2)));
+        set.add(Range.openClosed(new LongPair(0, 3), new LongPair(0, 4)));
+        assertEquals(set.toString(), "[(0:1..0:2],(0:3..0:4]]");
+        assertEquals(set.size(), 2);
+    }
+
     private List<Range<LongPair>> getConnectedRange(Set<Range<LongPair>> gRanges) {
         List<Range<LongPair>> gRangeConnected = Lists.newArrayList();
         Range<LongPair> lastRange = null;
