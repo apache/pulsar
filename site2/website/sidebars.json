@@ -53,10 +53,11 @@
     "Pulsar IO": [
       "io-overview",
       "io-quickstart",
-      "io-managing",
+      "io-use",
       "io-connectors",
       "io-develop",
-      "io-cdc"
+      "io-cdc",
+      "io-debug"
     ],
     "Pulsar SQL": [
       "sql-overview",
