@@ -152,8 +152,8 @@ public class KinesisSink extends AbstractKinesisConnector implements Sink<byte[]
         this.sinkContext = sinkContext;
 
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()), "empty aws-end-point");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsRegion()), "empty aws region name");
+        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()) || 
+                      isNotBlank(kinesisSinkConfig.getAwsRegion()), "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
 
         KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration();

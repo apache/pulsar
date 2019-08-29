@@ -68,8 +68,9 @@ public class KinesisSource extends AbstractKinesisConnector implements Source<by
         this.kinesisSourceConfig = KinesisSourceConfig.load(config);
         
         checkArgument(isNotBlank(kinesisSourceConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsEndpoint()), "empty aws-end-point");
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsRegion()), "empty aws region name");
+        checkArgument(isNotBlank(kinesisSourceConfig.getAwsEndpoint()) || 
+                      isNotBlank(kinesisSourceConfig.getAwsRegion()), 
+                     "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSourceConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
         
         if (kinesisSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {

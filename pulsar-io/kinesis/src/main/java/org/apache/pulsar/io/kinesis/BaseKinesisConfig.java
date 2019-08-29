@@ -30,7 +30,7 @@ public abstract class BaseKinesisConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = true,
+        required = false,
         defaultValue = "",
         help = "Kinesis end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
     )
