@@ -910,8 +910,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 ledger.getName(), newPosition, name);
                     }
                 }
-                callback.resetComplete(newPosition);
 
+                callback.resetComplete(newPosition);
+                notifyEntriesAvailable();
             }
 
             @Override
