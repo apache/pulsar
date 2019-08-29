@@ -25,8 +25,6 @@ jobs:
   build-unit:
     name: Unit tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
 
     steps:
       - name: Set up JDK 1.8
@@ -45,6 +43,7 @@ jobs:
           src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
 
       - name: package surefire artifacts
+        if: failure()
         run: |
           rm -rf artifacts
           mkdir artifacts
@@ -53,6 +52,7 @@ jobs:
 
       - uses: actions/upload-artifact@master
         name: upload surefire-artifacts
+        if: failure()
         with:
           name: surefire-artifacts
           path: artifacts.zip
