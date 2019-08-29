@@ -304,7 +304,7 @@ Use the `topics stats` command to get the stats for a topic and its connected pr
 ```
 > #### Tip
 > 
-> For more information about the `topic status` command, see [`topic status`](pulsar-admin/#stats-1).
+> For more information about the `topic stats` command, see [`topic stats`](http://pulsar.apache.org/docs/en/pulsar-admin/#stats-1).
 ## Checklist
 This checklist indicates the major areas to check when you debug connectors. It is a reminder of what to look for to ensure a thorough review and an evaluation tool to get the status of connectors. 
 * Does Pulsar start successfully?
