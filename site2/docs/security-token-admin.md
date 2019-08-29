@@ -32,22 +32,22 @@ Application specifies the token when you are creating the client instance. An al
 JWT support two different kind of keys in order to generate and validate the tokens:
 
  * Symmetric :
-    - You can use a single ***Secret*** key both to generate and validate tokens.
+    - You can use a single ***Secret*** key to generate and validate tokens.
  * Asymmetric: A pair of keys consist of the Private key and the Public key.
     - You can use ***Private*** key to generate tokens
     - You can use ***Public*** key to validate tokens
 
 ### Secret key
 
-When you are using a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to the brokers in order to allow them validating the clients.
+When you are using a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to the brokers in order to allow the brokers validating the clients.
 
 #### Create a secret key
 
-> Output file is generated in the root of your pulsar installation directory. You can also provide absolute path for the output file using the command below.
+> Output file is generated in the root of your pulsar installation directory. You can also enter the command below to provide absolute path for the output file.
 ```shell
 $ bin/pulsar tokens create-secret-key --output my-secret.key
 ```
-Run this command to generate base64 encoded private key
+Enter this command to generate base64 encoded private key.
 ```shell
 $ bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
 ```
@@ -58,7 +58,7 @@ With public/private keys, we need to create a pair of keys. Pulsar supports all 
 
 #### Create a key pair
 
-> Output file is generated in the root of your pulsar installation directory. You can also provide absolute path for the output file using the command below.
+> Output file is generated in the root of your pulsar installation directory. You can also enter the command below to provide absolute path for the output file.
 ```shell
 $ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output-public-key my-public.key
 ```
@@ -70,7 +70,7 @@ $ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output
 
 A token is the credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, we typically refer to this field as **subject**, though they are exactly the same concept.
 
-Then, you need to use this command to require the generated token to have a **subject** field set .
+Then, you need to enter this command to require the generated token to have a **subject** field set .
 
 ```shell
 $ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
@@ -79,14 +79,14 @@ $ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
 
 This command prints the token string on stdout.
 
-Similarly, one can create a token by passing the "private" key using the command below:
+Similarly, one can enter the command below to create a token by passing the "private" key:
 
 ```shell
 $ bin/pulsar tokens create --private-key file:///path/to/my-private.key \
             --subject test-user
 ```
 
-Finally, you can also run the command below to create a token with a pre-defined TTL. After that, the token is automatically invalidated.
+Finally, you can also enter the command below to create a token with a pre-defined TTL. After that, the token is automatically invalidated.
 
 ```shell
 $ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
