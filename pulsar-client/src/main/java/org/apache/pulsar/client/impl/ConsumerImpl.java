@@ -118,6 +118,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final int priorityLevel;
     private final SubscriptionMode subscriptionMode;
     private volatile BatchMessageIdImpl startMessageId;
+    private BatchMessageIdImpl initialStartMessageId;
+    private long startMessageRollbackDurationInSec;
 
     private volatile boolean hasReachedEndOfTopic;
 
@@ -157,26 +159,29 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
             SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
             boolean createTopicIfDoesNotExist) {
-    	if (conf.getReceiverQueueSize() == 0) {
+        if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
                     subscribeFuture,
                     subscriptionMode, startMessageId, schema, interceptors,
                     createTopicIfDoesNotExist);
         } else {
             return new ConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
-                    subscribeFuture,
-                    subscriptionMode, startMessageId, schema, interceptors, createTopicIfDoesNotExist);
+                    subscribeFuture, subscriptionMode, startMessageId, 0 /* rollback time in sec to start msgId */,
+                    schema, interceptors, createTopicIfDoesNotExist);
         }
     }
 
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-                 ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
-                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-                 boolean createTopicIfDoesNotExist) {
+            ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer,
+            CompletableFuture<Consumer<T>> subscribeFuture, SubscriptionMode subscriptionMode, MessageId startMessageId,
+            long startMessageRollbackDurationInSec, Schema<T> schema, ConsumerInterceptors<T> interceptors,
+            boolean createTopicIfDoesNotExist) {
         super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
+        this.initialStartMessageId = this.startMessageId;
+        this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
         this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         this.partitionIndex = partitionIndex;
@@ -516,10 +521,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // don't set schema for Schema.BYTES
             si = null;
         }
+        // startMessageRollbackDurationInSec should be consider only once when consumer connects to first time
+        long startMessageRollbackDuration = (startMessageRollbackDurationInSec > 0
+                && startMessageId.equals(initialStartMessageId)) ? startMessageRollbackDurationInSec : 0;
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
                 consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                 conf.isReplicateSubscriptionState(), InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
-                si, createTopicIfDoesNotExist);
+                startMessageRollbackDuration, si, createTopicIfDoesNotExist);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }

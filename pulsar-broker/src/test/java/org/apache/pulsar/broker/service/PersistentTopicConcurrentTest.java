@@ -121,7 +121,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -180,7 +180,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -243,7 +243,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -302,7 +302,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
