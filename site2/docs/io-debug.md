@@ -4,7 +4,8 @@ title: How to debug Pulsar connectors
 sidebar_label: Debug
 ---
 This guide explains how to debug connectors in localrun or cluster mode and gives a debugging checklist.
-To better demonstrate how to debug Pulsar connectors, here takes a Mongo sink connector as an example.
+To better demonstrate how to debug Pulsar connectors, here takes a Mongo sink connector as an example.   
+
 **Deploy a Mongo sink environment**
 1. Start a Mongo service.
     ```bash
@@ -178,7 +179,8 @@ Pulsar admin CLI helps you debug Pulsar connectors with the following subcommand
 * [`get`](#get)
   
 * [`status`](#status)
-* [`topics stats`](#topics-stats)
+* [`topics stats`](#topics-stats)  
+
 **Create a Mongo sink**
 ```bash
 ./bin/pulsar-admin sinks create \
