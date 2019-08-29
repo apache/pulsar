@@ -192,6 +192,11 @@ module.exports = [
         logo: 'https://www.clever-cloud.com/images/brand-assets/logos/v2/logo_on_white.svg'
     },
     {
+        name: 'OVHcloud',
+        url: 'https://www.ovhcloud.com/',
+        logo: 'https://eu.ovhcloud.com/themes/contrib/ovh_theme_base/logo.svg'
+    },
+    {
         name: 'BrandsEye',
         url: 'https://www.brandseye.com/',
         logo: 'https://www.brandseye.com/theme-images/brandseye-logo-v2.png'
