@@ -1362,14 +1362,11 @@
         "topicName" : {
           "type" : "string"
         },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "replicatedFrom" : {
+          "type" : "string"
         },
         "sequenceId" : {
           "type" : "integer",
@@ -1391,6 +1388,9 @@
         },
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
         },
         "redeliveryCount" : {
           "type" : "integer",
