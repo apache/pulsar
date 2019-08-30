@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.Data;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import lombok.Data;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
+/**
+ * Source status.
+ */
 @Data
 public class SourceStatus {
     // The total number of source instances that ought to be running
@@ -33,11 +35,17 @@ public class SourceStatus {
     public int numRunning;
     public List<SourceInstanceStatus> instances = new LinkedList<>();
 
+    /**
+     * Source instance status.
+     */
     @Data
     public static class SourceInstanceStatus {
         public int instanceId;
         public SourceInstanceStatusData status;
 
+        /**
+         * Source instance status data.
+         */
         @Data
         public static class SourceInstanceStatusData {
             // Is this instance running?

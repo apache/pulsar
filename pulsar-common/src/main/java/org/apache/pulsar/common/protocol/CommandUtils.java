@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.common.protocol;
 
-import org.apache.pulsar.common.api.proto.PulsarApi;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 
+/**
+ * Helper class to work with commands.
+ */
 public final class CommandUtils {
 
     private CommandUtils() {}

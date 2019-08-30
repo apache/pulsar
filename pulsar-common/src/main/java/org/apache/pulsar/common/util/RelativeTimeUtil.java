@@ -22,6 +22,9 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.experimental.UtilityClass;
 
+/**
+ * Parser for relative time.
+ */
 @UtilityClass
 public class RelativeTimeUtil {
     public static long parseRelativeTimeInSeconds(String relativeTime) {
@@ -29,7 +32,7 @@ public class RelativeTimeUtil {
             throw new IllegalArgumentException("exipiry time cannot be empty");
         }
 
-        int lastIndex=  relativeTime.length() - 1;
+        int lastIndex =  relativeTime.length() - 1;
         char lastChar = relativeTime.charAt(lastIndex);
         final char timeUnit;
 

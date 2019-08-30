@@ -28,7 +28,7 @@ import java.nio.ByteBuffer;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
- * Zstandard Compression
+ * Zstandard Compression.
  */
 public class CompressionCodecZstd implements CompressionCodec {
 
