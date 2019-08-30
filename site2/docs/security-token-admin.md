@@ -8,10 +8,9 @@ sidebar_label: Token authentication admin
 
 Pulsar supports authenticating clients using security tokens that are based on [JSON Web Tokens](https://jwt.io/introduction/) ([RFC-7519](https://tools.ietf.org/html/rfc7519)).
 
-You can use tokens to identify a Pulsar client and associate with some "principal" (or "role") that
-is permitted to do some actions (for example, publish to a topic or consume from a topic).
+You can use tokens to identify a Pulsar client and associate with some "principal" (or "role") that is permitted to do some actions (for example, publish to a topic or consume from a topic).
 
-A user typically gets a user a token string from the administrator (or some automated service).
+A user typically gives a user a token string from the administrator (or some automated service).
 
 The compact representation of a signed JWT is a string that looks like as the follwing:
 
@@ -19,27 +18,27 @@ The compact representation of a signed JWT is a string that looks like as the fo
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 ```
 
-Application specifies the token when you are creating the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
+Application does the token specification when you create the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
 
 
 > #### Always use TLS transport encryption
 > Sending a token is equivalent to sending a password over the wire. You had better
-> use TLS encryption all the time when you are talking to the Pulsar service. See
+> use TLS encryption all the time when you connect to the Pulsar service. See
 > [Transport Encryption using TLS](security-tls-transport.md) for more details.
 
 ## Secret vs Public/Private keys
 
-JWT support two different kind of keys in order to generate and validate the tokens:
+JWT support two different kinds of keys in order to generate and validate the tokens:
 
  * Symmetric :
     - You can use a single ***Secret*** key to generate and validate tokens.
  * Asymmetric: A pair of keys consist of the Private key and the Public key.
-    - You can use ***Private*** key to generate tokens
-    - You can use ***Public*** key to validate tokens
+    - You can use ***Private*** key to generate tokens.
+    - You can use ***Public*** key to validate tokens.
 
 ### Secret key
 
-When you are using a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to the brokers in order to allow the brokers validating the clients.
+When you use a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to the brokers in order to allow the brokers validating the clients.
 
 #### Create a secret key
 
@@ -52,9 +51,9 @@ Enter this command to generate base64 encoded private key.
 $ bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
 ```
 
-### Public/Private keys
+### Public keys and Private keys
 
-With public/private keys, we need to create a pair of keys. Pulsar supports all algorithms that the Java JWT library (shown [here](https://github.com/jwtk/jjwt#signature-algorithms-keys)) supported.
+With public keys or private keys, we need to create a pair of keys. Pulsar supports all algorithms that the Java JWT library (shown [here](https://github.com/jwtk/jjwt#signature-algorithms-keys)) supported.
 
 #### Create a key pair
 
@@ -79,7 +78,7 @@ $ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
 
 This command prints the token string on stdout.
 
-Similarly, one can enter the command below to create a token by passing the "private" key:
+Similarly, you can enter the command below to create a token by passing the "private" key:
 
 ```shell
 $ bin/pulsar tokens create --private-key file:///path/to/my-private.key \
@@ -96,7 +95,7 @@ $ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
 
 ## Authorization
 
-The token itself does not have any permission associated. The authorization engine determines whether the token should have permissions or not. Once you have created the token, one can grant permission for this token to do certain actions. For example:
+The token does not associate any permission. The authorization engine determines whether the token has permissions or not. Once you have created the token, you can grant permission for this token to do certain actions. For example:
 
 ```shell
 $ bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
@@ -104,7 +103,7 @@ $ bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
             --actions produce,consume
 ```
 
-## Enable Token Authentication ...
+## Enable token authentication
 
 ### ... on Brokers
 
@@ -129,8 +128,7 @@ tokenSecretKey=file:///path/to/secret.key
 
 To configure proxies to authenticate clients, add the following parameters to `proxy.conf`:
 
-The proxy has its own token used when talking to brokers. You need to configure the role token for this
-key pair in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
+The proxy has its own token used when the proxy talks to brokers. You need to configure the role token for this key pair in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
 ```properties
 # For clients connecting to the proxy
