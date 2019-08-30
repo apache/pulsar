@@ -4,13 +4,13 @@ title: Authentication using TLS
 sidebar_label: Authentication using TLS
 ---
 
-## TLS Authentication Overview
+## TLS authentication overview
 
 TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
 ### Create client certificates
 
-We generate the client certificates and the server certificates using the same certificate authority. So you can use the certificate authority that is used to generate the server certificates to generate the client certificates.
+Client certificates are generated using the certificate authority. Server certificates are also generated with the same certificate authority.
 
 The biggest difference between client certs and server certs is that the **common name** for the client certificate is the **role token** which that client is authenticated as.
 
@@ -56,9 +56,7 @@ You can get a cert, `admin.cert.pem`, and a key, `admin.key-pk8.pem` from this c
 >
 > to generate `cakey.pem` .
 
-## Enable TLS Authentication ...
-
-### ... on Brokers
+## Enable TLS authentication on brokers
 
 To configure brokers to authenticate clients, add the following parameters to `broker.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#broker-configuration):
 
@@ -68,7 +66,7 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 ```
 
-### ... on Proxies
+## Enable TLS authentication on proxies
 
 To configure proxies to authenticate clients, add the following parameters to `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
 
@@ -86,7 +84,7 @@ brokerClientAuthenticationParameters=tlsCertFile:/path/to/proxy.cert.pem,tlsKeyF
 
 ## Client configuration
 
-The client needs to connect via TLS transport for TLS authentication. So you need to configure the client to use ```https://``` and port 8443 for the web service URL, and ```pulsar+ssl://``` and port 6651 for the broker service URL.
+When you use TLS authentication, client connects via TLS transport. You need to configure the client to use ```https://``` and 8443 port for the web service URL, ```pulsar+ssl://``` and 6651 port for the broker service URL.
 
 ### CLI tools
 
@@ -146,4 +144,3 @@ config.setAuth(auth);
 
 pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 ```
-
