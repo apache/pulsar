@@ -11,7 +11,7 @@ class SourceRestApi extends React.Component {
     return (
       <div className="pageContainer">
         <Container className="mainContainer documentContainer postContainer" >
-          <script base-url={`${swaggerUrl}`} src="/js/getSwaggerByVersion.js"></script>
+          <script base-url={`${swaggerUrl}`} src="../js/getSwaggerByVersion.js"></script>
         </Container>
       </div>
     );
