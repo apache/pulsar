@@ -33,7 +33,7 @@ Configuration:
       - name: "pulsar.log.appender"
         value: "RoutingAppender"
       - name: "pulsar.log.root.level"
-        value: "debug"
+        value: "info"
       - name: "pulsar.log.level"
         value: "info"
       - name: "pulsar.routing.appender.default"
@@ -162,4 +162,3 @@ Configuration:
 #           onMisMatch: DENY
 #           ScriptRef:
 #             ref: filter.js
-
