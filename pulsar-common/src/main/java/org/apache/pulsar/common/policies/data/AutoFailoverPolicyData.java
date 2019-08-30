@@ -20,14 +20,15 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
-
 import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
 
-import com.google.common.base.Objects;
-
+/**
+ * The auto failover policy configuration data.
+ */
 @ApiModel(
     value = "AutoFailoverPolicyData",
     description = "The auto failover policy configuration data"
@@ -38,6 +39,7 @@ public class AutoFailoverPolicyData {
         value = "The auto failover policy type",
         allowableValues = "min_available"
     )
+    @SuppressWarnings("checkstyle:MemberName")
     public AutoFailoverPolicyType policy_type;
     @ApiModelProperty(
         name = "parameters",

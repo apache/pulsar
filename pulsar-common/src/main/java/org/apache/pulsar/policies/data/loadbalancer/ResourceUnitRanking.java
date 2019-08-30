@@ -19,9 +19,11 @@
 package org.apache.pulsar.policies.data.loadbalancer;
 
 import java.util.Set;
-
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
+/**
+ * The class containing information about system resources, allocated quota, and loaded bundles.
+ */
 public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
 
     private static final long KBITS_TO_BYTES = 1024 / 8;
@@ -71,7 +73,7 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
-     * Estimate the load percentage which is the max percentage of all resource usages
+     * Estimate the load percentage which is the max percentage of all resource usages.
      */
     private void estimateLoadPercentage() {
         double cpuUsed = this.systemResourceUsage.cpu.usage;
@@ -120,8 +122,8 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
                 Math.max(this.estimatedLoadPercentageMemory, Math.max(this.estimatedLoadPercentageDirectMemory,
                         Math.max(this.estimatedLoadPercentageBandwidthIn, this.estimatedLoadPercentageBandwidthOut))));
 
-        this.estimatedMessageRate = this.allocatedQuota.getMsgRateIn() + this.allocatedQuota.getMsgRateOut() +
-                this.preAllocatedQuota.getMsgRateIn() + this.preAllocatedQuota.getMsgRateOut();
+        this.estimatedMessageRate = this.allocatedQuota.getMsgRateIn() + this.allocatedQuota.getMsgRateOut()
+            + this.preAllocatedQuota.getMsgRateIn() + this.preAllocatedQuota.getMsgRateOut();
 
     }
 
@@ -149,35 +151,35 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
-     * Compare two loads based on message rate only
+     * Compare two loads based on message rate only.
      */
     public int compareMessageRateTo(ResourceUnitRanking other) {
         return Double.compare(this.estimatedMessageRate, other.estimatedMessageRate);
     }
 
     /**
-     * If the ResourceUnit is idle
+     * If the ResourceUnit is idle.
      */
     public boolean isIdle() {
         return this.loadedBundles.isEmpty() && this.preAllocatedBundles.isEmpty();
     }
 
     /**
-     * Check if a ServiceUnit is already loaded by this ResourceUnit
+     * Check if a ServiceUnit is already loaded by this ResourceUnit.
      */
     public boolean isServiceUnitLoaded(String suName) {
         return this.loadedBundles.contains(suName);
     }
 
     /**
-     * Check if a ServiceUnit is pre-allocated to this ResourceUnit
+     * Check if a ServiceUnit is pre-allocated to this ResourceUnit.
      */
     public boolean isServiceUnitPreAllocated(String suName) {
         return this.preAllocatedBundles.contains(suName);
     }
 
     /**
-     * Pre-allocate a ServiceUnit to this ResourceUnit
+     * Pre-allocate a ServiceUnit to this ResourceUnit.
      */
     public void addPreAllocatedServiceUnit(String suName, ResourceQuota quota) {
         this.preAllocatedBundles.add(suName);
@@ -186,7 +188,7 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
-     * Remove a service unit from the loaded bundle list
+     * Remove a service unit from the loaded bundle list.
      */
     public void removeLoadedServiceUnit(String suName, ResourceQuota quota) {
         if (this.loadedBundles.remove(suName)) {
@@ -196,7 +198,7 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
-     * Get the pre-allocated bundles
+     * Get the pre-allocated bundles.
      */
     public Set<String> getPreAllocatedBundles() {
         return this.preAllocatedBundles;
@@ -210,57 +212,58 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
-     * Get the estimated load percentage
+     * Get the estimated load percentage.
      */
     public double getEstimatedLoadPercentage() {
         return this.estimatedLoadPercentage;
     }
 
     /**
-     * Get the estimated message rate
+     * Get the estimated message rate.
      */
     public double getEstimatedMessageRate() {
         return this.estimatedMessageRate;
     }
 
     /**
-     * Percentage of CPU allocated to bundle's quota
+     * Percentage of CPU allocated to bundle's quota.
      */
     public double getAllocatedLoadPercentageCPU() {
         return this.allocatedLoadPercentageCPU;
     }
 
     /**
-     * Percetage of memory allocated to bundle's quota
+     * Percetage of memory allocated to bundle's quota.
      */
     public double getAllocatedLoadPercentageMemory() {
         return this.allocatedLoadPercentageMemory;
     }
 
     /**
-     * Percentage of inbound bandwidth allocated to bundle's quota
+     * Percentage of inbound bandwidth allocated to bundle's quota.
      */
     public double getAllocatedLoadPercentageBandwidthIn() {
         return this.allocatedLoadPercentageBandwidthIn;
     }
 
     /**
-     * Percentage of outbound bandwidth allocated to bundle's quota
+     * Percentage of outbound bandwidth allocated to bundle's quota.
      */
     public double getAllocatedLoadPercentageBandwidthOut() {
         return this.allocatedLoadPercentageBandwidthOut;
     }
 
     /**
-     * Get the load percentage in String, with detail resource usages
+     * Get the load percentage in String, with detail resource usages.
      */
     public String getEstimatedLoadPercentageString() {
         return String.format(
-                "msgrate: %.0f, load: %.1f%% - cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%, bandwidthIn: %.1f%%, bandwidthOut: %.1f%%",
-                this.estimatedMessageRate,
-                this.estimatedLoadPercentage, this.estimatedLoadPercentageCPU, this.estimatedLoadPercentageMemory,
-                this.estimatedLoadPercentageDirectMemory, this.estimatedLoadPercentageBandwidthIn,
-                this.estimatedLoadPercentageBandwidthOut);
+            "msgrate: %.0f, load: %.1f%% - cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%, "
+                + "bandwidthIn: %.1f%%, bandwidthOut: %.1f%%",
+            this.estimatedMessageRate,
+            this.estimatedLoadPercentage, this.estimatedLoadPercentageCPU, this.estimatedLoadPercentageMemory,
+            this.estimatedLoadPercentageDirectMemory, this.estimatedLoadPercentageBandwidthIn,
+            this.estimatedLoadPercentageBandwidthOut);
     }
 
     /**
@@ -271,7 +274,7 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
-     * Estimate the maximum number namespace bundles a ResourceUnit is able to handle with all resource
+     * Estimate the maximum number namespace bundles a ResourceUnit is able to handle with all resource.
      */
     public static long calculateBrokerMaxCapacity(SystemResourceUsage systemResourceUsage, ResourceQuota defaultQuota) {
         double bandwidthOutLimit = systemResourceUsage.bandwidthOut.limit * KBITS_TO_BYTES;
@@ -283,7 +286,7 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
     }
 
     /**
-     * Calculate how many bundles could be handle with the specified resources
+     * Calculate how many bundles could be handle with the specified resources.
      */
     private static long calculateBrokerCapacity(ResourceQuota defaultQuota, double usableCPU, double usableMem,
             double usableBandwidthOut, double usableBandwidthIn) {

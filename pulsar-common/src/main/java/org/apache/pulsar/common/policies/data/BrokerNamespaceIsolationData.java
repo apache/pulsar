@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.List;
 
-import com.google.common.base.Objects;
-
+/**
+ * The namespace isolation data for a given broker.
+ */
 @ApiModel(
     value = "BrokerNamespaceIsolationData",
     description = "The namespace isolation data for a given broker"

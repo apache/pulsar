@@ -20,6 +20,8 @@ package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
@@ -29,22 +31,16 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
- * {@link com.google.common.collect.RangeSet} and can be used if {@code range} type is {@link LongPair} </br>
- * 
+ * {@link com.google.common.collect.RangeSet} and can be used if {@code range} type is {@link LongPair}
+ *
  * <pre>
- *  
  * Usage:
  * a. This can be used if one doesn't want to create object for every new inserted {@code range}
- * b. It creates {@link BitSet} for every unique first-key of the range. 
+ * b. It creates {@link BitSet} for every unique first-key of the range.
  * So, this rangeSet is not suitable for large number of unique keys.
  * </pre>
- * 
- *
  */
 public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
@@ -77,8 +73,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
      * Adds the specified range to this {@code RangeSet} (optional operation). That is, for equal range sets a and b,
      * the result of {@code a.add(range)} is that {@code a} will be the minimal range set for which both
      * {@code a.enclosesAll(b)} and {@code a.encloses(range)}.
-     * <p>
-     * Note that {@code range} will merge given {@code range} with any ranges in the range set that are
+     *
+     * <p>Note that {@code range} will merge given {@code range} with any ranges in the range set that are
      * {@linkplain Range#isConnected(Range) connected} with it. Moreover, if {@code range} is empty, this is a no-op.
      */
     @Override
@@ -274,8 +270,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
      * the result of {@code a.add(range)} is that {@code a} will be the minimal range set for which both
      * {@code a.enclosesAll(b)} and {@code a.encloses(range)}.
      *
-     * <p>
-     * Note that {@code range} will merge given {@code range} with any ranges in the range set that are
+     * <p>Note that {@code range} will merge given {@code range} with any ranges in the range set that are
      * {@linkplain Range#isConnected(Range) connected} with it. Moreover, if {@code range} is empty/invalid, this is a
      * no-op.
      */

@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
-// For backwards compatibility purposes.
+/**
+ * For backwards compatibility purposes.
+ */
 public interface ServiceLookupData {
-    public String getWebServiceUrl();
+    String getWebServiceUrl();
 
-    public String getWebServiceUrlTls();
+    String getWebServiceUrlTls();
 
-    public String getPulsarServiceUrl();
+    String getPulsarServiceUrl();
 
-    public String getPulsarServiceUrlTls();
+    String getPulsarServiceUrlTls();
 }

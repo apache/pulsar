@@ -24,11 +24,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 
+/**
+ * Configuration for a rack of BookKeepers.
+ */
 public class BookiesRackConfiguration extends TreeMap<String, Map<String, BookieInfo>> {
 
     public boolean removeBookie(String address) {
         for (Map<String, BookieInfo> m : values()) {
-            if (m.remove(address) != null ) {
+            if (m.remove(address) != null) {
                 return true;
             }
         }
