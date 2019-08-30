@@ -502,10 +502,10 @@ Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:t
 <!--Java Admin API-->
 
 ```java
-SourceConfig getSource(String tenant,
-                       String namespace,
-                       String source)
-                throws PulsarAdminException
+SinkConfig getSink(String tenant,
+                   String namespace,
+                   String sink)
+            throws PulsarAdminException
 ```
 
 **Response example**
