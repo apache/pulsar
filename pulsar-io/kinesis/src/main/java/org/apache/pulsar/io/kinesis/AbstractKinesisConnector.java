@@ -27,6 +27,7 @@ import java.util.Map;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -112,5 +113,30 @@ public abstract class AbstractKinesisConnector {
                 // no-op
             }
         };
+    }
+
+    public static final String ASSUME_ROLE_ARN = "roleArn";
+    public static final String ASSUME_ROLE_SESSION_NAME = "roleSessionName";
+
+    /**
+     * It creates an STS Assume Role credential provider which takes a roleArn and sessionName and returns
+     * {@link AWSCredentials}
+     *
+     * @param awsCredentialPluginParam
+     * @return
+     */
+    protected AWSCredentialsProvider stsAssumeRoleSessionCredentialProvider(String awsCredentialPluginParam) {
+        Map<String, String> credentialMap = new Gson().fromJson(awsCredentialPluginParam,
+                new TypeToken<Map<String, String>>() {
+                }.getType());
+
+        String roleArn = credentialMap.get(ASSUME_ROLE_ARN);
+        String sessionName = credentialMap.get(ASSUME_ROLE_SESSION_NAME);
+        checkArgument(isNotBlank(roleArn) && isNotBlank(sessionName),
+                String.format(
+                        "Default %s and %s must be present into json-map if AwsCredentialProviderPlugin not provided",
+                        ASSUME_ROLE_ARN, ASSUME_ROLE_SESSION_NAME));
+
+        return STSAssumeRoleSessionCredentialsProvider.Builder(roleArn, sessionName).build();
     }
 }
