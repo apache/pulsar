@@ -18,51 +18,48 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Map;
 
-
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
 /**
- * This class represents the overall load of the broker - it includes overall SystemResourceUsage and Bundle-usage
+ * This class represents the overall load of the broker - it includes overall SystemResourceUsage and Bundle-usage.
  */
 @JsonDeserialize(using = LoadReportDeserializer.class)
 public interface LoadManagerReport extends ServiceLookupData {
 
-    public ResourceUsage getCpu();
+    ResourceUsage getCpu();
 
-    public ResourceUsage getMemory();
+    ResourceUsage getMemory();
 
-    public ResourceUsage getDirectMemory();
+    ResourceUsage getDirectMemory();
 
-    public ResourceUsage getBandwidthIn();
+    ResourceUsage getBandwidthIn();
 
-    public ResourceUsage getBandwidthOut();
+    ResourceUsage getBandwidthOut();
 
-    public long getLastUpdate();
+    long getLastUpdate();
 
-    public Map<String, NamespaceBundleStats> getBundleStats();
+    Map<String, NamespaceBundleStats> getBundleStats();
 
-    public int getNumTopics();
+    int getNumTopics();
 
-    public int getNumBundles();
+    int getNumBundles();
 
-    public int getNumConsumers();
+    int getNumConsumers();
 
-    public int getNumProducers();
+    int getNumProducers();
 
-    public double getMsgThroughputIn();
+    double getMsgThroughputIn();
 
-    public double getMsgThroughputOut();
+    double getMsgThroughputOut();
 
-    public double getMsgRateIn();
+    double getMsgRateIn();
 
-    public double getMsgRateOut();
+    double getMsgRateOut();
 
-    public String getBrokerVersionString();
+    String getBrokerVersionString();
 
-    public boolean isPersistentTopicsEnabled();
+    boolean isPersistentTopicsEnabled();
 
-    public boolean isNonPersistentTopicsEnabled();
-
+    boolean isNonPersistentTopicsEnabled();
 }
