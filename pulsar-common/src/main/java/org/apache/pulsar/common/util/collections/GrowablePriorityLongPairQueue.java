@@ -24,19 +24,14 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import io.netty.util.internal.MathUtil;
-
 /**
  * An unbounded priority queue based on a min heap where values are composed of pairs of longs.
  *
- * When the capacity is reached, data will be moved to a bigger array.
- * 
- * <b>It also act as a set and doesn't store duplicate values if {@link #allowedDuplicate} flag is passed false</b>
- * 
- ** <p>
- * (long,long)
- * <p>
+ * <p>When the capacity is reached, data will be moved to a bigger array.
  *
+ * <b>It also act as a set and doesn't store duplicate values if {@link #allowedDuplicate} flag is passed false</b>
+ *
+ * <p>(long,long)
  */
 public class GrowablePriorityLongPairQueue {
 
@@ -51,16 +46,22 @@ public class GrowablePriorityLongPairQueue {
 
     public GrowablePriorityLongPairQueue(int initialCapacity) {
         checkArgument(initialCapacity > 0);
-        this.capacity = MathUtil.findNextPositivePowerOfTwo(initialCapacity);
+        this.capacity = io.netty.util.internal.MathUtil.findNextPositivePowerOfTwo(initialCapacity);
         data = new long[2 * capacity];
         Arrays.fill(data, 0, data.length, EmptyItem);
     }
 
+    /**
+     * Predicate to checks for a key-value pair where both of them have long types.
+     */
     public interface LongPairPredicate {
         boolean test(long v1, long v2);
     }
 
-    public static interface LongPairConsumer {
+    /**
+     * Represents a function that accepts two long arguments.
+     */
+    public interface LongPairConsumer {
         void accept(long v1, long v2);
     }
 
@@ -119,11 +120,10 @@ public class GrowablePriorityLongPairQueue {
 
     /**
      * Removes all of the elements of this collection that satisfy the given predicate.
-     * 
+     *
      * @param filter
      *            a predicate which returns {@code true} for elements to be removed
-     * @return {@code true} if any elements were removed
-     * 
+     *
      * @return number of removed values
      */
     public synchronized int removeIf(LongPairPredicate filter) {
@@ -160,7 +160,7 @@ public class GrowablePriorityLongPairQueue {
 
     /**
      * It removes all occurrence of given pair from the queue.
-     * 
+     *
      * @param item1
      * @param item2
      * @return
@@ -181,8 +181,8 @@ public class GrowablePriorityLongPairQueue {
     }
 
     /**
-     * Removes min element from the heap
-     * 
+     * Removes min element from the heap.
+     *
      * @return
      */
     public LongPair remove() {
@@ -195,7 +195,7 @@ public class GrowablePriorityLongPairQueue {
 
     /**
      * it is not a thread-safe method and it should be called before acquiring a lock by a caller.
-     * 
+     *
      * @param index
      * @return
      */
@@ -320,7 +320,7 @@ public class GrowablePriorityLongPairQueue {
         }
     }
 
-    private static final long HashMixer = 0xc6a4a7935bd1e995l;
+    private static final long HashMixer = 0xc6a4a7935bd1e995L;
     private static final int R = 47;
 
     final static long hash(long key1, long key2) {
@@ -333,6 +333,9 @@ public class GrowablePriorityLongPairQueue {
         return hash;
     }
 
+    /**
+     * Class representing two long values.
+     */
     public static class LongPair implements Comparable<LongPair> {
         public final long first;
         public final long second;
