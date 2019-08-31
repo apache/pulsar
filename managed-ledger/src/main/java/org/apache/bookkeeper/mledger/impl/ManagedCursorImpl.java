@@ -147,7 +147,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private RateLimiter markDeleteLimiter;
 
     private boolean alwaysInactive = false;
-    
+
     /** used temporary variables to {@link #getNumIndividualDeletedEntriesToSkip(long)} **/
     private static final FastThreadLocal<Long> tempTotalEntriesToSkip = new FastThreadLocal<>();
     private static final FastThreadLocal<Long> tempDeletedMessages = new FastThreadLocal<>();
@@ -167,7 +167,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         public MarkDeleteEntry(PositionImpl newPosition, Map<String, Long> properties,
                 MarkDeleteCallback callback, Object ctx) {
-            this.newPosition = PositionImpl.get(newPosition);
+            this.newPosition = newPosition;
             this.properties = properties;
             this.callback = callback;
             this.ctx = ctx;
@@ -394,7 +394,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (position.compareTo(ledger.getLastPosition()) > 0) {
             log.warn("[{}] [{}] Current position {} is ahead of last position {}", ledger.getName(), name, position,
                     ledger.getLastPosition());
-            position = PositionImpl.get(ledger.getLastPosition());
+            position = ledger.getLastPosition();
         }
         log.info("[{}] Cursor {} recovered to position {}", ledger.getName(), name, position);
 
@@ -474,7 +474,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-        OpReadEntry op = OpReadEntry.create(this, PositionImpl.get(readPosition), numberOfEntriesToRead, callback, ctx);
+        OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback, ctx);
         ledger.asyncReadEntries(op);
     }
 
@@ -595,7 +595,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             asyncReadEntries(numberOfEntriesToRead, callback, ctx);
         } else {
-            OpReadEntry op = OpReadEntry.create(this, PositionImpl.get(readPosition), numberOfEntriesToRead, callback,
+            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
                     ctx);
 
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
@@ -1397,7 +1397,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 break;
             }
-            
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Moved ack position from: {} to: {} -- skipped: {}", ledger.getName(),
                         oldMarkDeletePosition, newMarkDeletePosition, skippedEntries);
@@ -1406,7 +1406,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         // markDelete-position and clear out deletedMsgSet
-        markDeletePosition = PositionImpl.get(newMarkDeletePosition);
+        markDeletePosition = newMarkDeletePosition;
         individualDeletedMessages.removeAtMost(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
 
         if (readPosition.compareTo(newMarkDeletePosition) <= 0) {
@@ -1846,12 +1846,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public Position getReadPosition() {
-        return PositionImpl.get(readPosition);
+        return readPosition;
     }
 
     @Override
     public Position getMarkDeletedPosition() {
-        return PositionImpl.get(markDeletePosition);
+        return markDeletePosition;
     }
 
     @Override
