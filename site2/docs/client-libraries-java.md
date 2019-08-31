@@ -94,10 +94,34 @@ PulsarClient client = PulsarClient.builder()
 > #### Default broker URLs for standalone clusters
 > If you're running a cluster in [standalone mode](getting-started-standalone.md), the broker will be available at the `pulsar://localhost:6650` URL by default.
 
+If you create a client, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
+
+| Type | Name | Description | Default
+|---|---|---|---
+String | `serviceUrl` |Service URL provider for Pulsar service | None
+String | `authPluginClassName` | Name of the authentication plugin | None
+String | `authParams` | String represents parameters for the authentication plugin <br>**Example**<br> key1:val1,key2:val2|None
+long|`operationTimeoutMs`|Operation timeout |30000
+long|`statsIntervalSeconds`|Interval between each stat info<br>Stats is activated with positive `statsInterval`<br>`statsIntervalSeconds` should be set to 1 second at least |60
+int|`numIoThreads`| Number of threads used for handling connections to brokers | 1 
+int|`numListenerThreads`|Number of threads used for handling message listeners | 1 
+boolean|`useTcpNoDelay`|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
+boolean |`useTls` |Whether to use TLS encryption on the connection| false
+string | `tlsTrustCertsFilePath` |Path to the trusted TLS certificate file|None
+boolean|`tlsAllowInsecureConnection`|Whether the Pulsar client accepts untrusted TLS certificate from broker | false
+boolean | `tlsHostnameVerificationEnable` | Whether to enable TLS hostname verification|false
+int|`concurrentLookupRequest`|Number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
+int|`maxLookupRequest`|Maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
+int|`maxNumberOfRejectedRequestPerConnection`|Maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
+int|`keepAliveIntervalSeconds`|Seconds of keeping alive interval for each client broker connection|30
+int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be established <br>If the duration passes without a response from a broker, the connection attempt is dropped|10000
+int|`requestTimeoutMs`|Maximum duration for completing a request |60000
+int|`defaultBackoffIntervalNanos`| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100);
+long|`maxBackoffIntervalNanos`|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)
+
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full listing of configurable parameters.
 
 > In addition to client-level configuration, you can also apply [producer](#configuring-producers) and [consumer](#configuring-consumers) specific configuration, as you'll see in the sections below.
-
 
 ## Producers
 
@@ -140,7 +164,15 @@ stringProducer.send("My message");
 
 ### Configuring producers
 
-If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. Here's an example:
+If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. 
+
+If you create a producer, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
+
+| Type | Name | Description | Default
+|---|---|---|---
+
+
+For a full listing, see the Javadoc for the {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. Here's an example:
 
 ```java
 Producer<byte[]> producer = client.newProducer()
