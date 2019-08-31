@@ -166,12 +166,6 @@ stringProducer.send("My message");
 
 If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. 
 
-If you create a producer, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
-
-| Type | Name | Description | Default
-|---|---|---|---
-
-
 For a full listing, see the Javadoc for the {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. Here's an example:
 
 ```java
