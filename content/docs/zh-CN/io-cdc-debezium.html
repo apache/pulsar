@@ -63,7 +63,7 @@
     <span class="hljs-attr">"offset.storage.topic"</span>: <span class="hljs-string">"offset-topic"</span>
 }
 </code></pre>
-<p>Optionally, you can create a <code>debezium-mysql-source-config.yaml</code> file, and copy the <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml">contents</a> below to the <code>debezium-mysql-source-config.yaml</code> file.</p>
+<p>另一个选择，你可以创建一个名为 <code>debezium-mysql-source-config.yaml</code>的文件，并复制如下的内容到<code>debezium-mysql-source-config.yaml</code>这个文件。</p></p>
 <pre><code class="hljs css language-$yaml tenant: &quot;public&quot; namespace: &quot;default&quot; name: &quot;debezium-mysql-source&quot; topicName: &quot;debezium-mysql-topic&quot; archive: &quot;connectors/pulsar-io-debezium-mysql-2.4.0.nar&quot;">
 <span class="hljs-attribute">parallelism</span>: 1
 

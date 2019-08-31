@@ -128,7 +128,7 @@
 </ul>
 <p>除了消息数据，<em>cursors</em>也会被持久化入BookKeeper。 Cursors是消费端<a href="/docs/zh-CN/2.1.1-incubating/reference-terminology#subscription">订阅</a>消费的位置。 BookKeeper让Pulsar可以用一种可扩展的方式存储消费位置。</p>
 <p>目前，Pulsar只支持持久消息存储。这是所有topic名称都是持久不可变的原因。这里有一个例子：</p>
-<pre><code class="hljs css language-http">persistent://my-tenant/my-namespace/my-topic
+<pre><code class="hljs css language-http">persistent://tenant/namespace/topic
 </code></pre>
 <blockquote>
 <p>Pulsar也支持临时消息（ (<a href="/docs/zh-CN/2.1.1-incubating/concepts-messaging#non-persistent-topics">非持久消息</a>) ）存储。</p>

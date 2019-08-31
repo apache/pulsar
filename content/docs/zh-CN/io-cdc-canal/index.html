@@ -89,11 +89,7 @@ symbolic-links=0 <span class="hljs-keyword">log</span>-bin=mysql-bin binlog-<spa
 
 docker pull canal/canal-server:v1.1.2 docker <span class="hljs-keyword">run</span> -<span class="hljs-keyword">d</span> -it --link pulsar-mysql -<span class="hljs-keyword">e</span> canal.auto.scan=false -<span class="hljs-keyword">e</span> canal.destinations=<span class="hljs-keyword">test</span> -<span class="hljs-keyword">e</span> canal.instance.master.address=pulsar-mysql:3306 -<span class="hljs-keyword">e</span> canal.instance.dbUsername=root -<span class="hljs-keyword">e</span> canal.instance.dbPassword=canal -<span class="hljs-keyword">e</span> canal.instance.connectionCharset=UTF-8 -<span class="hljs-keyword">e</span> canal.instance.tsdb.enable=true -<span class="hljs-keyword">e</span> canal.instance.gtidon=false --name=pulsar-canal-server -p 8000:8000 -p 2222:2222 -p 11111:11111 -p 11112:11112 -<span class="hljs-keyword">m</span> 4096m canal/canal-server:v1.1.2
 
-    &lt;<span class="hljs-keyword">br</span> /&gt;- Start pulsar standalone
-    
-    ```<span class="hljs-variable">$bash</span>
-    docker pull apachepulsar/pulsar:2.4.0
-    docker <span class="hljs-keyword">run</span> -<span class="hljs-keyword">d</span> -it --link pulsar-canal-server -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:2.4.0 bin/pulsar standalone
+    &lt;<span class="hljs-keyword">br</span> /&gt;- 启动pulsar独立版
     
 
 - Start pulsar-io <span class="hljs-keyword">in</span> standalone
@@ -120,7 +116,7 @@ client.<span class="hljs-keyword">close</span>()
     docker cp pulsar-client.py pulsar-standalone:/pulsar/
     
 
-- Download canal connector and start canal connector ```<span class="hljs-variable">$bash</span> docker exec -it pulsar-standalone /bin/bash wget http:<span class="hljs-comment">//apache.01link.hk/pulsar/pulsar-2.4.0/connectors/pulsar-io-canal-2.4.0.nar -P connectors ./bin/pulsar-admin sources localrun --archive ./connectors/pulsar-io-canal-2.4.0.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1</span>
+- 下载canal连接器并启动
 
     &lt;<span class="hljs-keyword">br</span> /&gt;- Consumption data 
     
