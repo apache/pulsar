@@ -58,6 +58,11 @@ module.exports = [
         logo: 'https://s3-eu-west-1.amazonaws.com/thehutgroup-uploads-test/app/uploads/2016/10/THG.jpg'
     },
     {
+        name: 'Turtlequeue',
+        url: 'https://turtlequeue.com',
+        logo: 'https://turtlequeue.com/logo_black.png'
+    },
+    {
         name: 'ProxyClick',
         url: 'https://www.proxyclick.com/',
         logo: 'https://www.proxyclick.com/hubfs/assets/images/logo-positive.svg'
