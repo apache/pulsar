@@ -4,11 +4,11 @@ title: Authentication using Kerberos
 sidebar_label: Authentication using Kerberos
 ---
 
-[Kerberos](https://web.mit.edu/kerberos/) is a network authentication protocol. By using secret-key cryptography, [Kerberos](https://web.mit.edu/kerberos/) is designed to provide strong authentication for client applications or server applications. 
+[Kerberos](https://web.mit.edu/kerberos/) is a network authentication protocol. By using secret-key cryptography, [Kerberos](https://web.mit.edu/kerberos/) is designed to provide strong authentication for client applications and server applications. 
 
-In Pulsar, we use Kerberos with [SASL](https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer) as a choice for authentication. And Pulsar uses the [Java Authentication and Authorization Service (JAAS)](https://en.wikipedia.org/wiki/Java_Authentication_and_Authorization_Service) for SASL configuration. You need to provide JAAS configurations for Kerberos authentication. 
+In Pulsar, you can use Kerberos with [SASL](https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer) as a choice for authentication. And Pulsar uses the [Java Authentication and Authorization Service (JAAS)](https://en.wikipedia.org/wiki/Java_Authentication_and_Authorization_Service) for SASL configuration. You need to provide JAAS configurations for Kerberos authentication. 
 
-In this document, we introduce how to configure `Kerberos` with `SASL` between Pulsar clients and brokers and how to configure Kerberos for Pulsar proxy in detail.
+This document introduces how to configure `Kerberos` with `SASL` between Pulsar clients and brokers and how to configure Kerberos for Pulsar proxy in detail.
 
 ## Configuration for Kerberos between Client and Broker
 
@@ -16,14 +16,14 @@ In this document, we introduce how to configure `Kerberos` with `SASL` between P
 
 To begin, you need to set up (or already have) a [Key Distribution Center(KDC)](https://en.wikipedia.org/wiki/Key_distribution_center). Also you need to configure and run the [Key Distribution Center(KDC)](https://en.wikipedia.org/wiki/Key_distribution_center)in advance. 
 
-If your organization is already using a Kerberos server (for example, by using `Active Directory`), you do not have to install a new server for Pulsar. If your organization is not using a Kerberos server, you need to install one. Your Linux vendor might have packages for `Kerberos`. Refer to a short guide on how to install and configure it from here: ([Ubuntu](https://help.ubuntu.com/community/Kerberos), 
+If your organization already uses a Kerberos server (for example, by using `Active Directory`), you do not have to install a new server for Pulsar. If your organization does not use a Kerberos server, you need to install one. Your Linux vendor might have packages for `Kerberos`. On how to install and configure Kerberos, refer to: ([Ubuntu](https://help.ubuntu.com/community/Kerberos), 
 [Redhat](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Managing_Smart_Cards/installing-kerberos.html)).
 
-Note that if you are using Oracle Java, you need to download JCE policy files for your Java version and copy them to the `$JAVA_HOME/jre/lib/security` directory.
+Note that if you use Oracle Java, you need to download JCE policy files for your Java version and copy them to the `$JAVA_HOME/jre/lib/security` directory.
 
 #### Kerberos Principals
 
-If you are using the existing Kerberos system, ask your Kerberos administrator for a principal for each Brokers in your cluster and for every operating system user that accesses Pulsar with Kerberos authentication(via clients and tools).
+If you use the existing Kerberos system, ask your Kerberos administrator for a principal for each Brokers in your cluster and for every operating system user that accesses Pulsar with Kerberos authentication(via clients and tools).
 
 If you have installed your own Kerberos system, you can create these principals with the following commands:
 
@@ -97,7 +97,7 @@ In the `pulsar_jaas.conf` file above
 
 1. `PulsarBroker` is a section name in the JAAS file that each broker uses. This section tells the broker to use which principal inside Kerberos and the location of the keytab where the principal is stored. `PulsarBroker` allows the broker to use the keytab specified in this section.
 2. `PulsarClient` is a section name in the JASS file that each broker uses. This section tells the client to use which principal inside Kerberos and the location of the keytab where the principal is stored. `PulsarClient` allows the client to use the keytab specified in this section.
-    In the following example, we also reuse this `PulsarClient` section in both the Pulsar internal admin configuration and in CLI command of `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`. You can also add different sections for different use cases.
+    The following example also reuses this `PulsarClient` section in both the Pulsar internal admin configuration and in CLI command of `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`. You can also add different sections for different use cases.
 
 You can have 2 separate JAAS configuration files: 
 * the file for a broker that has sections of both `PulsarBroker` and `PulsarClient`; 
@@ -117,7 +117,7 @@ You can have 2 separate JAAS configuration files:
  
  To make Pulsar internal admin client work properly, you need to set the configuration in the `broker.conf` file as below: 
  - Set `brokerClientAuthenticationPlugin` to client plugin `AuthenticationSasl`;
- - Set `brokerClientAuthenticationParameters` to value in JSON string `{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}`, in which `PulsarClient` is the section name in above `pulsar_jaas.conf` file, and `"serverType":"broker"` indicates that the internal admin client connects to a Pulsar Broker;
+ - Set `brokerClientAuthenticationParameters` to value in JSON string `{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}`, in which `PulsarClient` is the section name in the `pulsar_jaas.conf` file, and `"serverType":"broker"` indicates that the internal admin client connects to a Pulsar Broker;
 
  Here is an example:
 
@@ -140,7 +140,7 @@ brokerClientAuthenticationParameters={"saslJaasClientSectionName":"PulsarClient"
 ```
 You can add this at the end of `PULSAR_EXTRA_OPTS` in the file [`pulsar_env.sh`](https://github.com/apache/pulsar/blob/master/conf/pulsar_env.sh)
 
-You must ensure that the operating system user who is starting broker can reach the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file.
+You must ensure that the operating system user who starts broker can reach the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file.
 
 ### Kerberos configuration for clients
 
@@ -159,10 +159,10 @@ In client application, include `pulsar-client-auth-sasl` in your project depende
 Configure the authentication type to use `AuthenticationSasl`, and also provide the authentication parameters to it. 
 
 You need 2 parameters: 
-- `saslJaasClientSectionName`, which is corresponding to the section in JAAS configuration file for client; 
-- `serverType`, which stands for whether this client is connected to broker or proxy. And client uses this parameter to know this client should use which server side principal. 
+- `saslJaasClientSectionName`. This parameter corresponds to the section in JAAS configuration file for client; 
+- `serverType`. This parameter stands for whether this client connects to broker or proxy. And client uses this parameter to know which server side principal should be used. 
 
-When you authenticates between client and broker with the setting in above JAAS configuration file, we need to set `saslJaasClientSectionName` to `PulsarClient` and set `serverType` to `broker`.
+When you authenticate between client and broker with the setting in above JAAS configuration file, we need to set `saslJaasClientSectionName` to `PulsarClient` and set `serverType` to `broker`.
 
 The following is an example of creating a Java client:
  
@@ -183,19 +183,19 @@ The following is an example of creating a Java client:
          .build();
  ```
 
-> The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when you are running the application like below:
+> The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when you run the application like below:
 
 ```
 java -cp -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf $APP-jar-with-dependencies.jar $CLASSNAME
 ```
 
-You must ensure that the operating system user who is starting pulsar client can reach the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file.
+You must ensure that the operating system user who starts pulsar client can reach the keytabs configured in the `pulsar_jaas.conf` file and kdc server in the `krb5.conf` file.
 
 #### Configure CLI tools
 
-If you are using a command-line tool (such as `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`), you need to preform the following steps:
+If you use a command-line tool (such as `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`), you need to preform the following steps:
 
-Step 1. Enter the command below to config your `client.conf`.
+Step 1. Enter the command below to configure your `client.conf`.
 ```shell
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
 authParams={"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}
@@ -222,7 +222,7 @@ Now in comparision with the above configuration between client and broker, we sh
 
 ### Create principal for Pulsar Proxy in Kerberos
 
-In comparision with the above configuration, you need to add new principals for Pulsar Proxy. If you already have principals for client and broker, only add the proxy principal here.
+You need to add new principals for Pulsar Proxy comparing with the above configuration. If you already have principals for client and broker, you only need to add the proxy principal here.
 
 ```shell
 ### add Principals for Pulsar Proxy
@@ -292,7 +292,7 @@ Pulsar client configuration is similar with client and broker configuration, exc
          .build();
  ```
 
-> The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when you are running the application like below:
+> The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when you run the application like below:
 
 ```
 java -cp -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf $APP-jar-with-dependencies.jar $CLASSNAME
@@ -342,14 +342,14 @@ superUserRoles=client/{clientIp}@EXAMPLE.COM
 
 ## Regarding authentication between ZooKeeper and Broker
 
-Pulsar Broker acts as a Kerberos client when you are authenticating with Zookeeper. According to [ZooKeeper document](https://cwiki.apache.org/confluence/display/ZOOKEEPER/Client-Server+mutual+authentication), you need these settings in `conf/zookeeper.conf`:
+Pulsar Broker acts as a Kerberos client when you authenticate with Zookeeper. According to [ZooKeeper document](https://cwiki.apache.org/confluence/display/ZOOKEEPER/Client-Server+mutual+authentication), you need these settings in `conf/zookeeper.conf`:
 
 ```
 authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
 requireClientAuthScheme=sasl
 ```
 
-And enter the following commands to add a section of `Client` configurations in the file `pulsar_jaas.conf`, which Pulsar Broker uses:
+Enter the following commands to add a section of `Client` configurations in the file `pulsar_jaas.conf`, which Pulsar Broker uses:
 
 ```
  Client {
@@ -362,11 +362,11 @@ And enter the following commands to add a section of `Client` configurations in 
 };
 ```
 
-In this setting, the principal of Pulsar Broker and keyTab file indicates the role of Broker when you are authenticating with ZooKeeper.
+In this setting, the principal of Pulsar Broker and keyTab file indicates the role of Broker when you authenticate with ZooKeeper.
 
 ## Regarding authentication between BookKeeper and Broker
 
-Pulsar Broker acts as a Kerberos client when you are authenticating with Bookie. According to [BookKeeper document](http://bookkeeper.apache.org/docs/latest/security/sasl/), you need to add `bookkeeperClientAuthenticationPlugin` parameter in `broker.conf`:
+Pulsar Broker acts as a Kerberos client when you authenticate with Bookie. According to [BookKeeper document](http://bookkeeper.apache.org/docs/latest/security/sasl/), you need to add `bookkeeperClientAuthenticationPlugin` parameter in `broker.conf`:
 
 ```
 bookkeeperClientAuthenticationPlugin=org.apache.bookkeeper.sasl.SASLClientProviderFactory
@@ -374,7 +374,7 @@ bookkeeperClientAuthenticationPlugin=org.apache.bookkeeper.sasl.SASLClientProvid
 
 In this setting, `SASLClientProviderFactory` creates a BookKeeper SASL client in a Broker, and the Broker uses the created SASL client to authenticate with a Bookie node.
 
-And enter the following commands to add a section of `BookKeeper` configurations in the `pulsar_jaas.conf` that Pulsar Broker uses:
+Enter the following commands to add a section of `BookKeeper` configurations in the `pulsar_jaas.conf` that Pulsar Broker uses:
 
 ```
  BookKeeper {
@@ -387,5 +387,5 @@ And enter the following commands to add a section of `BookKeeper` configurations
 };
 ```
 
-In this setting, the principal of Pulsar Broker and keyTab file indicates the role of Broker when you are authenticating with Bookie.
+In this setting, the principal of Pulsar Broker and keyTab file indicates the role of Broker when you authenticate with Bookie.
 
