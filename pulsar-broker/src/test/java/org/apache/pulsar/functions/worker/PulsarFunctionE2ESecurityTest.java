@@ -89,7 +89,7 @@ public class PulsarFunctionE2ESecurityTest {
     final String TENANT2 = "tenant2";
 
     final String NAMESPACE = "test-ns";
-    String pulsarFunctionsNamespace = TENANT + "/use/pulsar-function-admin";
+    String pulsarFunctionsNamespace = TENANT + "/pulsar-function-admin";
     String primaryHost;
     String workerId;
 

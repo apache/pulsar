@@ -72,7 +72,7 @@ public class PulsarFunctionAdminTest {
     WorkerServer functionsWorkerServer;
     WorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
-    String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
+    String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
 
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
