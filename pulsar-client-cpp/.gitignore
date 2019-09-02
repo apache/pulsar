@@ -59,9 +59,8 @@ lib*.so*
 # doxygen files
 apidocs/
 
-# Protobuf generated files
-*.pb.cc
-*.pb.h
+# generated files
+generated/
 
 # CMAKE
 Makefile

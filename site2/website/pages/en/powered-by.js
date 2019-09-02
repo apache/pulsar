@@ -20,30 +20,39 @@ class Users extends React.Component {
 
 
     return (
-      <div className="docMainWrapper wrapper">
-        <Container className="mainContainer documentContainer postContainer">
-          <div className="post">
-            <header className="postHeader">
-              <h1><translate>Companies using or contributing to Apache Pulsar</translate></h1>
-              <hr />
-            </header>
+        <div className="docMainWrapper wrapper">
+          <Container className="mainContainer documentContainer postContainer">
+            <div className="post">
+              <header className="postHeader">
+                <h1><translate>Companies using or contributing to Apache Pulsar</translate></h1>
+                <hr />
+              </header>
 
-            <div class="logo-wrapper">
+              <div class="logo-wrapper">
                 {
-
-                    users.map(
-                  c => (
-                    <div class="logo-box">
-                         <a href={c.url} title={c.name} target="_blank">
-                            <img src={c.logo} alt={c.name} class={c.logo.endsWith('.svg') ? 'logo-svg' : ''} />
-                        </a>
-                    </div>
-                  )
-                )}
+                  users.map(
+                      c => (
+                          (() => {
+                            if (c.hasOwnProperty('logo_white')) {
+                              return <div className="logo-box-background-for-white">
+                                <a href={c.url} title={c.name} target="_blank">
+                                  <img src={c.logo} alt={c.name} className={c.logo.endsWith('.svg') ? 'logo-svg' : ''}/>
+                                </a>
+                              </div>
+                            } else {
+                              return <div className="logo-box">
+                                <a href={c.url} title={c.name} target="_blank">
+                                  <img src={c.logo} alt={c.name} className={c.logo.endsWith('.svg') ? 'logo-svg' : ''}/>
+                                </a>
+                              </div>
+                            }
+                          })()
+                      )
+                  )}
               </div>
-          </div>
-        </Container>
-      </div>
+            </div>
+          </Container>
+        </div>
     );
   }
 }

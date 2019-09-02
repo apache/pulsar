@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPing;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPong;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.concurrent.ScheduledFuture;
-
+/**
+ * Implementation of the channel handler to process inbound Pulsar data.
+ */
 public abstract class PulsarHandler extends PulsarDecoder {
     protected ChannelHandlerContext ctx;
     protected SocketAddress remoteAddress;

@@ -18,17 +18,20 @@
  */
 package org.apache.pulsar.common.functions;
 
-import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.io.SourceConfig;
-
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.io.SourceConfig;
+
+/**
+ * Helper class to work with configuration.
+ */
 public class Utils {
-    public static String HTTP = "http";
-    public static String FILE = "file";
-    public static String BUILTIN = "builtin";
+    public final static String HTTP = "http";
+    public final static String FILE = "file";
+    public final static String BUILTIN = "builtin";
 
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
         return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(HTTP)

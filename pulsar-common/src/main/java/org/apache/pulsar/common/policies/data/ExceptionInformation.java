@@ -20,6 +20,9 @@ package org.apache.pulsar.common.policies.data;
 
 import lombok.Data;
 
+/**
+ * Exception information.
+ */
 @Data
 public class ExceptionInformation {
     String exceptionString;

@@ -53,6 +53,7 @@
     "Pulsar IO": [
       "io-overview",
       "io-quickstart",
+      "io-use",
       "io-managing",
       "io-debug",
       "io-connectors",
@@ -139,6 +140,7 @@
       "reference-terminology",
       "reference-cli-tools",
       "pulsar-admin",
+      "reference-connector-admin",
       "reference-configuration",
       "reference-metrics"
     ]

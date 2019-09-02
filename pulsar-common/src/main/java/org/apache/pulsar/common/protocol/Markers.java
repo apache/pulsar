@@ -20,17 +20,13 @@ package org.apache.pulsar.common.protocol;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
-
-import org.apache.pulsar.common.api.proto.PulsarMarkers;
-import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
@@ -38,10 +34,12 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsS
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
 @UtilityClass
+@SuppressWarnings("checkstyle:JavadocType")
 public class Markers {
 
     private static ByteBuf newMessage(MarkerType markerType, Optional<String> restrictToCluster, ByteBuf payload) {
@@ -213,7 +211,8 @@ public class Markers {
     }
 
     @SneakyThrows
-    public static ByteBuf newReplicatedSubscriptionsUpdate(String subscriptionName, Map<String, MessageIdData> clusterIds) {
+    public static ByteBuf newReplicatedSubscriptionsUpdate(String subscriptionName,
+        Map<String, MessageIdData> clusterIds) {
         ReplicatedSubscriptionsUpdate.Builder builder = ReplicatedSubscriptionsUpdate.newBuilder();
         builder.setSubscriptionName(subscriptionName);
 
