@@ -32,7 +32,105 @@
 <tr><td><code>numberOfThreads</code></td><td><code>false</code></td><td><code>1</code></td><td>The number of threads of Netty Tcp Server to accept incoming connections and handle the traffic of the accepted connections.</td></tr>
 </tbody>
 </table>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#source">Source</a><ul class="toc-headings"><li><a href="#source-configuration-options">Source Configuration Options</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<h3><a class="anchor" aria-hidden="true" id="configuration-example"></a><a href="#configuration-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration Example</h3>
+<p>Here is a configuration Json example:</p>
+<pre><code class="hljs css language-$json { &quot;type&quot;: &quot;tcp&quot;, &quot;host&quot;: &quot;127.0.0.1&quot;, &quot;port&quot;: &quot;10911&quot;, &quot;numberOfThreads&quot;: &quot;5&quot; }">
+    Here is a configuration Yaml example:
+    
+    ```$yaml
+    configs:
+        type: "tcp"
+        host: "127.0.0.1"
+        port: 10999
+        numberOfThreads: 1
+    
+
+<span class="hljs-comment">### Usage example</span>
+
+- <span class="hljs-keyword">Start</span> pulsar <span class="hljs-keyword">standalone</span>
+
+<span class="hljs-string">``</span><span class="hljs-string">`$bash docker pull apachepulsar/pulsar:2.4.0 docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:2.4.0 bin/pulsar standalone
+
+    &lt;br /&gt;- Start pulsar-io in standalone
+    
+    #### Tcp example
+    
+    - Config file netty-source-config.yaml
+    
+    `</span><span class="hljs-string">``</span>$yaml
+    configs:
+        <span class="hljs-keyword">type</span>: <span class="hljs-string">"tcp"</span>
+        host: <span class="hljs-string">"127.0.0.1"</span>
+        port: <span class="hljs-number">10999</span>
+        numberOfThreads: <span class="hljs-number">1</span>
+    
+
+- Copy configuration <span class="hljs-keyword">file</span> <span class="hljs-keyword">to</span> pulsar <span class="hljs-keyword">server</span>
+
+<span class="hljs-string">``</span><span class="hljs-string">`$bash docker cp netty-source-config.yaml pulsar-netty-standalone:/pulsar/conf/
+
+    &lt;br /&gt;- Download netty connector and start netty connector
+    
+    `</span><span class="hljs-string">``</span>$bash
+    docker exec -it pulsar-netty-<span class="hljs-keyword">standalone</span> /<span class="hljs-keyword">bin</span>/bash
+    curl -O <span class="hljs-keyword">http</span>://mirror-hk.koddos.net/apache/pulsar/pulsar<span class="hljs-number">-2.4</span><span class="hljs-number">.0</span>/connectors/pulsar-io-netty<span class="hljs-number">-2.4</span><span class="hljs-number">.0</span>.nar
+    ./<span class="hljs-keyword">bin</span>/pulsar-<span class="hljs-keyword">admin</span> sources localrun <span class="hljs-comment">--archive pulsar-io-2.4.0.nar --tenant public --namespace default --name netty --destination-topic-name netty-topic --source-config-file netty-source-config.yaml --parallelism 1</span>
+    
+
+- Consume <span class="hljs-keyword">data</span> 
+
+<span class="hljs-string">``</span><span class="hljs-string">`$bash docker exec -it pulsar-netty-standalone /bin/bash ./bin/pulsar-client consume -t Exclusive -s netty-sub netty-topic -n 0
+
+    &lt;br /&gt;- Open another window for send data to netty source
+    
+    `</span><span class="hljs-string">``</span>$bash
+    docker exec -it pulsar-netty-<span class="hljs-keyword">standalone</span> /<span class="hljs-keyword">bin</span>/bash
+    apt-<span class="hljs-keyword">get</span> <span class="hljs-keyword">update</span>
+    apt-<span class="hljs-keyword">get</span> -y <span class="hljs-keyword">install</span> telnet
+    root@<span class="hljs-number">1</span>d19327b2c67:/pulsar<span class="hljs-comment"># telnet 127.0.0.1 10999</span>
+    Trying <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>...
+    Connected <span class="hljs-keyword">to</span> <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>.
+    Escape <span class="hljs-built_in">character</span> <span class="hljs-keyword">is</span> <span class="hljs-string">'^]'</span>.
+    hello
+    world
+    
+
+- Verification results
+
+<span class="hljs-keyword">In</span> the consumer <span class="hljs-keyword">window</span> just opened, you can see the <span class="hljs-keyword">following</span> <span class="hljs-keyword">data</span>
+
+<span class="hljs-string">``</span><span class="hljs-string">`bash
+----- got message -----
+hello
+
+----- got message -----
+world
+</span></code></pre>
+<h4><a class="anchor" aria-hidden="true" id="http-example"></a><a href="#http-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Http example</h4>
+<ul>
+<li>Config file netty-source-config.yaml</li>
+</ul>
+<pre><code class="hljs css language-$yaml configs: type: &quot;http&quot; host: &quot;127.0.0.1&quot; port: 10999 numberOfThreads: 1">
+    - Start netty source
+    
+    ```$bash
+    docker exec -it pulsar-netty-standalone <span class="hljs-string">/bin/bash</span>
+    <span class="hljs-string">./bin/pulsar-admin</span> sources localrun <span class="hljs-params">--archive</span> pulsar-io-{{pulsar<span class="hljs-function">:version</span>}}<span class="hljs-string">.nar</span> <span class="hljs-params">--tenant</span> public <span class="hljs-params">--namespace</span> default <span class="hljs-params">--name</span> netty <span class="hljs-params">--destination-topic-name</span> netty-topic <span class="hljs-params">--source-config-file</span> netty-source-config.yaml <span class="hljs-params">--parallelism</span> 1
+    
+
+- Verification results
+
+```bash
+curl -X POST <span class="hljs-params">--data</span> 'hello, world!' http:<span class="hljs-string">//127.0.0.1</span><span class="hljs-function">:10999</span>/
+</code></pre>
+<ul>
+<li>Verification results</li>
+</ul>
+<p>In the consumer window just opened, you can see the following data</p>
+<pre><code class="hljs css language-bash">----- got message -----
+hello, world!
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#source">Source</a><ul class="toc-headings"><li><a href="#source-configuration-options">Source Configuration Options</a></li><li><a href="#configuration-example">Configuration Example</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
