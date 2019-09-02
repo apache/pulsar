@@ -24,19 +24,19 @@ superUserRoles=my-super-user-1,my-super-user-2
 > A full list of parameters is available in the `conf/broker.conf` file.
 > You can also find the default values for those parameters in [Broker Configuration](reference-configuration.md#broker). 
 
-Typically, you can not only use superuser roles for administrators and clients but also for broker-to-broker authorization. When you are using [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other topics of clusters.
+Typically, you can not only use superuser roles for administrators and clients but also for broker-to-broker authorization. When you use [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other topics of clusters.
 
 You can also enable the authorization for the proxy in the proxy configuration file (`conf/proxy.conf`). Once you enable the authorization on the proxy, the proxy does an additional authorization check before forwarding the request to a broker. The broker still checks the authorization of the request when the broker receives the forwarded request.
 
 ### Proxy Roles
 
-By default, the broker treats the connection between a proxy and the broker as a normal user connection. The broker authenticates the user as the role configured in ```proxy.conf``` (see ["Enabling TLS Authentication on Proxies"](security-tls-authentication#on-proxies)). However, when the user is connecting to the cluster through a proxy, the user rarely desires the authentication. The user expects to be able to interact with the cluster as the role for which they have authenticated with the proxy.
+By default, the broker treats the connection between a proxy and the broker as a normal user connection. The broker authenticates the user as the role configured in `proxy.conf`(see ["Enabling TLS Authentication on Proxies"](security-tls-authentication#on-proxies)). However, when the user connects to the cluster through a proxy, the user rarely requires the authentication. The user expects to be able to interact with the cluster as the role for which they have authenticated with the proxy.
 
-Pulsar uses *Proxy roles* to enable this. Proxy roles are specified in the broker configuration file, [`conf/broker.conf`](reference-configuration.md#broker). If a client that is authenticated with a broker is one of its ```proxyRoles```, all requests from that client must also carry information about the role of the client that is authenticated with the proxy. If this information, which we call the *original principal*, is missing, the client is not able to access anything.
+Pulsar uses *Proxy roles* to enable the authentication. Proxy roles are specified in the broker configuration file, [`conf/broker.conf`](reference-configuration.md#broker). If a client that is authenticated with a broker is one of its ```proxyRoles```, all requests from that client must also carry information about the role of the client that is authenticated with the proxy. This information is called *the original principle*. If *the original principle* misses, the client is not able to access anything.
 
-You must authorize the *proxy role* and the *original principle* to access a resource for that resource to be accessible via the proxy. Administrators can take two approaches to this.
+You must authorize the *proxy role* and the *original principle* to access a resource. Thus that resource can be accessible via the proxy. Administrators can take two approaches to authorize the *proxy role* and the *original principle*.
 
-The more secure approach is to grant access to the proxy roles each time you grant access to a resource. For example, if you have a proxy role ```proxy1```, when the superuser creats a tenant, you should specify ```proxy1``` as one of the admin roles. When a role is granted permissions to produce or consume from a namespace, if that client wants to produce or consume through a proxy, you should also grant ```proxy1``` the same permissions.
+The more secure approach is to grant access to the proxy roles each time you grant access to a resource. For example, if you have a proxy role named ```proxy1```, when the superuser creats a tenant, you should specify ```proxy1``` as one of the admin roles. When a role is granted permissions to produce or consume from a namespace, if that client wants to produce or consume through a proxy, you should also grant ```proxy1``` the same permissions.
 
 Another approach is to make the proxy role a superuser. This allows the proxy to access all resources. The client still needs to authenticate with the proxy, and all requests made through the proxy have their role downgraded to the *original principal* of the authenticated client. However, if the proxy is compromised, a bad actor could get full access to your cluster.
 
@@ -49,13 +49,15 @@ proxyRoles=my-proxy-role
 superUserRoles=my-super-user-1,my-super-user-2,my-proxy-role
 ```
 
-## Administer Tenants
-
-### Create a new tenant
+## Administer tenants
 
 Pulsar [instance](reference-terminology.md#instance) administrators or some kind of self-service portal typically provisions a Pulsar [tenant](reference-terminology.md#tenant). 
 
-You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin.md) tool. Here's an example tenant creation command:
+You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin.md) tool. 
+
+### Create a new tenant
+
+The following is an example tenant creation command:
 
 ```shell
 $ bin/pulsar-admin tenants create my-tenant \
