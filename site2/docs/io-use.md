@@ -222,7 +222,7 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/source
 
     * HTTP: http://www.repo.com/fileName.jar
 
-    * File: file:/dir/fileName.jar
+    * File: file:///dir/fileName.jar
 
     **Parameter**
 
@@ -299,7 +299,7 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/
 
     * HTTP: http://www.repo.com/fileName.jar
 
-    * File: file:/dir/fileName.jar
+    * File: file:///dir/fileName.jar
 
     **Parameter**
 
@@ -461,10 +461,60 @@ SourceConfig getSource(String tenant,
                 throws PulsarAdminException
 ```
 
-**Response example**
+**Example**
+
+This is a sourceConfig.
 
 ```java
-serviceUrl : "http://my-broker.example.com:8080/" 
+{
+ "tenant": "tenantName",
+ "namespace": "namespaceName",
+ "name": "sourceName",
+ "className": "className",
+ "topicName": "topicName",
+ "configs": {},
+ "parallelism": 1,
+ "processingGuarantees": "ATLEAST_ONCE",
+ "resources": {
+   "cpu": 1.0,
+   "ram": 1073741824,
+   "disk": 10737418240
+ }
+}
+```
+
+This is a sourceConfig example.
+
+```
+{
+ "tenant": "public",
+ "namespace": "default",
+ "name": "debezium-mysql-source",
+ "className": "org.apache.pulsar.io.debezium.mysql.DebeziumMysqlSource",
+ "topicName": "debezium-mysql-topic",
+ "configs": {
+   "database.user": "debezium",
+   "database.server.id": "184054",
+   "database.server.name": "dbserver1",
+   "database.port": "3306",
+   "database.hostname": "localhost",
+   "database.password": "dbz",
+   "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650",
+   "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+   "database.whitelist": "inventory",
+   "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+   "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+   "pulsar.service.url": "pulsar://127.0.0.1:6650",
+   "database.history.pulsar.topic": "history-topic2"
+ },
+ "parallelism": 1,
+ "processingGuarantees": "ATLEAST_ONCE",
+ "resources": {
+   "cpu": 1.0,
+   "ram": 1073741824,
+   "disk": 10737418240
+ }
+}
 ```
 
 **Exception**
@@ -508,10 +558,53 @@ SinkConfig getSink(String tenant,
             throws PulsarAdminException
 ```
 
-**Response example**
+**Example**
 
-```java
-serviceUrl : "http://my-broker.example.com:8080/" 
+This is a sinkConfig.
+
+```
+{
+"tenant": "tenantName",
+"namespace": "namespaceName",
+"name": "sinkName",
+"className": "className",
+"inputSpecs": {
+"topicName": {
+    "isRegexPattern": false
+}
+},
+"configs": {},
+"parallelism": 1,
+"processingGuarantees": "ATLEAST_ONCE",
+"retainOrdering": false,
+"autoAck": true
+}
+```
+
+This is a sinkConfig example.
+
+```  
+{
+"tenant": "public",
+"namespace": "default",
+"name": "pulsar-mysql-jdbc-sink",
+"className": "org.apache.pulsar.io.jdbc.JdbcAutoSchemaSink",
+"inputSpecs": {
+"pulsar-mysql-jdbc-sink-topic": {
+    "isRegexPattern": false
+}
+},
+"configs": {
+"password": "jdbc",
+"jdbcUrl": "jdbc:mysql://127.0.0.1:3306/pulsar_mysql_jdbc_sink",
+"userName": "root",
+"tableName": "pulsar_mysql_jdbc_sink"
+},
+"parallelism": 1,
+"processingGuarantees": "ATLEAST_ONCE",
+"retainOrdering": false,
+"autoAck": true
+}
 ```
 
 **Parameter description**
@@ -854,7 +947,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/
 
     * HTTP: http://www.repo.com/fileName.jar
 
-    * File: file:/dir/fileName.jar
+    * File: file:///dir/fileName.jar
   
     **Parameter**
 
@@ -935,7 +1028,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:t
 
     * HTTP: http://www.repo.com/fileName.jar
 
-    * File: file:/dir/fileName.jar
+    * File: file:///dir/fileName.jar
   
     **Parameter**
 
