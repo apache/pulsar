@@ -10,7 +10,7 @@ Pulsar supports authenticating clients using security tokens that are based on [
 
 You can use tokens to identify a Pulsar client and associate with some "principal" (or "role") that is permitted to do some actions (for example, publish to a topic or consume from a topic).
 
-A user typically gives a user a token string from the administrator (or some automated service).
+A user typically gets a user a token string from the administrator (or some automated service).
 
 The compact representation of a signed JWT is a string that looks like as the follwing:
 
@@ -18,7 +18,7 @@ The compact representation of a signed JWT is a string that looks like as the fo
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 ```
 
-Application does the token specification when you create the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
+The token is specified by application when you create a client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
 
 
 > #### Always use TLS transport encryption
@@ -26,7 +26,7 @@ Application does the token specification when you create the client instance. An
 > use TLS encryption all the time when you connect to the Pulsar service. See
 > [Transport Encryption using TLS](security-tls-transport.md) for more details.
 
-## Secret vs Public/Private keys
+## Secret vs Public and Private keys
 
 JWT support two different kinds of keys in order to generate and validate the tokens:
 
@@ -103,9 +103,7 @@ $ bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
             --actions produce,consume
 ```
 
-## Enable token authentication
-
-### ... on Brokers
+## Enable token authentication on Brokers
 
 To configure brokers to authenticate clients, add the following parameters to `broker.conf`:
 
@@ -124,7 +122,7 @@ tokenSecretKey=file:///path/to/secret.key
 # tokenPublicKey=file:///path/to/public.key
 ```
 
-### ... on Proxies
+## Enable token authentication on Proxies
 
 To configure proxies to authenticate clients, add the following parameters to `proxy.conf`:
 
