@@ -16,12 +16,12 @@ This document introduces how to configure `Kerberos` with `SASL` between Pulsar 
 
 To begin, you need to set up (or already have) a [Key Distribution Center(KDC)](https://en.wikipedia.org/wiki/Key_distribution_center). Also you need to configure and run the [Key Distribution Center(KDC)](https://en.wikipedia.org/wiki/Key_distribution_center)in advance. 
 
-If your organization already uses a Kerberos server (for example, by using `Active Directory`), you do not have to install a new server for Pulsar. If your organization does not use a Kerberos server, you need to install one. Your Linux vendor might have packages for `Kerberos`. On how to install and configure Kerberos, refer to: ([Ubuntu](https://help.ubuntu.com/community/Kerberos), 
-[Redhat](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Managing_Smart_Cards/installing-kerberos.html)).
+If your organization already uses a Kerberos server (for example, by using `Active Directory`), you do not have to install a new server for Pulsar. If your organization does not use a Kerberos server, you need to install one. Your Linux vendor might have packages for `Kerberos`. On how to install and configure Kerberos, refer to [Ubuntu](https://help.ubuntu.com/community/Kerberos), 
+[Redhat](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Managing_Smart_Cards/installing-kerberos.html).
 
 Note that if you use Oracle Java, you need to download JCE policy files for your Java version and copy them to the `$JAVA_HOME/jre/lib/security` directory.
 
-#### Kerberos Principals
+#### Kerberos principals
 
 If you use the existing Kerberos system, ask your Kerberos administrator for a principal for each Brokers in your cluster and for every operating system user that accesses Pulsar with Kerberos authentication(via clients and tools).
 
@@ -106,7 +106,7 @@ You can have 2 separate JAAS configuration files:
 
 ### Kerberos configuration for Brokers
 
-#### Configure `broker.conf` file
+#### Configure the `broker.conf` file
  
  In the `broker.conf` file, set Kerberos related configurations.
 
@@ -271,7 +271,7 @@ Here is an example named `pulsar_jaas.conf`:
 };
 ```
 
-### Proxy Client configuration
+### Proxy client configuration
 
 Pulsar client configuration is similar with client and broker configuration, except that you need to set `serverType` to `proxy` instead of `broker`, for the reason that you need to do the Kerberos authentication between client and proxy.
 
@@ -298,7 +298,7 @@ Pulsar client configuration is similar with client and broker configuration, exc
 java -cp -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf $APP-jar-with-dependencies.jar $CLASSNAME
 ```
 
-### Kerberos configuration for Pulsar Proxy service
+### Kerberos configuration for Pulsar proxy service
 
 In the `proxy.conf` file, set Kerberos related configuration. Here is an example:
 ```shell
@@ -388,4 +388,3 @@ Enter the following commands to add a section of `BookKeeper` configurations in 
 ```
 
 In this setting, the principal of Pulsar Broker and keyTab file indicates the role of Broker when you authenticate with Bookie.
-
