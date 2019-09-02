@@ -164,7 +164,7 @@ conf.addEncryptionKey("myapp.messagekey1");
 conf.addEncryptionKey("myapp.messagekey2");
 ```
 ## Decrypt encrypted messages at the consumer application:
-Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.
+Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
 
 ## Handle failures:
 * Producer/ Consumer loses access to the key
