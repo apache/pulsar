@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 
 /**
  * A set comprising zero or more ranges type of key-value pair.
@@ -120,7 +120,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     /**
      * It returns very last biggest range in the rangeSet.
      *
-     * @return Range<T> last biggest range into the set
+     * @return last biggest range into the set
      */
     Range<T> lastRange();
 
