@@ -16,18 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schema;
-
 /**
- * Deserialize messages from bytes.
+ * Schema definitions for Pulsar Client API.
  */
-public interface SchemaReader<T> {
-
-    /**
-     * Serialize bytes convert pojo.
-     *
-     * @param bytes the data
-     * @return the serialized object
-     */
-    T read(byte[] bytes);
-}
+package org.apache.pulsar.client.api.schema;

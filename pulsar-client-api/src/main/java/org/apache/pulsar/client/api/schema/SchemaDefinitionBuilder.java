@@ -28,7 +28,7 @@ import java.util.Map;
 public interface SchemaDefinitionBuilder<T> {
 
     /**
-     * Set schema whether always allow null or not
+     * Set schema whether always allow null or not.
      *
      * @param alwaysAllowNull definition null or not
      * @return schema definition builder
@@ -36,7 +36,7 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withAlwaysAllowNull(boolean alwaysAllowNull);
 
     /**
-     * Set schema info properties
+     * Set schema info properties.
      *
      * @param properties schema info properties
      * @return schema definition builder
@@ -44,7 +44,7 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withProperties(Map<String, String> properties);
 
     /**
-     * Set schema info properties
+     * Set schema info properties.
      *
      * @param key property key
      * @param value property value
@@ -54,7 +54,7 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> addProperty(String key, String value);
 
     /**
-     * Set schema of pojo definition
+     * Set schema of pojo definition.
      *
      * @param pojo pojo schema definition
      *
@@ -63,7 +63,7 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withPojo(Class pojo);
 
     /**
-     * Set schema of json definition
+     * Set schema of json definition.
      *
      * @param jsonDefinition json schema definition
      *
@@ -72,7 +72,7 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withJsonDef(String jsonDefinition);
 
     /**
-     * Set schema whether decode by schema version
+     * Set schema whether decode by schema version.
      *
      * @param supportSchemaVersioning decode by version
      *

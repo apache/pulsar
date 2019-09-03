@@ -61,6 +61,7 @@ public final class AuthenticationFactory {
      *            the path to the TLS client private key
      * @return the Authentication object initialized with the TLS credentials
      */
+    @SuppressWarnings("checkstyle:MethodName")
     public static Authentication TLS(String certFilePath, String keyFilePath) {
         return DefaultImplementation.newAuthenticationTLS(certFilePath, keyFilePath);
     }
@@ -86,14 +87,14 @@ public final class AuthenticationFactory {
     }
 
     /**
-     * Create an instance of the Authentication-Plugin
+     * Create an instance of the Authentication-Plugin.
      *
      * @param authPluginClassName name of the Authentication-Plugin you want to use
      * @param authParams          map which represents parameters for the Authentication-Plugin
      * @return instance of the Authentication-Plugin
      * @throws UnsupportedAuthenticationException
      */
-    public static final Authentication create(String authPluginClassName, Map<String, String> authParams)
+    public static Authentication create(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
         try {
             return DefaultImplementation.createAuthentication(authPluginClassName, authParams);
