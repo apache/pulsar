@@ -76,6 +76,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
 
         jcommander.addCommand("skip", new Skip());
+        jcommander.addCommand("skip-all", new SkipAll());
         jcommander.addCommand("clear-backlog", new ClearBacklog());
 
         jcommander.addCommand("expire-messages", new ExpireMessages());
@@ -434,6 +435,22 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             topics.skipMessages(topic, subName, numMessages);
+        }
+    }
+
+    @Parameters(commandDescription = "Skip all messages for the subscription")
+    private class SkipAll extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to be skip messages on", required = true)
+        private String subName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            topics.skipAllMessages(persistentTopic, subName);
         }
     }
 
