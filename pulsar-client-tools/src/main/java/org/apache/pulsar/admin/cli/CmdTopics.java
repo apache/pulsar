@@ -449,8 +449,8 @@ public class CmdTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            topics.skipAllMessages(persistentTopic, subName);
+            String topic = validatePersistentTopic(params);
+            topics.skipAllMessages(topic, subName);
         }
     }
 
