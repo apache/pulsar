@@ -30,7 +30,7 @@ You can install Ansible on Linux or macOS using pip.
 $ pip install ansible
 ```
 
-You can install Terraform following the instructions from [here](https://www.terraform.io/intro/getting-started/install.html).
+You can install Terraform using the instructions [here](https://www.terraform.io/intro/getting-started/install.html).
 
 You also need to have the Terraform and Ansible configuration for Pulsar locally on your machine. You can find them in the [GitHub repository](https://github.com/apache/pulsar) of Pulsar, which you can fetch using Git commands:
 
@@ -41,11 +41,11 @@ $ cd pulsar/deployment/terraform-ansible/aws
 
 ## SSH setup
 
-> If you already have an SSH key and want to use it, you can skip the generating the SSH keys step and update `private_key_file` setting
+> If you already have an SSH key and want to use it, you can skip the step of generating an SSH key and update `private_key_file` setting
 > in `ansible.cfg` file and `public_key_path` setting in `terraform.tfvars` file.
 >
 > For example, if you already have a private SSH key in `~/.ssh/pulsar_aws` and a public key in `~/.ssh/pulsar_aws.pub`,
-> you can do the following:
+> follow the steps below:
 >
 > 1. update `ansible.cfg` with following values:
 >
@@ -202,7 +202,7 @@ For a quick demonstration of accessing the cluster, we can use the Python client
 $ pip install pulsar-client
 ```
 
-Now, open up the Python shell entering the `python` command:
+Now, open up the Python shell using the `python` command:
 
 ```bash
 $ python
