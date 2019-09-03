@@ -164,7 +164,6 @@ Now you can access the web interface at [localhost:8001/ui](http://localhost:800
 
 ## Deploy Pulsar components
 
-Now that you've set up a Kubernetes cluster, either on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or on a [custom cluster](#pulsar-on-a-custom-kubernetes-cluster), you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the `kubernetes` folder of the [Pulsar source package](pulsar:download_page_url).
 Now that you have set up a Kubernetes cluster, either on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or on a [custom cluster](#pulsar-on-a-custom-kubernetes-cluster), you can begin deploying the components that make up Pulsar. You can find the YAML resource definitions for Pulsar components in the `kubernetes` folder of the [Pulsar source package](pulsar:download_page_url).
 
 In that package, you can find different sets of resource definitions for different environments.
