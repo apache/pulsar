@@ -129,7 +129,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      *
      * @param <T> the type of the result.
      */
-    public static interface LongPairConsumer<T> {
+    public interface LongPairConsumer<T> {
         T apply(long key, long value);
     }
 
