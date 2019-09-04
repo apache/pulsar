@@ -211,6 +211,22 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testStatsOfStorageSizeWithSubscription() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/no-subscription";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getStats().storageSize, 0);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send(new byte[10]);
+        }
+
+        assertTrue(topicRef.getStats().storageSize > 0);
+    }
+
+    @Test
     public void testBrokerServicePersistentRedeliverTopicStats() throws Exception {
         final String topicName = "persistent://prop/ns-abc/successSharedTopic";
         final String subName = "successSharedSub";
