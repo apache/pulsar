@@ -46,7 +46,12 @@ public interface SchemaCompatibilityCheck {
     void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException;
 
     default boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        return isCompatible(Collections.singletonList(from), to, strategy);
+        try {
+            checkCompatible(from, to, strategy);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     default boolean isCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) {
