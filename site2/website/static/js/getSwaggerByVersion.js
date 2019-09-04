@@ -10,6 +10,16 @@ function getSwaggerByVersion(){
             version = param[1]
         }
     }
+    if (version !== 'master') {
+        var versions = version.split('.')
+        var majorVersion = parseInt(versions[0])
+        var minorVersion = parseInt(versions[1])
+        if (majorVersion < 2) {
+            version = '2.3.0'
+        } else if (minorVersion < 3) {
+            version = '2.3.0'
+        }
+    }
     const wrapper = document.querySelector('.pageContainer .wrapper')
     const redoc = document.createElement('redoc');
     if (pathName.indexOf('admin-rest-api') >= 0) {
