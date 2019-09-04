@@ -53,7 +53,7 @@ $ gcloud container clusters create pulsar-gke-cluster \
   --local-ssd-count=2 \
 ```
 
-By default, bookies run on all the machines that have locally attached SSD disks. In this example, all of those machines have two SSDs, but you can add different types of machines to the cluster later. You can control which machines host bookie servers can use [labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels).
+By default, bookies run on all the machines that have locally attached SSD disks. In this example, all of those machines have two SSDs, but you can add different types of machines to the cluster later. You can control which machines host bookie servers using [labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels).
 
 ### Dashboard
 
@@ -132,7 +132,7 @@ $ cd kubernetes-vagrant-coreos-cluster
 $ NODES=3 USE_KUBE_UI=true vagrant up
 ```
 
-Create SSD disk mount points on the VMs using this command:
+Create SSD disk mount points on the VMs using this script:
 
 ```bash
 $ for vm in node-01 node-02 node-03; do
