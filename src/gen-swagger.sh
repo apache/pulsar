@@ -27,6 +27,8 @@ echo "Generating swagger json file for master ..."
 mvn -am -pl pulsar-broker install -DskipTests -Pswagger
 echo "Swagger json file is generated for master."
 
+mkdir -p site2/website/static/swagger/master/
+
 cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/master/
 echo "Copied swagger json file for master."
 
