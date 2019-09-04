@@ -10,7 +10,7 @@ Pulsar supports authenticating clients using security tokens that are based on [
 
 You can use tokens to identify a Pulsar client and associate with some "principal" (or "role") that is permitted to do some actions (for example, publish to a topic or consume from a topic).
 
-A user typically gets a user a token string from the administrator (or some automated service).
+A user typically gets a token string from the administrator (or some automated service).
 
 The compact representation of a signed JWT is a string that looks like as the follwing:
 
