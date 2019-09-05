@@ -3,8 +3,6 @@
 
 ### 2.4.1 &mdash; 2019-08-30 <a id="2.4.1"></a>
 
-### 2.4.1 &mdash; 2019-08-30 <a id="2.4.1"></a>
-
 #### Fixes
 
 * Fixed wrong serialize of batchBuilder in ProducerConfigurationData [#4620](https://github.com/apache/pulsar/pull/4620)
