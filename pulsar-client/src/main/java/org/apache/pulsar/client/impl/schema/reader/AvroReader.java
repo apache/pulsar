@@ -42,14 +42,14 @@ public class AvroReader<T> implements SchemaReader<T> {
     }
 
     @Override
-    public T read(byte[] bytes) {
+    public T read(byte[] bytes, int offset, int length) {
         try {
             BinaryDecoder decoderFromCache = decoders.get();
-            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, decoderFromCache);
+            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length, decoderFromCache);
             if (decoderFromCache == null) {
                 decoders.set(decoder);
             }
-            return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, decoder));
+            return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, offset, length, decoder));
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }

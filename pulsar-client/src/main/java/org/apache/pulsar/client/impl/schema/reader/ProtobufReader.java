@@ -31,9 +31,9 @@ public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> im
     }
 
     @Override
-    public T read(byte[] bytes) {
+    public T read(byte[] bytes, int offset, int length) {
         try {
-            return this.tParser.parseFrom(bytes);
+            return this.tParser.parseFrom(bytes, offset, length);
         } catch (InvalidProtocolBufferException e) {
             throw new SchemaSerializationException(e);
         }

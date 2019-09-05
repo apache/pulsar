@@ -59,6 +59,15 @@ public class ByteBufSchema implements Schema<ByteBuf> {
     }
 
     @Override
+    public ByteBuf decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        } else {
+            return byteBuf;
+        }
+    }
+
+    @Override
     public SchemaInfo getSchemaInfo() {
         return SCHEMA_INFO;
     }

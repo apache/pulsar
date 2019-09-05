@@ -64,9 +64,9 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
     }
 
     @Override
-    public GenericAvroRecord read(byte[] bytes) {
+    public GenericAvroRecord read(byte[] bytes, int offset, int length) {
         try {
-            Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
+            Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length, null);
             org.apache.avro.generic.GenericRecord avroRecord =
                     (org.apache.avro.generic.GenericRecord)reader.read(
                     null,

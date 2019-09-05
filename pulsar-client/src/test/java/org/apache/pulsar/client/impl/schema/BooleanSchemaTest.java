@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -54,12 +56,23 @@ public class BooleanSchemaTest {
         BooleanSchema schema = BooleanSchema.of();
         Assert.assertEquals(new Boolean(true), schema.decode(trueBytes));
         Assert.assertEquals(new Boolean(false), schema.decode(falseBytes));
+
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(1);
+        byteBuf.writeBytes(trueBytes);
+        Assert.assertEquals(new Boolean(true), schema.decode(byteBuf));
+        byteBuf.writerIndex(0);
+        byteBuf.writeBytes(falseBytes);
+
+        Assert.assertEquals(new Boolean(false), schema.decode(byteBuf));
     }
 
     @Test
     public void testNullEncodeDecode() {
+        ByteBuf byteBuf = null;
+        byte[] bytes = null;
         Assert.assertNull(BooleanSchema.of().encode(null));
-        Assert.assertNull(BooleanSchema.of().decode(null));
+        Assert.assertNull(BooleanSchema.of().decode(byteBuf));
+        Assert.assertNull(BooleanSchema.of().decode(bytes));
     }
 
 }

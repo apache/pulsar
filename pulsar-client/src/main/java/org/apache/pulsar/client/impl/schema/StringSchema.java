@@ -22,6 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -39,6 +42,13 @@ public class StringSchema implements Schema<String> {
     public static StringSchema utf8() {
         return UTF8;
     }
+
+    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+            return new byte[1024];
+        }
+    };
 
     public static StringSchema fromSchemaInfo(SchemaInfo schemaInfo) {
         checkArgument(SchemaType.STRING == schemaInfo.getType(), "Not a string schema");
@@ -90,6 +100,22 @@ public class StringSchema implements Schema<String> {
             return null;
         } else {
             return new String(bytes, charset);
+        }
+    }
+
+    public String decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        } else {
+            int size = byteBuf.readableBytes();
+            byte[] bytes = tmpBuffer.get();
+            if (size > bytes.length) {
+                bytes = new byte[size * 2];
+                tmpBuffer.set(bytes);
+            }
+            byteBuf.readBytes(bytes, 0, size);
+
+            return new String(bytes, 0, size, charset);
         }
     }
 

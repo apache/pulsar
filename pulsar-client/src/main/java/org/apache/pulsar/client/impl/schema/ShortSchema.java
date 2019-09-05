@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -46,6 +47,13 @@ public class ShortSchema implements Schema<Short> {
     }
 
     @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 2) {
+            throw new SchemaSerializationException("Size of data received by ShortSchema is not 2");
+        }
+    }
+
+    @Override
     public byte[] encode(Short message) {
         if (null == message) {
             return null;
@@ -67,6 +75,21 @@ public class ShortSchema implements Schema<Short> {
         for (byte b : bytes) {
             value <<= 8;
             value |= b & 0xFF;
+        }
+        return value;
+    }
+
+    @Override
+    public Short decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        short value = 0;
+
+        for (int i = 0; i < 2; i++) {
+            value <<= 8;
+            value |= byteBuf.getByte(i) & 0xFF;
         }
         return value;
     }

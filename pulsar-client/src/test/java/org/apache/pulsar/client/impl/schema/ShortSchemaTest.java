@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -37,10 +39,15 @@ public class ShortSchemaTest {
     @Test
     public void testSchemaEncodeDecodeFidelity() {
         ShortSchema schema = ShortSchema.of();
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(2);
         short start = 3440;
         for (short i = 0; i < 100; ++i) {
             byte[] encode = schema.encode((short)(start + i));
+            byteBuf.writerIndex(0);
+            byteBuf.writeBytes(encode);
             int decoded = schema.decode(encode);
+            Assert.assertEquals(decoded, start + i);
+            decoded = schema.decode(byteBuf);
             Assert.assertEquals(decoded, start + i);
         }
     }
@@ -53,13 +60,19 @@ public class ShortSchemaTest {
         };
         Short expected = 24*256 + 42;
         ShortSchema schema = ShortSchema.of();
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(2);
+        byteBuf.writeBytes(byteData);
         Assert.assertEquals(expected, schema.decode(byteData));
+        Assert.assertEquals(expected, schema.decode(byteBuf));
     }
 
     @Test
     public void testNullEncodeDecode() {
+        ByteBuf byteBuf = null;
+        byte[] bytes = null;
         Assert.assertNull(ShortSchema.of().encode(null));
-        Assert.assertNull(ShortSchema.of().decode(null));
+        Assert.assertNull(ShortSchema.of().decode(byteBuf));
+        Assert.assertNull(ShortSchema.of().decode(bytes));
     }
 
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -41,6 +42,13 @@ public class IntSchema implements Schema<Integer> {
     @Override
     public void validate(byte[] message) {
         if (message.length != 4) {
+            throw new SchemaSerializationException("Size of data received by IntSchema is not 4");
+        }
+    }
+
+    @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 4) {
             throw new SchemaSerializationException("Size of data received by IntSchema is not 4");
         }
     }
@@ -70,6 +78,22 @@ public class IntSchema implements Schema<Integer> {
             value <<= 8;
             value |= b & 0xFF;
         }
+        return value;
+    }
+
+    @Override
+    public Integer decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        int value = 0;
+
+        for (int i = 0; i < 4; i++) {
+            value <<= 8;
+            value |= byteBuf.getByte(i) & 0xFF;
+        }
+
         return value;
     }
 

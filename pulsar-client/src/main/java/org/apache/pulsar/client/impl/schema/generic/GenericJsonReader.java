@@ -48,9 +48,9 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
         this.schemaVersion = schemaVersion;
     }
     @Override
-    public GenericJsonRecord read(byte[] bytes) {
+    public GenericJsonRecord read(byte[] bytes, int offset, int length) {
         try {
-            JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
+            JsonNode jn = objectMapper.readTree(new String(bytes, 0, length, UTF_8));
             return new GenericJsonRecord(schemaVersion, fields, jn);
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);

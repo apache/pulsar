@@ -34,9 +34,9 @@ public class JsonReader<T> implements SchemaReader<T> {
     }
 
     @Override
-    public T read(byte[] bytes) {
+    public T read(byte[] bytes, int offset, int length) {
         try {
-            return objectMapper.readValue(bytes, this.pojo);
+            return objectMapper.readValue(bytes, offset, length, this.pojo);
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }

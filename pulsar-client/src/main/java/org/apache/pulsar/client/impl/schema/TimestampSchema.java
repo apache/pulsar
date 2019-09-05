@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -55,6 +56,16 @@ public class TimestampSchema implements Schema<Timestamp> {
       }
 
       Long decode = LongSchema.of().decode(bytes);
+      return new Timestamp(decode);
+   }
+
+   @Override
+   public Timestamp decode(ByteBuf byteBuf) {
+      if (null == byteBuf) {
+         return null;
+      }
+
+      Long decode = LongSchema.of().decode(byteBuf);
       return new Timestamp(decode);
    }
 

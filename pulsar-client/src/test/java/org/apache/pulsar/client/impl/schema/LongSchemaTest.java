@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -43,10 +45,16 @@ public class LongSchemaTest {
     @Test
     public void testSchemaEncodeDecodeFidelity() {
         LongSchema longSchema = LongSchema.of();
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
         long start = 348592040;
         for (int i = 0; i < 100; ++i) {
             byte[] encode = longSchema.encode(start + i);
             long decoded = longSchema.decode(encode);
+            Assert.assertEquals(decoded, start + i);
+            byteBuf.writerIndex(0);
+            byteBuf.writeBytes(encode);
+
+            decoded = longSchema.decode(byteBuf);
             Assert.assertEquals(decoded, start + i);
         }
     }
@@ -65,13 +73,20 @@ public class LongSchemaTest {
         };
         Long expected = 10*65536l + 24*256 + 42;
         LongSchema longSchema = LongSchema.of();
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
+        byteBuf.writeBytes(byteData);
+
         Assert.assertEquals(expected, longSchema.decode(byteData));
+        Assert.assertEquals(expected, longSchema.decode(byteBuf));
     }
 
     @Test
     public void testNullEncodeDecode() {
+        ByteBuf byteBuf = null;
+        byte[] bytes = null;
         Assert.assertNull(LongSchema.of().encode(null));
-        Assert.assertNull(LongSchema.of().decode(null));
+        Assert.assertNull(LongSchema.of().decode(byteBuf));
+        Assert.assertNull(LongSchema.of().decode(bytes));
     }
 
 }

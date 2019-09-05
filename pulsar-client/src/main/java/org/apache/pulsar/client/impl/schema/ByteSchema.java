@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -46,6 +47,13 @@ public class ByteSchema implements Schema<Byte> {
     }
 
     @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 1) {
+            throw new SchemaSerializationException("Size of data received by ByteSchema is not 1");
+        }
+    }
+
+    @Override
     public byte[] encode(Byte message) {
         if (null == message) {
             return null;
@@ -61,6 +69,15 @@ public class ByteSchema implements Schema<Byte> {
         }
         validate(bytes);
         return bytes[0];
+    }
+
+    @Override
+    public Byte decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        return byteBuf.getByte(0);
     }
 
     @Override
