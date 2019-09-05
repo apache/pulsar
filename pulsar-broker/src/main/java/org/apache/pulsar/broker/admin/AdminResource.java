@@ -606,22 +606,16 @@ public abstract class AdminResource extends PulsarWebResource {
             fetchPartitionedTopicMetadataAsync(pulsar, path).whenComplete((metadata, ex) -> {
                 if (ex != null) {
                     metadataFuture.completeExceptionally(ex);
-                // If topic is already exist, creating partitioned topic is not allowed.
+                    // If topic is already exist, creating partitioned topic is not allowed.
                 } else if (metadata.partitions == 0 && !topicExist && allowAutoTopicCreation &&
                         TopicType.PARTITIONED.toString().equals(topicType)) {
-                    int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
-                    checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
-                    try {
-                        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
-                        byte[] content = jsonMapper().writeValueAsBytes(configMetadata);
-                        ZkUtils.createFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(), path, content,
-                                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                        // we wait for the data to be synced in all quorums and the observers
-                        Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
-                        metadataFuture.complete(configMetadata);
-                    } catch (JsonProcessingException | InterruptedException | KeeperException e) {
-                        metadataFuture.completeExceptionally(e);
-                    }
+                    createDefaultPartitionedTopicAsync(pulsar, path).whenComplete((defaultMetadata, e) -> {
+                        if (e == null) {
+                            metadataFuture.complete(defaultMetadata);
+                        } else {
+                            metadataFuture.completeExceptionally(e);
+                        }
+                    });
                 } else {
                     metadataFuture.complete(metadata);
                 }
@@ -630,6 +624,26 @@ public abstract class AdminResource extends PulsarWebResource {
             metadataFuture.completeExceptionally(e);
         }
         return metadataFuture;
+    }
+
+    protected static CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(
+            PulsarService pulsar, String path) {
+        int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
+        checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
+        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
+        CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = new CompletableFuture<>();
+        try {
+            byte[] content = jsonMapper().writeValueAsBytes(configMetadata);
+            ZkUtils.createFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(), path, content,
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            // we wait for the data to be synced in all quorums and the observers
+            Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+            partitionedTopicFuture.complete(configMetadata);
+        } catch (JsonProcessingException | InterruptedException | KeeperException e) {
+            log.error("Failed to create default partitioned topic.", e);
+            partitionedTopicFuture.completeExceptionally(e);
+        }
+        return partitionedTopicFuture;
     }
 
     protected void validateClusterExists(String cluster) {
