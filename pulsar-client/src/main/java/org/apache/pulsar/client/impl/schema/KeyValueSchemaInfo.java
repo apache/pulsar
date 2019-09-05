@@ -108,20 +108,46 @@ public final class KeyValueSchemaInfo {
                                                              Schema<K> keySchema,
                                                              Schema<V> valueSchema,
                                                              KeyValueEncodingType keyValueEncodingType) {
+        return encodeKeyValueSchemaInfo(
+            schemaName,
+            keySchema.getSchemaInfo(),
+            valueSchema.getSchemaInfo(),
+            keyValueEncodingType
+        );
+    }
+
+    /**
+     * Encode key & value into schema into a KeyValue schema.
+     *
+     * @param schemaName the final schema name
+     * @param keySchemaInfo the key schema info
+     * @param valueSchemaInfo the value schema info
+     * @param keyValueEncodingType the encoding type to encode and decode key value pair
+     * @return the final schema info
+     */
+    public static SchemaInfo encodeKeyValueSchemaInfo(String schemaName,
+                                                      SchemaInfo keySchemaInfo,
+                                                      SchemaInfo valueSchemaInfo,
+                                                      KeyValueEncodingType keyValueEncodingType) {
         checkNotNull(keyValueEncodingType, "Null encoding type is provided");
+
+        if (keySchemaInfo == null || valueSchemaInfo == null) {
+            // schema is not ready
+            return null;
+        }
 
         // process key/value schema data
         byte[] schemaData = KeyValue.encode(
-            keySchema.getSchemaInfo(),
+            keySchemaInfo,
             SCHEMA_INFO_WRITER,
-            valueSchema.getSchemaInfo(),
+            valueSchemaInfo,
             SCHEMA_INFO_WRITER
         );
 
         // process key/value schema properties
         Map<String, String> properties = new HashMap<>();
         encodeSubSchemaInfoToParentSchemaProperties(
-            keySchema,
+            keySchemaInfo,
             KEY_SCHEMA_NAME,
             KEY_SCHEMA_TYPE,
             KEY_SCHEMA_PROPS,
@@ -129,7 +155,7 @@ public final class KeyValueSchemaInfo {
         );
 
         encodeSubSchemaInfoToParentSchemaProperties(
-            valueSchema,
+            valueSchemaInfo,
             VALUE_SCHEMA_NAME,
             VALUE_SCHEMA_TYPE,
             VALUE_SCHEMA_PROPS,
@@ -143,16 +169,13 @@ public final class KeyValueSchemaInfo {
             .setType(SchemaType.KEY_VALUE)
             .setSchema(schemaData)
             .setProperties(properties);
-
     }
 
-    private static void encodeSubSchemaInfoToParentSchemaProperties(Schema<?> schema,
+    private static void encodeSubSchemaInfoToParentSchemaProperties(SchemaInfo schemaInfo,
                                                                     String schemaNameProperty,
                                                                     String schemaTypeProperty,
                                                                     String schemaPropsProperty,
                                                                     Map<String, String> parentSchemaProperties) {
-        SchemaInfo schemaInfo = schema.getSchemaInfo();
-
         parentSchemaProperties.put(schemaNameProperty, schemaInfo.getName());
         parentSchemaProperties.put(schemaTypeProperty, String.valueOf(schemaInfo.getType()));
         parentSchemaProperties.put(

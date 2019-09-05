@@ -100,7 +100,7 @@ When a message is not consumed successfully, and you want to trigger the broker 
 
 Dead letter topic enables you to consume new messages when some messages cannot be consumed successfully by a consumer. In this mechanism, messages that are failed to be consumed are stored in a separate topic, which is called dead letter topic. You can decide how to handle messages in the dead letter topic.
 
-The following example shows how to enable dead letter topic in Java client.
+The following example shows how to enable dead letter topic in a Java client using the default dead letter topic:
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
@@ -113,7 +113,28 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
               .subscribe();
                 
 ```
-Dead letter topic depends on message re-delivery. You need to confirm message re-delivery method: negative acknowledgement or acknowledgement timeout. Use negative acknowledgement prior to acknowledgement timeout. 
+The default dead letter topic uses this format: 
+```
+<topicname>-<subscriptionname>-DLQ
+```
+  
+If you want to specify the name of the dead letter topic, use this Java client example:
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+              .topic(topic)
+              .subscriptionName("my-subscription")
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .deadLetterTopic("your-topic-name")
+                    .build())
+              .subscribe();
+                
+```
+  
+
+Dead letter topic depends on message re-delivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > Note    
 > Currently, dead letter topic is enabled only in the shared subscription mode.
@@ -152,7 +173,7 @@ A subscription is a named configuration rule that determines how messages are de
 
 In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If more than one consumer attempts to subscribe to a topic using the same subscription, the consumer receives an error.
 
-In the diagram above, only **Consumer-A** is allowed to consume messages.
+In the diagram below, only **Consumer-A** is allowed to consume messages.
 
 > Exclusive mode is the default subscription mode.
 
@@ -164,7 +185,7 @@ In *failover* mode, multiple consumers can attach to the same subscription. The 
 
 When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.
 
-In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-1 disconnected.
+In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next in line to receive messages if **Consumer-B-0** disconnected.
 
 ![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
 
@@ -172,7 +193,7 @@ In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 wou
 
 In *shared* or *round robin* mode, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.
 
-In the diagram above, **Consumer-B-1** and **Consumer-B-2** are able to subscribe to the topic, but **Consumer-C-1** and others could as well.
+In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscribe to the topic, but **Consumer-C-3** and others could as well.
 
 > #### Limitations of shared mode
 > There are two important things to be aware of when using shared mode:
@@ -313,7 +334,7 @@ By default, non-persistent topics are enabled on Pulsar brokers. You can disable
 
 ### Performance
 
-Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is deliver to all connected subscribers. Producers thus see comparatively low publish latency with non-persistent topic.
+Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is delivered to connected brokers. Producers thus see comparatively low publish latency with non-persistent topic.
 
 ### Client API
 

@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
@@ -60,10 +61,10 @@ public abstract class StructSchema<T> implements Schema<T> {
     protected SchemaReader<T> reader;
     protected SchemaWriter<T> writer;
     protected SchemaInfoProvider schemaInfoProvider;
-    private final LoadingCache<byte[], SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], SchemaReader<T>>() {
+    private final LoadingCache<BytesSchemaVersion, SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<BytesSchemaVersion, SchemaReader<T>>() {
                 @Override
-                public SchemaReader<T> load(byte[] schemaVersion) {
+                public SchemaReader<T> load(BytesSchemaVersion schemaVersion) {
                     return loadReader(schemaVersion);
                 }
             });
@@ -90,7 +91,7 @@ public abstract class StructSchema<T> implements Schema<T> {
     @Override
     public T decode(byte[] bytes, byte[] schemaVersion) {
         try {
-            return readerCache.get(schemaVersion).read(bytes);
+            return readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(bytes);
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
@@ -138,7 +139,7 @@ public abstract class StructSchema<T> implements Schema<T> {
      * @param schemaVersion the provided schema version
      * @return the schema reader for decoding messages encoded by the provided schema version.
      */
-    protected abstract SchemaReader<T> loadReader(byte[] schemaVersion);
+    protected abstract SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion);
 
     /**
      * TODO: think about how to make this async

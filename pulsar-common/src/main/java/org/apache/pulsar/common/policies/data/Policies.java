@@ -18,21 +18,26 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import com.google.common.collect.Sets;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
+/**
+ * Definition of Pulsar policies.
+ */
 public class Policies {
 
+    @SuppressWarnings("checkstyle:MemberName")
     public final AuthPolicies auth_policies = new AuthPolicies();
+    @SuppressWarnings("checkstyle:MemberName")
     public Set<String> replication_clusters = Sets.newHashSet();
     public BundlesData bundles;
+    @SuppressWarnings("checkstyle:MemberName")
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> topicDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
@@ -43,8 +48,11 @@ public class Policies {
     // If set, it will override the broker settings for enabling deduplication
     public Boolean deduplicationEnabled = null;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
+    @SuppressWarnings("checkstyle:MemberName")
     public int message_ttl_in_seconds = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;
     public String antiAffinityGroup;
@@ -52,20 +60,30 @@ public class Policies {
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
 
+    @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;
+    @SuppressWarnings("checkstyle:MemberName")
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public int max_producers_per_topic = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_topic = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_subscription = 0;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public long compaction_threshold = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public long offload_threshold = -1;
+    @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
         SchemaAutoUpdateCompatibilityStrategy.Full;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
 
     @Override

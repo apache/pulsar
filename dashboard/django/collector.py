@@ -461,7 +461,7 @@ if __name__ == "__main__":
         logger.info(http_headers)
 
     global http_proxyes
-    http_proxyes = {}
+    http_proxyes = { "no_proxy": os.getenv("NO_PROXY", "") }
     if args.proxy:
         http_proxyes['http'] = args.proxy
         http_proxyes['https'] = args.proxy

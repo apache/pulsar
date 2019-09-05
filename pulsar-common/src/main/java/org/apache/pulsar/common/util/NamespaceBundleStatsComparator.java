@@ -22,7 +22,6 @@ import java.util.Comparator;
 import java.util.Map;
 
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 
 /**

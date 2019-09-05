@@ -61,4 +61,4 @@ public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
     public Object extractField(int index, Object currentRecord) {
         return currentRecord;
     }
-} 
+}

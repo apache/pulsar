@@ -23,6 +23,8 @@ import org.apache.pulsar.client.api.BatcherBuilder;
 
 public class DefaultBatcherBuilder implements BatcherBuilder {
 
+    private static final long serialVersionUID = 1L;
+
     @Override
     public BatchMessageContainer build() {
         return new BatchMessageContainerImpl();

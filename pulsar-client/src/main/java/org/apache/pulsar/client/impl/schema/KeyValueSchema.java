@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -33,6 +34,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * [Key, Value] pair schema definition
  */
+@Slf4j
 public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
     @Getter
@@ -40,13 +42,12 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     @Getter
     private final Schema<V> valueSchema;
 
-    // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
-    //   [keyInfo.length][keyInfo][valueInfo.length][ValueInfo]
-    private final SchemaInfo schemaInfo;
-
     @Getter
     private final KeyValueEncodingType keyValueEncodingType;
 
+    // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
+    //   [keyInfo.length][keyInfo][valueInfo.length][ValueInfo]
+    private SchemaInfo schemaInfo;
     protected SchemaInfoProvider schemaInfoProvider;
 
     /**
@@ -97,52 +98,6 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
         this.keyValueEncodingType = keyValueEncodingType;
-        this.schemaInfo = KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
-            keySchema, valueSchema, keyValueEncodingType
-        );
-
-        if (keySchema instanceof StructSchema) {
-            keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
-                @Override
-                public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                    return schemaInfoProvider.getSchemaByVersion(schemaVersion)
-                        .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getKey());
-                }
-
-                @Override
-                public CompletableFuture<SchemaInfo> getLatestSchema() {
-                    return CompletableFuture.completedFuture(
-                        ((StructSchema<K>) keySchema).schemaInfo);
-                }
-
-                @Override
-                public String getTopicName() {
-                    return "key-schema";
-                }
-            });
-        }
-
-        if (valueSchema instanceof StructSchema) {
-            valueSchema.setSchemaInfoProvider(new SchemaInfoProvider() {
-                @Override
-                public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                    return schemaInfoProvider.getSchemaByVersion(schemaVersion)
-                        .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getValue());
-                }
-
-                @Override
-                public CompletableFuture<SchemaInfo> getLatestSchema() {
-                    return CompletableFuture.completedFuture(
-                        ((StructSchema<V>) valueSchema).schemaInfo);
-                }
-
-                @Override
-                public String getTopicName() {
-                    return "value-schema";
-                }
-            });
-        }
-
         this.schemaInfoProvider = new SchemaInfoProvider() {
             @Override
             public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
@@ -159,6 +114,12 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                 return "key-value-schema";
             }
         };
+        // if either key schema or value schema requires fetching schema info,
+        // we don't need to configure the key/value schema info right now.
+        // defer configuring the key/value schema info until `configureSchemaInfo` is called.
+        if (!requireFetchingSchemaInfo()) {
+            configureKeyValueSchemaInfo();
+        }
     }
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
@@ -173,7 +134,6 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         } else {
             return valueSchema.encode(message.getValue());
         }
-
     }
 
     public KeyValue<K, V> decode(byte[] bytes) {
@@ -212,4 +172,68 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         this.schemaInfoProvider = schemaInfoProvider;
     }
 
+    @Override
+    public boolean requireFetchingSchemaInfo() {
+        return keySchema.requireFetchingSchemaInfo() || valueSchema.requireFetchingSchemaInfo();
+    }
+
+    @Override
+    public void configureSchemaInfo(String topicName,
+                                    String componentName,
+                                    SchemaInfo schemaInfo) {
+        KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
+        keySchema.configureSchemaInfo(topicName, "key", kvSchemaInfo.getKey());
+        valueSchema.configureSchemaInfo(topicName, "value", kvSchemaInfo.getValue());
+        configureKeyValueSchemaInfo();
+
+        if (null == this.schemaInfo) {
+            throw new RuntimeException(
+                "No key schema info or value schema info : key = " + keySchema.getSchemaInfo()
+                    + ", value = " + valueSchema.getSchemaInfo());
+        }
+    }
+
+    private void configureKeyValueSchemaInfo() {
+        this.schemaInfo = KeyValueSchemaInfo.encodeKeyValueSchemaInfo(
+            keySchema, valueSchema, keyValueEncodingType
+        );
+
+        this.keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
+            @Override
+            public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
+                return schemaInfoProvider.getSchemaByVersion(schemaVersion)
+                    .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getKey());
+            }
+
+            @Override
+            public CompletableFuture<SchemaInfo> getLatestSchema() {
+                return CompletableFuture.completedFuture(
+                    ((StructSchema<K>) keySchema).schemaInfo);
+            }
+
+            @Override
+            public String getTopicName() {
+                return "key-schema";
+            }
+        });
+
+        this.valueSchema.setSchemaInfoProvider(new SchemaInfoProvider() {
+            @Override
+            public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
+                return schemaInfoProvider.getSchemaByVersion(schemaVersion)
+                    .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getValue());
+            }
+
+            @Override
+            public CompletableFuture<SchemaInfo> getLatestSchema() {
+                return CompletableFuture.completedFuture(
+                    ((StructSchema<V>) valueSchema).schemaInfo);
+            }
+
+            @Override
+            public String getTopicName() {
+                return "value-schema";
+            }
+        });
+    }
 }

@@ -20,18 +20,18 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.MoreObjects;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 
+import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -76,6 +76,7 @@ public class PersistentSubscription implements Subscription {
     protected volatile Dispatcher dispatcher;
     protected final String topicName;
     protected final String subName;
+    protected final String fullName;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -138,6 +139,7 @@ public class PersistentSubscription implements Subscription {
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
+        this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor);
         this.setReplicated(replicated);
         IS_FENCED_UPDATER.set(this, FALSE);
@@ -469,7 +471,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        return fullName;
     }
 
     @Override
@@ -593,7 +595,7 @@ public class PersistentSubscription implements Subscription {
             }
 
             @Override
-            public void findEntryFailed(ManagedLedgerException exception, Object ctx) {
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
                 // todo - what can go wrong here that needs to be retried?
                 if (exception instanceof ConcurrentFindCursorPositionException) {
                     future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));

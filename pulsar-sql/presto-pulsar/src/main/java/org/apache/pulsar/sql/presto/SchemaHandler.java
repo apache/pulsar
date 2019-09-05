@@ -20,6 +20,9 @@ package org.apache.pulsar.sql.presto;
 
 import org.apache.pulsar.common.api.raw.RawMessage;
 
+/**
+ * This interface defines the methods to work with schemas.
+ */
 public interface SchemaHandler {
 
     Object deserialize(RawMessage rawMessage);

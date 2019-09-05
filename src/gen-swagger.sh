@@ -22,10 +22,11 @@ PULSAR_PATH=$(git rev-parse --show-toplevel)
 
 cd $PULSAR_PATH
 
-echo "Generating swagger json file ..."
+git checkout master
+echo "Generating swagger json file for master ..."
 mvn -am -pl pulsar-broker install -DskipTests -Pswagger
-echo "Swagger json file is generated."
+echo "Swagger json file is generated for master."
 
-cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/
-echo "Copied swagger json file."
+cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/master/
+echo "Copied swagger json file for master."
 

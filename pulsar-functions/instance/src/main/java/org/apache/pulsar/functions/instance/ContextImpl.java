@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.bookkeeper.api.kv.Table;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
@@ -47,7 +50,6 @@ import org.slf4j.Logger;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -72,9 +74,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private final SecretsProvider secretsProvider;
     private final Map<String, Object> secretsMap;
 
-    @Getter
-    @Setter
-    private StateContextImpl stateContext;
+    @VisibleForTesting
+    StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
 
     private ComponentStatsManager statsManager;
@@ -95,7 +96,8 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
-                       Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager) {
+                       Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
+                       Table<ByteBuf, ByteBuf> stateTable) {
         this.config = config;
         this.logger = logger;
         this.publishProducers = new HashMap<>();
@@ -146,6 +148,10 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                 .quantile(0.999, 0.01)
                 .register(collectorRegistry);
         this.componentType = componentType;
+
+        if (null != stateTable) {
+            this.stateContext = new StateContextImpl(stateTable);
+        }
     }
 
     public void setCurrentMessageContext(Record<?> record) {

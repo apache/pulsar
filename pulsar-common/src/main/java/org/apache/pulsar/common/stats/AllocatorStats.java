@@ -20,6 +20,9 @@ package org.apache.pulsar.common.stats;
 
 import java.util.List;
 
+/**
+ * Allocator statistics.
+ */
 public class AllocatorStats {
     public int numDirectArenas;
     public int numHeapArenas;
@@ -31,6 +34,9 @@ public class AllocatorStats {
     public List<PoolArenaStats> directArenas;
     public List<PoolArenaStats> heapArenas;
 
+    /**
+     * Pool arena statistics.
+     */
     public static class PoolArenaStats {
         public int numTinySubpages;
         public int numSmallSubpages;
@@ -56,6 +62,9 @@ public class AllocatorStats {
         public long numActiveHugeAllocations;
     }
 
+    /**
+     * Pool subpage statistics.
+     */
     public static class PoolSubpageStats {
         public int maxNumElements;
         public int numAvailable;
@@ -63,12 +72,18 @@ public class AllocatorStats {
         public int pageSize;
     }
 
+    /**
+     * Pool chunk list statistics.
+     */
     public static class PoolChunkListStats {
         public int minUsage;
         public int maxUsage;
         public List<PoolChunkStats> chunks;
     }
 
+    /**
+     * Pool chunk statistics.
+     */
     public static class PoolChunkStats {
         public int usage;
         public int chunkSize;

@@ -18,19 +18,87 @@
 #
 
 import logging
+import struct
+import chardet
+import hexdump
+import requests
+import json
+import re
+
 from django.shortcuts import render, get_object_or_404, redirect
-from django.template import loader
-from django.urls import reverse
 from django.views import generic
-from django.db.models import Q, IntegerField
 from dashboard import settings
-import requests, json, re
 
-from django.http import HttpResponseRedirect, HttpResponse
-from .models import *
-
+from stats.models import *
 from stats.templatetags.table import Table
+from utils import import_utils
+
+pulsar = import_utils.try_import("pulsar")
 logger = logging.getLogger(__name__)
+
+
+class AdminPath:
+    v1 = "/admin"
+    v2 = "/admin/v2"
+
+    @staticmethod
+    def get(is_v2):
+        return AdminPath.v2 if is_v2 else AdminPath.v1
+
+
+class TopicName:
+    def __init__(self, topic_name):
+        try:
+            self.scheme, self.path = topic_name.split("://", 1)
+        except ValueError:
+            self.scheme, self.path = topic_name.split("/", 1)
+        self.namespace_path, self.name = self.path.rsplit("/", 1)
+        self.namespace = NamespaceName(self.namespace_path)
+
+    def is_v2(self):
+        return self.namespace.is_v2()
+
+    def url_name(self):
+        return "/".join([self.scheme, self.path])
+
+    def full_name(self):
+        return "://".join([self.scheme, self.path])
+
+    def short_name(self):
+        return self.name
+
+    def is_global(self):
+        return self.namespace.is_global()
+
+    def admin_path(self):
+        b = AdminPath.get(self.is_v2())
+        return settings.SERVICE_URL + b + "/" + self.url_name()
+
+
+class NamespaceName:
+
+    def __init__(self, namespace_name):
+        self.path = namespace_name.strip("/")
+        path_parts = self.path.split("/")
+        if len(path_parts) == 2:
+            self.tenant, self.namespace = path_parts
+            self.cluster = None
+        elif len(path_parts) == 3:
+            self.tenant, self.cluster, self.namespace = path_parts
+        else:
+            raise ValueError("invalid namespace:" + namespace_name)
+
+    def is_v2(self):
+        return self.cluster is None
+
+    def is_global(self):
+        return self.cluster == "global"
+
+    def admin_path(self):
+        b = AdminPath.get(self.is_v2())
+        return settings.SERVICE_URL + b + "/namespaces/" + self.path
+
+
 def get_timestamp():
     try:
         return LatestTimestamp.objects.get(name='latest').timestamp
@@ -44,28 +112,20 @@ class HomeView(generic.ListView):
 def home(request):
     ts = get_timestamp()
     properties = Property.objects.filter(
-        ).annotate(
-            numNamespaces = Subquery(
-                Namespace.objects.filter(
-                    deleted=False,
-                    timestamp=ts,
-                    property=OuterRef('pk')
-                ).values('property')
-                    .annotate(cnt=Count('pk'))
-                    .values('cnt'),
-                output_field=IntegerField()
-            ),
-            numTopics    = Count('namespace__topic__name', distinct=True),
-            numProducers = Sum('namespace__topic__producerCount'),
-            numSubscriptions = Sum('namespace__topic__subscriptionCount'),
-            numConsumers  = Sum('namespace__topic__consumerCount'),
-            backlog       = Sum('namespace__topic__backlog'),
-            storage       = Sum('namespace__topic__storageSize'),
-            rateIn        = Sum('namespace__topic__msgRateIn'),
-            rateOut       = Sum('namespace__topic__msgRateOut'),
-            throughputIn  = Sum('namespace__topic__msgThroughputIn'),
-            throughputOut = Sum('namespace__topic__msgThroughputOut'),
-        )
+        namespace__topic__timestamp = ts,
+    ).annotate(
+        numNamespaces = Count('namespace__name', distinct=True),
+        numTopics    = Count('namespace__topic__name', distinct=True),
+        numProducers = Sum('namespace__topic__producerCount', filter=Q(topic__timestamp__eq=ts)),
+        numSubscriptions = Sum('namespace__topic__subscriptionCount'),
+        numConsumers  = Sum('namespace__topic__consumerCount'),
+        backlog       = Sum('namespace__topic__backlog'),
+        storage       = Sum('namespace__topic__storageSize'),
+        rateIn        = Sum('namespace__topic__msgRateIn'),
+        rateOut       = Sum('namespace__topic__msgRateOut'),
+        throughputIn  = Sum('namespace__topic__msgThroughputIn'),
+        throughputOut = Sum('namespace__topic__msgThroughputOut'),
+    )
 
     logger.info(properties.query)
 
@@ -133,8 +193,8 @@ def namespace(request, namespace_name):
     })
 
 
-def deleteNamespace(request, namespace_name):
-    url = settings.SERVICE_URL + '/admin/v2/namespaces/' + namespace_name
+def delete_namespace(request, namespace_name):
+    url = NamespaceName(namespace_name).admin_path()
     response = requests.delete(url)
     status = response.status_code
     logger.debug("Delete namespace " + namespace_name + " status - " + str(status))
@@ -142,9 +202,10 @@ def deleteNamespace(request, namespace_name):
         Namespace.objects.filter(name=namespace_name, timestamp=get_timestamp()).update(deleted=True)
     return redirect('property', property_name=namespace_name.split('/', 1)[0])
 
+
 def topic(request, topic_name):
     timestamp = get_timestamp()
-    topic_name = extract_topic_db_name(topic_name)
+    topic_name = TopicName(topic_name).full_name()
     cluster_name = request.GET.get('cluster')
     clusters = []
 
@@ -308,12 +369,12 @@ def clusters(request):
     })
 
 
-def clearSubscription(request, topic_name, subscription_name):
-    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name + '/skip_all'
+def clear_subscription(request, topic_name, subscription_name):
+    url = "%s/subscription/%s/skip_all" % (TopicName(topic_name).admin_path(), subscription_name)
     response = requests.post(url)
     if response.status_code == 204:
         ts = get_timestamp()
-        topic_db_name = extract_topic_db_name(topic_name)
+        topic_db_name = TopicName(topic_name).full_name()
         topic = Topic.objects.get(name=topic_db_name, timestamp=ts)
         subscription = Subscription.objects.get(name=subscription_name, topic=topic, timestamp=ts)
         topic.backlog = topic.backlog - subscription.msgBacklog
@@ -322,13 +383,14 @@ def clearSubscription(request, topic_name, subscription_name):
         subscription.save(update_fields=['msgBacklog'])
     return redirect('topic', topic_name=topic_name)
 
-def deleteSubscription(request, topic_name, subscription_name):
-    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name
+
+def delete_subscription(request, topic_name, subscription_name):
+    url = "%s/subscription/%s" % (TopicName(topic_name).admin_path(), subscription_name)
     response = requests.delete(url)
     status = response.status_code
     if status == 204:
         ts = get_timestamp()
-        topic_db_name = extract_topic_db_name(topic_name)
+        topic_db_name = TopicName(topic_name).full_name()
         topic = Topic.objects.get(name=topic_db_name, timestamp=ts)
         deleted_subscription = Subscription.objects.get(name=subscription_name, topic=topic, timestamp=ts)
         deleted_subscription.deleted = True
@@ -345,34 +407,147 @@ def deleteSubscription(request, topic_name, subscription_name):
             topic.save(update_fields=['backlog'])
     return redirect('topic', topic_name=topic_name)
 
+
 def messages(request, topic_name, subscription_name):
-    topic_name = extract_topic_db_name(topic_name)
+    topic_name_obj = TopicName(topic_name)
+    topic_db_name = topic_name_obj.full_name()
     timestamp = get_timestamp()
     cluster_name = request.GET.get('cluster')
 
     if cluster_name:
-        topic = get_object_or_404(Topic, name=topic_name, cluster__name=cluster_name, timestamp=timestamp)
+        topic_obj = get_object_or_404(Topic,
+                                      name=topic_db_name,
+                                      cluster__name=cluster_name,
+                                      timestamp=timestamp)
     else:
-        topic = get_object_or_404(Topic, name=topic_name, timestamp=timestamp)
-    subscription = get_object_or_404(Subscription, topic=topic, name=subscription_name)
+        topic_obj = get_object_or_404(Topic,
+                                      name=topic_db_name, timestamp=timestamp)
+    subscription_obj = get_object_or_404(Subscription,
+                                         topic=topic_obj, name=subscription_name)
+
+    message = None
+    message_position = request.GET.get('message-position')
+    if message_position and message_position.isnumeric():
+        message = peek_message(topic_name_obj, subscription_name, message_position)
+        if not isinstance(message, list):
+            message = [message]
 
     return render(request, 'stats/messages.html', {
-        'topic' : topic,
-        'subscription' : subscription,
-        'title' : topic.name,
-        'subtitle' : subscription_name,
+        'topic': topic_obj,
+        'subscription': subscription_obj,
+        'title': topic_obj.name,
+        'subtitle': subscription_name,
+        'message': message,
+        'position': message_position or 1,
     })
 
-def peek(request, topic_name, subscription_name, message_number):
-    url = settings.SERVICE_URL + '/admin/v2/' + topic_name + '/subscription/' + subscription_name + '/position/' + message_number
-    response = requests.get(url)
-    message = response.text
-    message = message[message.index('{'):]
-    context = {
-        'message_body' : json.dumps(json.loads(message), indent=4),
+
+def message_skip_meta(message_view):
+    if not message_view or len(message_view) < 4:
+        raise ValueError("invalid message")
+    meta_size = struct.unpack(">I", message_view[:4])
+    message_index = 4 + meta_size[0]
+    if len(message_view) < message_index:
+        raise ValueError("invalid message")
+    return message_view[message_index:]
+
+
+def parse_batch_message_supported():
+    if pulsar is None:
+        return False
+    try:
+        _ = pulsar.MessageBatch
+        return True
+    except AttributeError:
+        return False
+
+
+def parse_batch_message_entry(response, message_id, batch_size):
+    message_id_parts = message_id.split(':')
+    batch_message_id = pulsar.MessageId(-1,
+                                        int(message_id_parts[0]),
+                                        int(message_id_parts[1]),
+                                        -1)
+    return pulsar.MessageBatch()\
+        .with_message_id(batch_message_id)\
+        .parse_from(response.content, batch_size)
+
+
+def format_message_metas(properties):
+    return "Properties:\n%s" % json.dumps(properties,
+                                          ensure_ascii=False, indent=2)
+
+
+def format_single_message(message_id, properties, data):
+    message = {
+        message_id: format_message_metas(properties),
+        "Hex": hexdump.hexdump(data, result='return'),
     }
-    return render(request, 'stats/peek.html', context)
+    try:
+        text = str(data,
+                   encoding=chardet.detect(data)['encoding'],
+                   errors='strict')
+        message["Text"] = text
+        message["JSON"] = json.dumps(json.loads(text),
+                                     ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+    return message
 
 
-def extract_topic_db_name(topic_name):
-    return 'persistent://' + topic_name.split('persistent/', 1)[1]
+def get_batch_message_from_http_response(response, message_id, batch_size):
+    entries = parse_batch_message_entry(response, message_id, batch_size)
+    message_list = []
+    for entry in entries:
+        single_msg_id = entry.message_id()
+        single_msg_id = "%s:%s:%s" % (single_msg_id.ledger_id(),
+                                      single_msg_id.entry_id(),
+                                      single_msg_id.batch_index(),)
+        message_list.append(format_single_message(single_msg_id,
+                                                  entry.properties(),
+                                                  entry.data()))
+    return message_list
+
+
+def get_properties_from_http_header(response):
+    properties = {}
+    for k, v in response.headers.items():
+        if k.startswith("X-Pulsar-PROPERTY-"):
+            properties[k.replace("X-Pulsar-PROPERTY-", "", 1)] = v
+    return properties
+
+
+def get_message_from_http_response(response):
+    message_id = response.headers.get("X-Pulsar-Message-ID")
+    if message_id is None:
+        raise ValueError("invalid peek response")
+    batch_size = response.headers.get('X-Pulsar-num-batch-message')
+    if batch_size is not None:
+        batch_size = int(batch_size)
+        if parse_batch_message_supported():
+            return get_batch_message_from_http_response(response, message_id, batch_size)
+        else:
+            if batch_size == 1:
+                message_id = message_id + ":0"
+                message_view = message_skip_meta(memoryview(response.content))
+                return format_single_message(message_id,
+                                             {},
+                                             message_view.tobytes())
+            else:
+                return {"Batch": "(size=%d)<omitted>" % batch_size}
+    else:
+        get_properties_from_http_header(response)
+        return format_single_message(message_id,
+                                     get_properties_from_http_header(response),
+                                     response.content)
+
+
+def peek_message(topic_name, subscription_name, message_position):
+    if not isinstance(topic_name, TopicName):
+        topic_name = TopicName(topic_name)
+    peek_url = "%s/subscription/%s/position/%s" % (
+        topic_name.admin_path(), subscription_name, message_position)
+    peek_response = requests.get(peek_url)
+    if peek_response.status_code != 200:
+        return {"ERROR": "%s(%d)" % (peek_response.reason, peek_response.status_code)}
+    return get_message_from_http_response(peek_response)

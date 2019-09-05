@@ -112,12 +112,12 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
 
     @Override
     public void reloadCache(final String path) {
-        try {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Reloading ZooKeeperDataCache at path {}", path);
-            }
-            cache.invalidate(path);
-            Optional<Entry<T, Stat>> cacheEntry = cache.getData(path, this, this);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Reloading ZooKeeperDataCache at path {}", path);
+        }
+        cache.invalidate(path);
+
+        cache.getDataAsync(path, this, this).thenAccept(cacheEntry -> {
             if (!cacheEntry.isPresent()) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Node [{}] does not exist", path);
@@ -134,9 +134,10 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
                     LOG.debug("Notified listener {} at path {}", listener, path);
                 }
             }
-        } catch (Exception e) {
-            LOG.warn("Reloading ZooKeeperDataCache failed at path: {}", path, e);
-        }
+        }).exceptionally(ex -> {
+            LOG.warn("Reloading ZooKeeperDataCache failed at path: {}", path, ex);
+            return null;
+        });
     }
 
     @Override

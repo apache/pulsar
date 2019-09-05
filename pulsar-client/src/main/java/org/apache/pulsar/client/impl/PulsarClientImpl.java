@@ -60,9 +60,9 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -70,8 +70,8 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
+import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -258,7 +258,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
 
             ProducerBase<T> producer;
-            if (metadata.partitions > 1) {
+            if (metadata.partitions > 0) {
                 producer = new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
                         producerCreatedFuture, schema, interceptors);
             } else {
@@ -345,7 +345,7 @@ public class PulsarClientImpl implements PulsarClient {
             ConsumerBase<T> consumer;
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
-            if (metadata.partitions > 1) {
+            if (metadata.partitions > 0) {
                 consumer = MultiTopicsConsumerImpl.createPartitionedConsumer(PulsarClientImpl.this, conf,
                     listenerThread, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
             } else {
@@ -472,7 +472,7 @@ public class PulsarClientImpl implements PulsarClient {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
 
-            if (metadata.partitions > 1) {
+            if (metadata.partitions > 0) {
                 readerFuture.completeExceptionally(
                         new PulsarClientException("Topic reader cannot be created on a partitioned topic"));
                 return;
@@ -658,7 +658,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public CompletableFuture<List<String>> getPartitionsForTopic(String topic) {
         return getPartitionedTopicMetadata(topic).thenApply(metadata -> {
-            if (metadata.partitions > 1) {
+            if (metadata.partitions > 0) {
                 TopicName topicName = TopicName.get(topic);
                 List<String> partitions = new ArrayList<>(metadata.partitions);
                 for (int i = 0; i < metadata.partitions; i++) {
@@ -727,6 +727,7 @@ public class PulsarClientImpl implements PulsarClient {
         return schemaProviderLoadingCache;
     }
 
+    @SuppressWarnings("unchecked")
     protected CompletableFuture<Void> preProcessSchemaBeforeSubscribe(PulsarClientImpl pulsarClientImpl,
                                                                       Schema schema,
                                                                       String topicName) {
@@ -739,20 +740,22 @@ public class PulsarClientImpl implements PulsarClient {
                 return FutureUtil.failedFuture(e.getCause());
             }
 
-            if (schema instanceof AutoConsumeSchema) {
+            if (schema.requireFetchingSchemaInfo()) {
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
-                    if (schemaInfo.getType() != SchemaType.AVRO && schemaInfo.getType() != SchemaType.JSON){
-                        return FutureUtil.failedFuture(
-                            new RuntimeException("Currently schema detection only works"
-                                + " for topics with avro or json schemas"));
+                    if (null == schemaInfo) {
+                        if (!(schema instanceof AutoConsumeSchema)) {
+                            // no schema info is found
+                            return FutureUtil.failedFuture(
+                                    new PulsarClientException.NotFoundException(
+                                            "No latest schema found for topic " + topicName));
+                        }
                     }
-
-                    // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
-                    // to decode the messages.
-                    GenericSchema genericSchema = GenericSchemaImpl.of(schemaInfo, false /*useProvidedSchemaAsReaderSchema*/);
-                    log.info("Auto detected schema for topic {} : {}",
-                            topicName, schemaInfo.getSchemaDefinition());
-                    ((AutoConsumeSchema) schema).setSchema(genericSchema);
+                    try {
+                        log.info("Configuring schema for topic {} : {}", topicName, schemaInfo);
+                        schema.configureSchemaInfo(topicName, "topic", schemaInfo);
+                    } catch (RuntimeException re) {
+                        return FutureUtil.failedFuture(re);
+                    }
                     schema.setSchemaInfoProvider(schemaInfoProvider);
                     return CompletableFuture.completedFuture(null);
                 });
@@ -761,6 +764,17 @@ public class PulsarClientImpl implements PulsarClient {
             }
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    //
+    // Transaction related API
+    //
+
+    // This method should be exposed in the PulsarClient interface. Only expose it when all the transaction features
+    // are completed.
+    // @Override
+    public TransactionBuilder newTransaction() {
+        return new TransactionBuilderImpl(this);
     }
 
 }

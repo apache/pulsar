@@ -25,6 +25,7 @@ import java.util.List;
 
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 class PulsarSchemaHandlers {
@@ -55,4 +56,7 @@ class PulsarSchemaHandlers {
 
     }
 
+    static SchemaInfo defaultSchema() {
+        return Schema.BYTES.getSchemaInfo();
+    }
 }

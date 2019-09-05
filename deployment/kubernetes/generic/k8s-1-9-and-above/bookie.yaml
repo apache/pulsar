@@ -1,0 +1,134 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: bookie-config
+data:
+    PULSAR_MEM: "\" -Xms64m -Xmx256m -XX:MaxDirectMemorySize=256m\""
+    dbStorage_writeCacheMaxSizeMb: "32" # Write cache size (direct memory)
+    dbStorage_readAheadCacheMaxSizeMb: "32" # Read cache size (direct memory)
+    zkServers: zookeeper
+    statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
+---
+##
+## Define the Bookie headless service
+## In practice, in this case, it is only useful to have a view of
+## all the bookie pods that are present
+##
+apiVersion: v1
+kind: Service
+metadata:
+    name: bookkeeper
+    labels:
+        app: pulsar
+        component: bookkeeper
+spec:
+    ports:
+      - port: 3181
+        name: server
+    clusterIP: None
+    selector:
+        app: pulsar
+        component: bookkeeper
+---
+## BookKeeper servers need to access the local disks and the pods
+## cannot be moved across different nodes.
+## For this reason, we run BK as a daemon set, one for each node in the
+## cluster, unless restricted by label selectors
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+    name: bookie
+    labels:
+        app: pulsar
+        component: bookkeeper
+spec:
+    # Must match template:metadata:labels
+    selector:
+        matchLabels:
+            app: pulsar
+            component: bookkeeper
+    template:
+        metadata:
+            labels:
+                app: pulsar
+                component: bookkeeper
+                # Specify cluster to allow aggregation by cluster in
+                # the metrics
+                cluster: local
+            annotations:
+                prometheus.io/scrape: "true"
+                prometheus.io/port: "8000"
+
+        spec:
+            containers:
+              - name: bookie
+                image: apachepulsar/pulsar-all:latest
+                command: ["sh", "-c"]
+                args:
+                  - >
+                    bin/apply-config-from-env.py conf/bookkeeper.conf &&
+                    bin/apply-config-from-env.py conf/pulsar_env.sh &&
+                    bin/pulsar bookie
+                ports:
+                  - containerPort: 3181
+                    hostPort: 3181
+                    name: client
+                envFrom:
+                  - configMapRef:
+                        name: bookie-config
+                env:
+                  - name: advertisedAddress
+                    valueFrom:
+                        fieldRef:
+                            fieldPath: status.hostIP
+
+                volumeMounts:
+                  - name: journal-disk
+                    mountPath: /pulsar/data/bookkeeper/journal
+                  - name: ledgers-disk
+                    mountPath: /pulsar/data/bookkeeper/ledgers
+
+                # bin/bookkeeper shell bookiesanity
+
+            initContainers:
+                # The first time, initialize BK metadata in zookeeper
+                 # Otherwise ignore error if it's already there
+              - name: bookie-metaformat
+                image: apachepulsar/pulsar-all:latest
+                command: ["sh", "-c"]
+                args:
+                  - >
+                    bin/apply-config-from-env.py conf/bookkeeper.conf &&
+                    bin/bookkeeper shell metaformat --nonInteractive || true;
+                envFrom:
+                  - configMapRef:
+                        name: bookie-config
+
+            volumes:
+                # Mount local disks
+              - name: journal-disk
+                hostPath:
+                    path: /mnt/disks/ssd0
+              - name: ledgers-disk
+                hostPath:
+                    path: /mnt/disks/ssd1

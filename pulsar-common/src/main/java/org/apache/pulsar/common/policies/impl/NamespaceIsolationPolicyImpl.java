@@ -18,26 +18,27 @@
  */
 package org.apache.pulsar.common.policies.impl;
 
+import com.google.common.base.Objects;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
-import com.google.common.base.Objects;
-
+/**
+ * Implementation of the namespace isolation policy.
+ */
 public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
     private List<String> namespaces;
     private List<String> primary;
     private List<String> secondary;
-    private AutoFailoverPolicy auto_failover_policy;
+    private AutoFailoverPolicy autoFailoverPolicy;
 
     private boolean matchNamespaces(String fqnn) {
         for (String nsRegex : namespaces) {
@@ -62,7 +63,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
         this.namespaces = policyData.namespaces;
         this.primary = policyData.primary;
         this.secondary = policyData.secondary;
-        this.auto_failover_policy = AutoFailoverPolicyFactory.create(policyData.auto_failover_policy);
+        this.autoFailoverPolicy = AutoFailoverPolicyFactory.create(policyData.auto_failover_policy);
     }
 
     @Override
@@ -121,7 +122,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     @Override
     public int hashCode() {
         return Objects.hashCode(namespaces, primary, secondary,
-                auto_failover_policy);
+            autoFailoverPolicy);
     }
 
     @Override
@@ -130,7 +131,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
             NamespaceIsolationPolicyImpl other = (NamespaceIsolationPolicyImpl) obj;
             return Objects.equal(this.namespaces, other.namespaces) && Objects.equal(this.primary, other.primary)
                     && Objects.equal(this.secondary, other.secondary)
-                    && Objects.equal(this.auto_failover_policy, other.auto_failover_policy);
+                    && Objects.equal(this.autoFailoverPolicy, other.autoFailoverPolicy);
         }
 
         return false;
@@ -140,7 +141,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     public SortedSet<BrokerStatus> getAvailablePrimaryBrokers(SortedSet<BrokerStatus> primaryCandidates) {
         SortedSet<BrokerStatus> availablePrimaries = new TreeSet<BrokerStatus>();
         for (BrokerStatus status : primaryCandidates) {
-            if (this.auto_failover_policy.isBrokerAvailable(status)) {
+            if (this.autoFailoverPolicy.isBrokerAvailable(status)) {
                 availablePrimaries.add(status);
             }
         }
@@ -149,22 +150,22 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
     @Override
     public boolean shouldFailover(SortedSet<BrokerStatus> brokerStatus) {
-        return this.auto_failover_policy.shouldFailoverToSecondary(brokerStatus);
+        return this.autoFailoverPolicy.shouldFailoverToSecondary(brokerStatus);
     }
 
     public boolean shouldFailover(int totalPrimaryResourceUnits) {
-        return this.auto_failover_policy.shouldFailoverToSecondary(totalPrimaryResourceUnits);
+        return this.autoFailoverPolicy.shouldFailoverToSecondary(totalPrimaryResourceUnits);
     }
 
     @Override
     public boolean isPrimaryBrokerAvailable(BrokerStatus brkStatus) {
         return this.isPrimaryBroker(brkStatus.getBrokerAddress())
-                && this.auto_failover_policy.isBrokerAvailable(brkStatus);
+                && this.autoFailoverPolicy.isBrokerAvailable(brkStatus);
     }
 
     @Override
     public String toString() {
         return String.format("namespaces=%s primary=%s secondary=%s auto_failover_policy=%s", namespaces, primary,
-                secondary, auto_failover_policy);
+                secondary, autoFailoverPolicy);
     }
 }

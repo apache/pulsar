@@ -20,7 +20,6 @@ package org.apache.pulsar.sql.presto;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 
@@ -33,6 +32,9 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.util.List;
 
+/**
+ * Schema handler for payload in the Avro format.
+ */
 public class AvroSchemaHandler implements SchemaHandler {
 
     private final List<PulsarColumnHandle> columnHandles;
@@ -101,7 +103,7 @@ public class AvroSchemaHandler implements SchemaHandler {
                 return record.getField(names[names.length - 1]);
             }
         } catch (Exception ex) {
-            log.debug(ex,"%s", ex);
+            log.debug(ex, "%s", ex);
         }
         return null;
     }

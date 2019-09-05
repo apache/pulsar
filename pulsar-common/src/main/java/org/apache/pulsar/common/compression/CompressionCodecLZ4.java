@@ -19,20 +19,16 @@
 package org.apache.pulsar.common.compression;
 
 import io.netty.buffer.ByteBuf;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
- * LZ4 Compression
+ * LZ4 Compression.
  */
 @Slf4j
 public class CompressionCodecLZ4 implements CompressionCodec {
