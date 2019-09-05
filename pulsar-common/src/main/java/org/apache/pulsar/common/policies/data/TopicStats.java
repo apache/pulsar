@@ -49,6 +49,9 @@ public class TopicStats {
     /** Space used to store the messages for the topic (bytes). */
     public long storageSize;
 
+    /** Get estimated total unconsumed or backlog size in bytes. */
+    public long backlogSize;
+
     /** List of connected publishers on this topic w/ their stats. */
     public List<PublisherStats> publishers;
 
@@ -74,6 +77,7 @@ public class TopicStats {
         this.msgThroughputOut = 0;
         this.averageMsgSize = 0;
         this.storageSize = 0;
+        this.backlogSize = 0;
         this.publishers.clear();
         this.subscriptions.clear();
         this.replication.clear();
@@ -92,6 +96,7 @@ public class TopicStats {
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;
+        this.backlogSize += stats.backlogSize;
         if (this.publishers.size() != stats.publishers.size()) {
             for (int i = 0; i < stats.publishers.size(); i++) {
                 PublisherStats publisherStats = new PublisherStats();
