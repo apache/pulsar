@@ -1,7 +1,7 @@
 ---
 id: functions-cli
-title: Pulsar Functions CLI
-sidebar_label: Command line tool
+title: Pulsar Functions command line tool
+sidebar_label: Reference: CLI
 ---
 
 The following tables list Pulsar Functions command-line tools. You can learn Pulsar Functions modes, commands, and parameters.

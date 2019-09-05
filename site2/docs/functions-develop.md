@@ -1,7 +1,7 @@
 ---
 id: functions-develop
 title: Develop Pulsar Functions
-sidebar_label: Develop functions
+sidebar_label: How-to: Develop
 ---
 
 This tutorial walks you through how to develop Pulsar Functions.
@@ -117,7 +117,7 @@ public interface SerDe<T> {
 <!--Python-->
 In Python, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns.
 
-You can specify the SerDe when [creating](functions-deploying.md#cluster-mode) or [running](functions-deploying.md#local-run-mode) functions. 
+You can specify the SerDe when [creating](functions-deploy.md#cluster-mode) or [running](functions-deploy.md#local-run-mode) functions. 
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -260,7 +260,7 @@ Java, Python and Go SDKs provide access to a **context object** that can be used
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
-The {@inject: javadoc:Context:/client/org/apache/pulsar/functions/api/Context} interface provides a number of methods that you can use to access the function [context](#context). The various method signatures for the `Context` interface are listed as follows.
+The [Context](https://github.com/apache/pulsar/blob/master/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Context.java) interface provides a number of methods that you can use to access the function [context](#context). The various method signatures for the `Context` interface are listed as follows.
 
 ```java
 public interface Context {
@@ -359,6 +359,26 @@ func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
 ```
+
+The following example uses several methods available via the `Context` object.
+
+```
+import (
+    "context"
+    "fmt"
+
+    "github.com/apache/pulsar/pulsar-function-go/pf"
+)
+
+func contextFunc(ctx context.Context) {
+    if fc, ok := pf.FromContext(ctx); ok {
+        fmt.Printf("function ID is:%s, ", fc.GetFuncID())
+        fmt.Printf("function version is:%s\n", fc.GetFuncVersion())
+    }
+}
+```
+
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-function-go/examples/contextFunc.go#L29-L34).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 

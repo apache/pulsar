@@ -1,9 +1,9 @@
 ---
 id: functions-worker
 title: Deploy and manage functions worker
-sidebar_label: Admin: Pulsar Functions Worker
+sidebar_label: Setup: Pulsar Functions Worker
 ---
-This guide is used for administrator. 
+Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime.md).  
 
 Pulsar `functions-worker` is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either of the two options based on your requirements. 
 - [run with brokers](#run-functions-worker-with-brokers)
