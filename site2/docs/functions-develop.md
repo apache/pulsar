@@ -88,7 +88,7 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Schema registry
-Pulsar has a built in [Schema Registry](concepts-schema-registry) and comes bundled with a variety of popular schema types(avro, json and protobuf). Pulsar Functions can leverage existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
+Pulsar has a built in schema registry and comes bundled with a variety of popular schema types(avro, json and protobuf). Pulsar Functions can leverage existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
 
 ## SerDe
 SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions uses SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
@@ -243,20 +243,20 @@ In order to use this class in Pulsar Functions, you have two options:
 In both languages, however, you can write custom SerDe logic for more complex, application-specific types.
 
 ## Context
-Both the [Java](#java-sdk-functions), [Python](#python-sdk-functions) and [Go](#go-sdk-functions) SDKs provide access to a **context object** that can be used by a function. This context object provides a wide variety of information and functionality to the function.
+Java, Python and Go SDKs provide access to a **context object** that can be used by a function. This context object provides a wide variety of information and functionality to the function.
 
 * The name and ID of a Pulsar Function.
 * The message ID of each message. Each Pulsar message is automatically assigned with an ID.
 * The name of the topic to which the message is sent.
 * The names of all input topics as well as the output topic associated with the function.
-* The name of the class used for [SerDe](#serialization-and-deserialization-serde).
+* The name of the class used for [SerDe](#serde).
 * The [tenant](reference-terminology.md#tenant) and namespace associated with the function.
 * The ID of the Pulsar Functions instance running the function.
 * The version of the function.
-* The [logger object](functions-overview.md#logging) used by the function, which can be used to create function log messages.
-* Access to arbitrary [user configuration](#user-configuration) values supplied via the CLI.
-* An interface for recording [metrics](functions-metrics.md).
-* An interface for storing and retrieving state in [state storage](functions-overview.md#state-storage).
+* The [logger object](functions-develop.md#logger) used by the function, which can be used to create function log messages.
+* Access to arbitrary [user configuration](#user-config) values supplied via the CLI.
+* An interface for recording [metrics](#metrics).
+* An interface for storing and retrieving state in [state storage](#state-storage).
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
@@ -468,7 +468,7 @@ class UserConfigFunction(Function):
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
-Pulsar Functions that use the [Java SDK](#java-sdk-functions) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level. The following example logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
+Pulsar Functions that use the Java SDK have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level. The following example logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
 
 ```java
 import org.apache.pulsar.functions.api.Context;
@@ -505,7 +505,7 @@ $ bin/pulsar-admin functions create \
 All logs produced by `LoggingFunction` above can be accessed via the `persistent://public/default/logging-function-logs` topic.
 
 <!--Python-->
-Pulsar Functions that use the [Python SDK](#python-sdk-functions) have access to a logging object that can be used to produce logs at the chosen log level. The following example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
+Pulsar Functions that use the Python SDK have access to a logging object that can be used to produce logs at the chosen log level. The following example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
 
 ```python
 from pulsar import Function
@@ -563,7 +563,7 @@ When you use `logTopic` related functionalities in Go Function, import `github.c
 ## Metrics
 Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
 
-> If a Pulsar Function uses the language-native interface for [Java](functions-api.md#java-native-functions) or [Python](#python-native-functions), that function is not able to publish metrics and stats to Pulsar.
+> If a Pulsar Function uses the language-native interface for Java or Python, that function is not able to publish metrics and stats to Pulsar.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->

@@ -1,7 +1,7 @@
 ---
 id: functions-debug
-title: How to debug Pulsar Functions
-sidebar_label: Debug
+title: Debug Pulsar Functions
+sidebar_label: Debug functions
 ---
 
 You can use the following methods to debug Pulsar Functions:
