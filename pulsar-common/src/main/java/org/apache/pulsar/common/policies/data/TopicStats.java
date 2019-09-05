@@ -49,7 +49,7 @@ public class TopicStats {
     /** Space used to store the messages for the topic (bytes). */
     public long storageSize;
 
-    /** Get estimated total unconsumed or backlog size in bytes */
+    /** Get estimated total unconsumed or backlog size in bytes. */
     public long backlogSize;
 
     /** List of connected publishers on this topic w/ their stats. */
