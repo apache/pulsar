@@ -31,11 +31,11 @@
       "functions-develop",
       "functions-debug",
       "functions-deploy",
-      "functions-cli",
       "functions-configure",
       "functions-monitor",
       "functions-secure",
-      "functions-troubleshoot"
+      "functions-troubleshoot",
+      "functions-cli"
     ],
     "Pulsar IO": [
       "io-overview",
