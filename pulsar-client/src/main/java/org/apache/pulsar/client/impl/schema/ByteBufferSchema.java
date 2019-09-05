@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import java.nio.ByteBuffer;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -31,6 +34,13 @@ public class ByteBufferSchema implements Schema<ByteBuffer> {
     public static ByteBufferSchema of() {
         return INSTANCE;
     }
+
+    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+            return new byte[1024];
+        }
+    };
 
     private static final ByteBufferSchema INSTANCE = new ByteBufferSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
@@ -65,6 +75,22 @@ public class ByteBufferSchema implements Schema<ByteBuffer> {
             return null;
         } else {
             return ByteBuffer.wrap(data);
+        }
+    }
+
+    @Override
+    public ByteBuffer decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        } else {
+            int size = byteBuf.readableBytes();
+            byte[] bytes = tmpBuffer.get();
+            if (size > bytes.length) {
+                bytes = new byte[size * 2];
+                tmpBuffer.set(bytes);
+            }
+            byteBuf.readBytes(bytes, 0, size);
+            return ByteBuffer.wrap(bytes, 0, size);
         }
     }
 
