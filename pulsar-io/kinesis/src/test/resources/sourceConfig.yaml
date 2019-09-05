@@ -17,7 +17,16 @@
 # under the License.
 #
 
-name: kinesis
-description: Kinesis connectors
-sinkClass: org.apache.pulsar.io.kinesis.KinesisSink
-sourceClass: org.apache.pulsar.io.kinesis.KinesisSource
+{
+  "awsEndpoint" : "https://some.endpoint.aws",
+  "awsRegion": "us-east-1",
+  "awsKinesisStreamName": "my-stream",
+  "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
+  "applicationName": "My test application",
+  "checkpointInterval": "30000",
+  "backoffTime":"4000",
+  "numRetries":"3",
+  "receiveQueueSize": 2000,
+  "initialPositionInStream": "TRIM_HORIZON",
+  "startAtTime": "2019-03-05T19:28:58.000Z"
+}
