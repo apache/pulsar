@@ -344,7 +344,8 @@ public class SchemasResource extends AdminResource {
             )
         ).exceptionally(error -> {
             if (error.getCause() instanceof IncompatibleSchemaException) {
-                response.resume(Response.status(Response.Status.CONFLICT).build());
+                response.resume(Response.status(Response.Status.CONFLICT.getStatusCode(),
+                        error.getCause().getMessage()).build());
             } else if (error instanceof InvalidSchemaDataException) {
                 response.resume(Response.status(
                         422, /* Unprocessable Entity */
