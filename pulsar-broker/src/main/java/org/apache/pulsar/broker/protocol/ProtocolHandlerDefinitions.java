@@ -16,36 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.policies.data.loadbalancer;
+package org.apache.pulsar.broker.protocol;
 
 import java.util.Map;
-import java.util.Optional;
+import java.util.TreeMap;
+import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
- * For backwards compatibility purposes.
+ * The collection of protocol handlers.
  */
-public interface ServiceLookupData {
-    String getWebServiceUrl();
+@Data
+@Accessors(fluent = true)
+class ProtocolHandlerDefinitions {
 
-    String getWebServiceUrlTls();
-
-    String getPulsarServiceUrl();
-
-    String getPulsarServiceUrlTls();
-
-    /**
-     * Get all the protocols advertised by the broker.
-     *
-     * @return the protocols advertised by the broker.
-     */
-    Map<String, String> getProtocols();
-
-    /**
-     * Get the protocol data of the given <tt>protocol</tt>.
-     *
-     * @param protocol the protocol advertised by the broker.
-     * @return the optional protocol data advertised by the broker.
-     */
-    Optional<String> getProtocol(String protocol);
+    private final Map<String, ProtocolHandlerMetadata> handlers = new TreeMap<>();
 
 }
