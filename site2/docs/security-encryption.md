@@ -4,7 +4,7 @@ title: Pulsar Encryption
 sidebar_label: End-to-End Encryption
 ---
 
-Pulsar encryption allows applications to encrypt messages at the producer side and decrypt messages at the consumer side. You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
+Applications can use Pulsar encryption to encrypt messages at the producer side and decrypt messages at the consumer side. You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
 
 ## Asymmetric and symmetric encryption
 
@@ -16,7 +16,7 @@ The application configures the producer with the public key. You can use this ke
 
 You can encrypt a message with more than one key. Any one of the keys used for encrypting the message is sufficient to decrypt the message.
 
-Pulsar does not store the encryption key anywhere in the pulsar service. If you lose ordelete the private key, your message is irretrievably lost, and is unrecoverable.
+Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose ordelete the private key, your message is irretrievably lost, and is unrecoverable.
 
 ## Producer
 ![alt text](assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
@@ -24,7 +24,7 @@ Pulsar does not store the encryption key anywhere in the pulsar service. If you 
 ## Consumer
 ![alt text](assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
 
-## Here are the steps to get started:
+## Steps to get started
 
 1. Enter the commands below to create your ECDSA or RSA public and private key pair.
 
@@ -37,9 +37,9 @@ openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pub
 
 3. Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which Pulsar client invokes to load the key.
 
-4. Add encryption key to producer configuration: conf.addEncryptionKey("myapp.key")
+4. Add encryption key to producer configuration: conf.addEncryptionKey("myapp.key").
 
-5. Add CryptoKeyReader implementation to producer or consumer config: conf.setCryptoKeyReader(keyReader)
+5. Add CryptoKeyReader implementation to producer or consumer config: conf.setCryptoKeyReader(keyReader).
 
 6. Sample producer application:
 
@@ -148,25 +148,25 @@ pulsarClient.close();
 ```
 
 ## Key rotation
-Pulsar generates new AES data key every 4 hours or after publishing a certain number of messages. Producer fetch the asymmetric public key every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.
+Pulsar generates new AES data key every 4 hours or after publishing a certain number of messages. A producer fetches the asymmetric public key every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.
 
-## Enable encryption at the producer application:
+## Enable encryption at the producer application
 If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages. You can do this in two ways:
 1. The consumer application provides you access to their public key, which you add to your producer keys.
 2. You grant access to one of the private keys from the pairs that producer uses. 
 
-In some cases, the producer may want to encrypt the messages with multiple keys. For this, add all such keys to the config. Consumer is able to decrypt the message, as long as the consumer has access to at least one of the keys.
+In some cases, if the producer want to encrypt the messages with multiple keys, add all such keys to the config. Consumer can decrypt the message as long as the consumer has access to at least one of the keys.
 
-Here is an example if you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.messagekey2):
+The following is an example if you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.messagekey2):
 
 ```java
 conf.addEncryptionKey("myapp.messagekey1");
 conf.addEncryptionKey("myapp.messagekey2");
 ```
-## Decrypt encrypted messages at the consumer application:
+## Decrypt encrypted messages at the consumer application
 Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
 
-## Handle failures:
+## Handle failures
 * Producer/ Consumer loses access to the key
   * Producer action fails indicating the cause of the failure. Application has the option to proceed with sending unencrypted message in such cases. Call conf.setCryptoFailureAction(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.
   * If consumption fails due to decryption failure or missing keys in consumer, application has the option to consume the encrypted message or discard it. Call conf.setCryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request. Application is never able to decrypt the messages if the private key is permanently lost.
