@@ -1050,7 +1050,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             positions.stream()
                     .filter(position -> individualDeletedMessages.contains(((PositionImpl) position).getLedgerId(),
                             ((PositionImpl) position).getEntryId())
-                            || ((PositionImpl) position).compareTo(markDeletePosition) < 0)
+                            || ((PositionImpl) position).compareTo(markDeletePosition) <= 0)
                     .forEach(alreadyAcknowledgedPositions::add);
         } finally {
             lock.readLock().unlock();
@@ -2588,6 +2588,17 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public ManagedLedger getManagedLedger() {
         return this.ledger;
+    }
+
+    @Override
+    public Range<PositionImpl> getLastIndividualDeletedRange() {
+        return individualDeletedMessages.lastRange();
+    }
+
+    @Override
+    public void trimDeletedEntries(List<Entry> entries) {
+        entries.removeIf(entry -> ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
+                || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId()));
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
