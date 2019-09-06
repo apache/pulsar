@@ -612,6 +612,24 @@ public abstract class AdminResource extends PulsarWebResource {
                     createDefaultPartitionedTopicAsync(pulsar, path).whenComplete((defaultMetadata, e) -> {
                         if (e == null) {
                             metadataFuture.complete(defaultMetadata);
+                        } else if (e instanceof KeeperException) {
+                            try {
+                                Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+                                if (!pulsar.getGlobalZkCache().exists(path)){
+                                    metadataFuture.completeExceptionally(e);
+                                    return;
+                                }
+                            } catch (InterruptedException | KeeperException exc) {
+                                metadataFuture.completeExceptionally(exc);
+                                return;
+                            }
+                            fetchPartitionedTopicMetadataAsync(pulsar, path).whenComplete((metadata2, ex2) -> {
+                                if (ex2 != null) {
+                                    metadataFuture.completeExceptionally(ex2);
+                                } else {
+                                    metadataFuture.complete(metadata2);
+                                }
+                            });
                         } else {
                             metadataFuture.completeExceptionally(e);
                         }
