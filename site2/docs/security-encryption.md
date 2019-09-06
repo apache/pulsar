@@ -24,7 +24,7 @@ Pulsar does not store the encryption key anywhere in the Pulsar service. If you 
 ## Consumer
 ![alt text](assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
 
-## Steps to get started
+## Get started
 
 1. Enter the commands below to create your ECDSA or RSA public and private key pair.
 
@@ -155,9 +155,9 @@ If you produce messages that are consumed across application boundaries, you nee
 1. The consumer application provides you access to their public key, which you add to your producer keys.
 2. You grant access to one of the private keys from the pairs that producer uses. 
 
-In some cases, if the producer want to encrypt the messages with multiple keys, add all such keys to the config. Consumer can decrypt the message as long as the consumer has access to at least one of the keys.
+When producers want to encrypt the messages with multiple keys, producers add all such keys to the config. Consumer can decrypt the message as long as the consumer has access to at least one of the keys.
 
-The following is an example if you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.messagekey2):
+If you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.messagekey2), refer to the following example.
 
 ```java
 conf.addEncryptionKey("myapp.messagekey1");
@@ -173,4 +173,3 @@ Consumers require access one of the private keys to decrypt messages that the pr
 * Batch messaging
   * If decryption fails and the message contains batch messages, client is not able to retrieve individual messages in the batch, hence message consumption fails even if conf.setCryptoFailureAction() is set to CONSUME.
 * If decryption fails, the message consumption stops and application notices backlog growth in addition to decryption failure messages in the client log. If application does not have access to the private key to decrypt the message, the only option is to skip or discard backlogged messages. 
-
