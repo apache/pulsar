@@ -96,13 +96,13 @@ PulsarClient client = PulsarClient.builder()
 
 If you create a client, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
 
-| Type | Name | Description | Default
+| Type | Name | <div style="width:260px">Description</div> | Default
 |---|---|---|---
 String | `serviceUrl` |Service URL provider for Pulsar service | None
 String | `authPluginClassName` | Name of the authentication plugin | None
-String | `authParams` | String represents parameters for the authentication plugin <br>**Example**<br> key1:val1,key2:val2|None
+String | `authParams` | String represents parameters for the authentication plugin <br/><br/>**Example**<br/> key1:val1,key2:val2|None
 long|`operationTimeoutMs`|Operation timeout |30000
-long|`statsIntervalSeconds`|Interval between each stat info<br>Stats is activated with positive `statsInterval`<br>`statsIntervalSeconds` should be set to 1 second at least |60
+long|`statsIntervalSeconds`|Interval between each stat info<br/><br/>Stats is activated with positive `statsInterval`<br/><br/>`statsIntervalSeconds` should be set to 1 second at least |60
 int|`numIoThreads`| Number of threads used for handling connections to brokers | 1 
 int|`numListenerThreads`|Number of threads used for handling message listeners | 1 
 boolean|`useTcpNoDelay`|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
@@ -114,7 +114,7 @@ int|`concurrentLookupRequest`|Number of concurrent lookup requests allowed to se
 int|`maxLookupRequest`|Maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
 int|`maxNumberOfRejectedRequestPerConnection`|Maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
 int|`keepAliveIntervalSeconds`|Seconds of keeping alive interval for each client broker connection|30
-int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be established <br>If the duration passes without a response from a broker, the connection attempt is dropped|10000
+int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be established <br/><br/>If the duration passes without a response from a broker, the connection attempt is dropped|10000
 int|`requestTimeoutMs`|Maximum duration for completing a request |60000
 int|`defaultBackoffIntervalNanos`| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100);
 long|`maxBackoffIntervalNanos`|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)
@@ -247,7 +247,35 @@ while (true) {
 
 ### Configuring consumers
 
-If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. Here's an example:
+If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. 
+
+If you create a consumer, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
+
+Type | Name| <div style="width:300px">Description</div>|  Default
+|---|---|---|---
+Set&lt;String&gt;|	`topicNames`|	Topic name|	Sets.newTreeSet()
+Pattern|   `topicsPattern`|	Topic pattern	|None
+String|	`subscriptionName`|	Subscription name|	None
+SubscriptionType| `subscriptionType`|	Subscription type <br/><br/>There are three subscription types:<li>Exclusive</li><li>Failover</li><li>Shared</li>|SubscriptionType.Exclusive
+int | `receiverQueueSize` | Size of a consumer's receiver queue. <br/><br/>For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`. <br/><br/>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.| 1000
+long|`acknowledgementsGroupTimeMicros`|Group a consumer acknowledgment for a specified time.<br/><br/>By default, a consumer uses 100ms grouping time to send out acknowledgments to a broker.<br/><br/>Setting a group time of 0 sends out acknowledgments immediately. <br/><br/>A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100)
+long|`negativeAckRedeliveryDelayMicros`|Delay to wait before redelivering messages that have failed to be process.<br/><br/> When an application uses {@link Consumer#negativeAcknowledge(Message)},   failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1)
+int |`maxTotalReceiverQueueSizeAcrossPartitions`|Max total receiver queue size across partitions.<br/><br/>This setting reduces the receiver queue size for individual partitions if the total receiver queue size exceeds this value.|50000
+String|`consumerName`|Consumer name|null
+long|`ackTimeoutMillis`|Timeout of unacked messages|0
+long|`tickDurationMillis`|Granularity of the ack-timeout redelivery.<br/><br/>Using an higher `tickDurationMillis` reduces the memory overhead to track messages when the ack-timeout is set to a bigger value (for example, 1 hour).|1000
+int|`priorityLevel`|Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode. <br/><br/>Here, the broker follows descending priorities. For example, 0=max-priority, 1, 2,...<br/><br/>In the shared subscription mode, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.<br/><br/> **Example 1**<br/><br/>If a subscription has consumerA with `priorityLevel` 0 and consumerB with `priorityLevel` 1, then the broker **only dispatches messages to consumerA until it runs out permits** and then starts dispatching messages to consumerB.<br/><br/>**Example 2**<br/><br/>Consumer Priority, Level, Permits<br/>C1, 0, 2<br/>C2, 0, 1<br/>C3, 0, 1<br/>C4, 1, 2<br/>C5, 1, 1<br/><br/>Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0
+ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not decrypt.<br/><br/><li>**FAIL**: this is the default option to fail messages until crypto succeeds.</li><br/><li> **DISCARD**: message is silently acknowledged and not delivered to an application.</li><br/><li>**CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.<br/><br/>If message are compressed, the decompression fails. <br/><br/>If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br/><br/>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL</li>
+SortedMap<String, String>|`properties`|A name or value property of this consumer.<br/><br/>`properties` is application defined metadata that can be attached to a consumer. <br/><br/>When getting a topic stats, this metadata is associated to the consumer stats for easier identification.|new TreeMap<>()
+boolean|`readCompacted`|If `readCompacted` is enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br/><br/> This means if a topic has been compacted, a consumer only see the latest value for each key in the topic, up until the point in the topic message when backlog that has been compacted. Beyond that point, the messages are sent as normal.<br/><br/>`readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions). <br/><br/>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false
+SubscriptionInitialPosition|`subscriptionInitialPosition`|Initial position at which to set cursor when subscribing to a topic at first time.|SubscriptionInitialPosition.Latest
+int|`patternAutoDiscoveryPeriod`|Topic auto discovery period when using a pattern for topic's consumer.<br/><br/>The default and minimum value is 1 minute.|1
+RegexSubscriptionMode|`regexSubscriptionMode`|When subscribing to a topic using a regular expression, you can pick a certain type of topics.<br/><br/><li>**PersistentOnly**: only subscribe to persistent topics.</li><br/><li>**NonPersistentOnly**: only subscribe to non-persistent topics.</li><br/><li>**AllTopics**: subscribe to both persistent and non-persistent topics.</li>|RegexSubscriptionMode.PersistentOnly
+DeadLetterPolicy|`deadLetterPolicy`|Dead letter policy for consumers.<br/><br/>By default, some messages are redelivered many times possible, even to the extent that it can be never stop.<br/><br/>By using the dead letter mechanism, messages have the max redelivery count. **When message exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.<br/><br/>You can enable the dead letter mechanism by setting `deadLetterPolicy`.<br/><br/>**Example**<br/><br/><code>client.newConsumer()<br/>.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())<br/>.subscribe();</code><br/><br/>Default dead letter topic name is `{TopicName}-{Subscription}-DLQ`.<br/><br/>To set a custom dead letter topic name:<br/><code>client.newConsumer()<br/>.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)<br/>.deadLetterTopic("your-topic-name").build())<br/>.subscribe();</code><br/><br/>When the dead letter policy is specified and no `ackTimeoutMillis` is specified, then the ack timeout is set to 30000 millisecond.|None
+boolean|`autoUpdatePartitions`|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.<br/><br/>**Note**: this is only for partitioned consumers.|true
+boolean|`replicateSubscriptionState`|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
+
+To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. Here's an example:
 
 Here's an example configuration:
 
