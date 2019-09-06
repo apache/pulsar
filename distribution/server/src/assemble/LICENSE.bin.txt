@@ -577,8 +577,7 @@ Bouncy Castle License
     - org.bouncycastle-bcprov-ext-jdk15on-1.60.jar
 
 Creative Commons Attribution License
- * jcip -- licenses/LICENSE-jcip.txt
-    - net.jcip-jcip-annotations-1.0.jar
+ * Jcip -- licenses/LICENSE-jcip.txt
     - jcip-annotations-1.0.jar
 
 ------------------------
