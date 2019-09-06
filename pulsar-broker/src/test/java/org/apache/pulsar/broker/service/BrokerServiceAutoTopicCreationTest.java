@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.client.api.PulsarClientException;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.AfterClass;
@@ -98,5 +99,22 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
             assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicName + "-partition-" + i));
         }
         assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicName));
+    }
+
+    /**
+     * CheckAllowAutoCreation's default value is false.
+     * So using getPartitionedTopicMetadata() directly will not produce partitioned topic
+     * even if the option to automatically create partitioned topic is configured
+     */
+    @Test
+    public void testGetPartitionedMetadataWithoutCheckAllowAutoCreation() throws Exception{
+        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        pulsar.getConfiguration().setDefaultNumPartitions(3);
+
+        final String topicName = "persistent://prop/ns-abc/test-topic-3";
+        int partitions = admin.topics().getPartitionedTopicMetadata(topicName).partitions;
+        assertEquals(partitions, 0);
+        assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicName));
     }
 }
