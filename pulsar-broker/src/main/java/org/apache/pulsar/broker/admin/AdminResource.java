@@ -603,7 +603,7 @@ public abstract class AdminResource extends PulsarWebResource {
                         topicName, e.getMessage(), e);
                 throw new RestException(e);
             }
-            fetchPartitionedTopicMetadataAsync(pulsar, path).whenComplete((metadata, ex) -> {
+            fetchPartitionedTopicMetadataAsync(pulsar, path).whenCompleteAsync((metadata, ex) -> {
                 if (ex != null) {
                     metadataFuture.completeExceptionally(ex);
                     // If topic is already exist, creating partitioned topic is not allowed.
