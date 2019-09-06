@@ -8,13 +8,13 @@ Pulsar provides a way to use custom authentication and authorization mechanisms.
 
 ## Authentication
 
-Pulsar supports mutual TLS and Athenz authentication plugins, and you can use these authentication plugins following the description in [Security](security-overview.md).
+Pulsar supports mutual TLS and Athenz authentication plugins. For how to use these authentication plugins, you can refer to the description in [Security](security-overview.md).
 
-You can choose to use a custom authentication mechanism by providing the implementation in the form of two plugins. One for the Client library and the other for the Pulsar Broker to validate the credentials.
+You can choose to use a custom authentication mechanism by providing the implementation in the form of two plugins. One plugin is for the Client library and the other plugin is for the Pulsar Broker to validate the credentials.
 
 ### Client authentication plugin
 
-For client library, you needs to implement `org.apache.pulsar.client.api.Authentication`. By entering the command below you can pass this class when you create a Pulsar client:
+For client library, you need to implement `org.apache.pulsar.client.api.Authentication`. By entering the command below you can pass this class when you create a Pulsar client:
 
 ```java
 PulsarClient client = PulsarClient.builder()
@@ -23,12 +23,12 @@ PulsarClient client = PulsarClient.builder()
     .build();
 ```
 
-For reference, you can use 2 interfaces to implement on the client side:
+You can use 2 interfaces to implement on the client side:
  * `Authentication` -> http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/Authentication.html
  * `AuthenticationDataProvider` -> http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/AuthenticationDataProvider.html
 
 
-This in turn needs to provide the client credentials in the form of `org.apache.pulsar.client.api.AuthenticationDataProvider`. This leaves the chance to return different kinds of authentication token for different type of connection or by passing a certificate chain to use for TLS.
+This in turn needs to provide the client credentials in the form of `org.apache.pulsar.client.api.AuthenticationDataProvider`. This leaves the chance to return different kinds of authentication token for different types of connection or by passing a certificate chain to use for TLS.
 
 
 You can find examples for client authentication providers at:
@@ -94,7 +94,7 @@ Authorization is the operation that checks whether a particular "role" or "princ
 
 By default, Pulsar provides an embedded authorization, though configuring a different one through a plugin is also an alternative choice.
 
-To provide a custom provider, you need to implement the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, have this class in the Pulsar broker classpath and configure it in `conf/broker.conf`:
+To provide a custom provider, you need to implement the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, put this class in the Pulsar broker classpath and configure the class in `conf/broker.conf`:
 
  ```properties
  # Authorization provider fully qualified class-name
