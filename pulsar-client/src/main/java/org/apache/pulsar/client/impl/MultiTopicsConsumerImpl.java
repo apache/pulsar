@@ -314,34 +314,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    void notifyPendingBatchReceivedCallBack() {
-        OpBatchReceive<T> opBatchReceive = pendingBatchReceives.poll();
-        if (opBatchReceive == null || opBatchReceive.future == null) {
-            return;
-        }
-        notifyPendingBatchReceivedCallBack(opBatchReceive);
-    }
-
-    void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
-        MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
-                batchReceivePolicy.getMaxNumBytes());
-        Message<T> msgPeeked = incomingMessages.peek();
-        while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-            Message<T> msg = null;
-            try {
-                msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                // ignore
-            }
-            if (msg != null) {
-                unAckedMessageTracker.add(msg.getMessageId());
-                INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
-                Message<T> interceptMsg = beforeConsume(msg);
-                messages.add(interceptMsg);
-            }
-            msgPeeked = incomingMessages.peek();
-        }
-        opBatchReceive.future.complete(messages);
+    protected synchronized void messageProcessed(Message<?> msg) {
+        unAckedMessageTracker.add(msg.getMessageId());
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
@@ -421,7 +396,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 pendingBatchReceives = Queues.newConcurrentLinkedQueue();
             }
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getReuseableMessagesImpl();
+                MessagesImpl<T> messages = getNewMessagesImpl();
                 Message<T> msgPeeked = incomingMessages.peek();
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
                     Message<T> msg = incomingMessages.poll();

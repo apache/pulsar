@@ -392,7 +392,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 pendingBatchReceives = Queues.newConcurrentLinkedQueue();
             }
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getReuseableMessagesImpl();
+                MessagesImpl<T> messages = getNewMessagesImpl();
                 Message<T> msgPeeked = incomingMessages.peek();
                 while (msgPeeked != null && messages.canAdd(msgPeeked)) {
                     Message<T> msg = incomingMessages.poll();
@@ -971,36 +971,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         messageProcessed(message);
         // call interceptor and complete received callback
         interceptAndComplete(message, receivedFuture);
-    }
-
-    void notifyPendingBatchReceivedCallBack() {
-        final OpBatchReceive<T> opBatchReceive = pendingBatchReceives.poll();
-        if (opBatchReceive == null || opBatchReceive.future == null) {
-            return;
-        }
-        notifyPendingBatchReceivedCallBack(opBatchReceive);
-    }
-
-
-    void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
-        MessagesImpl<T> messages = new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
-                batchReceivePolicy.getMaxNumBytes());
-        Message<T> msgPeeked = incomingMessages.peek();
-        while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-            Message<T> msg = null;
-            try {
-                msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                // ignore
-            }
-            if (msg != null) {
-                messageProcessed(msg);
-                Message<T> interceptMsg = beforeConsume(msg);
-                messages.add(interceptMsg);
-            }
-            msgPeeked = incomingMessages.peek();
-        }
-        opBatchReceive.future.complete(messages);
     }
 
     private void interceptAndComplete(final Message<T> message, final CompletableFuture<Message<T>> receivedFuture) {

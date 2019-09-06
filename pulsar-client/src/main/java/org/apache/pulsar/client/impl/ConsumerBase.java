@@ -78,14 +78,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
 
-    protected final FastThreadLocal<MessagesImpl<T>> TL_MESSAGES = new FastThreadLocal<MessagesImpl<T>>() {
-        @Override
-        protected MessagesImpl<T> initialValue() {
-            return new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
-                batchReceivePolicy.getMaxNumBytes());
-        }
-    };
-
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema, ConsumerInterceptors interceptors) {
@@ -524,6 +516,37 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         }
     }
 
+    protected void notifyPendingBatchReceivedCallBack() {
+        final OpBatchReceive<T> opBatchReceive = pendingBatchReceives.poll();
+        if (opBatchReceive == null || opBatchReceive.future == null) {
+            return;
+        }
+        notifyPendingBatchReceivedCallBack(opBatchReceive);
+    }
+
+
+    protected void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
+        MessagesImpl<T> messages = getNewMessagesImpl();
+        Message<T> msgPeeked = incomingMessages.peek();
+        while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+            Message<T> msg = null;
+            try {
+                msg = incomingMessages.poll(0L, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            if (msg != null) {
+                messageProcessed(msg);
+                Message<T> interceptMsg = beforeConsume(msg);
+                messages.add(interceptMsg);
+            }
+            msgPeeked = incomingMessages.peek();
+        }
+        opBatchReceive.future.complete(messages);
+    }
+
+    protected abstract void messageProcessed(Message<?> msg);
+
     @Override
     public void run(Timeout timeout) throws Exception {
         if (timeout.isCancelled()) {
@@ -563,10 +586,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements TimerTask,
         }
     }
 
-    protected MessagesImpl<T> getReuseableMessagesImpl() {
-        MessagesImpl<T> messages = TL_MESSAGES.get();
-        messages.clear();
-        return messages;
+    protected MessagesImpl<T> getNewMessagesImpl() {
+        return new MessagesImpl<>(batchReceivePolicy.getMaxNumMessages(),
+                batchReceivePolicy.getMaxNumBytes());
     }
 
     protected boolean hasPendingBatchReceive() {
