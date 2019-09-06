@@ -25,7 +25,6 @@ import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -35,7 +34,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Schema definition for Strings encoded in UTF-8 format.
  */
-public class StringSchema implements Schema<String> {
+public class StringSchema extends AbstractSchema<String> {
 
     static final String CHARSET_KEY = "__charset";
 

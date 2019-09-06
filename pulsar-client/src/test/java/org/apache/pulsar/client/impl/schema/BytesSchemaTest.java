@@ -52,7 +52,7 @@ public class BytesSchemaTest {
         assertSame(data, deserializedData);
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(deserializedData.length);
         byteBuf.writeBytes(deserializedData);
-        assertEquals(data, schema.decode(byteBuf));
+        assertEquals(data, ((BytesSchema)schema).decode(byteBuf));
 
     }
 

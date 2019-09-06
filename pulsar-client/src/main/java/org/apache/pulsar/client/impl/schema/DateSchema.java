@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -28,7 +27,7 @@ import java.util.Date;
 /**
  * A schema for `java.util.Date` or `java.sql.Date`.
  */
-public class DateSchema implements Schema<Date> {
+public class DateSchema extends AbstractSchema<Date> {
    public static DateSchema of() {
       return INSTANCE;
    }

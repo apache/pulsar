@@ -33,7 +33,6 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -54,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * {@link org.apache.pulsar.common.schema.SchemaType#JSON},
  * and {@link org.apache.pulsar.common.schema.SchemaType#PROTOBUF}.
  */
-public abstract class StructSchema<T> implements Schema<T> {
+public abstract class StructSchema<T> extends AbstractSchema<T> {
 
     protected static final Logger LOG = LoggerFactory.getLogger(StructSchema.class);
 

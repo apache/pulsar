@@ -22,14 +22,13 @@ import java.nio.ByteBuffer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A bytebuffer schema is effectively a `BYTES` schema.
  */
-public class ByteBufferSchema implements Schema<ByteBuffer> {
+public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
 
     public static ByteBufferSchema of() {
         return INSTANCE;

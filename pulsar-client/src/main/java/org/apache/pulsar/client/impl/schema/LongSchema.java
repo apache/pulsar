@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -27,7 +26,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for `Long`.
  */
-public class LongSchema implements Schema<Long> {
+public class LongSchema extends AbstractSchema<Long> {
 
     public static LongSchema of() {
         return INSTANCE;

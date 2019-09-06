@@ -23,8 +23,6 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -40,13 +38,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public interface Schema<T> {
 
-    FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
-        @Override
-        protected byte[] initialValue() {
-            return new byte[1024];
-        }
-    };
-
     /**
      * Check if the message is a valid object for this schema.
      *
@@ -61,22 +52,6 @@ public interface Schema<T> {
      */
     default void validate(byte[] message) {
         decode(message);
-    }
-
-    /**
-     * Check if the message read able length length is a valid object for this schema.
-     *
-     * <p>The implementation can choose what its most efficient approach to validate the schema.
-     * If the implementation doesn't provide it, it will attempt to use {@link #decode(ByteBuf)}
-     * to see if this schema can decode this message or not as a validation mechanism to verify
-     * the bytes.
-     *
-     * @param byteBuf the messages to verify
-     * @return true if it is a valid message
-     * @throws SchemaSerializationException if it is not a valid message
-     */
-    default void validate(ByteBuf byteBuf) {
-        decode(byteBuf);
     }
 
     /**
@@ -134,32 +109,6 @@ public interface Schema<T> {
     default T decode(byte[] bytes, byte[] schemaVersion) {
         // ignore version by default (most of the primitive schema implementations ignore schema version)
         return decode(bytes);
-    }
-
-    /**
-     * Decode a byteBuf into an object using the schema definition and deserializer implementation
-     *
-     * @param byteBuf
-     *            the byte buffer to decode
-     * @return the deserialized object
-     */
-    default T decode(ByteBuf byteBuf) {
-        // use `null` to indicate ignoring schema version
-        return decode(byteBuf, null);
-    }
-
-    /**
-     * Decode a byteBuf into an object using a given version.
-     *
-     * @param byteBuf
-     *            the byte array to decode
-     * @param schemaVersion
-     *            the schema version to decode the object. null indicates using latest version.
-     * @return the deserialized object
-     */
-    default T decode(ByteBuf byteBuf, byte[] schemaVersion) {
-        // ignore version by default (most of the primitive schema implementations ignore schema version)
-        return decode(byteBuf);
     }
 
     /**

@@ -95,7 +95,7 @@ public class PrimitiveSchemaTest {
                 "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
             assertNull(schema.decode(bytes),
                 "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
-            assertNull(schema.decode(byteBuf),
+            assertNull(((AbstractSchema)schema).decode(byteBuf),
                     "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
         }
     }

@@ -19,14 +19,13 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A schema for bytes array.
  */
-public class BytesSchema implements Schema<byte[]> {
+public class BytesSchema extends AbstractSchema<byte[]> {
 
     public static BytesSchema of() {
         return INSTANCE;
