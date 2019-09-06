@@ -634,12 +634,23 @@ public abstract class AdminResource extends PulsarWebResource {
         CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = new CompletableFuture<>();
         try {
             byte[] content = jsonMapper().writeValueAsBytes(configMetadata);
-            ZkUtils.createFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(), path, content,
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            // we wait for the data to be synced in all quorums and the observers
-            Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
-            partitionedTopicFuture.complete(configMetadata);
-        } catch (JsonProcessingException | InterruptedException | KeeperException e) {
+            ZkUtils.asyncCreateFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(), path, content,
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
+                        if (rc == KeeperException.Code.OK.intValue()) {
+                            // we wait for the data to be synced in all quorums and the observers
+                            try {
+                                Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
+                            } catch (InterruptedException exc) {
+                                partitionedTopicFuture.completeExceptionally(exc);
+                                return;
+                            }
+                            partitionedTopicFuture.complete(configMetadata);
+                        } else {
+                            partitionedTopicFuture.completeExceptionally(
+                                    KeeperException.create(KeeperException.Code.get(rc)));
+                        }
+                    }, null);
+        } catch (JsonProcessingException e) {
             log.error("Failed to create default partitioned topic.", e);
             partitionedTopicFuture.completeExceptionally(e);
         }
