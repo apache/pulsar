@@ -81,7 +81,7 @@ public class ProtocolHandlers implements AutoCloseable {
 
     private final Map<String, ProtocolHandlerWithClassLoader> handlers;
 
-    private ProtocolHandlers(Map<String, ProtocolHandlerWithClassLoader> handlers) {
+    ProtocolHandlers(Map<String, ProtocolHandlerWithClassLoader> handlers) {
         this.handlers = handlers;
     }
 
@@ -92,7 +92,12 @@ public class ProtocolHandlers implements AutoCloseable {
      * @return the protocol handler to handle the provided protocol
      */
     public ProtocolHandler protocol(String protocol) {
-        return handlers.get(protocol);
+        ProtocolHandlerWithClassLoader h = handlers.get(protocol);
+        if (null == h) {
+            return null;
+        } else {
+            return h.getHandler();
+        }
     }
 
     public void initialize(ServiceConfiguration conf) throws Exception {
@@ -139,6 +144,5 @@ public class ProtocolHandlers implements AutoCloseable {
     @Override
     public void close() {
         handlers.values().forEach(ProtocolHandler::close);
-
     }
 }
