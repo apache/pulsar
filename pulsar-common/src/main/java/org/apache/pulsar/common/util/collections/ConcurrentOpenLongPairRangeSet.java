@@ -222,10 +222,24 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
     @Override
     public Range<T> firstRange() {
+        if (rangeBitSetMap.isEmpty()) {
+            return null;
+        }
         Entry<Long, BitSet> firstSet = rangeBitSetMap.firstEntry();
         int lower = firstSet.getValue().nextSetBit(0);
         int upper = Math.max(lower, firstSet.getValue().nextClearBit(lower) - 1);
         return Range.openClosed(consumer.apply(firstSet.getKey(), lower - 1), consumer.apply(firstSet.getKey(), upper));
+    }
+
+    @Override
+    public Range<T> lastRange() {
+        if (rangeBitSetMap.isEmpty()) {
+            return null;
+        }
+        Entry<Long, BitSet> lastSet = rangeBitSetMap.lastEntry();
+        int upper = lastSet.getValue().previousSetBit(lastSet.getValue().size());
+        int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
+        return Range.openClosed(consumer.apply(lastSet.getKey(), lower), consumer.apply(lastSet.getKey(), upper));
     }
 
     @Override

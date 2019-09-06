@@ -74,6 +74,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
+    protected volatile Range<PositionImpl> lastIndividualDeletedRangeFromCursorRecovery;
 
     private CompletableFuture<Void> closeFuture = null;
     LongPairSet messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2);
@@ -108,6 +109,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         super(subscription);
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.cursor = cursor;
+        this.lastIndividualDeletedRangeFromCursorRecovery = cursor.getLastIndividualDeletedRange();
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
@@ -451,6 +453,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+
+        if (entries == null || entries.size() == 0) {
+            return;
+        }
+        if (needTrimAckedMessages()) {
+            cursor.trimDeletedEntries(entries);
+        }
         int start = 0;
         int entriesToDispatch = entries.size();
         long totalMessagesSent = 0;
@@ -578,6 +587,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     }
 
+    private boolean needTrimAckedMessages() {
+        if (lastIndividualDeletedRangeFromCursorRecovery == null) {
+            return false;
+        } else {
+            return lastIndividualDeletedRangeFromCursorRecovery.upperEndpoint()
+                    .compareTo((PositionImpl) cursor.getReadPosition()) > 0;
+        }
+    }
 
     /**
      * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
@@ -728,6 +745,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     public synchronized long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
+    }
+
+    @Override
+    public void cursorIsReset() {
+        if (this.lastIndividualDeletedRangeFromCursorRecovery != null) {
+            this.lastIndividualDeletedRangeFromCursorRecovery = null;
+        }
     }
 
     public PersistentTopic getTopic() {

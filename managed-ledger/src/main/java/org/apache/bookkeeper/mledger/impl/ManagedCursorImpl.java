@@ -63,6 +63,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -1051,7 +1052,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             positions.stream()
                     .filter(position -> individualDeletedMessages.contains(((PositionImpl) position).getLedgerId(),
                             ((PositionImpl) position).getEntryId())
-                            || ((PositionImpl) position).compareTo(markDeletePosition) < 0)
+                            || ((PositionImpl) position).compareTo(markDeletePosition) <= 0)
                     .forEach(alreadyAcknowledgedPositions::add);
         } finally {
             lock.readLock().unlock();
@@ -2598,6 +2599,22 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Disable mark-delete rate limiter
             markDeleteLimiter = null;
         }
+    }
+
+    @Override
+    public ManagedLedger getManagedLedger() {
+        return this.ledger;
+    }
+
+    @Override
+    public Range<PositionImpl> getLastIndividualDeletedRange() {
+        return individualDeletedMessages.lastRange();
+    }
+
+    @Override
+    public void trimDeletedEntries(List<Entry> entries) {
+        entries.removeIf(entry -> ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
+                || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId()));
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

@@ -26,12 +26,14 @@ import static org.testng.Assert.fail;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -307,6 +309,21 @@ public class ManagedCursorContainerTest {
         @Override
         public double getThrottleMarkDelete() {
             return -1;
+        }
+
+        @Override
+        public ManagedLedger getManagedLedger() {
+            return null;
+        }
+
+        @Override
+        public Range<PositionImpl> getLastIndividualDeletedRange() {
+            return null;
+        }
+
+        @Override
+        public void trimDeletedEntries(List<Entry> entries) {
+
         }
     }
 

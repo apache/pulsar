@@ -685,6 +685,9 @@ public class PersistentSubscription implements Subscription {
                             log.debug("[{}][{}] Successfully reset subscription to position {}", topicName, subName,
                                     finalPosition);
                         }
+                        if (dispatcher != null) {
+                            dispatcher.cursorIsReset();
+                        }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         future.complete(null);
                     }
