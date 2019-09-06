@@ -16,7 +16,7 @@ The application configures the producer with the public key. You can use this ke
 
 You can encrypt a message with more than one key. Any one of the keys used for encrypting the message is sufficient to decrypt the message.
 
-Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose ordelete the private key, your message is irretrievably lost, and is unrecoverable.
+Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose or delete the private key, your message is irretrievably lost, and is unrecoverable.
 
 ## Producer
 ![alt text](assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
