@@ -217,7 +217,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     }
 
     @Override
-    public Rate getMesssageDropRate() {
+    public Rate getMessageDropRate() {
         return msgDrop;
     }
 
