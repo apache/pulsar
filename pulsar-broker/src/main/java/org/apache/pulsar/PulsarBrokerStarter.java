@@ -160,7 +160,9 @@ public class PulsarBrokerStarter {
                     workerConfig = WorkerConfig.load(starterArguments.fnWorkerConfigFile);
                 }
                 // worker talks to local broker
-                boolean useTls = workerConfig.isUseTls();
+                // If the broker client is configured to use TLS, then we
+                // configure the function worker to use TLS
+                boolean useTls = brokerConfig.isBrokerClientTlsEnabled();
                 String pulsarServiceUrl = useTls
                         ? PulsarService.brokerUrlTls(brokerConfig)
                         : PulsarService.brokerUrl(brokerConfig);
@@ -187,7 +189,7 @@ public class PulsarBrokerStarter {
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
-                workerConfig.setUseTls(brokerConfig.isTlsEnabled());
+                workerConfig.setUseTls(useTls);
                 workerConfig.setTlsHostnameVerificationEnable(false);
 
                 workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
