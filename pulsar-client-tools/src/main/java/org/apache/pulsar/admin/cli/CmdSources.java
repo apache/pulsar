@@ -65,6 +65,7 @@ public class CmdSources extends CmdBase {
     private final DeleteSource deleteSource;
     private final GetSource getSource;
     private final GetSourceStatus getSourceStatus;
+    private final LegacyGetSourceStatus legacyGetSourceStatus;
     private final ListSources listSources;
     private final UpdateSource updateSource;
     private final RestartSource restartSource;
@@ -80,6 +81,7 @@ public class CmdSources extends CmdBase {
         listSources = new ListSources();
         getSource = new GetSource();
         getSourceStatus = new GetSourceStatus();
+        legacyGetSourceStatus = new LegacyGetSourceStatus();
         restartSource = new RestartSource();
         stopSource = new StopSource();
         startSource = new StartSource();
@@ -89,8 +91,8 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("get", getSource);
-        // TODO depecreate getstatus
-        jcommander.addCommand("status", getSourceStatus, "getstatus");
+        jcommander.addCommand("status", getSourceStatus);
+        jcommander.addCommand("getstatus", legacyGetSourceStatus);
         jcommander.addCommand("list", listSources);
         jcommander.addCommand("stop", stopSource);
         jcommander.addCommand("start", startSource);
@@ -527,7 +529,16 @@ public class CmdSources extends CmdBase {
                 print(admin.sources().getSourceStatus(tenant, namespace, sourceName));
             } else {
                 print(admin.sources().getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
-            };
+            }
+        }
+    }
+
+    @Parameters(hidden = true)
+    class LegacyGetSourceStatus extends GetSourceStatus {
+        @Override
+        void run() throws Exception {
+            System.err.println("WARN: The subcommand getstatus has been deprecated. Please use status instead");
+            super.run();
         }
     }
 

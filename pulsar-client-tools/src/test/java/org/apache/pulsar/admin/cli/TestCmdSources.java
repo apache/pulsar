@@ -26,6 +26,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertTrue;
 
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
@@ -76,11 +77,12 @@ public class TestCmdSources {
 
     private PulsarAdmin pulsarAdmin;
     private Sources source;
-    private CmdSources CmdSources;
+    private CmdSources cmdSources;
     private CmdSources.CreateSource createSource;
     private CmdSources.UpdateSource updateSource;
     private CmdSources.LocalSourceRunner localSourceRunner;
     private CmdSources.DeleteSource deleteSource;
+    private CmdSources.LegacyGetSourceStatus legacyGetSourceStatus;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -89,11 +91,12 @@ public class TestCmdSources {
         source = mock(Sources.class);
         when(pulsarAdmin.sources()).thenReturn(source);
 
-        CmdSources = spy(new CmdSources(pulsarAdmin));
-        createSource = spy(CmdSources.getCreateSource());
-        updateSource = spy(CmdSources.getUpdateSource());
-        localSourceRunner = spy(CmdSources.getLocalSourceRunner());
-        deleteSource = spy(CmdSources.getDeleteSource());
+        cmdSources = spy(new CmdSources(pulsarAdmin));
+        createSource = spy(cmdSources.getCreateSource());
+        updateSource = spy(cmdSources.getUpdateSource());
+        localSourceRunner = spy(cmdSources.getLocalSourceRunner());
+        deleteSource = spy(cmdSources.getDeleteSource());
+        legacyGetSourceStatus = spy(cmdSources.getLegacyGetSourceStatus());
 
         mockStatic(CmdFunctions.class);
         PowerMockito.doNothing().when(localSourceRunner).runCmd();
@@ -606,8 +609,20 @@ public class TestCmdSources {
                 .name(updateSource.name)
                 .parallelism(2)
                 .build()), eq(null), eq(updateOptions));
+    }
 
+    @Test
+    public void testGetStatusCommandDeprecated() throws Exception {
+        String sourceName = "test-source";
+        legacyGetSourceStatus.sourceName = sourceName;
+        CmdFunctionsTest.ConsoleOutputCapturer consoleOutputCapturer = new CmdFunctionsTest.ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
 
+        legacyGetSourceStatus.run();
+        verify(source).getSourceStatus(eq(PUBLIC_TENANT), eq(DEFAULT_NAMESPACE), eq(sourceName));
 
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+        assertTrue(output.replace("\n", "").contains("WARN: The subcommand getstatus has been deprecated. Please use status instead"));
     }
 }
