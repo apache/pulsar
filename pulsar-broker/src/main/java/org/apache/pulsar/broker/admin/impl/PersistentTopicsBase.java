@@ -374,6 +374,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (numPartitions <= 0) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
+        validatePartitionTopicName(topicName.getLocalName());
         try {
             String path = ZkAdminPaths.partitionedTopicPath(topicName);
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
@@ -396,7 +397,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalCreateNonPartitionedTopic(boolean authoritative) {
         validateAdminAccessForTenant(topicName.getTenant());
-
+        validateNonPartitionTopicName(topicName.getLocalName());
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -1818,6 +1819,61 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }
         return;
+    }
+
+    /**
+     * Validate partition topic name.
+     * If there's already non partition topic with same name and contains partition suffix "-partition-"
+     * followed by numeric value then prevent creation of partition topic with that name by throwing RestException.
+     * As the internal created sub topic for partition can override the existing non partitin topic.
+     * @param topicName
+     */
+    private void validatePartitionTopicName(String topicName) {
+        List<String> nonPartitionTopicList = internalGetList();
+        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        for (String nonPartitionTopic : nonPartitionTopicList) {
+            if (nonPartitionTopic.contains(prefix)) {
+                try {
+                    Long.parseLong(nonPartitionTopic.substring(
+                            nonPartitionTopic.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                    log.warn("[{}] Already have topic {} which contains partition " +
+                            "suffix and end with numeric value. Creation of partitioned topic {}"
+                            + "could cause conflict.", clientAppId(), nonPartitionTopic, topicName);
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Already have topic" + nonPartitionTopic + " which contains partition suffix " +
+                                    "and end with numeric value, Creation of partitioned topic " + topicName +
+                                    " could cause conflict.");
+                } catch (NumberFormatException e) {
+                    // Do nothing, if value after partition suffix is not pure numeric value,
+                    // as it can't conflict with internal created partitioned topic's name.
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate non partition topic name, if topic name contains partition suffix "-partition-"
+     * then the remaining part follow the partition suffix can't be numeric value else will throw RestException.
+     * @param topicName
+     */
+    private void validateNonPartitionTopicName(String topicName) {
+        if (topicName.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+            try {
+                Long.parseLong(topicName.substring(
+                        topicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                                + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                log.warn("[{}] Can't create topic {} with \"-partition-\" followed by" +
+                        " numeric value.", clientAppId(), topicName);
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "Can't create topic " + topicName + " with \"-partition-\" followed by" +
+                        " numeric value.");
+            } catch (NumberFormatException e) {
+                // Do nothing, if value after partition suffix is not pure numeric value,
+                // as it can't conflict if user want to create partitioned topic with same
+                // topic name prefix in the future.
+            }
+        }
     }
 
     protected MessageId internalGetLastMessageId(boolean authoritative) {
