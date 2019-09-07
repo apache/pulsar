@@ -139,12 +139,16 @@ dependencies {
 <p>If you're running a cluster in <a href="/docs/ja/next/standalone">standalone mode</a>, the broker will be available at the <code>pulsar://localhost:6650</code> URL by default.</p>
 </blockquote>
 <p>If you create a client, you may use the <code>loadConf</code> configuration. Below are the available parameters used in <code>loadConf</code>.</p>
-<p>| Type | Name | Description | Default |---|---|---|--- String | <code>serviceUrl</code> |Service URL provider for Pulsar service | None String | <code>authPluginClassName</code> | Name of the authentication plugin | None String | <code>authParams</code> | String represents parameters for the authentication plugin<br>
-<strong>Example</strong>  <br>
-key1:val1,key2:val2|None long|<code>operationTimeoutMs</code>|Operation timeout |30000 long|<code>statsIntervalSeconds</code>|Interval between each stat info<br>
-Stats is activated with positive <code>statsInterval</code>  <br>
-<code>statsIntervalSeconds</code> should be set to 1 second at least |60 int|<code>numIoThreads</code>| Number of threads used for handling connections to brokers | 1 int|<code>numListenerThreads</code>|Number of threads used for handling message listeners | 1 boolean|<code>useTcpNoDelay</code>|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true boolean |<code>useTls</code> |Whether to use TLS encryption on the connection| false string | <code>tlsTrustCertsFilePath</code> |Path to the trusted TLS certificate file|None boolean|<code>tlsAllowInsecureConnection</code>|Whether the Pulsar client accepts untrusted TLS certificate from broker | false boolean | <code>tlsHostnameVerificationEnable</code> | Whether to enable TLS hostname verification|false int|<code>concurrentLookupRequest</code>|Number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000 int|<code>maxLookupRequest</code>|Maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000 int|<code>maxNumberOfRejectedRequestPerConnection</code>|Maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50 int|<code>keepAliveIntervalSeconds</code>|Seconds of keeping alive interval for each client broker connection|30 int|<code>connectionTimeoutMs</code>|Duration of waiting for a connection to a broker to be established<br>
-If the duration passes without a response from a broker, the connection attempt is dropped|10000 int|<code>requestTimeoutMs</code>|Maximum duration for completing a request |60000 int|<code>defaultBackoffIntervalNanos</code>| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100); long|<code>maxBackoffIntervalNanos</code>|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)</p>
+<p>| Type | Name |</p>
+<div style="width:260px">
+  Description
+</div>
+<p>| Default |---|---|---|--- String | <code>serviceUrl</code> |Service URL provider for Pulsar service | None String | <code>authPluginClassName</code> | Name of the authentication plugin | None String | <code>authParams</code> | String represents parameters for the authentication plugin</p>
+<p><strong>Example</strong>  <br>
+key1:val1,key2:val2|None long|<code>operationTimeoutMs</code>|Operation timeout |30000 long|<code>statsIntervalSeconds</code>|Interval between each stat info</p>
+<p>Stats is activated with positive <code>statsInterval</code></p>
+<p><code>statsIntervalSeconds</code> should be set to 1 second at least |60 int|<code>numIoThreads</code>| Number of threads used for handling connections to brokers | 1 int|<code>numListenerThreads</code>|Number of threads used for handling message listeners | 1 boolean|<code>useTcpNoDelay</code>|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true boolean |<code>useTls</code> |Whether to use TLS encryption on the connection| false string | <code>tlsTrustCertsFilePath</code> |Path to the trusted TLS certificate file|None boolean|<code>tlsAllowInsecureConnection</code>|Whether the Pulsar client accepts untrusted TLS certificate from broker | false boolean | <code>tlsHostnameVerificationEnable</code> | Whether to enable TLS hostname verification|false int|<code>concurrentLookupRequest</code>|Number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000 int|<code>maxLookupRequest</code>|Maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000 int|<code>maxNumberOfRejectedRequestPerConnection</code>|Maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50 int|<code>keepAliveIntervalSeconds</code>|Seconds of keeping alive interval for each client broker connection|30 int|<code>connectionTimeoutMs</code>|Duration of waiting for a connection to a broker to be established</p>
+<p>If the duration passes without a response from a broker, the connection attempt is dropped|10000 int|<code>requestTimeoutMs</code>|Maximum duration for completing a request |60000 int|<code>defaultBackoffIntervalNanos</code>| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100); long|<code>maxBackoffIntervalNanos</code>|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)</p>
 <p>Check out the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  class for a full listing of configurable parameters.</p>
 <blockquote>
@@ -246,7 +250,80 @@ client.close();</p>
 }
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="configuring-consumers"></a><a href="#configuring-consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring consumers</h3>
-<p>If you instantiate a <code>Consumer</code> object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
+<p>If you instantiate a <code>Consumer</code> object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration.</p>
+<p>If you create a consumer, you may use the <code>loadConf</code> configuration. Below are the available parameters used in <code>loadConf</code>.</p>
+<p>Type | Name|</p>
+<div style="width:300px">
+  Description
+</div>
+<p>| Default |---|---|---|--- Set<String>| <code>topicNames</code>| Topic name| Sets.newTreeSet() Pattern| <code>topicsPattern</code>| Topic pattern |None String| <code>subscriptionName</code>| Subscription name| None SubscriptionType| <code>subscriptionType</code>| Subscription type</p>
+<p>There are three subscription types:</p>
+<ul>
+<li>Exclusive</li>
+<li>Failover</li>
+<li>Shared|SubscriptionType.Exclusive int |
+<code>receiverQueueSize</code> | Size of a consumer's receiver queue.</li>
+</ul>
+<p>For example, the number of messages that can be accumulated by a consumer before an application calls <code>Receive</code>.</p>
+<p>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.| 1000 long|<code>acknowledgementsGroupTimeMicros</code>|Group a consumer acknowledgment for a specified time.</p>
+<p>By default, a consumer uses 100ms grouping time to send out acknowledgments to a broker.</p>
+<p>Setting a group time of 0 sends out acknowledgments immediately.</p>
+<p>A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100) long|<code>negativeAckRedeliveryDelayMicros</code>|Delay to wait before redelivering messages that have failed to be process.</p>
+<p>When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1) int |<code>maxTotalReceiverQueueSizeAcrossPartitions</code>|Max total receiver queue size across partitions.</p>
+<p>This setting reduces the receiver queue size for individual partitions if the total receiver queue size exceeds this value.|50000 String|<code>consumerName</code>|Consumer name|null long|<code>ackTimeoutMillis</code>|Timeout of unacked messages|0 long|<code>tickDurationMillis</code>|Granularity of the ack-timeout redelivery.</p>
+<p>Using an higher <code>tickDurationMillis</code> reduces the memory overhead to track messages when the ack-timeout is set to a bigger value (for example, 1 hour).|1000 int|<code>priorityLevel</code>|Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode.</p>
+<p>Here, the broker follows descending priorities. For example, 0=max-priority, 1, 2,...</p>
+<p>In the shared subscription mode, the broker <strong>first dispatches messages to the max priority level consumers if they have permits</strong>. Otherwise, the broker considers next priority level consumers.</p>
+<p><strong>Example 1</strong></p>
+<p>If a subscription has consumerA with <code>priorityLevel</code> 0 and consumerB with <code>priorityLevel</code> 1, then the broker <strong>only dispatches messages to consumerA until it runs out permits</strong> and then starts dispatching messages to consumerB.</p>
+<p><strong>Example 2</strong></p>
+<p>Consumer Priority, Level, Permits<br>
+C1, 0, 2<br>
+C2, 0, 1<br>
+C3, 0, 1<br>
+C4, 1, 2<br>
+C5, 1, 1</p>
+<p>Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0 ConsumerCryptoFailureAction|<code>cryptoFailureAction</code>|Consumer should take action when it receives a message that can not decrypt.</p>
+<ul>
+<li><strong>FAIL</strong>: this is the default option to fail messages until crypto succeeds.</li>
+</ul>
+<ul>
+<li><strong>DISCARD</strong>: message is silently acknowledged and not delivered to an application.</li>
+</ul>
+<ul>
+<li><p><strong>CONSUME</strong>: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.</p>
+<p>If message are compressed, the decompression fails.</p>
+<p>If messages contain batch messages, a client is not be able to retrieve individual messages in batch.</p>
+<p>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|<a href="http://ConsumerCryptoFailureAction.FAIL">ConsumerCryptoFailureAction.FAIL</a> SortedMap&lt;String, String&gt;|
+<code>properties</code>|A name or value property of this consumer.</p></li>
+</ul>
+<p><code>properties</code> is application defined metadata that can be attached to a consumer.</p>
+<p>When getting a topic stats, this metadata is associated to the consumer stats for easier identification.|new TreeMap&lt;&gt;() boolean|<code>readCompacted</code>|If <code>readCompacted</code> is enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.</p>
+<p>This means if a topic has been compacted, a consumer only see the latest value for each key in the topic, up until the point in the topic message when backlog that has been compacted. Beyond that point, the messages are sent as normal.</p>
+<p><code>readCompacted</code> can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions).</p>
+<p>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a <code>PulsarClientException</code>.|false SubscriptionInitialPosition|<code>subscriptionInitialPosition</code>|Initial position at which to set cursor when subscribing to a topic at first time.|SubscriptionInitialPosition.Latest int|<code>patternAutoDiscoveryPeriod</code>|Topic auto discovery period when using a pattern for topic's consumer.</p>
+<p>The default and minimum value is 1 minute.|1 RegexSubscriptionMode|<code>regexSubscriptionMode</code>|When subscribing to a topic using a regular expression, you can pick a certain type of topics.</p>
+<ul>
+<li><strong>PersistentOnly</strong>: only subscribe to persistent topics.</li>
+</ul>
+<ul>
+<li><strong>NonPersistentOnly</strong>: only subscribe to non-persistent topics.</li>
+</ul>
+<ul>
+<li><strong>AllTopics</strong>: subscribe to both persistent and non-persistent topics.|RegexSubscriptionMode.PersistentOnly DeadLetterPolicy|
+<code>deadLetterPolicy</code>|Dead letter policy for consumers.</li>
+</ul>
+<p>By default, some messages are redelivered many times possible, even to the extent that it can be never stop.</p>
+<p>By using the dead letter mechanism, messages have the max redelivery count. <strong>When message exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically</strong>.</p>
+<p>You can enable the dead letter mechanism by setting <code>deadLetterPolicy</code>.</p>
+<p><strong>Example</strong></p>
+<p><code>client.newConsumer()&lt;br/&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())&lt;br/&gt;.subscribe();</code></p>
+<p>Default dead letter topic name is <code>{TopicName}-{Subscription}-DLQ</code>.</p>
+<p>To set a custom dead letter topic name:<br>
+<code>client.newConsumer()&lt;br/&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)&lt;br/&gt;.deadLetterTopic(&quot;your-topic-name&quot;).build())&lt;br/&gt;.subscribe();</code></p>
+<p>When the dead letter policy is specified and no <code>ackTimeoutMillis</code> is specified, then the ack timeout is set to 30000 millisecond.|None boolean|<code>autoUpdatePartitions</code>|If <code>autoUpdatePartitions</code> is enabled, a consumer subscribes to partition increasement automatically.</p>
+<p><strong>Note</strong>: this is only for partitioned consumers.|true boolean|<code>replicateSubscriptionState</code>|If <code>replicateSubscriptionState</code> is enabled, a subscription state is replicated to geo-replicated clusters.|false</p>
+<p>To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
  class. Here's an example:</p>
 <p>Here's an example configuration:</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
