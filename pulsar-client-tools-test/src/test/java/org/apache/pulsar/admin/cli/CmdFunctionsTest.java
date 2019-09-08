@@ -550,6 +550,29 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).getFunctionState(eq(tenant), eq(namespace), eq(fnName), eq(key));
     }
 
+    @Test
+    public void testStateGetterWithoutKey() throws Exception {
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
+        String fnName = TEST_NAME + "-function";
+        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
+        cmd.run(new String[] {
+                "querystate",
+                "--tenant", tenant,
+                "--namespace", namespace,
+                "--name", fnName,
+        });
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+        assertTrue(output.replace("\n", "").contains("State key needs to be specified"));
+        StateGetter stateGetter = cmd.getStateGetter();
+        assertEquals(tenant, stateGetter.getTenant());
+        assertEquals(namespace, stateGetter.getNamespace());
+        assertEquals(fnName, stateGetter.getFunctionName());
+        verify(functions, times(0)).getFunctionState(any(), any(), any(), any());
+    }
+
     private static final String fnName = TEST_NAME + "-function";
     private static final String inputTopicName = TEST_NAME + "-input-topic";
     private static final String outputTopicName = TEST_NAME + "-output-topic";
