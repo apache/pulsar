@@ -137,6 +137,15 @@ tokenSecretKey=file:///path/to/secret.key
 # tokenPublicKey=file:///path/to/public.key
 ```
 
+If you have more than one broker, you need to add the following configuration to `broker.conf`
+
+```bash
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
+brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw
+# Or, alternatively, read token from file
+# brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
+```
+
 ### ... on Proxies
 
 To configure proxies to authenticate clients, put the following in `proxy.conf`:
