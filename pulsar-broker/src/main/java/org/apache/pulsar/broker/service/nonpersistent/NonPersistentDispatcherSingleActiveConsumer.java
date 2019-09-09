@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.Rate;
@@ -145,5 +146,10 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     @Override
     protected void cancelPendingRead() {
         // No-op
+    }
+
+    public CompletableFuture<Void> close() {
+        IS_CLOSED_UPDATER.set(this, TRUE);
+        return disconnectAllConsumers();
     }
 }
