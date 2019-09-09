@@ -959,7 +959,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-input-" + randomName(8);
         String outputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-output-" + randomName(8);
-
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         CommandGenerator generator = CommandGenerator.createDefaultGenerator(
                 inputTopicName,
