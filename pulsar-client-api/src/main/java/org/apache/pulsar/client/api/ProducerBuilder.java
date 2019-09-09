@@ -367,7 +367,7 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
 
     /**
-     * Set the maximum number of bytes permitted in a batch. <i>default: 1MB</i>
+     * Set the maximum number of bytes permitted in a batch. <i>default: 128KB</i>
      * If set to a value greater than 0, messages will be queued until this threshold is reached
      * or other batching conditions are met.
      *
