@@ -84,6 +84,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private boolean autoUpdatePartitions = true;
 
+    private boolean multiSchema = true;
+
     private SortedMap<String, String> properties = new TreeMap<>();
 
     /**

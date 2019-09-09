@@ -80,6 +80,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
@@ -103,6 +104,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
@@ -908,23 +910,7 @@ public class ServerCnx extends PulsarHandler {
 
                             disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
 
-                            CompletableFuture<SchemaVersion> schemaVersionFuture;
-                            if (schema != null) {
-                                schemaVersionFuture = topic.addSchema(schema);
-                            } else {
-                                schemaVersionFuture = topic.hasSchema().thenCompose((hasSchema) -> {
-                                        log.info("[{}]-{} {} configured with schema {}", remoteAddress, producerId,
-                                                topicName, hasSchema);
-                                        CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-                                        if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
-                                            result.completeExceptionally(new IncompatibleSchemaException(
-                                                "Producers cannot connect without a schema to topics with a schema"));
-                                        } else {
-                                            result.complete(SchemaVersion.Empty);
-                                        }
-                                        return result;
-                                    });
-                            }
+                            CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
 
                             schemaVersionFuture.exceptionally(exception -> {
                                 ctx.writeAndFlush(Commands.newError(requestId,
@@ -1356,6 +1342,58 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
+    @Override
+    protected void handleGetOrCreateSchema(CommandGetOrCreateSchema commandGetOrCreateSchema) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandGetOrCreateSchema call from {}", remoteAddress);
+        }
+        long requestId = commandGetOrCreateSchema.getRequestId();
+        String topicName = commandGetOrCreateSchema.getTopic();
+        SchemaData schemaData = getSchema(commandGetOrCreateSchema.getSchema());
+        SchemaData schema = schemaData.getType() == SchemaType.NONE ? null : schemaData;
+        service.getTopicIfExists(topicName).thenAccept(topicOpt -> {
+            if (topicOpt.isPresent()) {
+                Topic topic = topicOpt.get();
+                CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
+                schemaVersionFuture.exceptionally(ex -> {
+                    ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
+                    ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
+                            requestId, errorCode, ex.getMessage()));
+                    return null;
+                }).thenAccept(schemaVersion -> {
+                        ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponse(
+                                requestId, schemaVersion));
+                });
+            } else {
+                ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
+                        requestId, ServerError.TopicNotFound, "Topic not found"));
+            }
+        }).exceptionally(ex -> {
+            ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
+            ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
+                    requestId, errorCode, ex.getMessage()));
+            return null;
+        });
+    }
+
+    private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
+        if (schema != null) {
+            return topic.addSchema(schema);
+        } else {
+            return topic.hasSchema().thenCompose((hasSchema) -> {
+                log.info("[{}] {} configured with schema {}",
+                         remoteAddress, topic.getName(), hasSchema);
+                CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
+                if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
+                    result.completeExceptionally(new IncompatibleSchemaException(
+                            "Producers cannot connect or send message without a schema to topics with a schema"));
+                } else {
+                    result.complete(SchemaVersion.Empty);
+                }
+                return result;
+            });
+        }
+    }
 
     @Override
     protected boolean isHandshakeCompleted() {

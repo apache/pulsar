@@ -242,6 +242,10 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    public Schema getSchema() {
+        return this.schema;
+    }
+
     @Override
     public byte[] getSchemaVersion() {
         if (msgMetadataBuilder != null && msgMetadataBuilder.hasSchemaVersion()) {

@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.lang.String.format;
+import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Auto;
+import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Enabled;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
@@ -46,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -59,6 +62,7 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.SchemaHash;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
@@ -69,6 +73,7 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -207,6 +212,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return conf.isBatchingEnabled();
     }
 
+    private boolean isMultiSchemaEnabled(boolean autoEnable) {
+        if (multiSchemaMode != Auto) {
+            return multiSchemaMode == Enabled;
+        }
+        if (autoEnable) {
+            multiSchemaMode = Enabled;
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public long getLastSequenceId() {
         return lastSequenceIdPublished;
@@ -338,8 +354,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
-        if (schemaVersion.isPresent()) {
-            msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.get()));
+        if (!fillMessageSchema(msgMetadataBuilder, msg.getSchema(), callback)) {
+            compressedPayload.release();
+            return;
         }
 
         try {
@@ -368,7 +385,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 if (isBatchMessagingEnabled() && !msgMetadataBuilder.hasDeliverAtTime()) {
                     // handle boundary cases where message being added would exceed
                     // batch size and/or max message size
-                    if (batchMessageContainer.haveEnoughSpace(msg)) {
+                    if (canAddToCurrentBatch(msg)) {
                         batchMessageContainer.add(msg, callback);
                         lastSendFuture = callback.getFuture();
                         payload.release();
@@ -430,6 +447,99 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
+    private boolean fillMessageSchema(MessageMetadata.Builder msgMetadataBuilder,
+                                      Schema msgSchema,
+                                      SendCallback callback) {
+        if (msgSchema == schema) {
+            schemaVersion.ifPresent(v -> msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(v)));
+            return true;
+        }
+        if (!isMultiSchemaEnabled(true)) {
+            callback.sendComplete(new PulsarClientException.InvalidMessageException(
+                    "Multiple schema disabled"));
+            return false;
+        }
+        byte[] schemaVersion;
+        try {
+            schemaVersion = schemaCache.computeIfAbsent(
+                    SchemaHash.of(msgSchema), (hash) -> {
+                        SchemaInfo schemaInfo = Optional.ofNullable(msgSchema)
+                                                        .map(Schema::getSchemaInfo)
+                                                        .filter(si -> si.getType().getValue() > 0)
+                                                        .orElse(Schema.BYTES.getSchemaInfo());
+                        try {
+                            return getOrCreateSchemaAsync(schemaInfo).get();
+                        } catch (Throwable t) {
+                            log.warn("[{}][{}] GetOrCreateSchema error", topic, producerName, t);
+                            callback.sendComplete(PulsarClientException.unwrap(t));
+                            throw new RuntimeException(t);
+                        }
+                    });
+        } catch (RuntimeException e) {
+            return false;
+        }
+        msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion));
+        return true;
+    }
+
+    private CompletableFuture<byte[]> getOrCreateSchemaAsync(SchemaInfo schemaInfo) {
+        if (getState() == State.Closing || getState() == State.Closed) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException(
+                    "Producer was already closed"));
+        }
+
+        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMax(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                .useUserConfiguredIntervals(
+                        client.getConfiguration().getDefaultBackoffIntervalNanos(),
+                        client.getConfiguration().getMaxBackoffIntervalNanos())
+                .create();
+        CompletableFuture<byte[]> future = new CompletableFuture<>();
+        doGetOrCreateSchemaAsync(backoff, opTimeoutMs, schemaInfo, future);
+        return future;
+    }
+
+    private void doGetOrCreateSchemaAsync(Backoff backoff,
+                                          AtomicLong remainingTime,
+                                          SchemaInfo schemaInfo,
+                                          CompletableFuture<byte[]> future) {
+        ClientCnx cnx = cnx();
+        if (cnx != null && isConnected()) {
+            if (!Commands.peerSupportsGetOrCreateSchema(cnx.getRemoteEndpointProtocolVersion())) {
+                future.completeExceptionally(
+                        new PulsarClientException.NotSupportedException(
+                                "GetOrCreateSchema Not supported for ProtocolVersion: " +
+                                cnx.getRemoteEndpointProtocolVersion()));
+                return;
+            }
+            long requestId = client.newRequestId();
+            ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, schemaInfo);
+            log.info("[{}][{}] GetOrCreateSchema request", topic, producerName);
+            cnx.sendGetOrCreateSchema(request, requestId).thenAccept((version) -> {
+                log.info("[{}][{}] GetOrCreateSchema request succeed", topic, producerName);
+                future.complete(version);
+            }).exceptionally(e -> {
+                log.error("[{}][{}] GetOrCreateSchema request failed", topic, producerName);
+                future.completeExceptionally(e.getCause());
+                return null;
+            });
+        } else {
+            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            if (nextDelay <= 0) {
+                future.completeExceptionally(new PulsarClientException.TimeoutException(
+                        "Could not GetOrCreateSchema within configured timeout."));
+            }
+            client.timer().newTimeout(timeout -> {
+                log.info("[{}][{}] GetOrCreateSchema request retry", topic, producerName);
+                remainingTime.addAndGet(-nextDelay);
+                doGetOrCreateSchemaAsync(backoff, remainingTime, schemaInfo, future);
+            }, nextDelay, TimeUnit.MILLISECONDS);
+        }
+    }
+
     protected ByteBuf encryptMessage(MessageMetadata.Builder msgMetadata, ByteBuf compressedPayload)
             throws PulsarClientException {
 
@@ -463,6 +573,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             checksumType = ChecksumType.None;
         }
         return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
+    }
+
+    private boolean canAddToCurrentBatch(MessageImpl<T> msg) {
+        return batchMessageContainer.haveEnoughSpace(msg)
+               && (!isMultiSchemaEnabled(false) || batchMessageContainer.hasSameSchema(msg));
     }
 
     private void doBatchSendAndAdd(MessageImpl<T> msg, SendCallback callback, ByteBuf payload) {
@@ -933,6 +1048,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
                     schemaVersion = Optional.ofNullable(response.getSchemaVersion());
+                    schemaVersion.ifPresent(v -> schemaCache.put(SchemaHash.of(schema), v));
 
                     // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
                     // set the cnx pointer so that new messages will be sent immediately

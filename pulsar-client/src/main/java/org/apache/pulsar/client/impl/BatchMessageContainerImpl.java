@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 import io.netty.util.ReferenceCountUtil;
@@ -159,6 +160,18 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
         return op;
+    }
+
+    @Override
+    public boolean hasSameSchema(MessageImpl<?> msg) {
+        if (numMessagesInBatch == 0) {
+            return true;
+        }
+        if (!messageMetadata.hasSchemaVersion()) {
+            return msg.getSchemaVersion() == null;
+        }
+        return Arrays.equals(msg.getSchemaVersion(),
+                             messageMetadata.getSchemaVersion().toByteArray());
     }
 
     private static final Logger log = LoggerFactory.getLogger(BatchMessageContainerImpl.class);
