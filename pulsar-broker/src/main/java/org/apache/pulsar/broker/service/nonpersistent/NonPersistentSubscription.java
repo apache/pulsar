@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import com.google.common.base.MoreObjects;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -50,6 +49,7 @@ public class NonPersistentSubscription implements Subscription {
     private volatile NonPersistentDispatcher dispatcher;
     private final String topicName;
     private final String subName;
+    private final String fullName;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -62,6 +62,7 @@ public class NonPersistentSubscription implements Subscription {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
+        this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
     }
 
@@ -155,7 +156,7 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        return fullName;
     }
 
     @Override
@@ -337,7 +338,7 @@ public class NonPersistentSubscription implements Subscription {
         }
 
         subStats.type = getType();
-        subStats.msgDropRate = dispatcher.getMesssageDropRate().getValueRate();
+        subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
         return subStats;
     }
 

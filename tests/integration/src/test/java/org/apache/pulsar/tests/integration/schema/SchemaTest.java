@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.schema;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Test Pulsar Schema.
@@ -258,6 +261,64 @@ public class SchemaTest extends PulsarTestSuite {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testPrimitiveSchemaTypeCompatibilityCheck() {
+        List<Schema> schemas = new ArrayList<>();
+
+        schemas.add(Schema.STRING);
+        schemas.add(Schema.BYTES);
+        schemas.add(Schema.INT8);
+        schemas.add(Schema.INT16);
+        schemas.add(Schema.INT32);
+        schemas.add(Schema.INT64);
+        schemas.add(Schema.BOOL);
+        schemas.add(Schema.DOUBLE);
+        schemas.add(Schema.FLOAT);
+        schemas.add(Schema.DATE);
+        schemas.add(Schema.TIME);
+        schemas.add(Schema.TIMESTAMP);
+        schemas.add(null);
+
+
+        schemas.stream().forEach(schemaProducer -> {
+            schemas.stream().forEach(schemaConsumer -> {
+                try {
+                    String topicName = schemaProducer.getSchemaInfo().getName() + schemaConsumer.getSchemaInfo().getName();
+                    if (schemaProducer == null) {
+                        client.newProducer()
+                                .topic(topicName)
+                                .create().close();
+                    } else {
+                        client.newProducer(schemaProducer)
+                                .topic(topicName)
+                                .create().close();
+                    }
+
+                    if (schemaConsumer == null) {
+                        client.newConsumer()
+                                .topic(topicName)
+                                .subscriptionName("test")
+                                .subscribe().close();
+                    } else {
+                        client.newConsumer(schemaConsumer)
+                                .topic(topicName)
+                                .subscriptionName("test")
+                                .subscribe().close();
+                    }
+
+                    assertEquals(schemaProducer.getSchemaInfo().getType(),
+                            schemaConsumer.getSchemaInfo().getType());
+
+                } catch (PulsarClientException e) {
+                    assertNotEquals(schemaProducer.getSchemaInfo().getType(),
+                            schemaConsumer.getSchemaInfo().getType());
+                }
+
+            });
+        });
+
     }
 
 }

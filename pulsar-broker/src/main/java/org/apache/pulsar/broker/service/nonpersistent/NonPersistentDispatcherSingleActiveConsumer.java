@@ -113,7 +113,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     }
 
     @Override
-    public Rate getMesssageDropRate() {
+    public Rate getMessageDropRate() {
         return msgDrop;
     }
 

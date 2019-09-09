@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.partition;
 
+/**
+ * Metadata of a partitioned topic.
+ */
 public class PartitionedTopicMetadata {
 
     /* Number of partitions for the topic */

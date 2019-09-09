@@ -36,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.bookkeeper.api.kv.Table;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -81,13 +82,12 @@ public class ContextImplTest {
         TypedMessageBuilder messageBuilder = spy(new TypedMessageBuilderImpl(mock(ProducerBase.class), Schema.STRING));
         doReturn(new CompletableFuture<>()).when(messageBuilder).sendAsync();
         when(producer.newMessage()).thenReturn(messageBuilder);
-
         context = new ContextImpl(
             config,
             logger,
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null);
+                FunctionDetails.ComponentType.FUNCTION, null, null);
         context.setCurrentMessageContext((Record<String>) () -> null);
     }
 
@@ -98,6 +98,7 @@ public class ContextImplTest {
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void testGetCounterStateDisabled() {
+
         context.getCounter("test-key");
     }
 
@@ -113,35 +114,31 @@ public class ContextImplTest {
 
     @Test
     public void testIncrCounterStateEnabled() throws Exception {
-        StateContextImpl stateContext = mock(StateContextImpl.class);
-        context.setStateContext(stateContext);
+        context.stateContext = mock(StateContextImpl.class);
         context.incrCounterAsync("test-key", 10L);
-        verify(stateContext, times(1)).incrCounter(eq("test-key"), eq(10L));
+        verify(context.stateContext, times(1)).incrCounter(eq("test-key"), eq(10L));
     }
 
     @Test
     public void testGetCounterStateEnabled() throws Exception {
-        StateContextImpl stateContext = mock(StateContextImpl.class);
-        context.setStateContext(stateContext);
+        context.stateContext = mock(StateContextImpl.class);
         context.getCounterAsync("test-key");
-        verify(stateContext, times(1)).getCounter(eq("test-key"));
+        verify(context.stateContext, times(1)).getCounter(eq("test-key"));
     }
 
     @Test
     public void testPutStateStateEnabled() throws Exception {
-        StateContextImpl stateContext = mock(StateContextImpl.class);
-        context.setStateContext(stateContext);
+        context.stateContext = mock(StateContextImpl.class);
         ByteBuffer buffer = ByteBuffer.wrap("test-value".getBytes(UTF_8));
         context.putStateAsync("test-key", buffer);
-        verify(stateContext, times(1)).put(eq("test-key"), same(buffer));
+        verify(context.stateContext, times(1)).put(eq("test-key"), same(buffer));
     }
 
     @Test
     public void testGetStateStateEnabled() throws Exception {
-        StateContextImpl stateContext = mock(StateContextImpl.class);
-        context.setStateContext(stateContext);
+        context.stateContext = mock(StateContextImpl.class);
         context.getStateAsync("test-key");
-        verify(stateContext, times(1)).get(eq("test-key"));
+        verify(context.stateContext, times(1)).get(eq("test-key"));
     }
 
     @Test

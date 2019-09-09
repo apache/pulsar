@@ -31,6 +31,10 @@ public class SchemaException extends BrokerServiceException {
         super(message);
     }
 
+    public SchemaException(Throwable cause) {
+        super(cause);
+    }
+
     public SchemaException(String message, Throwable cause) {
         super(message, cause);
     }

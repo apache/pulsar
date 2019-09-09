@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.util.netty;
 
-import java.util.concurrent.ThreadFactory;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.Epoll;
@@ -36,7 +34,9 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import java.util.concurrent.ThreadFactory;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class EventLoopUtil {
 
     /**
@@ -52,7 +52,7 @@ public class EventLoopUtil {
     }
 
     /**
-     * Return a SocketChannel class suitable for the given EventLoopGroup implementation
+     * Return a SocketChannel class suitable for the given EventLoopGroup implementation.
      *
      * @param eventLoopGroup
      * @return

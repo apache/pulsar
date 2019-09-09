@@ -19,11 +19,15 @@
 package org.apache.pulsar.common.policies.data;
 
 import lombok.Data;
-import org.apache.pulsar.common.policies.data.FunctionStats;
 
+/**
+ * Data class holding statistics about a function.
+ */
 @Data
 public class WorkerFunctionInstanceStats {
-    /** fully qualified function instance name **/
+    /**
+     * Fully qualified function instance name.
+     */
     public String name;
     public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData metrics;
 }

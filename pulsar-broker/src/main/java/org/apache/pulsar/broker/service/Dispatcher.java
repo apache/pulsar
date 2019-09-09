@@ -94,4 +94,8 @@ public interface Dispatcher {
     default long getNumberOfDelayedMessages() {
         return 0;
     }
+
+    default void cursorIsReset() {
+        //No-op
+    }
 }

@@ -1403,7 +1403,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             stats.replication.put(replicator.getRemoteCluster(), replicatorStats);
         });
 
-        stats.storageSize = ledger.getEstimatedBacklogSize();
+        stats.storageSize = ledger.getTotalSize();
+        stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
 
         return stats;

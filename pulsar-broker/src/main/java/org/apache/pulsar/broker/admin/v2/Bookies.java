@@ -93,16 +93,25 @@ public class Bookies extends AdminResource {
     public void deleteBookieRackInfo(@PathParam("bookie") String bookieAddress) throws Exception {
         validateSuperUserAccess();
 
-        BookiesRackConfiguration racks = localZkCache()
-                .getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, (key, content) -> ObjectMapperFactory
-                        .getThreadLocal().readValue(content, BookiesRackConfiguration.class))
-                .orElse(new BookiesRackConfiguration());
 
-        if (!racks.removeBookie(bookieAddress)) {
-            throw new RestException(Status.NOT_FOUND, "Bookie address not found: " + bookieAddress);
+        Optional<Entry<BookiesRackConfiguration, Stat>> entry = localZkCache()
+            .getEntry(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, (key, content) -> ObjectMapperFactory
+                .getThreadLocal().readValue(content, BookiesRackConfiguration.class));
+
+        if (entry.isPresent()) {
+            BookiesRackConfiguration racks = entry.get().getKey();
+            if (!racks.removeBookie(bookieAddress)) {
+                throw new RestException(Status.NOT_FOUND, "Bookie address not found: " + bookieAddress);
+            } else {
+                localZk().setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
+                    jsonMapper().writeValueAsBytes(racks),
+                    entry.get().getValue().getVersion());
+                log.info("Removed {} from rack mapping info", bookieAddress);
+            }
+        } else {
+            throw new RestException(Status.NOT_FOUND, "Bookie rack placement info is not found");
         }
 
-        log.info("Removed {} from rack mapping info", bookieAddress);
     }
 
     @POST

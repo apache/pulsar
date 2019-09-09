@@ -20,10 +20,12 @@ package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
+import java.io.Serializable;
+
 /**
  * Batcher builder
  */
-public interface BatcherBuilder {
+public interface BatcherBuilder extends Serializable {
 
     /**
      * Default batch message container
