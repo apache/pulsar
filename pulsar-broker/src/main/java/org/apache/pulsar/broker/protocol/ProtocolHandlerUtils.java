@@ -40,7 +40,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 @Slf4j
 class ProtocolHandlerUtils {
 
-    private static final String PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE = "pulsar-protocol-handler.yml";
+    static final String PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE = "pulsar-protocol-handler.yml";
 
     /**
      * Retrieve the protocol handler definition from the provided handler nar package.
