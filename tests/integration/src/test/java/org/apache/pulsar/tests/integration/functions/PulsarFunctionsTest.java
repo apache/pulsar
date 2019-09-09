@@ -1116,6 +1116,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-neg-ack-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-neg-ack-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         String functionName = "test-neg-ack-fn-" + randomName(8);
         final int numMessages = 20;
@@ -1292,6 +1296,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-publish-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-publish-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         String functionName = "test-publish-fn-" + randomName(8);
         final int numMessages = 10;
@@ -1418,6 +1426,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-exclamation-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-exclamation-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
         if (isTopicPattern) {
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
