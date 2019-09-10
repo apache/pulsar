@@ -8,7 +8,7 @@ You can use different ways to monitor a Pulsar cluster, exposing both metrics th
 
 ## Collect metrics
 
-You can choose the following ways to collect metrics:
+You can collect broker stats, ZooKeeper stats, and BookKeeper stats. 
 
 ### Broker stats
 
@@ -56,12 +56,11 @@ The default BookKeeper configuration, which is included with Pulsar distribution
 http://$BOOKIE_ADDRESS:8000/metrics
 ```
 
-For bookies, the default port is `8000` (instead of `8080`) and you can change the `prometheusStatsHttpPort` in `conf/bookkeeper.conf` to configure the default port of bookies.
+The default port for bookie is `8000` (instead of `8080`). You can change the port by configuring `prometheusStatsHttpPort` in `conf/bookkeeper.conf`.
 
 ## Configure Prometheus
 
-You can configure Prometheus to collect and store the metrics data following the Prometheus
-[Getting started](https://prometheus.io/docs/introduction/getting_started/) guide.
+You can use Prometheus to collect and store the metrics data. For details, refer to [Prometheus guide](https://prometheus.io/docs/introduction/getting_started/).
 
 When you run Pulsar on bare metal, you can provide the list of nodes that needs to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md) instructions.
 
@@ -79,7 +78,7 @@ The per-topic dashboard instructions are available at [Dashboard](administration
 
 You can use grafana to easily create dashboard driven by the data that is stored in Prometheus.
 
-When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled by default to use with the principal dashboards that is already in place.
+When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled by default. You can use the docker image with the principal dashboards.
 
 Enter the command below to use the dashboard manually:
 
