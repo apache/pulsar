@@ -203,6 +203,11 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return (consumers.size() == 1) && Objects.equals(consumer, ACTIVE_CONSUMER_UPDATER.get(this));
     }
 
+    public CompletableFuture<Void> close() {
+        IS_CLOSED_UPDATER.set(this, TRUE);
+        return disconnectAllConsumers();
+    }
+
     /**
      * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
      * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed

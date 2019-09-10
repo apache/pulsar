@@ -515,6 +515,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         }
     }
 
+    @Override
     public CompletableFuture<Void> close() {
         IS_CLOSED_UPDATER.set(this, TRUE);
         if (dispatchRateLimiter.isPresent()) {
