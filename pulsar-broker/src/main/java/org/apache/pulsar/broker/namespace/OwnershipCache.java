@@ -150,6 +150,10 @@ public class OwnershipCache {
         }
     }
 
+    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory) {
+        this(pulsar, bundleFactory, null);
+    }
+
     /**
      * Constructor of <code>OwnershipCache</code>
      *

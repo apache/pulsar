@@ -1162,6 +1162,10 @@ public class NamespaceService {
         LOG.info("Namespace {} unloaded successfully", namespaceName);
     }
 
+    public String getHeartbeatNamespace() {
+        return getHeartbeatNamespace(host, config);
+    }
+
     public static String getHeartbeatNamespace(String host, ServiceConfiguration config) {
         Integer port = null;
         if (config.getWebServicePort().isPresent()) {

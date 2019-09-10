@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -43,7 +44,7 @@ public interface TopicPoliciesService {
      * @param topicName topic name
      * @return future of the topic policies
      */
-    CompletableFuture<TopicPolicies> getTopicPoliciesAsync(TopicName topicName);
+    TopicPolicies getTopicPolicies(TopicName topicName);
 
     /**
      * Get policies for a topic without cache async
@@ -52,6 +53,19 @@ public interface TopicPoliciesService {
      */
     CompletableFuture<TopicPolicies> getTopicPoliciesWithoutCacheAsync(TopicName topicName);
 
+    /**
+     * Add owned namespace bundle async.
+     *
+     * @param namespaceBundle namespace bundle
+     */
+    CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle);
+
+    /**
+     * Remove owned namespace bundle async.
+     *
+     * @param namespaceBundle namespace bundle
+     */
+    CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle);
 
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
@@ -61,12 +75,24 @@ public interface TopicPoliciesService {
         }
 
         @Override
-        public CompletableFuture<TopicPolicies> getTopicPoliciesAsync(TopicName topicName) {
-            return CompletableFuture.completedFuture(null);
+        public TopicPolicies getTopicPolicies(TopicName topicName) {
+            return null;
         }
 
         @Override
         public CompletableFuture<TopicPolicies> getTopicPoliciesWithoutCacheAsync(TopicName topicName) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
+            //No-op
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
+            //No-op
             return CompletableFuture.completedFuture(null);
         }
     }
