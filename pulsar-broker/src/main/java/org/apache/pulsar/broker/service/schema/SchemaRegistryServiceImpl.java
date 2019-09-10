@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.service.schema;
 
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
-import static org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE;
-import static org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
-import static org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
+import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE;
+import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
+import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toMap;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
@@ -46,6 +46,7 @@ import javax.validation.constraints.NotNull;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -243,6 +244,35 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             }
             return completedFuture(NO_SCHEMA_VERSION);
         });
+    }
+
+    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
+                                                              SchemaCompatibilityStrategy strategy) {
+        return getSchema(schemaId).thenCompose(existingSchema -> {
+            if (existingSchema != null && !existingSchema.schema.isDeleted()) {
+                CompletableFuture<Void> result = new CompletableFuture<>();
+                try {
+                    compatibilityChecks.getOrDefault(schemaData.getType(), SchemaCompatibilityCheck.DEFAULT)
+                            .checkCompatible(existingSchema.schema, schemaData, strategy, true);
+                    result.complete(null);
+                } catch (IncompatibleSchemaException e) {
+                    result.completeExceptionally(e);
+                }
+                return result;
+            } else {
+                return FutureUtils.exception(new IncompatibleSchemaException("Do not have existing schema."));
+            }
+        });
+    }
+
+    public CompletableFuture<Void> checkProducerCompatibility(String schemaId, SchemaData schemaData,
+                                                              SchemaCompatibilityStrategy strategy) {
+        if (isTransitiveStrategy(strategy)) {
+
+        }
+
+        return null;
+
     }
 
     private CompletableFuture<Void> checkCompatibilityWithLatest(String schemaId, SchemaData schema,

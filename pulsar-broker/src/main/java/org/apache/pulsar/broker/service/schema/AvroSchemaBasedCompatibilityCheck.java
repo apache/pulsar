@@ -29,6 +29,7 @@ import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,12 +40,12 @@ import lombok.extern.slf4j.Slf4j;
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
 
     @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
         checkCompatible(Collections.singletonList(from), to, strategy);
     }
 
     @Override
-    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
         LinkedList<Schema> fromList = new LinkedList<>();
         try {
             for (SchemaData schemaData : from) {
@@ -53,7 +54,8 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
             }
             Schema.Parser parser = new Schema.Parser();
             Schema toSchema = parser.parse(new String(to.getData(), UTF_8));
-            SchemaValidator schemaValidator = createSchemaValidator(strategy);
+            SchemaValidator schemaValidator = isConsumer ?
+                    createConsumerSchemaValidator(strategy) : createSchemaValidator(strategy);
             schemaValidator.validate(toSchema, fromList);
         } catch (SchemaParseException e) {
             log.error("Error during schema parsing: {}", e.getMessage(), e);
@@ -64,7 +66,7 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
         }
     }
 
-    static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) throws IncompatibleSchemaException {
+    static SchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) {
         final SchemaValidatorBuilder validatorBuilder = new SchemaValidatorBuilder();
         switch (compatibilityStrategy) {
             case BACKWARD_TRANSITIVE:
@@ -83,6 +85,17 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
                 return AlwaysSchemaValidator.INSTANCE;
             default:
                 return NeverSchemaValidator.INSTANCE;
+        }
+    }
+
+    static SchemaValidator createConsumerSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) {
+        if (compatibilityStrategy == SchemaCompatibilityStrategy.BACKWARD ||
+                compatibilityStrategy == SchemaCompatibilityStrategy.FORWARD ||
+                compatibilityStrategy == SchemaCompatibilityStrategy.FORWARD_TRANSITIVE ||
+                compatibilityStrategy == SchemaCompatibilityStrategy.FULL) {
+            return createSchemaValidator(SchemaCompatibilityStrategy.BACKWARD);
+        } else {
+            return createSchemaValidator(compatibilityStrategy);
         }
     }
 

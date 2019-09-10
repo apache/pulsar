@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.schema;
 
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -94,5 +95,15 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         SchemaCompatibilityCheck valueCheck = checkers.getOrDefault(toValueType, SchemaCompatibilityCheck.DEFAULT);
         keyCheck.checkCompatible(fromKeyList, toKeyValue.getKey(), strategy);
         valueCheck.checkCompatible(fromValueList, toKeyValue.getValue(), strategy);
+    }
+
+    @Override
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
+        throw new IncompatibleSchemaException("KeyValueSchemaCompatibilityCheck don't support this method");
+    }
+
+    @Override
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
+        throw new IncompatibleSchemaException("KeyValueSchemaCompatibilityCheck don't support this method");
     }
 }

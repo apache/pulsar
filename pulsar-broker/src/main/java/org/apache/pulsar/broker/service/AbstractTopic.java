@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service;
 import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;

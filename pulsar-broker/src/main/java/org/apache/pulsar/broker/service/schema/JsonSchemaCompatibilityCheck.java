@@ -26,6 +26,7 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -41,7 +42,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
     }
 
     @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
         if (isAvroSchema(from)) {
             if (isAvroSchema(to)) {
                 // if both producer and broker have the schema in avro format

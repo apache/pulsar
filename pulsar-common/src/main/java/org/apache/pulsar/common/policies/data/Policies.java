@@ -80,8 +80,11 @@ public class Policies {
     public Long offload_deletion_lag_ms = null;
 
     @SuppressWarnings("checkstyle:MemberName")
+    @Deprecated
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
         SchemaAutoUpdateCompatibilityStrategy.Full;
+
+    public SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.UNDEFINED;
 
     @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
