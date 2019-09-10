@@ -49,7 +49,7 @@ This command deploys Docker container instances in three groups, which together 
 * 1 [Prometheus](http://prometheus.io/) instance and 1 [Grafana](https://grafana.com/) instance
 
 
-> When you run DC/OS, a ZooKeeper cluster already run at `master.mesos:2181`, thus you do not have to install or start up ZooKeeper separately.
+> When you run DC/OS, a ZooKeeper cluster already runs at `master.mesos:2181`, thus you do not have to install or start up ZooKeeper separately.
 
 After executing the `dcos` command above, click on the **Services** tab in the DC/OS [GUI interface](https://docs.mesosphere.com/latest/gui/), which you can access at [http://m1.dcos](http://m1.dcos) in this example. You should see several applications in the process of deploying.
 
@@ -103,7 +103,7 @@ Click into the instance of `prom` to get the endpoint of Prometheus, which is `1
 
 ![DC/OS prom endpoint](assets/dcos_prom_endpoint.png)
 
-If you click that endpoint, you see the Prometheus dashboard. The [http://192.168.65.121:9090/targets](http://192.168.65.121:9090/targets) URL display all the bookies and brokers.
+If you click that endpoint, you can see the Prometheus dashboard. The [http://192.168.65.121:9090/targets](http://192.168.65.121:9090/targets) URL display all the bookies and brokers.
 
 ![DC/OS prom targets](assets/dcos_prom_targets.png)
 
