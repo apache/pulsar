@@ -47,7 +47,7 @@ public class FloatSchema extends AbstractSchema<Float> {
 
     @Override
     public void validate(ByteBuf message) {
-        if (message.readableBytes()!= 4) {
+        if (message.readableBytes() != 4) {
             throw new SchemaSerializationException("Size of data received by FloatSchema is not 4");
         }
     }

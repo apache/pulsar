@@ -25,7 +25,11 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
+import java.io.InputStream;
 
 public class AvroReader<T> implements SchemaReader<T> {
 
@@ -54,5 +58,27 @@ public class AvroReader<T> implements SchemaReader<T> {
             throw new SchemaSerializationException(e);
         }
     }
+
+    @Override
+    public T read(InputStream inputStream) {
+        try {
+            BinaryDecoder decoderFromCache = decoders.get();
+            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(inputStream, decoderFromCache);
+            if (decoderFromCache == null) {
+                decoders.set(decoder);
+            }
+            return reader.read(null, DecoderFactory.get().binaryDecoder(inputStream, decoder));
+        } catch (IOException e) {
+            throw new SchemaSerializationException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                log.error("AvroReader close inputStream close error", e.getMessage());
+            }
+        }
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(AvroReader.class);
 
 }

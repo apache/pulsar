@@ -23,6 +23,12 @@ import com.google.protobuf.Parser;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+
 public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaReader<T> {
     private Parser<T> tParser;
 
@@ -39,4 +45,20 @@ public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> im
         }
     }
 
+    @Override
+    public T read(InputStream inputStream) {
+        try {
+            return this.tParser.parseFrom(inputStream);
+        } catch (InvalidProtocolBufferException e) {
+            throw new SchemaSerializationException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                log.error("ProtobufReader close inputStream close error", e.getMessage());
+            }
+        }
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(ProtobufReader.class);
 }

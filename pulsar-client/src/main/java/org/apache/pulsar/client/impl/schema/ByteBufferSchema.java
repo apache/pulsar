@@ -34,13 +34,6 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
         return INSTANCE;
     }
 
-    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
-        @Override
-        protected byte[] initialValue() {
-            return new byte[1024];
-        }
-    };
-
     private static final ByteBufferSchema INSTANCE = new ByteBufferSchema();
     private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
         .setName("ByteBuffer")
@@ -83,13 +76,7 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
             return null;
         } else {
             int size = byteBuf.readableBytes();
-            byte[] bytes = tmpBuffer.get();
-            if (size > bytes.length) {
-                bytes = new byte[size * 2];
-                tmpBuffer.set(bytes);
-            }
-            byteBuf.readBytes(bytes, 0, size);
-            return ByteBuffer.wrap(bytes, 0, size);
+            return byteBuf.nioBuffer(0, byteBuf.readableBytes());
         }
     }
 

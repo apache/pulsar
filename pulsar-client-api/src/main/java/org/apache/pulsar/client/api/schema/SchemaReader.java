@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+import java.io.InputStream;
+
 public interface SchemaReader<T> {
 
     /**
@@ -39,4 +41,12 @@ public interface SchemaReader<T> {
      * @return the serialized object
      */
     T read(byte[] bytes, int offset, int length);
+
+    /**
+     * serialize bytes convert pojo
+     *
+     * @param inputStream the stream of message
+     * @return the serialized object
+     */
+    T read(InputStream inputStream);
 }

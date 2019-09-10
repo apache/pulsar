@@ -27,7 +27,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
+import io.netty.buffer.ByteBufInputStream;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.codec.binary.Hex;
@@ -62,13 +62,6 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
     protected SchemaReader<T> reader;
     protected SchemaWriter<T> writer;
     protected SchemaInfoProvider schemaInfoProvider;
-
-    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
-        @Override
-        protected byte[] initialValue() {
-            return new byte[1024];
-        }
-    };
 
     private final LoadingCache<BytesSchemaVersion, SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<BytesSchemaVersion, SchemaReader<T>>() {
@@ -110,33 +103,18 @@ public abstract class StructSchema<T> extends AbstractSchema<T> {
 
     @Override
     public T decode(ByteBuf byteBuf) {
-        int size = getCanReadSize(byteBuf);
-        return reader.read(tmpBuffer.get(), 0, size);
+        return reader.read(new ByteBufInputStream(byteBuf));
     }
 
     @Override
     public T decode(ByteBuf byteBuf, byte[] schemaVersion) {
-        int size = getCanReadSize(byteBuf);
-
         try {
-            return readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(tmpBuffer.get(), 0, size );
+            return readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(new ByteBufInputStream(byteBuf));
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
             throw new RuntimeException("Can't get generic schema for topic " + schemaInfoProvider.getTopicName());
         }
-    }
-
-    private int getCanReadSize(ByteBuf byteBuf) {
-        int size = byteBuf.readableBytes();
-        byte[] bytes = tmpBuffer.get();
-        if (size > bytes.length) {
-            bytes = new byte[size * 2];
-            tmpBuffer.set(bytes);
-        }
-        byteBuf.readBytes(bytes, 0, size);
-
-        return size;
     }
 
     @Override
