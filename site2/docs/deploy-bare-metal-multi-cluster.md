@@ -82,7 +82,7 @@ Directory | Contains
 Each Pulsar instance relies on two separate ZooKeeper quorums.
 
 * [Local ZooKeeper](#deploying-local-zookeeper) operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
-* [Configuration Store](#deploying-configuration-store) operates at the instance level and provides configuration management for the entire system (and thus across clusters). The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
+* [Configuration Store](#deploying-the-configuration-store) operates at the instance level and provides configuration management for the entire system (and thus across clusters). The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
 
 ### Deploying local ZooKeeper
 
@@ -117,6 +117,15 @@ Once each server has been added to the `zookeeper.conf` configuration and has th
 $ bin/pulsar-daemon start zookeeper
 ```
 
+> If you are planning to deploy zookeeper with bookie on the same node, you
+> need to start zookeeper by using different stats port.
+
+Start zookeeper with [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool like:
+
+```bash
+$ PULSAR_EXTRA_OPTS="-Dstats_server_port=8001" bin/pulsar-daemon start zookeeper
+```
+
 ### Deploying the configuration store 
 
 The ZooKeeper cluster configured and started up in the section above is a *local* ZooKeeper cluster used to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.
@@ -127,7 +136,7 @@ If you're deploying a [single-cluster](#single-cluster-pulsar-instance) instance
 
 If your Pulsar instance will consist of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but running on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [Local ZooKeeper](#deploying-local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -202,7 +211,7 @@ $ bin/pulsar-daemon start configuration-store
 
 Once you've set up the cluster-specific ZooKeeper and configuration store quorums for your instance, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. **It only needs to be written once**.
 
-You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. Here's an example:
+You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. Here's an example:
 
 ```shell
 $ bin/pulsar initialize-cluster-metadata \
@@ -241,19 +250,34 @@ BookKeeper bookies can be configured using the [`conf/bookkeeper.conf`](referenc
 
 You can start up a bookie in two ways: in the foreground or as a background daemon.
 
-To start up a bookie in the foreground, use the [`bookeeper`](reference-cli-tools.md#bookkeeper)
+To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
-```shell
+```bash
 $ bin/pulsar-daemon start bookie
 ```
 
-You can verify that the bookie is working properly using the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
+To start the bookie in the foreground:
+
+```bash
+$ bin/bookkeeper bookie
+```
+
+You can verify that the bookie is working properly using the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#shell):
 
 ```shell
 $ bin/bookkeeper shell bookiesanity
 ```
 
 This will create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.
+
+After you have started all the bookies, you can use `simpletest` command for [BookKeeper shell](reference-cli-tools.md#shell) on any bookie node, to
+verify all the bookies in the cluster are up running.
+
+```bash
+$ bin/bookkeeper shell simpletest --ensemble <num-bookies> --writeQuorum <num-bookies> --ackQuorum <num-bookies> --numEntries <num-entries>
+```
+
+This command will create a `num-bookies` sized ledger on the cluster, write a few entries, and finally delete the ledger.
 
 ### Hardware considerations
 
@@ -318,7 +342,7 @@ You can start a broker in the background using [nohup](https://en.wikipedia.org/
 $ bin/pulsar-daemon start broker
 ```
 
-You can also start brokers in the foreground using [`pulsar broker`](reference-cli-tools.md#pulsar-broker):
+You can also start brokers in the foreground using [`pulsar broker`](reference-cli-tools.md#broker):
 
 ```shell
 $ bin/pulsar broker
@@ -371,7 +395,7 @@ serviceUrl=http://pulsar.us-west.example.com:8080/
 
 Pulsar was built as a fundamentally multi-tenant system.
 
-To allow a new tenant to use the system, we need to create a new one. You can create a new tenant using the [`pulsar-admin`](reference-pulsar-admin.md#tenants-create) CLI tool:
+To allow a new tenant to use the system, we need to create a new one. You can create a new tenant using the [`pulsar-admin`](reference-pulsar-admin.md#tenants) CLI tool:
 
 ```shell
 $ bin/pulsar-admin tenants create test-tentant \
@@ -379,7 +403,7 @@ $ bin/pulsar-admin tenants create test-tentant \
   --admin-roles test-admin-role
 ```
 
-This will allow users who identify with role `test-admin-role` to administer the configuration for the tenant `test` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
+This will allow users who identify with role `test-admin-role` to administer the configuration for the tenant `test-tenant` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
 
 Once a tenant has been created, you will need to create [namespaces](reference-terminology.md#namespace) for topics within that tenant.
 
@@ -392,7 +416,7 @@ $ bin/pulsar-admin namespaces create test-tenant/ns1
 ##### Testing producer and consumer
 
 Everything is now ready to send and receive messages. The quickest way to test
-the system is through the `pulsar-perf` client tool.
+the system is through the [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) client tool.
 
 Let's use a topic in the namespace we just created. Topics are automatically
 created the first time a producer or a consumer tries to use them.
@@ -407,18 +431,18 @@ Start a consumer that will create a subscription on the topic and will wait
 for messages:
 
 ```shell
-$ bin/pulsar-perf consume persistent://test-tenant/us-west/ns1/my-topic
+$ bin/pulsar-perf consume persistent://test-tenant/ns1/my-topic
 ```
 
 Start a producer that publishes messages at a fixed rate and report stats every
 10 seconds:
 
 ```shell
-$ bin/pulsar-perf produce persistent://test-tenant/us-west/ns1/my-topic
+$ bin/pulsar-perf produce persistent://test-tenant/ns1/my-topic
 ```
 
 To report the topic stats:
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://test-tenant/us-west/ns1/my-topic
+$ bin/pulsar-admin topics stats persistent://test-tenant/ns1/my-topic
 ```
