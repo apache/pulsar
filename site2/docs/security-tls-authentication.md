@@ -153,3 +153,22 @@ config.setAuth(auth);
 
 pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 ```
+
+### Node.js client
+
+```JavaScript
+const Pulsar = require('pulsar-client');
+
+(async () => {
+  const auth = new Pulsar.AuthenticationTls({
+    certificatePath: '/path/to/my-role.cert.pem',
+    privateKeyPath: '/path/to/my-role.key-pk8.pem',
+  });
+
+  const client = new Pulsar.Client({
+    serviceUrl: 'pulsar+ssl://broker.example.com:6651/',
+    authentication: auth,
+    tlsTrustCertsFilePath: '/path/to/ca.cert.pem',
+  });
+})();
+```

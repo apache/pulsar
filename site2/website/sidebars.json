@@ -86,6 +86,7 @@
       "client-libraries-go",
       "client-libraries-python",
       "client-libraries-cpp",
+      "client-libraries-node",
       "client-libraries-websocket"
     ],
     "Admin API": [
