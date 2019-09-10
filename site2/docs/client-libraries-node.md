@@ -4,7 +4,7 @@ title: The Pulsar Node.js client
 sidebar_label: Node.js
 ---
 
-The Pulsar Node.js client can be used to create Pulsar [producers](#producers), and and [consumers](#consumers) in Node.js.
+The Pulsar Node.js client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Node.js.
 
 ## Installation
 
@@ -80,7 +80,24 @@ The following configurable parameters are available for Pulsar clients:
 
 ## Producers
 
+Here is an example:
+
+```JavaScript
+const producer = await client.createProducer({
+  topic: 'my-topic',
+});
+
+producer.send({
+  data: Buffer.from("Hello, Pulsar"),
+});
+await producer.flush();
+
+await producer.close();
+```
+
 ### Producer operations
+
+Pulsar Node.js producers have the following methods available:
 
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
@@ -107,38 +124,7 @@ The following configurable parameters are available for Pulsar clients:
 | `batchingMaxMessages` | | |
 | `properties` | | |
 
-## Consumers
-
-### Consumer operations
-
-| Method | Description | Return type |
-| :----- | :---------- | :---------- |
-| `receive()` | | |
-| `receive(timeout)` | | |
-| `acknowledge(message)` | | |
-| `acknowledgeId(messageId)` | | |
-| `acknowledgeCumulative(message)` | | |
-| `acknowledgeCumulativeId(messageId)` | | |
-| `close()` | | |
-
-### Consumer configuration
-
-| Parameter | Description | Default |
-| :-------- | :---------- | :------ |
-| `topic` | | |
-| `subscription` | | |
-| `subscriptionType` | | |
-| `ackTimeoutMs` | | |
-| `receiverQueueSize` | | |
-| `receiverQueueSizeAcrossPartitions` | | |
-| `consumerName` | | |
-| `properties` | | |
-
-## Examples
-
-Below you'll find Node.js code examples for the `pulsar-client` library.
-
-### Producer example
+### Produce example
 
 This creates a Node.js producer for the `my-topic` topic and send 10 messages on that topic:
 
@@ -171,9 +157,53 @@ const Pulsar = require('pulsar-client');
 })();
 ```
 
-### Consumer example
+## Consumers
 
-This creates a Node.js consumer with the `my-subscription` subscription on the `my-topic` topic, listen for incoming messages, print the content that arrive, and acknowledge each message to the Pulsar broker:
+Here is an example:
+
+```JavaScript
+const consumer = await client.subscribe({
+  topic: 'my-topic',
+  subscription: 'my-subscription',
+});
+
+const msg = await consumer.receive();
+console.log(msg.getData().toString());
+consumer.acknowledge(msg);
+
+await consumer.close();
+```
+
+### Consumer operations
+
+Pulsar Node.js consumers have the following methods available:
+
+| Method | Description | Return type |
+| :----- | :---------- | :---------- |
+| `receive()` | | |
+| `receive(timeout)` | | |
+| `acknowledge(message)` | | |
+| `acknowledgeId(messageId)` | | |
+| `acknowledgeCumulative(message)` | | |
+| `acknowledgeCumulativeId(messageId)` | | |
+| `close()` | | |
+
+### Consumer configuration
+
+| Parameter | Description | Default |
+| :-------- | :---------- | :------ |
+| `topic` | | |
+| `subscription` | | |
+| `subscriptionType` | | |
+| `ackTimeoutMs` | | |
+| `receiverQueueSize` | | |
+| `receiverQueueSizeAcrossPartitions` | | |
+| `consumerName` | | |
+| `properties` | | |
+
+### Consume example
+
+This creates a Node.js consumer with the `my-subscription` subscription on the `my-topic` topic, receive messages, print the content that arrive, and acknowledge each message to the Pulsar broker for 10 times:
 
 ```JavaScript
 const Pulsar = require('pulsar-client');
@@ -198,6 +228,74 @@ const Pulsar = require('pulsar-client');
   }
 
   await consumer.close();
+  await client.close();
+})();
+```
+
+## Readers
+
+Here is an example:
+
+```JavaScript
+const reader = await client.createReader({
+  topic: 'my-topic',
+  startMessageId: Pulsar.MessageId.earliest(),
+});
+
+const msg = await reader.readNext();
+console.log(msg.getData().toString());
+
+await reader.close();
+```
+
+### Reader operations
+
+Pulsar Node.js readers have the following methods available:
+
+| Method | Description | Return type |
+| :----- | :---------- | :---------- |
+| `readNext()` | | |
+| `readNext(timeout)` | | |
+| `hasNext()` | | |
+| `close()` | | |
+
+### Reader configuration
+
+| Parameter | Description | Default |
+| :-------- | :---------- | :------ |
+| `topic` | | |
+| `startMessageId` | | |
+| `receiverQueueSize` | | |
+| `readerName` | | |
+| `subscriptionRolePrefix` | | |
+
+### Reader example
+
+This create a Node.js reader with the `my-topic` topic, read messages, print the content that arrive for 10 times:
+
+```JavaScript
+const Pulsar = require('pulsar-client');
+
+(async () => {
+  // Create a client
+  const client = new Pulsar.Client({
+    serviceUrl: 'pulsar://localhost:6650',
+    operationTimeoutSeconds: 30,
+  });
+
+  // Create a reader
+  const reader = await client.createReader({
+    topic: 'my-topic',
+    startMessageId: Pulsar.MessageId.earliest(),
+  });
+
+  // read messages
+  for (let i = 0; i < 10; i += 1) {
+    const msg = await reader.readNext();
+    console.log(msg.getData().toString());
+  }
+
+  await reader.close();
   await client.close();
 })();
 ```
