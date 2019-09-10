@@ -63,7 +63,7 @@ For machines running ZooKeeper, you had better use lighter-weight machines or VM
 
 #### Bookies and Brokers
 
-For machines running a bookie and a Pulsar broker, you had better use more powerful machines. For an AWS deployment, for example, [i3.4xlarge](https://aws.amazon.com/blogs/aws/now-available-i3-instances-for-demanding-io-intensive-applications/) instances may be appropriate. On those machines you had better use the following:
+For machines running a bookie and a Pulsar broker, you had better use more powerful machines. For an AWS deployment, for example, [i3.4xlarge](https://aws.amazon.com/blogs/aws/now-available-i3-instances-for-demanding-io-intensive-applications/) instances may be appropriate. On those machines you can use the following:
 
 * Fast CPUs and 10Gbps [NIC](https://en.wikipedia.org/wiki/Network_interface_controller) (for Pulsar brokers)
 * Small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache (for BookKeeper bookies)
@@ -101,7 +101,7 @@ Directory | Contains
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
 `logs` | Logs that the installation creates
 
-## Install Builtin Connectors (optional)
+## [Install Builtin Connectors (optional)]( https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional)
 
 > Since Pulsar releases `2.1.0-incubating`, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
 > If you want to enable those `builtin` connectors, you can follow the instructions as below; otherwise you can
@@ -133,7 +133,7 @@ pulsar-io-aerospike-{{pulsar:version}}.nar
 ...
 ```
 
-## Install Tiered Storage Offloaders (optional)
+## [Install Tiered Storage Offloaders (optional)](https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional)
 
 > Since Pulsar release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
 > If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can
