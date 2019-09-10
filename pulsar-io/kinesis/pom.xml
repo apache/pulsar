@@ -94,6 +94,18 @@
       <artifactId>amazon-kinesis-producer</artifactId>
       <version>0.13.1</version>
     </dependency>
+
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-sts</artifactId>
+      <version>1.11.619</version>
+    </dependency>
+
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sts</artifactId>
+      <version>2.8.5</version>
+    </dependency>
 	<!-- /kinesis dependencies -->
 
     <dependency>
