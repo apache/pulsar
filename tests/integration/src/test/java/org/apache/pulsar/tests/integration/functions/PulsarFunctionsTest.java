@@ -118,7 +118,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testDebeziumMySqlConnect();
     }
 
-    @Test
+    @Test(enabled = false)
     public void testDebeziumPostgresqlSource() throws Exception {
         testDebeziumPostgresqlConnect();
     }
