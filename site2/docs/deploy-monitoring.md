@@ -4,9 +4,11 @@ title: Monitoring
 sidebar_label: Monitoring
 ---
 
-You can use different ways to monitor a Pulsar cluster, exposing both metrics that relates to the usage of topics and the overall health of the individual components of the cluster.
+You can use different ways to monitor a Pulsar cluster, exposing both metrics that relate to the usage of topics and the overall health of the individual components of the cluster.
 
 ## Collect metrics
+
+You can choose the following ways to collect metrics:
 
 ### Broker stats
 
@@ -48,20 +50,20 @@ The default port of local ZooKeeper is `8000` and the default port of configurat
 For BookKeeper you can configure the stats frameworks by changing the `statsProviderClass` in
 `conf/bookkeeper.conf`.
 
-By default, the default BookKeeper configuration included with Pulsar distribution enables the Prometheus exporter.
+The default BookKeeper configuration, which is included with Pulsar distribution, enables the Prometheus exporter.
 
 ```shell
 http://$BOOKIE_ADDRESS:8000/metrics
 ```
 
-For bookies, the default port is `8000` (instead of `8080`) and you can configure the default port of bookies by changing the `prometheusStatsHttpPort` in `conf/bookkeeper.conf`.
+For bookies, the default port is `8000` (instead of `8080`) and you can change the `prometheusStatsHttpPort` in `conf/bookkeeper.conf` to configure the default port of bookies.
 
 ## Configure Prometheus
 
-You can configure Prometheus to collect and store the metrics data by following the Prometheus
+You can configure Prometheus to collect and store the metrics data following the Prometheus
 [Getting started](https://prometheus.io/docs/introduction/getting_started/) guide.
 
-When you run on bare metal, you can provide the list of nodes that needs to be probed. When you deploy in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md) instructions.
+When you run Pulsar on bare metal, you can provide the list of nodes that needs to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md) instructions.
 
 ## Dashboards
 
@@ -77,7 +79,7 @@ The per-topic dashboard instructions are available at [Dashboard](administration
 
 You can use grafana to easily create dashboard driven by the data that is stored in Prometheus.
 
-A `pulsar-grafana` Docker image is ready to use with the principal dashboards which is already in place. This is enabled by default when you deploy Pulsar on Kubernetes.
+When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled by default to use with the principal dashboards that is already in place.
 
 Enter the command below to use the dashboard manually:
 
