@@ -66,6 +66,7 @@ public class DebeziumPostgresqlSourceTester extends SourceTester<DebeziumPostgre
         sourceConfig.put("database.server.name", "dbserver1");
         sourceConfig.put("database.dbname", "postgres");
         sourceConfig.put("schema.whitelist", "inventory");
+        sourceConfig.put("table.blacklist", "inventory.spatial_ref_sys,inventory.geom");
         sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
     }
 
