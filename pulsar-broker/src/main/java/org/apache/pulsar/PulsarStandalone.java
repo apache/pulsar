@@ -272,9 +272,7 @@ public class PulsarStandalone implements AutoCloseable {
                 workerConfig = WorkerConfig.load(this.getFnWorkerConfigFile());
             }
             // worker talks to local broker
-            // If the broker client is configured to use TLS, then we
-            // configure the function worker to use TLS
-            boolean useTls = config.isBrokerClientTlsEnabled();
+            boolean useTls = workerConfig.isUseTls();
             String pulsarServiceUrl = useTls
                     ? PulsarService.brokerUrlTls(config)
                     : PulsarService.brokerUrl(config);

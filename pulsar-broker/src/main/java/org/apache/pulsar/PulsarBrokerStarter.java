@@ -160,9 +160,7 @@ public class PulsarBrokerStarter {
                     workerConfig = WorkerConfig.load(starterArguments.fnWorkerConfigFile);
                 }
                 // worker talks to local broker
-                // If the broker client is configured to use TLS, then we
-                // configure the function worker to use TLS
-                boolean useTls = brokerConfig.isBrokerClientTlsEnabled();
+                boolean useTls = workerConfig.isUseTls();
                 String pulsarServiceUrl = useTls
                         ? PulsarService.brokerUrlTls(brokerConfig)
                         : PulsarService.brokerUrl(brokerConfig);
