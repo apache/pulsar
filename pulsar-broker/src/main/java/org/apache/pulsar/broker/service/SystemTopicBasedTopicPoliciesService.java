@@ -64,10 +64,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+
         createSystemTopicFactoryIfNeeded();
         SystemTopic systemTopic = namespaceEventsSystemTopicFactory.createSystemTopic(topicName.getNamespaceObject(),
                 EventType.TOPIC_POLICY);
-        CompletableFuture<Void> result = new CompletableFuture<>();
+
         CompletableFuture<SystemTopic.Writer> writerFuture = systemTopic.newWriterAsync();
         writerFuture.whenComplete((writer, ex) -> {
             if (ex != null) {
@@ -138,18 +140,24 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(0));
         ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
         createSystemTopicFactoryIfNeeded();
-        SystemTopic systemTopic = namespaceEventsSystemTopicFactory.createSystemTopic(namespace
-                , EventType.TOPIC_POLICY);
-        CompletableFuture<SystemTopic.Reader> readerFuture = systemTopic.newReaderAsync();
-        readerCaches.put(namespace, readerFuture);
-        readerFuture.whenComplete((reader, ex) -> {
-            if (ex != null) {
-                result.completeExceptionally(ex);
+        synchronized (this) {
+            if (readerCaches.get(namespace) != null) {
+                result.complete(null);
             } else {
-                initPolicesCache(reader, result);
-                readMorePolicies(reader);
+                SystemTopic systemTopic = namespaceEventsSystemTopicFactory.createSystemTopic(namespace
+                        , EventType.TOPIC_POLICY);
+                CompletableFuture<SystemTopic.Reader> readerCompletableFuture = systemTopic.newReaderAsync();
+                readerCaches.put(namespace, readerCompletableFuture);
+                readerCompletableFuture.whenComplete((reader, ex) -> {
+                    if (ex != null) {
+                        result.completeExceptionally(ex);
+                    } else {
+                        initPolicesCache(reader, result);
+                        readMorePolicies(reader);
+                    }
+                });
             }
-        });
+        }
         return result;
     }
 
@@ -158,9 +166,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
         AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);
         if (bundlesCount == null || bundlesCount.decrementAndGet() <= 0) {
-            readerCaches.remove(namespace).thenAccept(SystemTopic.Reader::closeAsync);
-            ownedBundlesCountPerNamespace.remove(namespace);
-            policiesCache.entrySet().removeIf(entry -> entry.getKey().getNamespaceObject().equals(namespace));
+            CompletableFuture<SystemTopic.Reader> readerCompletableFuture = readerCaches.remove(namespace);
+            if (readerCompletableFuture != null) {
+                readerCompletableFuture.thenAccept(SystemTopic.Reader::closeAsync);
+                ownedBundlesCountPerNamespace.remove(namespace);
+                policiesCache.entrySet().removeIf(entry -> entry.getKey().getNamespaceObject().equals(namespace));
+            }
         }
         return CompletableFuture.completedFuture(null);
     }

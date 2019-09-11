@@ -66,7 +66,20 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test
-    public void testGetPolicy() throws ExecutionException, InterruptedException {
+    public void testGetPolicy() throws ExecutionException, InterruptedException, PulsarClientException {
+        // Init topic policies
+        for (int i = 1; i <= 10; i++) {
+            TopicPolicies initPolicy = TopicPolicies.builder()
+                    .maxConsumerPerTopic(i)
+                    .build();
+            systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
+        }
+
+        // Broker need to own the namespace bundle
+        pulsarClient.newProducer().topic(TOPIC1.toString()).create();
+
+        // Assert broker is cache all topic policies
+        Assert.assertEquals(10, systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1).getMaxConsumerPerTopic().intValue());
 
         // Update policy for TOPIC1
         TopicPolicies policies1 = TopicPolicies.builder()
@@ -162,7 +175,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertEquals(policies1, policiesGet1);
     }
 
-    private void prepareData() throws PulsarAdminException, PulsarClientException {
+    private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
         admin.tenants().createTenant("system-topic",
                 new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
@@ -171,8 +184,5 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.namespaces().createNamespace(NAMESPACE3);
         systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         systemTopicBasedTopicPoliciesService = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-
-        // Broker need to own the namespace bundle
-        pulsarClient.newProducer().topic(TOPIC1.toString()).create();
     }
 }
