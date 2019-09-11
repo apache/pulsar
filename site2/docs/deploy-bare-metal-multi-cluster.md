@@ -117,8 +117,8 @@ Once each server has been added to the `zookeeper.conf` configuration and has th
 $ bin/pulsar-daemon start zookeeper
 ```
 
-> If you deploy ZooKeeper with bookie on the same node, you
-> need to start ZooKeeper by using different stats port.
+> Note 
+> If you deploy ZooKeeper with bookie on the same node, you need to start ZooKeeper by using different stats port.
 
 Start ZooKeeper with [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool like:
 
@@ -136,7 +136,7 @@ If you're deploying a [single-cluster](#single-cluster-pulsar-instance) instance
 
 If your Pulsar instance will consist of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but running on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [Local ZooKeeper](#deploying-local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [Local ZooKeeper](#deploy-local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -250,13 +250,13 @@ BookKeeper bookies can be configured using the [`conf/bookkeeper.conf`](referenc
 
 You can start a bookie in two ways: in the foreground or as a background daemon.
 
-To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
 ```bash
 $ bin/pulsar-daemon start bookie
 ```
 
-To start the bookie in the foreground:
+To start a bookie in the foreground:
 
 ```bash
 $ bin/bookkeeper bookie
@@ -412,8 +412,7 @@ $ bin/pulsar-admin namespaces create test-tenant/ns1
 
 ##### Testing producer and consumer
 
-Everything is now ready to send and receive messages. The quickest way to test
-the system is through the [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) client tool.
+Everything is now ready to send and receive messages. The quickest way to test the system is through the [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) client tool.
 
 Let's use a topic in the namespace we just created. Topics are automatically
 created the first time a producer or a consumer tries to use them.
