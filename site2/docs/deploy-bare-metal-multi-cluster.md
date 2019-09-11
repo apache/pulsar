@@ -20,12 +20,12 @@ sidebar_label: Bare metal multi-cluster
 
 A Pulsar *instance* consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
-* Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [configuration store](#configuration-store) quorum for instance-wide tasks
+* Deploying two separate [ZooKeeper](#deploy-zookeeper) quorums: a [local](#deploy-local-zookeeper) quorum for each cluster in the instance and a [configuration store](#configuration-store) quorum for instance-wide tasks
 * Initializing [cluster metadata](#cluster-metadata-initialization) for each cluster
-* Deploying a [BookKeeper cluster](#deploying-bookkeeper) of bookies in each Pulsar cluster
-* Deploying [brokers](#deploying-brokers) in each Pulsar cluster
+* Deploying a [BookKeeper cluster](#deploy-bookkeeper) of bookies in each Pulsar cluster
+* Deploying [brokers](#deploy-brokers) in each Pulsar cluster
 
-If you want to deploy a single Pulsar cluster, see [Clusters and Brokers](getting-started-standalone.md#starting-the-cluster).
+If you want to deploy a single Pulsar cluster, see [Clusters and Brokers](getting-started-standalone.md#start-the-cluster).
 
 > #### Run Pulsar locally or on Kubernetes?
 > This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes.md) guide, which includes sections on running Pulsar on Kubernetes on [Google Kubernetes Engine](deploy-kubernetes#pulsar-on-google-kubernetes-engine) and on [Amazon Web Services](deploy-kubernetes#pulsar-on-amazon-web-services).
@@ -81,8 +81,8 @@ Directory | Contains
 
 Each Pulsar instance relies on two separate ZooKeeper quorums.
 
-* [Local ZooKeeper](#deploying-local-zookeeper). It operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
-* [Configuration Store](#deploying-configuration-store). It operates at the instance level and provides configuration management for the entire system (and thus across clusters). An independent cluster of machines or the same machines that local ZooKeeper uses can provide the configuration store quorum.
+* [Local ZooKeeper](#deploy-local-zookeeper). It operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
+* [Configuration Store](#deploy-configuration-store). It operates at the instance level and provides configuration management for the entire system (and thus across clusters). An independent cluster of machines or the same machines that local ZooKeeper uses can provide the configuration store quorum.
 
 ### Deploy local ZooKeeper
 
@@ -233,7 +233,7 @@ Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper clus
 
 You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. The most important aspect of configuring each bookie is ensuring that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for the local ZooKeeper of Pulsar cluster.
 
-### Start up bookies
+### Start bookies
 
 You can start up a bookie in two ways: in the foreground or as a background daemon.
 
@@ -350,7 +350,6 @@ To start the discovery service:
 ```shell
 $ bin/pulsar-daemon start discovery
 ```
-
 
 
 ## Admin client and verification
