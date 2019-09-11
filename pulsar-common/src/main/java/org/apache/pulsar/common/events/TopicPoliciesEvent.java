@@ -24,6 +24,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 
+/**
+ * Topic policies event.
+ */
 @Data
 @Builder
 @NoArgsConstructor

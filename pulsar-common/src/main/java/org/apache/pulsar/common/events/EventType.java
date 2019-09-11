@@ -19,12 +19,12 @@
 package org.apache.pulsar.common.events;
 
 /**
- * Pulsar system event type
+ * Pulsar system event type.
  */
 public enum EventType {
 
     /**
-     * Topic policy events
+     * Topic policy events.
      */
     TOPIC_POLICY
 }

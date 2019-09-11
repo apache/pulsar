@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.events;
 
 /**
- * System topic name for the event type
+ * System topic name for the event type.
  */
 public class EventsTopicNames {
 

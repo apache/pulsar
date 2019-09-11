@@ -34,7 +34,7 @@ public class TopicPolicies {
 
     private Map<String, BacklogQuota> backLogQuotaMap =  Maps.newHashMap();
     private PersistencePolicies persistence = null;
-    private RetentionPolicies retention_policies = null;
+    private RetentionPolicies retentionPolicies = null;
     private Boolean deduplicationEnabled = null;
     private Integer messageTTLInSeconds = null;
     private Integer maxProducerPerTopic = null;
@@ -50,7 +50,7 @@ public class TopicPolicies {
     }
 
     public boolean isRetentionSet() {
-        return retention_policies != null;
+        return retentionPolicies != null;
     }
 
     public boolean isDeduplicationSet() {

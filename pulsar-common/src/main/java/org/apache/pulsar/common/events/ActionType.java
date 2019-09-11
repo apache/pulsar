@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.events;
 
 /**
- * Pulsar event action type
+ * Pulsar event action type.
  */
 public enum ActionType {
 

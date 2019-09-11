@@ -23,6 +23,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Pulsar base event.
+ */
 @Data
 @Builder
 @NoArgsConstructor
