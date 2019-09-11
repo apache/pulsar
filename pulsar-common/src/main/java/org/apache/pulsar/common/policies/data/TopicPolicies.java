@@ -19,13 +19,18 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Maps;
+
+import java.util.Map;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Map;
 
+/**
+ * Topic policies.
+ */
 @Data
 @Builder
 @NoArgsConstructor
