@@ -1,21 +1,22 @@
 ---
-id: functions-debugging
-title: How to debug Pulsar Functions
-sidebar_label: Debugging
+id: version-2.4.1-functions-debug
+title: Debug Pulsar Functions
+sidebar_label: How-to: Debug
+original_id: functions-debug
 ---
 
 You can use the following methods to debug Pulsar Functions:
 
-* [Use unit test](functions-debugging.md#use-unit-test)
-* [Debug with localrun mode](functions-debugging.md#debug-with-localrun-mode)
-* [Use log topic](functions-debugging.md#use-log-topic)
-* [Use Functions CLI](functions-debugging.md#use-functions-cli)
+* [Use unit test](functions-debug.md#use-unit-test)
+* [Debug with localrun mode](functions-debug.md#debug-with-localrun-mode)
+* [Use log topic](functions-debug.md#use-log-topic)
+* [Use Functions CLI](functions-debug.md#use-functions-cli)
 
 ## Use unit test
 
-A Pulsar Function at its core is just a function with inputs and outputs, thus testing a Pulsar Function can be done in a similar way as testing any function.
+A Pulsar Function is a function with inputs and outputs, you can test a Pulsar Function in a similar way as you test any function.
 
-For example, if a user has the following Pulsar Function:
+For example, if you have the following Pulsar Function:
 
 ```java
 import java.util.function.Function;
@@ -28,7 +29,7 @@ public class JavaNativeExclamationFunction implements Function<String, String> {
 }
 ```
 
-The user can write a simple unit test to test this Pulsar function:
+You can write a simple unit test to test Pulsar Function.
 
 ```java
 @Test
@@ -39,7 +40,7 @@ public void testJavaNativeExclamationFunction() {
 }
 ```
 
-Consequently, if a user has a Pulsar Function that implements the ```org.apache.pulsar.functions.api.Function``` interface:
+The following Pulsar Function implements the `org.apache.pulsar.functions.api.Function` interface.
 
 ```java
 import org.apache.pulsar.functions.api.Context;
@@ -53,9 +54,7 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
-The user can write a unit test for this function as well. Remember to mock out the ```Context``` parameter.
-
-For example:
+In this situation, you can write a unit test for this function as well. Remember to mock the `Context` parameter. The following is an example.
 
 ```java
 @Test
@@ -67,16 +66,14 @@ public void testExclamationFunction() {
 ```
 
 ## Debug with localrun mode
+When you run a Pulsar Function in localrun mode, it launches an instance of the Function on your local machine as a thread.
 
-> Note
->
-> Currently, debugging with localrun mode only supports Pulsar Functions written in Java. Users need Pulsar version 2.4.0 or later to do the following. Even though localrun is available in versions earlier than Pulsar 2.4.0, it does not have the functionality to be executed programmatically and run Functions as threads.
+In this mode, a Pulsar Function consumes and produces actual data to a Pulsar cluster, and mirrors how the function actually runs in a Pulsar cluster.
 
-To test in a more realistic fashion, a Pulsar Function can be run via localrun mode which will launch an instance of the Function on your local machine as a thread.
+> Note  
+> Currently, debugging with localrun mode is only supported by Pulsar Functions written in Java. You need Pulsar version 2.4.0 or later to do the following. Even though localrun is available in versions earlier than Pulsar 2.4.0, you cannot debug with localrun mode programmatically or run Functions as threads.
 
-In this mode, the Pulsar Function can consume and produce actual data to a Pulsar cluster and mirrors how the function will actually run in a Pulsar cluster.
-
-Users can launch his or her function in the following manner:
+You can launch your function in the following manner.
 
 ```java
 FunctionConfig functionConfig = new FunctionConfig();
@@ -90,9 +87,9 @@ LocalRunner localRunner = LocalRunner.builder().functionConfig(functionConfig).b
 localRunner.start(true);
 ```
 
-This allows users to easily debug functions using an IDE. Users can set breakpoints and manually step through a function to debug with real data.
+So you can debug functions using an IDE easily. Set breakpoints and manually step through a function to debug with real data.
 
-The following code snippet is a more complete example on how to programmatically launch a function in localrun mode.
+The following example illustrates how to programmatically launch a function in localrun mode.
 
 ```java
 public class ExclamationFunction implements Function<String, String> {
@@ -101,7 +98,6 @@ public class ExclamationFunction implements Function<String, String> {
    public String process(String s, Context context) throws Exception {
        return s + "!";
    }
-
 
 public static void main(String[] args) throws Exception {
     FunctionConfig functionConfig = new FunctionConfig();
@@ -116,7 +112,7 @@ public static void main(String[] args) throws Exception {
 }
 ```
 
-To use localrun like above programmatically please addd the following dependency:
+To use localrun mode programmatically, add the following dependency.
 
 ```xml
 <dependency>
@@ -129,11 +125,12 @@ To use localrun like above programmatically please addd the following dependency
 
 For complete code samples, see [here](https://github.com/jerrypeng/pulsar-functions-demos/tree/master/debugging).
 
-In the future, debugging with localrun mode for Pulsar Functions written in other languages will be supported.
+> Note   
+> Debugging with localrun mode for Pulsar Functions written in other languages will be supported soon.
 
 ## Use log topic
 
-Pulsar Functions allow you to output the log information defined in functions to a specified log topic. Consumers can be configured to consume messages from a specified log topic to check the log information.
+In Pulsar Functions, you can generate log information defined in functions to a specified log topic. You can configure consumers to consume messages from a specified log topic to check the log information.
 
 ![Pulsar Functions core programming model](assets/pulsar-functions-overview.png)
 
@@ -161,7 +158,7 @@ public class LoggingFunction implements Function<String, Void> {
 }
 ```
 
-As shown in the example above, you can get the logger via `context.getLogger()` and assign the logger to the `LOG` variable of `slf4j`, so you can define your desired log information in a function using the `LOG` variable. You also need to specify the topic to which the log information is produced.
+As shown in the example above, you can get the logger via `context.getLogger()` and assign the logger to the `LOG` variable of `slf4j`, so you can define your desired log information in a function using the `LOG` variable. Meanwhile, you need to specify the topic to which the log information is produced.
 
 **Example** 
 
@@ -173,7 +170,7 @@ $ bin/pulsar-admin functions create \
 
 ## Use Functions CLI
 
-The [Pulsar Functions CLI](reference-pulsar-admin.md#functions) helps you in debugging Pulsar Functions with the following subcommands:
+With [Pulsar Functions CLI](reference-pulsar-admin.md#functions), you can debug Pulsar Functions with the following subcommands:
 
 * `get`
 * `status`
@@ -199,14 +196,14 @@ $ pulsar-admin functions get options
 
 |Flag|Description
 |---|---
-|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function
-|`--name`|The name of a Pulsar Function
-|`--namespace`|The namespace of a Pulsar Function
-|`--tenant`|The tenant of a Pulsar Function
+|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function.
+|`--name`|The name of a Pulsar Function.
+|`--namespace`|The namespace of a Pulsar Function.
+|`--tenant`|The tenant of a Pulsar Function.
 
 > **Tip**
 > 
-> `--fqfn` consists of `--name`, `--namespace` and `--tenant`, that is, you can specify only `--fqfn` or specify `--name`, `--namespace` and `--tenant` instead.
+> `--fqfn` consists of `--name`, `--namespace` and `--tenant`, so you can specify either `--fqfn` or `--name`, `--namespace` and `--tenant`.
 
 **Example** 
 
@@ -261,11 +258,11 @@ $ pulsar-admin functions status options
 
 |Flag|Description
 |---|---
-|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function
-|`--instance-id`|The instance ID of a Pulsar Function <br>If the `--instance-id` is not specified, it will get the IDs of all instances<br>
-|`--name`|The name of a Pulsar Function 
-|`--namespace`|The namespace of a Pulsar Function
-|`--tenant`|The tenant of a Pulsar Function
+|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function.
+|`--instance-id`|The instance ID of a Pulsar Function <br>If the `--instance-id` is not specified, it gets the IDs of all instances.<br>
+|`--name`|The name of a Pulsar Function. 
+|`--namespace`|The namespace of a Pulsar Function.
+|`--tenant`|The tenant of a Pulsar Function.
 
 **Example** 
 
@@ -276,7 +273,7 @@ $ ./bin/pulsar-admin functions status \
     --name ExclamationFunctio6 \
 ```
 
-As shown below, the `status` command shows the number of instances, the number of running instances, the instance running under the _ExclamationFunctio6_ function, the number of received messages, the number of successfully processed messages, the number of system exceptions, the average latency and so on.
+As shown below, the `status` command shows the number of instances, running instances, the instance running under the _ExclamationFunctio6_ function, received messages, successfully processed messages, system exceptions, the average latency and so on.
 
 ```text
 {
@@ -316,11 +313,11 @@ $ pulsar-admin functions stats options
 
 |Flag|Description
 |---|---
-|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function
-|`--instance-id`|The instance ID of a Pulsar Function <br>If the `--instance-id` is not specified, it will get the IDs of all instances<br>
-|`--name`|The name of a Pulsar Function 
-|`--namespace`|The namespace of a Pulsar Function
-|`--tenant`|The tenant of a Pulsar Function
+|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function.
+|`--instance-id`|The instance ID of a Pulsar Function. <br>If the `--instance-id` is not specified, it gets the IDs of all instances.<br>
+|`--name`|The name of a Pulsar Function. 
+|`--namespace`|The namespace of a Pulsar Function.
+|`--tenant`|The tenant of a Pulsar Function.
 
 **Example**
 
@@ -331,7 +328,7 @@ $ ./bin/pulsar-admin functions stats \
     --name ExclamationFunctio6 \
 ```
 
-The output is as below:
+The output is shown as follows:
 
 ```text
 {
@@ -384,8 +381,8 @@ $ pulsar-admin functions list options
 
 |Flag|Description
 |---|---
-|`--namespace`|The namespace of a Pulsar Function
-|`--tenant`|The tenant of a Pulsar Function
+|`--namespace`|The namespace of a Pulsar Function.
+|`--tenant`|The tenant of a Pulsar Function.
 
 **Example** 
 
@@ -404,7 +401,7 @@ ExclamationFunctio3
 
 ### `trigger`
 
-Trigger a specified Pulsar Function with a supplied value. This command simulates the execution process of a Plusar Function and verifies it.
+Trigger a specified Pulsar Function with a supplied value. This command simulates the execution process of a Pulsar Function and verifies it.
 
 **Usage**
 
@@ -416,13 +413,13 @@ $ pulsar-admin functions trigger options
 
 |Flag|Description
 |---|---
-|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function
-|`--name`|The name of a Pulsar Function
-|`--namespace`|The namespace of a Pulsar Function
-|`--tenant`|The tenant of a Pulsar Function
-|`--topic`|The topic name that a Pulsar Function consumes from
-|`--trigger-file`|The path to a file that contains the data to trigger a Pulsar Function
-|`--trigger-value`|The value to trigger a Pulsar Function
+|`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function.
+|`--name`|The name of a Pulsar Function.
+|`--namespace`|The namespace of a Pulsar Function.
+|`--tenant`|The tenant of a Pulsar Function.
+|`--topic`|The topic name that a Pulsar Function consumes from.
+|`--trigger-file`|The path to a file that contains the data to trigger a Pulsar Function.
+|`--trigger-value`|The value to trigger a Pulsar Function.
 
 **Example** 
 
@@ -442,7 +439,7 @@ This is my function!
 ```
 
 > #### **Note**
-> You must specify the [entire topic name](getting-started-pulsar.md#topic-names) when using the `--topic` option. Otherwise, the following error is raised.
+> You must specify the [entire topic name](getting-started-pulsar.md#topic-names) when using the `--topic` option. Otherwise, the following error occurs.
 >
 >```text
 >Function in trigger function has unidentified topic

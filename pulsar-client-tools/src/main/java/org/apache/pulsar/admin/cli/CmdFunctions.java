@@ -805,7 +805,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Fetch the current state associated with a Pulsar Function")
     class StateGetter extends FunctionCommand {
 
-        @Parameter(names = { "-k", "--key" }, description = "key")
+        @Parameter(names = { "-k", "--key" }, description = "Key name of State")
         private String key = null;
 
         @Parameter(names = { "-w", "--watch" }, description = "Watch for changes in the value associated with a key for a Pulsar Function")
@@ -813,6 +813,9 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            if (isBlank(key)) {
+                throw new ParameterException("State key needs to be specified");
+            }
             do {
                 try {
                     FunctionState functionState = admin.functions()

@@ -1,9 +1,9 @@
 ---
-id: functions-overview-new
+id: version-2.4.1-functions-overview
 title: Pulsar Functions overview
 sidebar_label: Overview
+original_id: functions-overview
 ---
-> This new documentation of Pulsar Functions is under construction. For complete Pulsar Functions documentation, refer to the [earlier](functions-overview.md) version.
 
 **Pulsar Functions** are lightweight compute processes that
 
@@ -15,7 +15,7 @@ sidebar_label: Overview
 ## Goals
 With Pulsar Functions, you can create complex processing logic without deploying a separate neighboring system (such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-heron), [Apache Flink](https://flink.apache.org/)). Pulsar Functions are computing infrastructure of Pulsar messaging system. The core goal is tied to a series of other goals:
 
-* Developer productivity ([language-native](#language-native-functions) vs [Pulsar Functions SDK](#the-pulsar-functions-sdk) functions)
+* Developer productivity (language-native vs Pulsar Functions SDK functions)
 * Easy troubleshooting
 * Operational simplicity (no need for an external processing system)
 
@@ -43,8 +43,8 @@ Pulsar Functions provide a wide range of functionality, and the core programming
 
 You can use Pulsar Functions to set up the following processing chain:
 
-* A [Python](#functions-for-python) function listens for the `raw-sentences` topic and "[sanitizes](#example-function)" incoming strings (removing extraneous whitespace and converting all characters to lowercase) and then publishes the results to a `sanitized-sentences` topic.
-* A [Java](#functions-for-java) function listens for the `sanitized-sentences` topic, counts the number of times each word appears within a specified time window, and publishes the results to a `results` topic
+* A Python function listens for the `raw-sentences` topic and "sanitizes" incoming strings (removing extraneous whitespace and converting all characters to lowercase) and then publishes the results to a `sanitized-sentences` topic.
+* A Java function listens for the `sanitized-sentences` topic, counts the number of times each word appears within a specified time window, and publishes the results to a `results` topic
 * Finally, a Python function listens for the `results` topic and writes the results to a MySQL table.
 
 
@@ -54,7 +54,7 @@ If you implement the classic word count example using Pulsar Functions, it looks
 
 ![Pulsar Functions word count example](assets/pulsar-functions-word-count.png)
 
-To write the function in [Java](functions-api.md#functions-for-java) with [Pulsar Functions SDK for Java](functions-api.md#java-sdk-functions), you can write the function as follows.
+To write the function in Java with [Pulsar Functions SDK for Java](functions-develop#available-apis), you can write the function as follows.
 
 ```java
 package org.example.functions;
@@ -77,8 +77,7 @@ public class WordCountFunction implements Function<String, Void> {
 }
 ```
 
-Bundle and build the JAR file to be deployed. You can find approaches in [Creating an Uber JAR](#creating-an-uber-jar) and [Creating a NAR package](#creating-a-nar-package).
-Then [deploy it](#cluster-run-mode) in your Pulsar cluster using the [command line](#command-line-interface) as follows.
+Bundle and build the JAR file to be deployed, and then deploy it in your Pulsar cluster using the [command line](functions-deploy.md#command-line-interface) as follows.
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -95,7 +94,7 @@ $ bin/pulsar-admin functions create \
 
 Pulsar Functions are used in many cases. The following is a sophisticated example that involves content-based routing.
 
-For example, a function takes items (strings) as input and publishes them to either a `fruits` or `vegetables` topic, depending on the item. Or, if an item is neither fruit nor vegetable, a warning is logged to a [log topic](#logging). The following is a visual representation.
+For example, a function takes items (strings) as input and publishes them to either a `fruits` or `vegetables` topic, depending on the item. Or, if an item is neither fruit nor vegetable, a warning is logged to a [log topic](functions-develop.md#logger). The following is a visual representation.
 
 ![Pulsar Functions routing example](assets/pulsar-functions-routing-example.png)
 
@@ -127,8 +126,8 @@ class RoutingFunction(Function):
 
 ### Functions, messages and message types
 Pulsar Functions take byte arrays as inputs and spit out byte arrays as output. However in languages that support typed interfaces(Java), you can write typed Functions, and bind messages to types in the following ways. 
-* [Schema Registry](#Schema-Registry)
-* [SerDe](#SerDe)
+* [Schema Registry](functions-develop.md#schema-registry)
+* [SerDe](functions-develop.md#serde)
 
 
 ## Fully Qualified Function Name (FQFN)
@@ -141,7 +140,7 @@ tenant/namespace/name
 FQFNs enable you to create multiple functions with the same name provided that they are in different namespaces.
 
 ## Supported languages
-Currently, you can write Pulsar Functions in Java, Python, and Go. For details, refer to [how to develop Pulsar Functions](functions-develop.md).
+Currently, you can write Pulsar Functions in Java, Python, and Go. For details, refer to [Develop Pulsar Functions](functions-develop.md).
 
 ## Processing guarantees
 Pulsar Functions provide three different messaging semantics that you can apply to any function.

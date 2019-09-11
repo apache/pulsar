@@ -622,10 +622,14 @@ public class PersistentSubscription implements Subscription {
         }
 
         final CompletableFuture<Void> disconnectFuture;
-        if (dispatcher != null && dispatcher.isConsumerConnected()) {
-            disconnectFuture = dispatcher.disconnectAllConsumers();
-        } else {
-            disconnectFuture = CompletableFuture.completedFuture(null);
+
+        // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
+        synchronized (this) {
+            if (dispatcher != null && dispatcher.isConsumerConnected()) {
+                disconnectFuture = dispatcher.disconnectAllConsumers();
+            } else {
+                disconnectFuture = CompletableFuture.completedFuture(null);
+            }
         }
 
         disconnectFuture.whenComplete((aVoid, throwable) -> {
@@ -646,6 +650,9 @@ public class PersistentSubscription implements Subscription {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Successfully reset subscription to position {}", topicName, subName,
                                     finalPosition);
+                        }
+                        if (dispatcher != null) {
+                            dispatcher.cursorIsReset();
                         }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         future.complete(null);

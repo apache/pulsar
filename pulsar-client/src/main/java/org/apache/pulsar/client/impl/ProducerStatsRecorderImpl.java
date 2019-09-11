@@ -191,7 +191,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     public void incrementNumAcksReceived(long latencyNs) {
         numAcksReceived.increment();
         synchronized (ds) {
-            ds.update(TimeUnit.NANOSECONDS.toMicros(latencyNs));
+            ds.update(TimeUnit.NANOSECONDS.toMillis(latencyNs));
         }
     }
 

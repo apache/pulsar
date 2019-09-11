@@ -27,8 +27,10 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -43,22 +45,16 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
+import org.apache.pulsar.tests.integration.containers.DebeziumPostgresqlContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
-import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
-import org.apache.pulsar.tests.integration.io.DebeziumMySqlSourceTester;
-import org.apache.pulsar.tests.integration.io.ElasticSearchSinkTester;
-import org.apache.pulsar.tests.integration.io.HdfsSinkTester;
-import org.apache.pulsar.tests.integration.io.JdbcSinkTester;
+import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
-import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
-import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
-import org.apache.pulsar.tests.integration.io.SinkTester;
-import org.apache.pulsar.tests.integration.io.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.assertj.core.api.Assertions;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
@@ -71,6 +67,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -119,6 +116,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     @Test
     public void testDebeziumMySqlSource() throws Exception {
         testDebeziumMySqlConnect();
+    }
+
+    @Test
+    public void testDebeziumPostgresqlSource() throws Exception {
+        testDebeziumPostgresqlConnect();
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -945,6 +947,143 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             }
         }
 
+    }
+
+    public void testWindowFunction(String type, String[] expectedResults) throws Exception {
+        int NUM_OF_MESSAGES = 100;
+        int windowLengthCount = 10;
+        int slidingIntervalCount = 5;
+        String functionName = "test-" + type + "-window-fn-" + randomName(8);
+
+        String inputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-input-" + randomName(8);
+        String outputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-output-" + randomName(8);
+
+
+        CommandGenerator generator = CommandGenerator.createDefaultGenerator(
+                inputTopicName,
+                "org.apache.pulsar.functions.api.examples.WindowDurationFunction");
+        generator.setFunctionName(functionName);
+        generator.setSinkTopic(outputTopicName);
+        generator.setWindowLengthCount(windowLengthCount);
+        if (type.equals("sliding")) {
+            generator.setSlidingIntervalCount(slidingIntervalCount);
+        }
+
+
+        String[] commands = {
+                "sh", "-c", generator.generateCreateFunctionCommand()
+        };
+
+        ContainerExecResult containerExecResult = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertTrue(containerExecResult.getStdout().contains("\"Created successfully\""));
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        containerExecResult = pulsarCluster.getAnyWorker().execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "status",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName
+        );
+
+        FunctionStatus functionStatus = FunctionStatus.decode(containerExecResult.getStdout());
+        assertEquals(functionStatus.getNumInstances(), 1);
+        assertEquals(functionStatus.getNumRunning(), 1);
+        assertEquals(functionStatus.getInstances().size(), 1);
+        assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        Reader reader = client.newReader().startMessageId(MessageId.earliest)
+                .topic(outputTopicName)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic(inputTopicName)
+                .enableBatching(false)
+                .create();
+
+        for (int i = 0; i < NUM_OF_MESSAGES; i++) {
+            producer.send(String.format("%d", i).getBytes());
+        }
+
+        int i = 0;
+        while (reader.hasMessageAvailable()) {
+            if (i >= expectedResults.length) {
+                Assertions.fail("More results than expected");
+            }
+            String result = new String(reader.readNext().getData()).split(":")[0];
+            log.info("i: {} result: {}", i, result);
+            assertThat(result).contains(expectedResults[i]);
+            i++;
+        }
+        // in case last commit is not updated
+        assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
+
+        getFunctionStatus(functionName, NUM_OF_MESSAGES, true);
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
+    }
+
+    @Test
+    public void testSlidingCountWindowTest() throws Exception {
+        String[] EXPECTED_RESULTS = {
+                "0,1,2,3,4",
+                "0,1,2,3,4,5,6,7,8,9",
+                "5,6,7,8,9,10,11,12,13,14",
+                "10,11,12,13,14,15,16,17,18,19",
+                "15,16,17,18,19,20,21,22,23,24",
+                "20,21,22,23,24,25,26,27,28,29",
+                "25,26,27,28,29,30,31,32,33,34",
+                "30,31,32,33,34,35,36,37,38,39",
+                "35,36,37,38,39,40,41,42,43,44",
+                "40,41,42,43,44,45,46,47,48,49",
+                "45,46,47,48,49,50,51,52,53,54",
+                "50,51,52,53,54,55,56,57,58,59",
+                "55,56,57,58,59,60,61,62,63,64",
+                "60,61,62,63,64,65,66,67,68,69",
+                "65,66,67,68,69,70,71,72,73,74",
+                "70,71,72,73,74,75,76,77,78,79",
+                "75,76,77,78,79,80,81,82,83,84",
+                "80,81,82,83,84,85,86,87,88,89",
+                "85,86,87,88,89,90,91,92,93,94",
+                "90,91,92,93,94,95,96,97,98,99",
+        };
+
+        testWindowFunction("sliding", EXPECTED_RESULTS);
+    }
+
+    @Test
+    public void testTumblingCountWindowTest() throws Exception {
+        String[] EXPECTED_RESULTS = {
+                "0,1,2,3,4,5,6,7,8,9",
+                "10,11,12,13,14,15,16,17,18,19",
+                "20,21,22,23,24,25,26,27,28,29",
+                "30,31,32,33,34,35,36,37,38,39",
+                "40,41,42,43,44,45,46,47,48,49",
+                "50,51,52,53,54,55,56,57,58,59",
+                "60,61,62,63,64,65,66,67,68,69",
+                "70,71,72,73,74,75,76,77,78,79",
+                "80,81,82,83,84,85,86,87,88,89",
+                "90,91,92,93,94,95,96,97,98,99",
+        };
+
+        testWindowFunction("tumbling", EXPECTED_RESULTS);
     }
 
     //
@@ -1801,6 +1940,62 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // setup debezium mysql server
         DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mySQLContainer);
+
+        // prepare the testing environment for source
+        prepareSource(sourceTester);
+
+        // submit the source connector
+        submitSourceConnector(sourceTester, tenant, namespace, sourceName, outputTopicName);
+
+        // get source info
+        getSourceInfoSuccess(sourceTester, tenant, namespace, sourceName);
+
+        // get source status
+        getSourceStatus(tenant, namespace, sourceName);
+
+        // wait for source to process messages
+        waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
+
+        // validate the source result
+        sourceTester.validateSourceResult(consumer, 9);
+
+        // delete the source
+        deleteSource(tenant, namespace, sourceName);
+
+        // get source info (source should be deleted)
+        getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private  void testDebeziumPostgresqlConnect() throws Exception {
+
+        final String tenant = TopicName.PUBLIC_TENANT;
+        final String namespace = TopicName.DEFAULT_NAMESPACE;
+        final String outputTopicName = "debe-output-topic-name";
+        final String consumeTopicName = "public/default/dbserver1.inventory.products";
+        final String sourceName = "test-source-connector-"
+                + functionRuntimeType + "-name-" + randomName(8);
+
+        // This is the binlog count that contained in postgresql container.
+        final int numMessages = 26;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        @Cleanup
+        DebeziumPostgresqlSourceTester sourceTester = new DebeziumPostgresqlSourceTester(pulsarCluster);
+
+        // setup debezium postgresql server
+        DebeziumPostgresqlContainer postgresqlContainer = new DebeziumPostgresqlContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(postgresqlContainer);
 
         // prepare the testing environment for source
         prepareSource(sourceTester);
