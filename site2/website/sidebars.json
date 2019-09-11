@@ -41,11 +41,10 @@
       "io-overview",
       "io-quickstart",
       "io-use",
-      "io-managing",
       "io-debug",
       "io-connectors",
-      "io-develop",
-      "io-cdc"
+      "io-cdc",
+      "io-develop"
     ],
     "Pulsar SQL": [
       "sql-overview",
