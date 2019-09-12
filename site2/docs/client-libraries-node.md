@@ -14,12 +14,22 @@ You can install the [`pusar-client`](https://www.npmjs.com/package/pulsar-client
 Pulsar Node.js client library is based on the C++ client library.
 Follow [these instructions](client-libraries-cpp.md#compilation) and install the Pulsar C++ client library.
 
+### Compatibility
+
+Compatibility between each version of the Node.js client and the C++ client is as follows:
+
+| Node.js client | C++ client     |
+| :------------- | :------------- |
+| 1.0.0          | 2.3.0 or later |
+
+If an incompatible version of the C++ client is installed, you may fail to build or run this library.
+
 ### Installation using npm
 
 Install the `pulsar-client` library via [npm](https://www.npmjs.com/):
 
 ```shell
-$ npm install pulsar-client@^{{pulsar:version_number}}
+$ npm install pulsar-client
 ```
 
 > #### Note
@@ -29,7 +39,7 @@ $ npm install pulsar-client@^{{pulsar:version_number}}
 ## Connection URLs
 To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
-Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here's an example for `localhost`:
+Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here is an example for `localhost`:
 
 ```http
 pulsar://localhost:6650
@@ -49,6 +59,10 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## Creating a client
 
+In order to interact with Pulsar, you'll first need a client object. You can create a client instance using a `new` operator and the `Client` method, passing in a client options object (more on configuration [below](#client-configuration)).
+
+Here is an example:
+
 ```JavaScript
 const Pulsar = require('pulsar-client');
 
@@ -61,13 +75,14 @@ const Pulsar = require('pulsar-client');
 })();
 ```
 
+### Client configuration
+
 The following configurable parameters are available for Pulsar clients:
 
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
 | `serviceUrl` | The connection URL for the Pulsar cluster. See [above](#connection-urls) for more info | |
 | `authentication` | | |
-| `binding` | | |
 | `operationTimeoutSeconds` | | |
 | `ioThreads` | | |
 | `messageListenerThreads` | | |
@@ -80,6 +95,8 @@ The following configurable parameters are available for Pulsar clients:
 
 ## Producers
 
+Pulsar producers publish messages to Pulsar topics. You can [configure](#producer-configuration) Node.js producers using a producer configuration object.
+
 Here is an example:
 
 ```JavaScript
@@ -87,13 +104,16 @@ const producer = await client.createProducer({
   topic: 'my-topic',
 });
 
-producer.send({
+await producer.send({
   data: Buffer.from("Hello, Pulsar"),
 });
-await producer.flush();
 
 await producer.close();
 ```
+
+> #### Promise operation
+> When you create a new Pulsar producer, the operation will return `Promise` object and get producer instance or an error through executor function.  
+> In this example, we use await operator instead of executor function.
 
 ### Producer operations
 
@@ -157,7 +177,13 @@ const Pulsar = require('pulsar-client');
 })();
 ```
 
+> #### Promise operation
+> When you create a new Pulsar consumer, the operation will return `Promise` object and get consumer instance or an error through executor function.  
+> In this example, we use await operator instead of executor function.
+
 ## Consumers
+
+Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming messages produced on that topic/those topics. You can [configure](#consumer-configuration) Node.js consumers using a consumer configuration object.
 
 Here is an example:
 
@@ -234,6 +260,8 @@ const Pulsar = require('pulsar-client');
 
 ## Readers
 
+Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can [configure](#reader-configuration) Node.js readers using a reader configuration object.
+
 Here is an example:
 
 ```JavaScript
@@ -299,4 +327,35 @@ const Pulsar = require('pulsar-client');
   await client.close();
 })();
 ```
+
+## Messages
+
+In Pulsar Node.js client, you have to construct producer message object for producer.
+
+Here is an example message:
+
+```JavaScript
+const msg = {
+  data: Buffer.from("Hello, Pulsar"),
+  partitionKey: foo,
+  properties: foo,
+  eventTimestamp: foo,
+  replicationClusters: foo,
+}
+
+await producer.send(msg);
+```
+
+The following keys are available for producer message objects:
+
+### Consumer configuration
+
+| Parameter | Description | Default |
+| :-------- | :---------- | :---------- |
+| `data` | | |
+| `properties` | | |
+| `eventTimestamp` | | |
+| `sequenceId` | | |
+| `partitionKey` | | |
+| `replicationClusters` | | |
 
