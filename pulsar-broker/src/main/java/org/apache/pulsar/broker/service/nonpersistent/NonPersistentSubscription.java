@@ -281,6 +281,9 @@ public class NonPersistentSubscription implements Subscription {
                     deleteFuture.complete(null);
                 }).exceptionally(ex -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
+                    if (dispatcher != null) {
+                        dispatcher.reset();
+                    }
                     log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
                     deleteFuture.completeExceptionally(ex);
                     return null;
@@ -288,9 +291,6 @@ public class NonPersistentSubscription implements Subscription {
             }
         }).exceptionally(exception -> {
             IS_FENCED_UPDATER.set(this, FALSE);
-            if (dispatcher != null) {
-                dispatcher.reset();
-            }
             log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
             deleteFuture.completeExceptionally(exception);
             return null;
