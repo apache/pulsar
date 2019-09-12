@@ -115,9 +115,7 @@ Here is an example of storing MySQL data using the configuration file as above.
     $ docker run -d -it --link pulsar-canal-server -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:2.3.0 bin/pulsar standalone
     ```
 
-8. Start a Pulsar IO connector standalone.
-
-9. Modify the configuration file `canal-mysql-source-config.yaml`.
+8. Modify the configuration file `canal-mysql-source-config.yaml`.
 
     ```yaml
     configs:
@@ -131,7 +129,7 @@ Here is an example of storing MySQL data using the configuration file as above.
         singlePort: "11111"
     ```
 
-10. Create a consumer file `pulsar-client.py`.
+9. Create a consumer file `pulsar-client.py`.
 
     ```python
     import pulsar
@@ -148,14 +146,14 @@ Here is an example of storing MySQL data using the configuration file as above.
     client.close()
     ```
 
-11. Copy the configuration file `canal-mysql-source-config.yaml` and the consumer file  `pulsar-client.py` to Pulsar server.
+10. Copy the configuration file `canal-mysql-source-config.yaml` and the consumer file  `pulsar-client.py` to Pulsar server.
 
     ```bash
     $ docker cp canal-mysql-source-config.yaml pulsar-standalone:/pulsar/conf/
     $ docker cp pulsar-client.py pulsar-standalone:/pulsar/
     ```
 
-12. Download a Canal connector and start it.
+11. Download a Canal connector and start it.
     
     ```bash
     $ docker exec -it pulsar-standalone /bin/bash
@@ -171,21 +169,21 @@ Here is an example of storing MySQL data using the configuration file as above.
     --parallelism 1
     ```
 
-13. Consume data from MySQL. 
+12. Consume data from MySQL. 
 
     ```bash
     $ docker exec -it pulsar-standalone /bin/bash
     $ python pulsar-client.py
     ```
 
-14. Open another window to log in MySQL server.
+13. Open another window to log in MySQL server.
 
     ```bash
     $ docker exec -it pulsar-mysql /bin/bash
     $ mysql -h 127.0.0.1 -uroot -pcanal
     ```
 
-15. Create a table, and insert, delete, and update data in MySQL server.
+14. Create a table, and insert, delete, and update data in MySQL server.
     
     ```bash
     mysql> use test;
