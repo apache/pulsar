@@ -20,6 +20,7 @@ package org.apache.pulsar.zookeeper;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.pulsar.zookeeper.ZooKeeperCache.CacheUpdater;
@@ -49,12 +50,18 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
     }
 
     public Set<String> get() throws KeeperException, InterruptedException {
-        return cache.getChildren(path, this);
+        return getAsync(path).join();
     }
 
     public Set<String> get(String path) throws KeeperException, InterruptedException {
-        LOG.debug("getChildren called at: {}", path);
-        return cache.getChildren(path, this);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("getChildren called at: {}", path);
+        }
+        return getAsync(path).join();
+    }
+
+    public CompletableFuture<Set<String>> getAsync(String path) {
+        return cache.getChildrenAsync(path, this);
     }
 
     public void clear() {
@@ -69,13 +76,11 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
     public void reloadCache(final String path) {
         try {
             cache.invalidate(path);
-            Set<String> children = cache.getChildren(path, this);
+            Set<String> children = cache.getChildrenAsync(path, this).join();
             LOG.info("reloadCache called in zookeeperChildrenCache for path {}", path);
             for (ZooKeeperCacheListener<Set<String>> listener : listeners) {
                 listener.onUpdate(path, children, null);
             }
-        } catch (KeeperException.NoNodeException nne) {
-            LOG.debug("Node [{}] does not exist", nne.getPath());
         } catch (Exception e) {
             LOG.warn("Reloading ZooKeeperDataCache failed at path:{}", path);
         }
