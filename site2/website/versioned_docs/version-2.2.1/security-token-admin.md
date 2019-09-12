@@ -134,6 +134,15 @@ tokenSecretKey=file:///path/to/secret.key
 
 # If using public/private
 # tokenPublicKey=file:///path/to/public.key
+
+# operations and publish/consume from all topics
+superUserRoles=admin
+
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
+brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw
+# Or, alternatively, read token from file
+# brokerClientAuthenticationParameters=file:///path/to/admin-token.txt
 ```
 
 ### ... on Proxies
