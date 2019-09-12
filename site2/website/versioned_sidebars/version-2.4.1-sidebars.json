@@ -26,29 +26,16 @@
     ],
     "Pulsar Functions": [
       "version-2.4.1-functions-overview",
-      "version-2.4.1-functions-quickstart",
-      "version-2.4.1-functions-api",
-      "version-2.4.1-functions-deploying",
-      "version-2.4.1-functions-guarantees",
-      "version-2.4.1-functions-state",
-      "version-2.4.1-functions-metrics",
-      "version-2.4.1-functions-worker",
-      "version-2.4.1-functions-runtime",
-      "version-2.4.1-functions-deploying",
-      "version-2.4.1-functions-debugging"
-    ],
-    "Pulsar Functions（New）": [
-      "version-2.4.1-functions-overview-new",
       "version-2.4.1-functions-worker",
       "version-2.4.1-functions-runtime",
       "version-2.4.1-functions-develop",
       "version-2.4.1-functions-debug",
       "version-2.4.1-functions-deploy",
-      "version-2.4.1-functions-cli",
       "version-2.4.1-functions-configure",
       "version-2.4.1-functions-monitor",
       "version-2.4.1-functions-secure",
-      "version-2.4.1-functions-troubleshoot"
+      "version-2.4.1-functions-troubleshoot",
+      "version-2.4.1-functions-cli"
     ],
     "Pulsar IO": [
       "version-2.4.1-io-overview",
