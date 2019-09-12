@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.systopic;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 
@@ -165,6 +166,10 @@ public interface SystemTopic {
          * @return system topic
          */
         SystemTopic getSystemTopic();
+    }
+
+    static boolean isSystemTopic(TopicName topicName) {
+        return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName());
     }
 
 }

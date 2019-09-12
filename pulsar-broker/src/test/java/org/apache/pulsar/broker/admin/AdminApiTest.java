@@ -74,6 +74,8 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -94,6 +96,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -720,6 +723,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         assertTrue(i < 10);
 
+        // Delete system topic first.
+        admin.topics().delete(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/ns1"),
+                EventType.TOPIC_POLICY).toString(), true);
+
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         assertEquals(admin.namespaces().getNamespaces("prop-xyz"), Lists.newArrayList("prop-xyz/ns2"));
 
@@ -747,8 +754,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String persistentTopicName = "persistent://prop-xyz/ns1/" + topicName;
         // Force to create a topic
         publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/" + topicName, 0);
-        assertEquals(admin.topics().getList("prop-xyz/ns1"),
-                Lists.newArrayList("persistent://prop-xyz/ns1/" + topicName));
+
+        List<String> topicList = admin.topics().getList("prop-xyz/ns1");
+
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/ns1"),
+                EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+
+        assertEquals(topicList, Lists.newArrayList("persistent://prop-xyz/ns1/" + topicName));
 
         // create consumer and subscription
         PulsarClient client = PulsarClient.builder()
@@ -827,7 +841,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (NotFoundException e) {
         }
 
-        assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList());
+        topicList = admin.topics().getList("prop-xyz/ns1");
+
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/ns1"),
+                EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+
+        assertEquals(topicList, Lists.newArrayList());
     }
 
     @Test(dataProvider = "topicName")
@@ -896,7 +917,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
         }
 
-        assertEquals(Sets.newHashSet(admin.topics().getList("prop-xyz/ns1")),
+        List<String> topicList = admin.topics().getList("prop-xyz/ns1");
+
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/ns1"),
+                EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+
+        assertEquals(Sets.newHashSet(topicList),
                 Sets.newHashSet(partitionedTopicName + "-partition-0", partitionedTopicName + "-partition-1",
                         partitionedTopicName + "-partition-2", partitionedTopicName + "-partition-3"));
 
@@ -950,7 +978,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             .create();
 
         topics = admin.topics().getList("prop-xyz/ns1");
-        assertEquals(topics.size(), 4);
+        // 4 partitions and 1 system topic
+        assertEquals(topics.size(), 4 + 1);
 
         try {
             admin.topics().deletePartitionedTopic(partitionedTopicName);
@@ -1068,8 +1097,18 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds3");
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds4");
 
-        assertEquals(admin.namespaces().getTopics("prop-xyz/ns1-bundles"), Lists.newArrayList());
+        List<String> topicList = admin.topics().getList("prop-xyz/ns1-bundles");
 
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/ns1-bundles"),
+                EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+
+        assertEquals(topicList, Lists.newArrayList());
+
+        // Delete system topic first
+        admin.topics().delete(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/ns1-bundles"),
+                EventType.TOPIC_POLICY).toString(), true);
         admin.namespaces().deleteNamespace("prop-xyz/ns1-bundles");
         assertEquals(admin.namespaces().getNamespaces("prop-xyz", "test"), Lists.newArrayList());
     }
@@ -1086,7 +1125,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             .create();
         producer.send("message".getBytes());
         publishMessagesOnPersistentTopic(topicName, 0);
-        assertEquals(admin.topics().getList(namespace), Lists.newArrayList(topicName));
+
+        List<String> topicList = admin.topics().getList(namespace);
+
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespace),
+                EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+
+        assertEquals(topicList, Lists.newArrayList(topicName));
 
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null);
@@ -1205,7 +1252,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             .create();
         producer.send("message".getBytes());
         publishMessagesOnPersistentTopic(topicName, 0);
-        assertEquals(admin.topics().getList(namespace), Lists.newArrayList(topicName));
+
+        List<String> topicList = admin.topics().getList(namespace);
+
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespace),
+                EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+
+        assertEquals(topicList, Lists.newArrayList(topicName));
 
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null);
@@ -1347,8 +1402,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Force to create a topic
         publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1-bundles/ds2", 0);
-        assertEquals(admin.topics().getList("prop-xyz/ns1-bundles"),
-                Lists.newArrayList("persistent://prop-xyz/ns1-bundles/ds2"));
+
+        List<String> topicList = admin.topics().getList("prop-xyz/ns1");
+
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/ns1"),
+                EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+
+        assertEquals(topicList, Lists.newArrayList("persistent://prop-xyz/ns1-bundles/ds2"));
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-xyz/ns1-bundles/ds2")
@@ -1917,7 +1979,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         List<String> topics = admin.topics().getList("prop-xyz/ns1");
-        assertEquals(topics.size(), 4);
+        // 4 partition and 1 system topic
+        assertEquals(topics.size(), 4 + 1);
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
@@ -1961,7 +2024,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://prop-xyz/ns1/invalidcursorreset";
         // Force to create a topic
         publishMessagesOnPersistentTopic(topicName, 0);
-        assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList(topicName));
+
+        List<String> topicList = admin.topics().getList("prop-xyz/ns1");
+
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/ns1"),
+                EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+
+        assertEquals(topicList, Lists.newArrayList(topicName));
 
         // create consumer and subscription
         PulsarClient client = PulsarClient.builder()

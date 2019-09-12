@@ -104,6 +104,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
@@ -2234,6 +2235,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return null;
     }
     private boolean isSystemTopic(String topic) {
-        return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(TopicName.get(topic).getLocalName());
+        return SystemTopic.isSystemTopic(TopicName.get(topic));
     }
 }
