@@ -1,6 +1,6 @@
 ---
 id: security-overview
-title: Pulsar Security Overview
+title: Pulsar security overview
 sidebar_label: Overview
 ---
 
@@ -12,13 +12,13 @@ Pulsar supports a pluggable authentication mechanism. And Pulsar clients use thi
 
 You had better secure the service components in your Apache Pulsar deployment.
 
-## Role Tokens
+## Role tokens
 
 In Pulsar, a *role* is a string, like `admin` or `app1`, which can represent a single client or multiple clients. You can use roles to control permission for clients to produce or consume from certain topics, administer the configuration for tenants, and so on.
 
 Apache Pulsar uses a [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign a *role token* to that client. This role token is then used for [Authorization and ACLs](security-authorization.md) to determine what the client is authorized to do.
 
-## Authentication Providers
+## Authentication providers
 
 Currently Pulsar supports the following authentication providers:
 

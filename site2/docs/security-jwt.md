@@ -1,5 +1,5 @@
 ---
-id: security-token-client
+id: security-jwt
 title: Client authentication using tokens based on JSON Web Tokens
 sidebar_label: Authentication using JWT
 ---
@@ -128,7 +128,6 @@ pulsar::Client client("pulsar://broker.example.com:6650/", config);
 
 On how to enable token authentication on a Pulsar cluster, you can refer to the guide below.
 
-### Secret keys vs Public and Private keys
 JWT support two different kind of keys in order to generate and validate the tokens:
 
  * Symmetric :
@@ -137,13 +136,11 @@ JWT support two different kind of keys in order to generate and validate the tok
     - You can use ***Private*** key to generate tokens
     - You can use ***Public*** key to validate tokens
 
-#### Secret key
+### Create a secret key
 
 When you use a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to the brokers in order to allow them to validate the clients.
 
-##### Create a secret key
-
-> Output file is generated in the root of your pulsar installation directory. You can also provide absolute path for the output file using the command below.
+Output file is generated in the root of your Pulsar installation directory. You can also provide absolute path for the output file using the command below.
 
 ```shell
 $ bin/pulsar tokens create-secret-key --output my-secret.key
@@ -155,13 +152,11 @@ Enter this command to generate base64 encoded private key
 $ bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
 ```
 
-#### Public and Private keys
+### Create a key pair
 
 With Public and Private keys, you need to create a pair of keys. Pulsar supports all algorithms that the Java JWT library (shown [here](https://github.com/jwtk/jjwt#signature-algorithms-keys)) supports.
 
-#### Create a key pair
-
-> Output file is generated in the root of your pulsar installation directory. You can also provide absolute path for the output file using the command below.
+Output file is generated in the root of your Pulsar installation directory. You can also provide absolute path for the output file using the command below.
 ```shell
 $ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output-public-key my-public.key
 ```
