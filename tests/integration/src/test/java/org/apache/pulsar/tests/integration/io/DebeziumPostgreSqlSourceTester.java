@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.tests.integration.containers.DebeziumPostgresqlContainer;
+import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
@@ -42,23 +42,23 @@ import java.util.concurrent.TimeUnit;
  * which is a Postgresql database server preconfigured with an inventory database.
  */
 @Slf4j
-public class DebeziumPostgresqlSourceTester extends SourceTester<DebeziumPostgresqlContainer> implements Closeable {
+public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgreSqlContainer> implements Closeable {
 
     private static final String NAME = "debezium-postgres";
 
     private final String pulsarServiceUrl;
 
     @Getter
-    private DebeziumPostgresqlContainer debeziumPostgresqlContainer;
+    private DebeziumPostgreSqlContainer debeziumPostgresqlContainer;
 
     private final PulsarCluster pulsarCluster;
 
-    public DebeziumPostgresqlSourceTester(PulsarCluster cluster) {
+    public DebeziumPostgreSqlSourceTester(PulsarCluster cluster) {
         super(NAME);
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
-        sourceConfig.put("database.hostname", DebeziumPostgresqlContainer.NAME);
+        sourceConfig.put("database.hostname", DebeziumPostgreSqlContainer.NAME);
         sourceConfig.put("database.port", "5432");
         sourceConfig.put("database.user", "postgres");
         sourceConfig.put("database.password", "postgres");
@@ -71,10 +71,10 @@ public class DebeziumPostgresqlSourceTester extends SourceTester<DebeziumPostgre
     }
 
     @Override
-    public void setServiceContainer(DebeziumPostgresqlContainer container) {
+    public void setServiceContainer(DebeziumPostgreSqlContainer container) {
         log.info("start debezium postgresql server container.");
         debeziumPostgresqlContainer = container;
-        pulsarCluster.startService(DebeziumPostgresqlContainer.NAME, debeziumPostgresqlContainer);
+        pulsarCluster.startService(DebeziumPostgreSqlContainer.NAME, debeziumPostgresqlContainer);
     }
 
     @Override
@@ -93,9 +93,9 @@ public class DebeziumPostgresqlSourceTester extends SourceTester<DebeziumPostgre
         Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
         while(msg != null) {
             recordsNumber ++;
-            log.info("Received message: {}.", msg.getValue());
-            String key = new String(msg.getValue().getKey());
-            String value = new String(msg.getValue().getValue());
+            final String key = new String(msg.getValue().getKey());
+            final String value = new String(msg.getValue().getValue());
+            log.info("Received message: key = {}, value = {}.", key, value);
             Assert.assertTrue(key.contains("dbserver1.inventory.products.Key"));
             Assert.assertTrue(value.contains("dbserver1.inventory.products.Value"));
             consumer.acknowledge(msg);
@@ -109,7 +109,7 @@ public class DebeziumPostgresqlSourceTester extends SourceTester<DebeziumPostgre
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            pulsarCluster.stopService(DebeziumPostgresqlContainer.NAME, debeziumPostgresqlContainer);
+            pulsarCluster.stopService(DebeziumPostgreSqlContainer.NAME, debeziumPostgresqlContainer);
         }
     }
 
