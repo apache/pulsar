@@ -45,7 +45,7 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
-import org.apache.pulsar.tests.integration.containers.DebeziumPostgresqlContainer;
+import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
@@ -119,8 +119,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     @Test
-    public void testDebeziumPostgresqlSource() throws Exception {
-        testDebeziumPostgresqlConnect();
+    public void testDebeziumPostgreSqlSource() throws Exception {
+        testDebeziumPostgreSqlConnect();
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -1966,7 +1966,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private  void testDebeziumPostgresqlConnect() throws Exception {
+    private  void testDebeziumPostgreSqlConnect() throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -1991,11 +1991,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .subscribe();
 
         @Cleanup
-        DebeziumPostgresqlSourceTester sourceTester = new DebeziumPostgresqlSourceTester(pulsarCluster);
+        DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster);
 
         // setup debezium postgresql server
-        DebeziumPostgresqlContainer postgresqlContainer = new DebeziumPostgresqlContainer(pulsarCluster.getClusterName());
-        sourceTester.setServiceContainer(postgresqlContainer);
+        DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(postgreSqlContainer);
 
         // prepare the testing environment for source
         prepareSource(sourceTester);
