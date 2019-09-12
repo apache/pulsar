@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.slf4j.Logger;
@@ -547,6 +548,52 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         producer.close();
         producer2.close();
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(dataProvider = "subscriptions", timeOut = 10000)
+    public void testClosingRateLimiter(SubscriptionType subscription) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String namespace = "my-property/throttling_ns";
+        final String topicName = "persistent://" + namespace + "/closingSubRateLimiter" + subscription.name();
+        final String subName = "mySubscription" + subscription.name();
+
+        DispatchRate dispatchRate = new DispatchRate(10, 1024, 1);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(subscription).subscribe();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentSubscription sub = topic.getSubscription(subName);
+
+        final int numProducedMessages = 10;
+
+        for (int i = 0; i < numProducedMessages; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        for (int i = 0; i < numProducedMessages; i++) {
+            Message<byte[]> msg = consumer.receive();
+            consumer.acknowledge(msg);
+        }
+
+        Dispatcher dispatcher = sub.getDispatcher();
+        Assert.assertTrue(dispatcher.getRateLimiter().isPresent());
+        DispatchRateLimiter dispatchRateLimiter = dispatcher.getRateLimiter().get();
+
+        producer.close();
+        consumer.close();
+        sub.disconnect().get();
+
+        // Make sure that the rate limiter is closed
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), -1);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), -1);
 
         log.info("-- Exiting {} test --", methodName);
     }
