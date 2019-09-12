@@ -112,6 +112,10 @@
 <span class="hljs-attr">tlsEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">tlsCertificateFilePath</span>=<span class="hljs-string">/path/to/broker-cert.pem</span>
 <span class="hljs-attr">tlsKeyFilePath</span>=<span class="hljs-string">/path/to/broker-key.pem</span>
+<span class="hljs-comment">
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters</span>
+<span class="hljs-attr">brokerClientAuthenticationPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationAthenz</span>
+<span class="hljs-attr">brokerClientAuthenticationParameters</span>=<span class="hljs-string">{"tenantDomain":"shopping","tenantService":"some_app","providerDomain":"pulsar","privateKey":"file:///path/to/private.pem","keyId":"v1"}</span>
 </code></pre>
 <blockquote>
 <p>A full listing of parameters available in the <code>conf/broker.conf</code> file, as well as the default values for those parameters, can be found in <a href="/docs/fr/2.2.0/reference-configuration#broker">Broker Configuration</a>.</p>

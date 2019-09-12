@@ -720,6 +720,46 @@ To use a non-default configuration, there's a variety of configurable parameters
   
   The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
   
+  If you create a reader, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
+  
+  | Type | Name |
+  
+  &lt;div style=&quot;width:300px&quot;&gt;
+    Description
+  &lt;/div&gt;
+  | Default |\---|\---|\---|\--- String|`topicName`|Topic name. |None int|`receiverQueueSize`|Size of a consumer's receiver queue.  
+    
+  For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.  
+    
+  A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None String|`readerName`|Read name.|null String|`subscriptionRolePrefix`|Prefix of subscription role. |null CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key store.|null ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not decrypt.  
+    
+  
+  
+  * **FAIL**: this is the default option to fail messages until crypto succeeds.
+    
+  
+  
+  * **DISCARD**: message is silently acknowledged and not delivered to an application.
+    
+  
+  
+  * **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.  
+        
+      If message are compressed, the decompression fails.   
+        
+      If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
+        
+      Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL boolean|
+  `readCompacted`|If `readCompacted` is enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.  
+    
+  This means if a topic has been compacted, a consumer only see the latest value for each key in the topic, up until the point in the topic message when backlog that has been compacted. Beyond that point, the messages are sent as normal.  
+    
+  `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions).   
+    
+  Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false boolean|`resetIncludeHead`|If set to true, the first message to be returned is the one specified by `messageId`.  
+    
+  If set to false, the first message to be returned is the one next to the message specified by `messageId`.|false
+  
   ## Schema
   
   In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](concepts-schema-registry.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
