@@ -174,7 +174,7 @@ Moreover, as the administrator has full control of the certificate authority, a 
 
 One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, pulsar.mycompany.com. In this case, you can generate a TLS cert with pulsar.mycompany.com as the "CommonName," and then enable hostname verification on the client.
 
-The examples below show hostname verification being disabled for the Java client, though you can omit this as the client disables the hostname verification by default. C++/python clients do now allow configuring this at the moment.
+The examples below show hostname verification being disabled for the Java client, though you can omit this as the client disables the hostname verification by default. C++/python/Node.js clients do now allow configuring this at the moment.
 
 ### CLI tools
 
@@ -226,4 +226,17 @@ config.setTlsTrustCertsFilePath("/path/to/ca.cert.pem");
 config.setTlsAllowInsecureConnection(false); // defaults to false from v2.2.0 onwards
 
 pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
+```
+
+### Node.js client
+
+```JavaScript
+const Pulsar = require('pulsar-client');
+
+(async () => {
+  const client = new Pulsar.Client({
+    serviceUrl: 'pulsar+ssl://broker.example.com:6651/',
+    tlsTrustCertsFilePath: '/path/to/ca.cert.pem',
+  });
+})();
 ```

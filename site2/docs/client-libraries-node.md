@@ -51,7 +51,7 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
+If you're using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL will look like something like this:
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
