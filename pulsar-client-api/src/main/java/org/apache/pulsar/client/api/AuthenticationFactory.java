@@ -52,6 +52,8 @@ public final class AuthenticationFactory {
         return DefaultImplementation.newAuthenticationToken(tokenSupplier);
     }
 
+    // CHECKSTYLE.OFF: MethodName
+
     /**
      * Create an authentication provider for TLS based authentication.
      *
@@ -61,10 +63,11 @@ public final class AuthenticationFactory {
      *            the path to the TLS client private key
      * @return the Authentication object initialized with the TLS credentials
      */
-    @SuppressWarnings("checkstyle:MethodName")
     public static Authentication TLS(String certFilePath, String keyFilePath) {
         return DefaultImplementation.newAuthenticationTLS(certFilePath, keyFilePath);
     }
+
+    // CHECKSTYLE.ON: MethodName
 
     /**
      * Create an instance of the {@link Authentication} object by using

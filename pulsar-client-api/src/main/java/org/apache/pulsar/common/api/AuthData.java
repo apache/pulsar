@@ -27,8 +27,9 @@ import lombok.Data;
  */
 @Data(staticConstructor = "of")
 public final class AuthData {
-    @SuppressWarnings("checkstyle:StaticVariableName")
+    // CHECKSTYLE.OFF: StaticVariableName
     public static byte[] INIT_AUTH_DATA = "PulsarAuthInit".getBytes(UTF_8);
+    // CHECKSTYLE.ON: StaticVariableName
 
     private final byte[] bytes;
 

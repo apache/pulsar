@@ -201,13 +201,14 @@ public interface Schema<T> {
      */
     Schema<Timestamp> TIMESTAMP = DefaultImplementation.newTimestampSchema();
 
+    // CHECKSTYLE.OFF: MethodName
+
     /**
      * Create a Protobuf schema type by extracting the fields of the specified class.
      *
      * @param clazz the Protobuf generated class to be used to extract the schema
      * @return a Schema instance
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
         return DefaultImplementation.newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
     }
@@ -218,7 +219,6 @@ public interface Schema<T> {
      * @param schemaDefinition schemaDefinition the definition of the schema
      * @return a Schema instance
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
         return DefaultImplementation.newProtobufSchema(schemaDefinition);
     }
@@ -229,7 +229,6 @@ public interface Schema<T> {
      * @param pojo the POJO class to be used to extract the Avro schema
      * @return a Schema instance
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <T> Schema<T> AVRO(Class<T> pojo) {
         return DefaultImplementation.newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
     }
@@ -240,7 +239,6 @@ public interface Schema<T> {
      * @param schemaDefinition the definition of the schema
      * @return a Schema instance
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <T> Schema<T> AVRO(SchemaDefinition<T> schemaDefinition) {
         return DefaultImplementation.newAvroSchema(schemaDefinition);
     }
@@ -251,7 +249,6 @@ public interface Schema<T> {
      * @param pojo the POJO class to be used to extract the JSON schema
      * @return a Schema instance
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <T> Schema<T> JSON(Class<T> pojo) {
         return DefaultImplementation.newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
     }
@@ -262,7 +259,6 @@ public interface Schema<T> {
      * @param schemaDefinition the definition of the schema
      * @return a Schema instance
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <T> Schema<T> JSON(SchemaDefinition schemaDefinition) {
         return DefaultImplementation.newJSONSchema(schemaDefinition);
     }
@@ -270,7 +266,6 @@ public interface Schema<T> {
     /**
      * Key Value Schema using passed in schema type, support JSON and AVRO currently.
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value, SchemaType type) {
         return DefaultImplementation.newKeyValueSchema(key, value, type);
     }
@@ -278,7 +273,6 @@ public interface Schema<T> {
     /**
      * Schema that can be used to encode/decode KeyValue.
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static Schema<KeyValue<byte[], byte[]>> KV_BYTES() {
         return DefaultImplementation.newKeyValueBytesSchema();
     }
@@ -286,7 +280,6 @@ public interface Schema<T> {
     /**
      * Key Value Schema whose underneath key and value schemas are JSONSchema.
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Class<K> key, Class<V> value) {
         return DefaultImplementation.newKeyValueSchema(key, value, SchemaType.JSON);
     }
@@ -294,7 +287,6 @@ public interface Schema<T> {
     /**
      * Key Value Schema using passed in key and value schemas.
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value) {
         return DefaultImplementation.newKeyValueSchema(key, value);
     }
@@ -302,14 +294,12 @@ public interface Schema<T> {
     /**
      * Key Value Schema using passed in key, value and encoding type schemas.
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value,
         KeyValueEncodingType keyValueEncodingType) {
         return DefaultImplementation.newKeyValueSchema(key, value, keyValueEncodingType);
     }
 
     @Deprecated
-    @SuppressWarnings("checkstyle:MethodName")
     static Schema<GenericRecord> AUTO() {
         return AUTO_CONSUME();
     }
@@ -324,7 +314,6 @@ public interface Schema<T> {
      *
      * @return the auto schema instance
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static Schema<GenericRecord> AUTO_CONSUME() {
         return DefaultImplementation.newAutoConsumeSchema();
     }
@@ -340,10 +329,11 @@ public interface Schema<T> {
      *
      * @return the auto schema instance
      */
-    @SuppressWarnings("checkstyle:MethodName")
     static Schema<byte[]> AUTO_PRODUCE_BYTES() {
         return DefaultImplementation.newAutoProduceSchema();
     }
+
+    // CHECKSTYLE.ON: MethodName
 
     static Schema<?> getSchema(SchemaInfo schemaInfo) {
         return DefaultImplementation.getSchema(schemaInfo);

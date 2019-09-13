@@ -70,15 +70,17 @@ public interface MessageId extends Comparable<MessageId>, Serializable {
         return DefaultImplementation.newMessageIdFromByteArrayWithTopic(data, topicName);
     }
 
+    // CHECKSTYLE.OFF: ConstantName
+
     /**
      * MessageId that represents the oldest message available in the topic.
      */
-    @SuppressWarnings("checkstyle:ConstantName")
     MessageId earliest = DefaultImplementation.newMessageId(-1, -1, -1);
 
     /**
      * MessageId that represents the next message published in the topic.
      */
-    @SuppressWarnings("checkstyle:ConstantName")
     MessageId latest = DefaultImplementation.newMessageId(Long.MAX_VALUE, Long.MAX_VALUE, -1);
+
+    // CHECKSTYLE.ON: ConstantName
 }
