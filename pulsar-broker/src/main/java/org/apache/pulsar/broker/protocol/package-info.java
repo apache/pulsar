@@ -16,36 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.policies.data.loadbalancer;
-
-import java.util.Map;
-import java.util.Optional;
-
 /**
- * For backwards compatibility purposes.
+ * Pulsar broker protocol handlers.
  */
-public interface ServiceLookupData {
-    String getWebServiceUrl();
-
-    String getWebServiceUrlTls();
-
-    String getPulsarServiceUrl();
-
-    String getPulsarServiceUrlTls();
-
-    /**
-     * Get all the protocols advertised by the broker.
-     *
-     * @return the protocols advertised by the broker.
-     */
-    Map<String, String> getProtocols();
-
-    /**
-     * Get the protocol data of the given <tt>protocol</tt>.
-     *
-     * @param protocol the protocol advertised by the broker.
-     * @return the optional protocol data advertised by the broker.
-     */
-    Optional<String> getProtocol(String protocol);
-
-}
+package org.apache.pulsar.broker.protocol;

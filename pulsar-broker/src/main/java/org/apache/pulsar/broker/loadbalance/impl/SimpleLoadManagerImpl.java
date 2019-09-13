@@ -227,6 +227,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         this.policies = new SimpleResourceAllocationPolicies(pulsar);
         lastLoadReport = new LoadReport(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        lastLoadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
         lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
@@ -1113,6 +1114,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 LoadReport loadReport = new LoadReport(pulsar.getSafeWebServiceAddress(),
                         pulsar.getWebServiceAddressTls(), pulsar.getSafeBrokerServiceUrl(),
                         pulsar.getBrokerServiceUrlTls());
+                loadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
                 loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
                 loadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
                 loadReport.setName(getBrokerAddress());

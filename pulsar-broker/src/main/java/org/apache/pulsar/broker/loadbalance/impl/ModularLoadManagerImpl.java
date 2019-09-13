@@ -263,10 +263,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
+        Map<String, String> protocolData = pulsar.getProtocolDataToAdvertise();
+
         lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        lastData.setProtocols(protocolData);
         localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        lastData.setProtocols(protocolData);
         localData.setBrokerVersionString(pulsar.getBrokerVersion());
         // configure broker-topic mode
         lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
