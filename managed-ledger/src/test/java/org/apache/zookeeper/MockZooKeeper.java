@@ -127,42 +127,47 @@ public class MockZooKeeper extends ZooKeeper {
             throws KeeperException, InterruptedException {
         mutex.lock();
 
-        checkProgrammedFail();
-
-        if (stopped)
-            throw new KeeperException.ConnectionLossException();
-
-        if (tree.containsKey(path)) {
-            throw new KeeperException.NodeExistsException(path);
-        }
-
-        final String parent = path.substring(0, path.lastIndexOf("/"));
-        if (!parent.isEmpty() && !tree.containsKey(parent)) {
-            throw new KeeperException.NoNodeException();
-        }
-
-        if (createMode == CreateMode.EPHEMERAL_SEQUENTIAL || createMode == CreateMode.PERSISTENT_SEQUENTIAL) {
-            byte[] parentData = tree.get(parent).getLeft();
-            int parentVersion = tree.get(parent).getRight();
-            path = path + parentVersion;
-
-            // Update parent version
-            tree.put(parent, Pair.of(parentData, parentVersion + 1));
-        }
-
-        tree.put(path, Pair.of(data, 0));
-
         final Set<Watcher> toNotifyCreate = Sets.newHashSet();
-        toNotifyCreate.addAll(watchers.get(path));
-
         final Set<Watcher> toNotifyParent = Sets.newHashSet();
-        if (!parent.isEmpty()) {
-            toNotifyParent.addAll(watchers.get(parent));
-        }
-        watchers.removeAll(path);
-        final String finalPath = path;
-        mutex.unlock();
+        final String parent = path.substring(0, path.lastIndexOf("/"));
 
+        try {
+            checkProgrammedFail();
+
+            if (stopped)
+                throw new KeeperException.ConnectionLossException();
+
+            if (tree.containsKey(path)) {
+                throw new KeeperException.NodeExistsException(path);
+            }
+
+            if (!parent.isEmpty() && !tree.containsKey(parent)) {
+                throw new KeeperException.NoNodeException();
+            }
+
+            if (createMode == CreateMode.EPHEMERAL_SEQUENTIAL || createMode == CreateMode.PERSISTENT_SEQUENTIAL) {
+                byte[] parentData = tree.get(parent).getLeft();
+                int parentVersion = tree.get(parent).getRight();
+                path = path + parentVersion;
+
+                // Update parent version
+                tree.put(parent, Pair.of(parentData, parentVersion + 1));
+            }
+
+            tree.put(path, Pair.of(data, 0));
+
+            toNotifyCreate.addAll(watchers.get(path));
+
+            if (!parent.isEmpty()) {
+                toNotifyParent.addAll(watchers.get(parent));
+            }
+            watchers.removeAll(path);
+        } finally {
+
+            mutex.unlock();
+        }
+
+        final String finalPath = path;
         executor.execute(() -> {
 
             toNotifyCreate.forEach(
