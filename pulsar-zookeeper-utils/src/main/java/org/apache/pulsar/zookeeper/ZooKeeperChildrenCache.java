@@ -74,16 +74,17 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
 
     @Override
     public void reloadCache(final String path) {
-        try {
-            cache.invalidate(path);
-            Set<String> children = cache.getChildrenAsync(path, this).join();
-            LOG.info("reloadCache called in zookeeperChildrenCache for path {}", path);
-            for (ZooKeeperCacheListener<Set<String>> listener : listeners) {
-                listener.onUpdate(path, children, null);
-            }
-        } catch (Exception e) {
-            LOG.warn("Reloading ZooKeeperDataCache failed at path:{}", path);
-        }
+        cache.invalidate(path);
+        cache.getChildrenAsync(path, this)
+                .thenAccept(children -> {
+                    LOG.info("reloadCache called in zookeeperChildrenCache for path {}", path);
+                    for (ZooKeeperCacheListener<Set<String>> listener : listeners) {
+                        listener.onUpdate(path, children, null);
+                    }
+                }).exceptionally(ex -> {
+                    LOG.warn("Reloading ZooKeeperDataCache failed at path:{}", path, ex);
+                    return null;
+                });
     }
 
     @Override

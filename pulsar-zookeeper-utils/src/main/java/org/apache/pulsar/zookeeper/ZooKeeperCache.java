@@ -391,11 +391,11 @@ public abstract class ZooKeeperCache implements Watcher {
             CompletableFuture<Set<String>> future = new CompletableFuture<>();
             zk.getChildren(path, watcher, (ChildrenCallback) (rc, path1, ctx, children) -> {
                 if (rc == Code.OK.intValue()) {
-                    executor.execute(() -> future.complete(Sets.newTreeSet(children)));
-                } if (rc == Code.NONODE.intValue()) {
-                    executor.execute(() -> future.complete(Collections.emptySet()));
+                    future.complete(Sets.newTreeSet(children));
+                } else if (rc == Code.NONODE.intValue()) {
+                    future.complete(Collections.emptySet());
                 } else {
-                    executor.execute(() -> future.completeExceptionally(KeeperException.create(rc)));
+                    future.completeExceptionally(KeeperException.create(rc));
                 }
             }, null);
 
@@ -409,7 +409,12 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public Set<String> getChildrenIfPresent(String path) {
-        return childrenCache.getIfPresent(path).getNow(null);
+        CompletableFuture<Set<String>> future = childrenCache.getIfPresent(path);
+        if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
+            return future.getNow(null);
+        } else {
+            return null;
+        }
     }
 
     @Override

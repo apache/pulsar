@@ -126,59 +126,57 @@ public class MockZooKeeper extends ZooKeeper {
     public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode)
             throws KeeperException, InterruptedException {
         mutex.lock();
-        try {
-            checkProgrammedFail();
 
-            if (stopped)
-                throw new KeeperException.ConnectionLossException();
+        checkProgrammedFail();
 
-            if (tree.containsKey(path)) {
-                throw new KeeperException.NodeExistsException(path);
-            }
+        if (stopped)
+            throw new KeeperException.ConnectionLossException();
 
-            final String parent = path.substring(0, path.lastIndexOf("/"));
-            if (!parent.isEmpty() && !tree.containsKey(parent)) {
-                throw new KeeperException.NoNodeException();
-            }
-
-            if (createMode == CreateMode.EPHEMERAL_SEQUENTIAL || createMode == CreateMode.PERSISTENT_SEQUENTIAL) {
-                byte[] parentData = tree.get(parent).getLeft();
-                int parentVersion = tree.get(parent).getRight();
-                path = path + parentVersion;
-
-                // Update parent version
-                tree.put(parent, Pair.of(parentData, parentVersion + 1));
-            }
-
-            tree.put(path, Pair.of(data, 0));
-
-            final Set<Watcher> toNotifyCreate = Sets.newHashSet();
-            toNotifyCreate.addAll(watchers.get(path));
-
-            final Set<Watcher> toNotifyParent = Sets.newHashSet();
-            if (!parent.isEmpty()) {
-                toNotifyParent.addAll(watchers.get(parent));
-            }
-            watchers.removeAll(path);
-            final String finalPath = path;
-            executor.execute(() -> {
-                    toNotifyCreate.forEach(
-                            watcher -> watcher.process(
-                                    new WatchedEvent(EventType.NodeCreated,
-                                                     KeeperState.SyncConnected,
-                                                     finalPath)));
-                    toNotifyParent.forEach(
-                            watcher -> watcher.process(
-                                    new WatchedEvent(EventType.NodeChildrenChanged,
-                                                     KeeperState.SyncConnected,
-                                                     parent)));
-                });
-
-            return path;
-        } finally {
-            mutex.unlock();
+        if (tree.containsKey(path)) {
+            throw new KeeperException.NodeExistsException(path);
         }
 
+        final String parent = path.substring(0, path.lastIndexOf("/"));
+        if (!parent.isEmpty() && !tree.containsKey(parent)) {
+            throw new KeeperException.NoNodeException();
+        }
+
+        if (createMode == CreateMode.EPHEMERAL_SEQUENTIAL || createMode == CreateMode.PERSISTENT_SEQUENTIAL) {
+            byte[] parentData = tree.get(parent).getLeft();
+            int parentVersion = tree.get(parent).getRight();
+            path = path + parentVersion;
+
+            // Update parent version
+            tree.put(parent, Pair.of(parentData, parentVersion + 1));
+        }
+
+        tree.put(path, Pair.of(data, 0));
+
+        final Set<Watcher> toNotifyCreate = Sets.newHashSet();
+        toNotifyCreate.addAll(watchers.get(path));
+
+        final Set<Watcher> toNotifyParent = Sets.newHashSet();
+        if (!parent.isEmpty()) {
+            toNotifyParent.addAll(watchers.get(parent));
+        }
+        watchers.removeAll(path);
+        final String finalPath = path;
+        mutex.unlock();
+
+        executor.execute(() -> {
+            toNotifyCreate.forEach(
+                    watcher -> watcher.process(
+                            new WatchedEvent(EventType.NodeCreated,
+                                    KeeperState.SyncConnected,
+                                    finalPath)));
+            toNotifyParent.forEach(
+                    watcher -> watcher.process(
+                            new WatchedEvent(EventType.NodeChildrenChanged,
+                                    KeeperState.SyncConnected,
+                                    parent)));
+        });
+
+        return path;
     }
 
     @Override

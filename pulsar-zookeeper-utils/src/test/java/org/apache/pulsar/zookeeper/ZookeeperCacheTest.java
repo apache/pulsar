@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 
+import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -194,12 +195,7 @@ public class ZookeeperCacheTest {
         cache.unregisterListener(counter);
 
         assertEquals(notificationCount.get(), 0);
-        try {
-            cache.get();
-            fail("Expect this to fail");
-        } catch (KeeperException.NoNodeException nne) {
-            // correct
-        }
+        assertEquals(cache.get(), Collections.emptySet());
 
         zkClient.create("/test", new byte[0], null, null);
         zkClient.create("/test/z1", new byte[0], null, null);
