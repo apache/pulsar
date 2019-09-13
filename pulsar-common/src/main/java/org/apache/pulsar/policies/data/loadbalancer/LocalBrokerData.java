@@ -20,9 +20,11 @@ package org.apache.pulsar.policies.data.loadbalancer;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.Maps;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -79,6 +81,9 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
     @SuppressWarnings("checkstyle:ConstantName")
     public static final String loadReportType = LocalBrokerData.class.getSimpleName();
 
+    // the external protocol data advertised by protocol handlers.
+    private Map<String, String> protocols;
+
     // For JSON only.
     public LocalBrokerData() {
         this(null, null, null, null);
@@ -103,6 +108,7 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         bundles = new HashSet<>();
         lastBundleGains = new HashSet<>();
         lastBundleLosses = new HashSet<>();
+        protocols = new HashMap<>();
     }
 
     /**
@@ -423,6 +429,20 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
     @Override
     public Map<String, NamespaceBundleStats> getBundleStats() {
         return getLastStats();
+    }
+
+    public void setProtocols(Map<String, String> protocols) {
+        this.protocols = protocols;
+    }
+
+    @Override
+    public Map<String, String> getProtocols() {
+        return protocols;
+    }
+
+    @Override
+    public Optional<String> getProtocol(String protocol) {
+        return Optional.ofNullable(protocols.get(protocol));
     }
 
 }

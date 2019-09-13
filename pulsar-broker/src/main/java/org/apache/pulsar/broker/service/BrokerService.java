@@ -34,8 +34,10 @@ import com.google.common.collect.Queues;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -43,6 +45,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -198,6 +201,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
+    private final ServerBootstrap defaultServerBootstrap;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -279,21 +283,56 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
+
+        this.defaultServerBootstrap = defaultServerBootstrap();
+    }
+
+    // This call is used for starting additional protocol handlers
+    public void startProtocolHandlers(
+        Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlers) {
+
+        protocolHandlers.forEach((protocol, initializers) -> {
+            initializers.forEach((address, initializer) -> {
+                try {
+                    startProtocolHandler(protocol, address, initializer);
+                } catch (IOException e) {
+                    log.error("{}", e.getMessage(), e.getCause());
+                    throw new RuntimeException(e.getMessage(), e.getCause());
+                }
+            });
+        });
+    }
+
+    private void startProtocolHandler(String protocol,
+                                      SocketAddress address,
+                                      ChannelInitializer<SocketChannel> initializer) throws IOException {
+        ServerBootstrap bootstrap = defaultServerBootstrap.clone();
+        bootstrap.childHandler(initializer);
+        try {
+            bootstrap.bind(address).sync();
+        } catch (Exception e) {
+            throw new IOException("Failed to bind protocol `" + protocol + "` on " + address, e);
+        }
+        log.info("Successfully bind protocol `{}` on {}", protocol, address);
+    }
+
+    private ServerBootstrap defaultServerBootstrap() {
+        ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
+        bootstrap.group(acceptorGroup, workerGroup);
+        bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
+        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+            new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
+        EventLoopUtil.enableTriggeredMode(bootstrap);
+        return bootstrap;
     }
 
     public void start() throws Exception {
         this.producerNameGenerator = new DistributedIdGenerator(pulsar.getZkClient(), producerNameGeneratorPath,
                 pulsar.getConfiguration().getClusterName());
 
-        ServerBootstrap bootstrap = new ServerBootstrap();
-        bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
-        bootstrap.group(acceptorGroup, workerGroup);
-        bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
-                new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
-
-        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
-        EventLoopUtil.enableTriggeredMode(bootstrap);
+        ServerBootstrap bootstrap = defaultServerBootstrap.clone();
 
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
