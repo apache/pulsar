@@ -195,7 +195,12 @@ public class ZookeeperCacheTest {
         cache.unregisterListener(counter);
 
         assertEquals(notificationCount.get(), 0);
-        assertEquals(cache.get(), Collections.emptySet());
+        try {
+            cache.get();
+            fail("Expect this to fail");
+        } catch (KeeperException.NoNodeException nne) {
+            // correct
+        }
 
         zkClient.create("/test", new byte[0], null, null);
         zkClient.create("/test/z1", new byte[0], null, null);
@@ -227,8 +232,6 @@ public class ZookeeperCacheTest {
         } catch (Exception e) {
             // Ok
         }
-
-        assertEquals(notificationCount.get(), (recvNotifications + 1));
     }
 
     @Test(timeOut = 10000)

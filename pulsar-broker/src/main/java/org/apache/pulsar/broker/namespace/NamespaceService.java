@@ -69,6 +69,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -893,6 +894,10 @@ public class NamespaceService {
 
         return pulsar.getLocalZkCacheService().managedLedgerListCache().getAsync(path)
                 .thenApply(znodes -> {
+                    if (znodes == null) {
+                        return Collections.emptyList();
+                    }
+
                     List<String> topics = Lists.newArrayList();
                     for (String znode : znodes) {
                         topics.add(String.format("persistent://%s/%s", namespaceName, Codec.decode(znode)));

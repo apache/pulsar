@@ -164,6 +164,7 @@ public class MockZooKeeper extends ZooKeeper {
         mutex.unlock();
 
         executor.execute(() -> {
+
             toNotifyCreate.forEach(
                     watcher -> watcher.process(
                             new WatchedEvent(EventType.NodeCreated,
@@ -329,6 +330,12 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
+            if (!tree.containsKey(path)) {
+                mutex.unlock();
+                cb.processResult(KeeperException.Code.NoNode, path, ctx, null);
+                return;
+            }
+
             List<String> children = Lists.newArrayList();
             for (String item : tree.tailMap(path).keySet()) {
                 if (!item.startsWith(path)) {
@@ -345,12 +352,12 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             }
 
-            mutex.unlock();
-
-            cb.processResult(0, path, ctx, children);
             if (watcher != null) {
                 watchers.put(path, watcher);
             }
+            mutex.unlock();
+
+            cb.processResult(0, path, ctx, children);
         });
     }
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.zookeeper;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.pulsar.zookeeper.ZooKeeperCache.CacheUpdater;
@@ -50,14 +51,20 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
     }
 
     public Set<String> get() throws KeeperException, InterruptedException {
-        return getAsync(path).join();
+        return get(this.path);
     }
 
     public Set<String> get(String path) throws KeeperException, InterruptedException {
         if (LOG.isDebugEnabled()) {
             LOG.debug("getChildren called at: {}", path);
         }
-        return getAsync(path).join();
+
+        Set<String> children = cache.getChildrenAsync(path, this).join();
+        if (children == null) {
+            throw KeeperException.create(KeeperException.Code.NONODE);
+        }
+
+        return children;
     }
 
     public CompletableFuture<Set<String>> getAsync(String path) {
