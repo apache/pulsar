@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.auth;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -49,12 +50,17 @@ import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -327,6 +333,16 @@ public abstract class MockedPulsarServiceBaseTest {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(classObj, fieldValue);
+    }
+
+    protected List<String> getTopicListAndTrimSystemTopic(String namespace) throws PulsarAdminException {
+        List<String> topicList = admin.topics().getList(namespace);
+
+        // Check topic policy system topic and then delete them
+        assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespace),
+            EventType.TOPIC_POLICY).toString()));
+        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+        return topicList;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
