@@ -22,61 +22,33 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 VERSION=`${ROOT_DIR}/src/get-project-version.py`
 DEST_DIR=$ROOT_DIR/generated-site
-JDK_COMMON_PKGS=java.lang:java.util:java.util.concurrent:java.nio:java.net:java.io
 
 (
   cd $ROOT_DIR
 
   # Java client
-  javadoc \
-    -quiet \
-    -windowtitle "Pulsar Client Java API" \
-    -doctitle "Pulsar Client Java API" \
-    -overview site/javadoc/client.html \
-    -d $DEST_DIR/api/client/${VERSION}/ \
-    -subpackages org.apache.pulsar.client.api \
-    -noqualifier $JDK_COMMON_PKGS \
-    -notimestamp \
-    -Xdoclint:none \
-    `find pulsar-client-api/src/main/java/org/apache/pulsar/client/api -name *.java`
+  mkdir -p $DEST_DIR/api/client/${VERSION}
+  mvn -pl pulsar-client-api javadoc:javadoc
+  cp -r pulsar-client-api/target/site/apidocs/* $DEST_DIR/api/client/${VERSION}/
+
 
   # Java admin
-  javadoc \
-    -quiet \
-    -windowtitle "Pulsar Admin Java API" \
-    -doctitle "Pulsar Admin Java API" \
-    -overview site/javadoc/admin.html \
-    -d $DEST_DIR/api/admin/${VERSION}/ \
-    -noqualifier $JDK_COMMON_PKGS \
-    -notimestamp \
-    -Xdoclint:none \
-    `find pulsar-client-admin -name *.java | grep -v /internal/` \
-    `find pulsar-common/src/main/java/org/apache/pulsar/common/policies -name *.java`
+  mkdir -p $DEST_DIR/api/admin/${VERSION}
+  mvn -pl pulsar-client-admin javadoc:javadoc
+  cp -r pulsar-client-admin/target/site/apidocs/* $DEST_DIR/api/admin/${VERSION}/
 
   # Pulsar Functions Java SDK
-  javadoc \
-    -quiet \
-    -windowtitle "Pulsar Functions Java SDK" \
-    -doctitle "Pulsar Functions Java SDK" \
-    -overview site/javadoc/pulsar-functions.html \
-    -d $DEST_DIR/api/pulsar-functions/${VERSION}/ \
-    -noqualifier $JDK_COMMON_PKGS \
-    -notimestamp \
-    -Xdoclint:none \
-    -exclude lombok.extern.slf4j.Slf4j \
-    `find pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api -name *.java`
+  mkdir -p $DEST_DIR/api/pulsar-functions/${VERSION}
+  cd pulsar-functions
+  mvn -pl api-java javadoc:javadoc
+  cd ..
+  cp -r pulsar-functions/api-java/target/site/apidocs/* $DEST_DIR/api/pulsar-functions/${VERSION}/
 
   # Broker
-  #javadoc \
-  #  -quiet \
-  #  -windowtitle "Pulsar Broker Java API" \
-  #  -doctitle "Pulsar Broker Java API" \
-  #  -overview site/scripts/javadoc-broker.html \
-  #  -d site/api/broker \
-  #  -noqualifier $JDK_COMMON_PKGS \
-  #  -notimestamp \
-  #  -Xdoclint:none \
-  #  `find pulsar-broker -name *.java`
+  mkdir -p $DEST_DIR/api/pulsar-broker/${VERSION}
+  mvn -pl pulsar-broker javadoc:javadoc
+  cp -r pulsar-broker/target/site/apidocs/* $DEST_DIR/api/pulsar-broker/${VERSION}/
+
 ) || true
 
 # The "|| true" is present here to keep this script from failing due to
