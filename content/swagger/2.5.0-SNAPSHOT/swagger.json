@@ -8515,10 +8515,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -8872,7 +8872,16 @@
           "type" : "number",
           "format" : "double"
         },
-        "cpu" : {
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
@@ -8882,12 +8891,6 @@
           "type" : "boolean"
         },
         "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
@@ -8902,11 +8905,8 @@
           "type" : "number",
           "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -9077,10 +9077,10 @@
         "producerName" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -9752,10 +9752,10 @@
         "producerName" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
