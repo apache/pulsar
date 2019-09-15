@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Map.Entry;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -411,7 +412,7 @@ public abstract class ZooKeeperCache implements Watcher {
                 if (rc == Code.OK.intValue()) {
                     future.complete(Sets.newTreeSet(children));
                 } else if (rc == Code.NONODE.intValue()) {
-                    // The node we want may not exist yet, so put a watcher on its existance
+                    // The node we want may not exist yet, so put a watcher on its existence
                     // before throwing up the exception. Its possible that the node could have
                     // been created after the call to getChildren, but before the call to exists().
                     // If this is the case, exists will return true, and we just call getChildren again.
@@ -425,7 +426,7 @@ public abstract class ZooKeeperCache implements Watcher {
                                     });
                         } else {
                             // Z-node does not exist
-                            future.complete(null);
+                            future.complete(Collections.emptySet());
                         }
                     }).exceptionally(ex -> {
                         future.completeExceptionally(ex);

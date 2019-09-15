@@ -894,10 +894,6 @@ public class NamespaceService {
 
         return pulsar.getLocalZkCacheService().managedLedgerListCache().getAsync(path)
                 .thenApply(znodes -> {
-                    if (znodes == null) {
-                        return Collections.emptyList();
-                    }
-
                     List<String> topics = Lists.newArrayList();
                     for (String znode : znodes) {
                         topics.add(String.format("persistent://%s/%s", namespaceName, Codec.decode(znode)));

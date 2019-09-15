@@ -91,7 +91,7 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
                 }).exceptionally(ex -> {
                     LOG.warn("Reloading ZooKeeperDataCache failed at path:{}", path, ex);
                     return null;
-                });
+                }).join();
     }
 
     @Override

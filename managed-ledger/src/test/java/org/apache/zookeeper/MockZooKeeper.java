@@ -188,23 +188,25 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
             final StringCallback cb, final Object ctx) {
-        if (stopped) {
-            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
-            return;
-        }
 
-        final Set<Watcher> toNotifyCreate = Sets.newHashSet();
-        toNotifyCreate.addAll(watchers.get(path));
-
-        final Set<Watcher> toNotifyParent = Sets.newHashSet();
-        final String parent = path.substring(0, path.lastIndexOf("/"));
-        if (!parent.isEmpty()) {
-            toNotifyParent.addAll(watchers.get(parent));
-        }
-        watchers.removeAll(path);
 
         executor.execute(() -> {
             mutex.lock();
+
+            if (stopped) {
+                cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
+                return;
+            }
+
+            final Set<Watcher> toNotifyCreate = Sets.newHashSet();
+            toNotifyCreate.addAll(watchers.get(path));
+
+            final Set<Watcher> toNotifyParent = Sets.newHashSet();
+            final String parent = path.substring(0, path.lastIndexOf("/"));
+            if (!parent.isEmpty()) {
+                toNotifyParent.addAll(watchers.get(parent));
+            }
+
             if (getProgrammedFailStatus()) {
                 mutex.unlock();
                 cb.processResult(failReturnCode.intValue(), path, ctx, null);
@@ -219,6 +221,7 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
             } else {
                 tree.put(path, Pair.of(data, 0));
+                watchers.removeAll(path);
                 mutex.unlock();
                 cb.processResult(0, path, ctx, null);
 
