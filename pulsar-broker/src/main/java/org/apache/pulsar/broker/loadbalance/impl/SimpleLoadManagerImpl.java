@@ -54,6 +54,8 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
@@ -113,7 +115,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
     // Used to distribute bundles within a namespace evely across brokers.
-    private final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange;
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
 
     // CPU usage per msg/sec
     private double realtimeCpuLoadFactor = 0.025;
@@ -199,7 +201,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         bundleLossesCache = new HashSet<>();
         brokerCandidateCache = new HashSet<>();
         availableBrokersCache = new HashSet<>();
-        brokerToNamespaceToBundleRange = new HashMap<>();
+        brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerUrl) {
@@ -898,8 +900,9 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 // Add preallocated bundle range so incoming bundles from the same namespace are not assigned to the
                 // same broker.
                 brokerToNamespaceToBundleRange
-                        .computeIfAbsent(selectedRU.getResourceId().replace("http://", ""), k -> new HashMap<>())
-                        .computeIfAbsent(namespaceName, k -> new HashSet<>()).add(bundleRange);
+                        .computeIfAbsent(selectedRU.getResourceId().replace("http://", ""),
+                                k -> new ConcurrentOpenHashMap<>())
+                        .computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>()).add(bundleRange);
                 ranking.addPreAllocatedServiceUnit(serviceUnitId, quota);
                 resourceUnitRankings.put(selectedRU, ranking);
             }
@@ -1320,8 +1323,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             final String broker = resourceUnit.getResourceId();
             final Set<String> loadedBundles = ranking.getLoadedBundles();
             final Set<String> preallocatedBundles = resourceUnitRankings.get(resourceUnit).getPreAllocatedBundles();
-            final Map<String, Set<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
-                    .computeIfAbsent(broker.replace("http://", ""), k -> new HashMap<>());
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
+                    .computeIfAbsent(broker.replace("http://", ""), k -> new ConcurrentOpenHashMap<>());
             namespaceToBundleRange.clear();
             LoadManagerShared.fillNamespaceToBundlesMap(loadedBundles, namespaceToBundleRange);
             LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundles, namespaceToBundleRange);
