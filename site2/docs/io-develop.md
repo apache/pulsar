@@ -69,14 +69,14 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
       |Variable|Required|Description
       |---|---|---
       `TopicName`|No|Pulsar topic name from which the record is originated from.
-      `Key`|No| |
+      `Key`|No| Messages can optionally be tagged with keys.<br/><br/>For more information, see [Routing modes](concepts-messaging.md#routing-modes).|
       `Value`|Yes|Actual data of the record.
       `EventTime`|No|Event time of the record from the source.
       `PartitionId`|No| If the record is originated from a partitioned source, it returns its `PartitionId`. <br/><br/>`PartitionId` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
       `RecordSequence`|No|If the record is originated from a sequential source, it returns its `RecordSequence`.<br/><br/>`RecordSequence` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
-      `Properties` |Yes| If the record carries user-defined properties, it returns those properties.
+      `Properties` |No| If the record carries user-defined properties, it returns those properties.
       `DestinationTopic`|No|Topic to which message should be written.
-      `Message`|No||
+      `Message`|No|A class which carries data sent by users.<br/><br/>For more information, see [Message.java](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java).|
 
      * {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java#L28} should provide the following methods:
 
