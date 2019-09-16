@@ -146,20 +146,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             } else {
                 SystemTopic systemTopic = namespaceEventsSystemTopicFactory.createSystemTopic(namespace
                         , EventType.TOPIC_POLICY);
-                pulsarService.getBrokerService().getTopic(systemTopic.getTopicName().toString(), true).whenComplete((p, e) -> {
-                    if (e == null) {
-                        CompletableFuture<SystemTopic.Reader> readerCompletableFuture = systemTopic.newReaderAsync();
-                        readerCaches.put(namespace, readerCompletableFuture);
-                        readerCompletableFuture.whenComplete((reader, ex) -> {
-                            if (ex != null) {
-                                result.completeExceptionally(ex);
-                            } else {
-                                initPolicesCache(reader, result);
-                                readMorePolicies(reader);
-                            }
-                        });
+                CompletableFuture<SystemTopic.Reader> readerCompletableFuture = systemTopic.newReaderAsync();
+                readerCaches.put(namespace, readerCompletableFuture);
+                readerCompletableFuture.whenComplete((reader, ex) -> {
+                    if (ex != null) {
+                        result.completeExceptionally(ex);
                     } else {
-                        result.completeExceptionally(e);
+                        initPolicesCache(reader, result);
+                        readMorePolicies(reader);
                     }
                 });
             }
