@@ -6,6 +6,8 @@ sidebar_label: CDC Debezium Connector
 
 The CDC Debezium source connector pulls messages from MySQL or PostgreSQL to Pulsar topics.
 
+This guide explains how to congifure and use Debezium source connector.
+
 ## Configuration 
 
 The configuration of Debezium source connector has the following parameters.
