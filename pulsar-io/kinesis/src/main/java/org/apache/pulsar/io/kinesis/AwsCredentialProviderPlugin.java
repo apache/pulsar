@@ -55,7 +55,8 @@ public interface AwsCredentialProviderPlugin extends Closeable {
      * Defaults to an implementation that pulls credentials from a v1 provider
      */
     default software.amazon.awssdk.auth.credentials.AwsCredentialsProvider getV2CredentialsProvider() {
-        // make a small wrapper to forward requests to v1, this alows
+        // make a small wrapper to forward requests to v1, this allows
+        // for this interface to not "break" for implementers
         AWSCredentialsProvider v1Provider = getCredentialProvider();
         return () -> {
             AWSCredentials creds = v1Provider.getCredentials();

@@ -84,7 +84,7 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
                 + "in the user agent string used to make AWS requests. This can assist with troubleshooting "
                 + "(e.g. distinguish requests made by separate connectors instances)."
     )
-    private String applicationName = "Apache Pulsar IO Connector";
+    private String applicationName = "pulsar-kinesis";
 
     @FieldDoc(
         required = false,
