@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
+import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE;
+import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_ENABLE_VALIDATION;
+import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_MINIMUM_REGIONS_FOR_DURABILITY;
+import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
@@ -54,7 +60,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         if (ensemblePlacementPolicyClass.isPresent()) {
             setEnsemblePlacementPolicy(bkConf, conf, zkClient, ensemblePlacementPolicyClass.get());
         } else {
-            setDefaultEnsemblePlacementPolicy(bkConf, conf, zkClient);
+            setDefaultEnsemblePlacementPolicy(rackawarePolicyZkCache, clientIsolationZkCache, bkConf, conf, zkClient);
         }
         try {
             return BookKeeper.forConfig(bkConf)
@@ -98,16 +104,40 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         return bkConf;
     }
 
-    private void setDefaultEnsemblePlacementPolicy(ClientConfiguration bkConf, ServiceConfiguration conf,
-            ZooKeeper zkClient) {
+    public static void setDefaultEnsemblePlacementPolicy(
+        AtomicReference<ZooKeeperCache> rackawarePolicyZkCache,
+        AtomicReference<ZooKeeperCache> clientIsolationZkCache,
+        ClientConfiguration bkConf,
+        ServiceConfiguration conf,
+        ZooKeeper zkClient
+    ) {
         if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
             if (conf.isBookkeeperClientRegionawarePolicyEnabled()) {
                 bkConf.setEnsemblePlacementPolicy(RegionAwareEnsemblePlacementPolicy.class);
+
+                bkConf.setProperty(
+                    REPP_ENABLE_VALIDATION,
+                    conf.getProperties().getProperty(REPP_ENABLE_VALIDATION, "true")
+                );
+                bkConf.setProperty(
+                    REPP_REGIONS_TO_WRITE,
+                    conf.getProperties().getProperty(REPP_REGIONS_TO_WRITE, null)
+                );
+                bkConf.setProperty(
+                    REPP_MINIMUM_REGIONS_FOR_DURABILITY,
+                    conf.getProperties().getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY, "2")
+                );
+                bkConf.setProperty(
+                    REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE,
+                    conf.getProperties().getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE, "true")
+                );
             } else {
                 bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
             }
-            bkConf.setProperty(RackawareEnsemblePlacementPolicy.REPP_DNS_RESOLVER_CLASS,
-                    ZkBookieRackAffinityMapping.class.getName());
+            bkConf.setProperty(REPP_DNS_RESOLVER_CLASS,
+                conf.getProperties().getProperty(
+                    REPP_DNS_RESOLVER_CLASS,
+                    ZkBookieRackAffinityMapping.class.getName()));
 
             ZooKeeperCache zkc = new ZooKeeperCache(zkClient, conf.getZooKeeperOperationTimeoutSeconds()) {
             };
@@ -115,7 +145,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 zkc.stop();
             }
 
-            bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.rackawarePolicyZkCache.get());
+            bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, rackawarePolicyZkCache.get());
         }
 
         if (conf.getBookkeeperClientIsolationGroups() != null && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
@@ -131,7 +161,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 if (!clientIsolationZkCache.compareAndSet(null, zkc)) {
                     zkc.stop();
                 }
-                bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, this.clientIsolationZkCache.get());
+                bkConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, clientIsolationZkCache.get());
             }
         }
     }
