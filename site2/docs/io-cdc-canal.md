@@ -27,7 +27,9 @@ The configuration of Canal source connector has the following parameters.
 
 ### Example
 
-* JSON example
+Before using the Canal connector, you can create a configuration file through one of the following methods.
+
+* JSON 
 
     ```json
     {
@@ -42,7 +44,9 @@ The configuration of Canal source connector has the following parameters.
     }
     ```
 
-* [YAML example](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/resources/canal-mysql-source-config.yaml)
+* YAML
+
+    You can create a YAML file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/resources/canal-mysql-source-config.yaml) below to your YAML file.
 
     ```yaml
     configs:
