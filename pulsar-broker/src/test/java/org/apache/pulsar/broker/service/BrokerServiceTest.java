@@ -415,7 +415,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         for (String ns : nsList) {
             List<String> topics = admin.namespaces().getTopics(ns);
             for (String dest : topics) {
-                admin.topics().delete(dest);
+                admin.topics().delete(dest, true);
             }
             admin.namespaces().deleteNamespace(ns);
         }

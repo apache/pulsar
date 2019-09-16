@@ -48,7 +48,11 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -344,6 +348,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             admin.topics().skipAllMessages("persistent://" + topic, subscription);
             admin.topics().delete("persistent://" + topic);
             admin.namespaces().removeBacklogQuota(namespace);
+            admin.topics().delete(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespace),
+                    EventType.TOPIC_POLICY).toString(), true);
             admin.namespaces().deleteNamespace(namespace);
         }
     }

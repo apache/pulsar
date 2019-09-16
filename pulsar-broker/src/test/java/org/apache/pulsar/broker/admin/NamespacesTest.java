@@ -68,12 +68,14 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -1038,9 +1040,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(topic);
         // (2) Delete topic
         admin.topics().delete(topicName);
-        // (3) Delete ns
+        // (3) Delete system topic
+        admin.topics().delete(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespace),
+                EventType.TOPIC_POLICY).toString(), true);
+        // (4) Delete ns
         admin.namespaces().deleteNamespace(namespace);
-        // (4) check bundle
+        // (5) check bundle
         NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(topic);
         assertNotEquals(bundle1.getBundleRange(), bundle2.getBundleRange());
         // returns full bundle if policies not present
@@ -1086,6 +1091,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertTrue(consumer.isConnected());
         pulsar.getConfiguration().setAuthorizationEnabled(true);
         admin.topics().deletePartitionedTopic(topicName, true);
+        admin.topics().delete(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespace),
+                EventType.TOPIC_POLICY).toString(), true);
         admin.namespaces().deleteNamespace(namespace);
         admin.tenants().deleteTenant("my-tenants");
     }
