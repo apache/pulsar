@@ -4,7 +4,9 @@ title: Canal source connector
 sidebar_label: Canal source connector
 ---
 
-This guide explains the configuration and usage of Canal source connector.
+The Canal source connector pulls messages from MySQL to Pulsar topics.
+
+This guide explains how to congifure and use Canal source connector.
 
 ## Configuration
 
