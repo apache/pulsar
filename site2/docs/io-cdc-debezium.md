@@ -10,21 +10,21 @@ The configuration of Debezium source connector has the following parameters.
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `task.class` | true | None | A source task class that implemented in Debezium. |
-| `database.hostname` | true | None | The address of a database server. |
-| `database.port` | true | None | The port number of a database server.|
-| `database.user` | true | None | The name of a database user that has the required privileges. |
-| `database.password` | true | None | The password for a database user that has the required privileges. |
-| `database.server.id` | true | None | The connector’s identifier that must be unique within a database cluster and similar to the database’s server-id configuration property. |
-| `database.server.name` | true | None | The logical name of a database server/cluster, which forms a namespace and it is used in all the names of Kafka topics to which the connector writes, the Kafka Connect schema names, and the namespaces of the corresponding Avro schema when the Avro Connector is used. |
-| `database.whitelist` | false | None | A list of all databases hosted by this server which is monitored by the  connector.<br/><br/> This is optional, and there are other properties for listing databases and tables to include or exclude from monitoring. |
-| `key.converter` | true | None | The converter provided by Kafka Connect to convert record key. |
-| `value.converter` | true | None | The converter provided by Kafka Connect to convert record value.  |
-| `database.history` | true | None | The name of the database history class. |
-| `database.history.pulsar.topic` | true | None | The name of the database history topic where the connector writes and recovers DDL statements. <br/><br/>**Note: this topic is for internal use only and should not be used by consumers.** |
-| `database.history.pulsar.service.url` | true | None | Pulsar cluster service URL for history topic. |
-| `pulsar.service.url` | true | None | Pulsar cluster service URL. |
-| `offset.storage.topic` | true | None | Record the last committed offsets that the connector successfully completes. |
+| `task.class` | true | null | A source task class that implemented in Debezium. |
+| `database.hostname` | true | null | The address of a database server. |
+| `database.port` | true | null | The port number of a database server.|
+| `database.user` | true | null | The name of a database user that has the required privileges. |
+| `database.password` | true | null | The password for a database user that has the required privileges. |
+| `database.server.id` | true | null | The connector’s identifier that must be unique within a database cluster and similar to the database’s server-id configuration property. |
+| `database.server.name` | true | null | The logical name of a database server/cluster, which forms a namespace and it is used in all the names of Kafka topics to which the connector writes, the Kafka Connect schema names, and the namespaces of the corresponding Avro schema when the Avro Connector is used. |
+| `database.whitelist` | false | null | A list of all databases hosted by this server which is monitored by the  connector.<br/><br/> This is optional, and there are other properties for listing databases and tables to include or exclude from monitoring. |
+| `key.converter` | true | null | The converter provided by Kafka Connect to convert record key. |
+| `value.converter` | true | null | The converter provided by Kafka Connect to convert record value.  |
+| `database.history` | true | null | The name of the database history class. |
+| `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br/><br/>**Note: this topic is for internal use only and should not be used by consumers.** |
+| `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
+| `pulsar.service.url` | true | null | Pulsar cluster service URL. |
+| `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
 
 ## Example of MySQL
 
