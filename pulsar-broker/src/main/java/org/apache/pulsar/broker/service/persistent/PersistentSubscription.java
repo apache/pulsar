@@ -633,7 +633,9 @@ public class PersistentSubscription implements Subscription {
         }
 
         disconnectFuture.whenComplete((aVoid, throwable) -> {
-            dispatcher.resetCloseFuture();
+            if (dispatcher != null) {
+                dispatcher.resetCloseFuture();
+            }
 
             if (throwable != null) {
                 log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
