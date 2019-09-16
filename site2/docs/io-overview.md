@@ -17,6 +17,7 @@ This diagram illustrates the relationship between source, Pulsar, and sink:
 
 ![Pulsar IO diagram](assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
 
+
 ### Source
 
 > Sources **feed data from external systems into Pulsar**. 
@@ -37,9 +38,5 @@ For the complete list of Pulsar built-in sink connectors, see [sink connector](i
 
 You can manage Pulsar connectors (for example, create, update, start, stop, restart, reload, delete and perform other operations on connectors) via the [Connector CLI](reference-connector-admin.md) with [sources](reference-connector-admin.md#sources) and [sinks](reference-connector-admin.md#sinks) subcommands.
 
-## Relationship between connector and Functions
-
-Pulsar connectors are **special** [Pulsar Functions](functions-overview.md) built to interact with external systems.
-
-Sources, sinks, and Functions are components of instances, and they all run on Functions workers. When managing sources, sinks or Functions via **Pulsar admin CLI** (that is, [Connector CLI](reference-connector-admin.md) and [Functions CLI](functions-cli.md)), an instance is started on a worker.
+Connectors (sources and sinks) and Functions are components of instances, and they all run on Functions workers. When managing a source, sink or function via **Pulsar admin CLI** (that is, [Connector CLI](reference-connector-admin.md) and [Functions CLI](functions-cli.md)), an instance is started on a worker. For more information, see [Functions worker](functions-worker.md#run-functions-worker-separately).
 
