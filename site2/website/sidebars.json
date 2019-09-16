@@ -98,6 +98,7 @@
       "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics",
+      "admin-api-non-partitioned-topics",
       "admin-api-schemas"
     ],
     "Adaptors": [
