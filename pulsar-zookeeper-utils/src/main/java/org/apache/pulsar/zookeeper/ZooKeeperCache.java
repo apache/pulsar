@@ -402,40 +402,43 @@ public abstract class ZooKeeperCache implements Watcher {
     @SuppressWarnings("deprecation")
     public CompletableFuture<Set<String>> getChildrenAsync(String path, Watcher watcher) {
         return childrenCache.get(path, (p, executor) -> {
-            ZooKeeper zk = zkSession.get();
-            if (zk == null) {
-                return FutureUtil.failedFuture(new IOException("ZK session not ready"));
-            }
-
             CompletableFuture<Set<String>> future = new CompletableFuture<>();
-            zk.getChildren(path, watcher, (ChildrenCallback) (rc, path1, ctx, children) -> {
-                if (rc == Code.OK.intValue()) {
-                    future.complete(Sets.newTreeSet(children));
-                } else if (rc == Code.NONODE.intValue()) {
-                    // The node we want may not exist yet, so put a watcher on its existence
-                    // before throwing up the exception. Its possible that the node could have
-                    // been created after the call to getChildren, but before the call to exists().
-                    // If this is the case, exists will return true, and we just call getChildren again.
-                    existsAsync(path, watcher).thenAccept(exists -> {
-                        if (exists) {
-                            getChildrenAsync(path, watcher)
-                                    .thenAccept(c -> future.complete(c))
-                                    .exceptionally(ex -> {
-                                        future.completeExceptionally(ex);
-                                        return null;
-                                    });
-                        } else {
-                            // Z-node does not exist
-                            future.complete(Collections.emptySet());
-                        }
-                    }).exceptionally(ex -> {
-                        future.completeExceptionally(ex);
-                        return null;
-                    });
-                } else {
-                    future.completeExceptionally(KeeperException.create(rc));
+            executor.execute(SafeRunnable.safeRun(() -> {
+                ZooKeeper zk = zkSession.get();
+                if (zk == null) {
+                    future.completeExceptionally(new IOException("ZK session not ready"));
+                    return;
                 }
-            }, null);
+
+                zk.getChildren(path, watcher, (ChildrenCallback) (rc, path1, ctx, children) -> {
+                    if (rc == Code.OK.intValue()) {
+                        future.complete(Sets.newTreeSet(children));
+                    } else if (rc == Code.NONODE.intValue()) {
+                        // The node we want may not exist yet, so put a watcher on its existence
+                        // before throwing up the exception. Its possible that the node could have
+                        // been created after the call to getChildren, but before the call to exists().
+                        // If this is the case, exists will return true, and we just call getChildren again.
+                        existsAsync(path, watcher).thenAccept(exists -> {
+                            if (exists) {
+                                getChildrenAsync(path, watcher)
+                                        .thenAccept(c -> future.complete(c))
+                                        .exceptionally(ex -> {
+                                            future.completeExceptionally(ex);
+                                            return null;
+                                        });
+                            } else {
+                                // Z-node does not exist
+                                future.complete(Collections.emptySet());
+                            }
+                        }).exceptionally(ex -> {
+                            future.completeExceptionally(ex);
+                            return null;
+                        });
+                    } else {
+                        future.completeExceptionally(KeeperException.create(rc));
+                    }
+                }, null);
+            }));
 
             return future;
         });
