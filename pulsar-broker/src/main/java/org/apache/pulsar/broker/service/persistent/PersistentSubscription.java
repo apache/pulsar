@@ -632,6 +632,10 @@ public class PersistentSubscription implements Subscription {
         }
 
         disconnectFuture.whenComplete((aVoid, throwable) -> {
+            if (dispatcher != null) {
+                dispatcher.resetCloseFuture();
+            }
+
             if (throwable != null) {
                 log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
@@ -639,6 +643,7 @@ public class PersistentSubscription implements Subscription {
                         new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
                 return;
             }
+
             log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset",
                     topicName, subName);
 
