@@ -26,6 +26,19 @@
     ],
     "Pulsar Functions": [
       "functions-overview",
+      "functions-quickstart",
+      "functions-api",
+      "functions-deploying",
+      "functions-guarantees",
+      "functions-state",
+      "functions-metrics",
+      "functions-worker",
+      "functions-runtime",
+      "functions-deploying",
+      "functions-debugging"
+    ],
+    "Pulsar Functions（New）": [
+      "functions-overview-new",
       "functions-worker",
       "functions-runtime",
       "functions-develop",
@@ -34,18 +47,15 @@
       "functions-configure",
       "functions-monitor",
       "functions-secure",
-      "functions-troubleshoot",
-      "functions-cli"
+      "functions-troubleshoot"
     ],
     "Pulsar IO": [
       "io-overview",
       "io-quickstart",
-      "io-use",
-      "io-debug",
+      "io-managing",
       "io-connectors",
-      "io-cdc",
       "io-develop",
-      "reference-connector-admin"
+      "io-cdc"
     ],
     "Pulsar SQL": [
       "sql-overview",
@@ -73,8 +83,7 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
-      "security-token-client",
-      "security-token-admin",
+      "security-jwt",
       "security-athenz",
       "security-kerberos",
       "security-authorization",
@@ -98,7 +107,6 @@
       "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics",
-      "admin-api-non-partitioned-topics",
       "admin-api-schemas"
     ],
     "Adaptors": [
