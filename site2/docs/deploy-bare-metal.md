@@ -1,6 +1,6 @@
 ---
 id: deploy-bare-metal
-title: Deploying a cluster on bare metal
+title: Deploy a cluster on bare metal
 sidebar_label: Bare metal
 ---
 
@@ -8,7 +8,7 @@ sidebar_label: Bare metal
 > ### Tips
 >
 > 1. Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you are interested in experimenting with
-> Pulsar or using it in a startup or on a single team, you had better opt for a single cluster. If you do need to run a multi-cluster Pulsar instance,
+> Pulsar or using Pulsar in a startup or on a single team, you had better opt for a single cluster. If you do need to run a multi-cluster Pulsar instance,
 > see the guide [here](deploy-bare-metal-multi-cluster.md).
 >
 > 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
@@ -21,10 +21,10 @@ sidebar_label: Bare metal
 
 Deploying a Pulsar cluster involves doing the following (in order):
 
-* Deploying a [ZooKeeper](#deploying-a-zookeeper-cluster) cluster (optional)
-* Initializing [cluster metadata](#initializing-cluster-metadata)
-* Deploying a [BookKeeper](#deploying-a-bookkeeper-cluster) cluster
-* Deploying one or more Pulsar [brokers](#deploying-pulsar-brokers)
+* Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)
+* Initialize [cluster metadata](#initialize-cluster-metadata)
+* Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster
+* Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)
 
 ## Preparation
 
@@ -59,7 +59,7 @@ When you deploy a Pulsar cluster, keep in mind the following basic better choice
 
 #### ZooKeeper
 
-For machines running ZooKeeper, you had better use lighter-weight machines or VMs. Pulsar uses ZooKeeper only for periodic coordination- and configuration-related tasks, *not* for basic operations. If you run Pulsar on [Amazon Web Services](https://aws.amazon.com/) (AWS), for example, a [t2.small](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html) instance might likely suffice.
+For machines running ZooKeeper, you had better use lighter-weight machines or VMs. Pulsar uses ZooKeeper only for periodic coordination-related and configuration-related tasks, *not* for basic operations. If you run Pulsar on [Amazon Web Services](https://aws.amazon.com/) (AWS), for example, a [t2.small](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html) instance might likely suffice.
 
 #### Bookies and Brokers
 
@@ -70,7 +70,7 @@ For machines running a bookie and a Pulsar broker, you had better use more power
 
 ## Install the Pulsar binary package
 
-> You need to install the Pulsar binary package on *each machine in the cluster*, including machines running [ZooKeeper](#deploying-a-zookeeper-cluster) and [BookKeeper](#deploying-a-bookkeeper-cluster).
+> You need to install the Pulsar binary package on *each machine in the cluster*, including machines running [ZooKeeper](#deploy-a-zookeeper-cluster) and [BookKeeper](#deploy-a-bookkeeper-cluster).
 
 To get started deploying a Pulsar cluster on bare metal, you need to download a binary tarball release in one of the following ways:
 
@@ -176,7 +176,7 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster you need to deploy ZooKeeper first (before all other components). You had better deploy a 3-node ZooKeeper cluster. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
 
-To begin, add all ZooKeeper servers to the configuration specified in [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) (in the Pulsar directory that you create [above](#installing-the-pulsar-binary-package)). The following is an example:
+To begin, add all ZooKeeper servers to the configuration specified in [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) (in the Pulsar directory that you create [above](#install-the-pulsar-binary-package)). The following is an example:
 
 ```properties
 server.1=zk1.us-west.example.com:2888:3888
@@ -310,7 +310,7 @@ zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.u
 configurationStoreServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
-You also need to specify the cluster name (matching the name that you provide when you [initialize the metadata of the cluster](#initializing-cluster-metadata)):
+You also need to specify the cluster name (matching the name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata)):
 
 ```properties
 clusterName=pulsar-cluster-1
@@ -348,7 +348,7 @@ If you want to enable [Pulsar Functions](functions-overview.md), you can follow 
     functionsWorkerEnabled=true
     ```
 
-2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initializing-cluster-metadata). 
+2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata). 
 
     ```conf
     pulsarFunctionsCluster: pulsar-cluster-1
@@ -415,7 +415,7 @@ Hello Pulsar
 
 ## Run Functions
 
-> If you have [enabled](#enabling-pulsar-functions-optional) Pulsar Functions, you can also tryout pulsar functions now.
+> If you have [enabled](#enable-pulsar-functions-optional) Pulsar Functions, you can also tryout pulsar functions now.
 
 Create a ExclamationFunction `exclamation`.
 
