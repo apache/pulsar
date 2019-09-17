@@ -680,19 +680,10 @@ public class ServerCnx extends PulsarHandler {
                                 .thenCompose(topic -> {
                                     if (schema != null) {
                                         return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                            .thenCompose(isCompatible -> {
-                                                    if (isCompatible) {
-                                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                                subType, priorityLevel, consumerName, isDurable,
-                                                                startMessageId, metadata,
-                                                                readCompacted, initialPosition, isReplicated);
-                                                    } else {
-                                                        return FutureUtil.failedFuture(
-                                                                new IncompatibleSchemaException(
-                                                                        "Trying to subscribe with incompatible schema"
-                                                        ));
-                                                    }
-                                                });
+                                            .thenCompose(isCompatible -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                    subType, priorityLevel, consumerName, isDurable,
+                                                    startMessageId, metadata,
+                                                    readCompacted, initialPosition, isReplicated));
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,

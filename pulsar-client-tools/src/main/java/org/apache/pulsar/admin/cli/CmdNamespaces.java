@@ -44,6 +44,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -1096,6 +1097,77 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the schema compatibility strategy for a namespace")
+    private class GetSchemaCompatibilityStrategy extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            System.out.println(admin.namespaces().getSchemaCompatibilityStrategy(namespace)
+                    .toString().toUpperCase());
+        }
+    }
+
+    @Parameters(commandDescription = "Set the schema compatibility strategy for a namespace")
+    private class SetSchemaCompatibilityStrategy extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--compatibility", "-c" },
+                description = "Compatibility level required for new schemas created via a Producer. "
+                        + "Possible values (FULL, BACKWARD, FORWARD, " +
+                        "UNDEFINED, BACKWARD_TRANSITIVE, " +
+                        "FORWARD_TRANSITIVE, FULL_TRANSITIVE, " +
+                        "ALWAYS_INCOMPATIBLE," +
+                        "ALWAYS_COMPATIBLE).")
+        private String strategyParam = null;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            String strategyStr = strategyParam != null ? strategyParam.toUpperCase() : "";
+            admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.valueOf(strategyStr));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the namespace whether allow auto update schema")
+    private class GetIsAllowAutoUpdateSchema extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            System.out.println(admin.namespaces().getIsAllowAutoUpdateSchema(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the namespace whether allow auto update schema")
+    private class SetIsAllowAutoUpdateSchema extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable schema validation enforced")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable schema validation enforced")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.namespaces().setIsAllowAutoUpdateSchema(namespace, enable);
+        }
+    }
+
     @Parameters(commandDescription = "Get the schema validation enforced")
     private class GetSchemaValidationEnforced extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -1218,6 +1290,12 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-schema-autoupdate-strategy", new GetSchemaAutoUpdateStrategy());
         jcommander.addCommand("set-schema-autoupdate-strategy", new SetSchemaAutoUpdateStrategy());
+
+        jcommander.addCommand("get-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
+        jcommander.addCommand("set-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
+
+        jcommander.addCommand("get-is-allow-auto-update-schema", new GetIsAllowAutoUpdateSchema());
+        jcommander.addCommand("set-is-allow-auto-update-schema", new SetIsAllowAutoUpdateSchema());
 
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());

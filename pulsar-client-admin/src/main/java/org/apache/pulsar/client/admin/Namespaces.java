@@ -24,6 +24,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -37,8 +40,14 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+
+import javax.ws.rs.GET;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 
 /**
  * Admin interface for namespaces management
@@ -1450,6 +1459,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     SchemaAutoUpdateCompatibilityStrategy getSchemaAutoUpdateCompatibilityStrategy(String namespace)
             throws PulsarAdminException;
 
@@ -1469,6 +1479,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     void setSchemaAutoUpdateCompatibilityStrategy(String namespace,
                                                   SchemaAutoUpdateCompatibilityStrategy strategy)
             throws PulsarAdminException;
@@ -1483,7 +1494,6 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-
     boolean getSchemaValidationEnforced(String namespace)
             throws PulsarAdminException;
     /**
@@ -1501,7 +1511,70 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-
     void setSchemaValidationEnforced(String namespace, boolean schemaValidationEnforced)
+            throws PulsarAdminException;
+
+    /**
+     * Get the strategy used to check the a new schema provided by a producer is compatible with the current schema
+     * before it is installed.
+     *
+     * @param namespace The namespace in whose policy we are interested
+     * @return the strategy used to check compatibility
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String namespace)
+            throws PulsarAdminException;;
+
+    /**
+     * Set the strategy used to check the a new schema provided by a producer is compatible with the current schema
+     * before it is installed.
+     *
+     * @param namespace The namespace in whose policy should be set
+     * @param strategy The schema compatibility strategy
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSchemaCompatibilityStrategy(String namespace,
+                                               SchemaCompatibilityStrategy strategy)
+            throws PulsarAdminException;
+
+    /**
+     * Get whether allow auto update schema
+     *
+     * @param namespace pulsar namespace name
+     * @return the schema validation enforced flag
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    boolean getIsAllowAutoUpdateSchema(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * The flag is when producer bring a new schema and the schema pass compatibility check
+     * whether allow schema auto registered
+     *
+     * @param namespace pulsar namespace name
+     * @param isAllowAutoUpdateSchema flag to enable or disable auto update schema
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
             throws PulsarAdminException;
 }

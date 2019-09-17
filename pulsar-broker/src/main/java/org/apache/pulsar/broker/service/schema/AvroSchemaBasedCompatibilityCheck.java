@@ -41,7 +41,7 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
 
     @Override
     public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
-        checkCompatible(Collections.singletonList(from), to, strategy);
+        checkCompatible(Collections.singletonList(from), to, strategy, isConsumer);
     }
 
     @Override

@@ -226,8 +226,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
 
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                    policies.schema_auto_update_compatibility_strategy);
+            setSchemaCompatibilityStrategy(policies);
+            isAllowAutoUpdateSchema = policies.is_allow_auto_update_Schema;
 
             schemaValidationEnforced = policies.schema_validation_enforced;
         } catch (Exception e) {
@@ -1586,11 +1586,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         isEncryptionRequired = data.encryption_required;
 
-        schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                data.schema_auto_update_compatibility_strategy);
+        setSchemaCompatibilityStrategy(data);
+        isAllowAutoUpdateSchema = data.is_allow_auto_update_Schema;
 
         schemaValidationEnforced = data.schema_validation_enforced;
-
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
 
@@ -1844,13 +1843,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
-    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
             .thenCompose((hasSchema) -> {
                     if (hasSchema || isActive() || ledger.getTotalSize() != 0) {
                         return isSchemaCompatible(schema);
                     } else {
-                        return addSchema(schema).thenApply((ignore) -> true);
+                        addSchema(schema);
+                        return CompletableFuture.completedFuture(null);
                     }
                 });
     }

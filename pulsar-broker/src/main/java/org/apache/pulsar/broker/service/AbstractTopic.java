@@ -71,6 +71,7 @@ public abstract class AbstractTopic implements Topic {
     protected volatile boolean isEncryptionRequired = false;
     protected volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
             SchemaCompatibilityStrategy.FULL;
+    protected volatile boolean isAllowAutoUpdateSchema = true;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
@@ -169,7 +170,7 @@ public abstract class AbstractTopic implements Topic {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
                 .getSchemaRegistryService()
-                .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+                .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy, isAllowAutoUpdateSchema);
     }
 
     @Override
@@ -188,16 +189,25 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
+    public CompletableFuture<Void> isSchemaCompatible(SchemaData schema) {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
                 .getSchemaRegistryService()
-                .isCompatible(id, schema, schemaCompatibilityStrategy);
+                .checkConsumerCompatibility(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
     public void recordAddLatency(long latencyUSec) {
         addEntryLatencyStatsUsec.addValue(latencyUSec);
+    }
+
+    protected void setSchemaCompatibilityStrategy (Policies policies) {
+        if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
+            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                    policies.schema_auto_update_compatibility_strategy);
+        } else {
+            schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
+        }
     }
 }

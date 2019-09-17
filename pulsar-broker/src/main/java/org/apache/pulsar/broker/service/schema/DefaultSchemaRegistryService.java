@@ -45,6 +45,11 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy, boolean isAllowAutoUpdateSchema) {
+        return completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
         return completedFuture(Collections.emptyList());
     }
@@ -54,10 +59,8 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         return completedFuture(NO_SCHEMA_VERSION);
     }
 
-
     @Override
-    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
-                                                              SchemaCompatibilityStrategy strategy) {
+    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData, SchemaCompatibilityStrategy strategy) {
         return completedFuture(null);
     }
 

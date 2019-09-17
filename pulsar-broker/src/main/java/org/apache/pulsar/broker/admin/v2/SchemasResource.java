@@ -55,6 +55,7 @@ import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
@@ -314,18 +315,21 @@ public class SchemasResource extends AdminResource {
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
         getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
-            SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
-        byte[] data;
-        if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
-            data = DefaultImplementation
-                    .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
-        } else {
-            data = payload.getSchema().getBytes(Charsets.UTF_8);
-        }
-        pulsar().getSchemaRegistryService().putSchemaIfAbsent(
-            buildSchemaId(tenant, namespace, topic),
-            SchemaData.builder()
+            SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
+            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
+                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+            }
+            byte[] data;
+            if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
+                data = DefaultImplementation
+                        .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
+            } else {
+                data = payload.getSchema().getBytes(Charsets.UTF_8);
+            }
+            pulsar().getSchemaRegistryService().putSchemaIfAbsent(
+                buildSchemaId(tenant, namespace, topic),
+                SchemaData.builder()
                 .data(data)
                 .isDeleted(false)
                 .timestamp(clock.millis())
@@ -333,15 +337,16 @@ public class SchemasResource extends AdminResource {
                 .user(defaultIfEmpty(clientAppId(), ""))
                 .props(payload.getProperties())
                 .build(),
-                schemaCompatibilityStrategy
-        ).thenAccept(version ->
-            response.resume(
-                Response.accepted().entity(
-                    PostSchemaResponse.builder()
-                        .version(version)
-                        .build()
-                ).build()
-            )
+                schemaCompatibilityStrategy,
+                true
+            ).thenAccept(version ->
+                    response.resume(
+                            Response.accepted().entity(
+                                    PostSchemaResponse.builder()
+                                            .version(version)
+                                            .build()
+                            ).build()
+                    )
         ).exceptionally(error -> {
             if (error.getCause() instanceof IncompatibleSchemaException) {
                 response.resume(Response.status(Response.Status.CONFLICT.getStatusCode(),
@@ -407,10 +412,15 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
 
         String schemaId = buildSchemaId(tenant, namespace, topic);
+        Policies policies = getNamespacePolicies(NamespaceName.get(tenant, namespace));
 
-        SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                .fromAutoUpdatePolicy(getNamespacePolicies(NamespaceName.get(tenant, namespace))
-                        .schema_auto_update_compatibility_strategy);
+        SchemaCompatibilityStrategy schemaCompatibilityStrategy;
+        if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
+            schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+        } else {
+            schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
+        }
 
         pulsar().getSchemaRegistryService().isCompatible(schemaId, SchemaData.builder()
                         .data(payload.getSchema().getBytes(Charsets.UTF_8))

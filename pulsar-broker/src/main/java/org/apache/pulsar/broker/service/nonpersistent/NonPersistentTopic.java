@@ -144,8 +144,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                    policies.schema_auto_update_compatibility_strategy);
+            isAllowAutoUpdateSchema = policies.is_allow_auto_update_Schema;
+            setSchemaCompatibilityStrategy(policies);
+
             schemaValidationEnforced = policies.schema_validation_enforced;
 
         } catch (Exception e) {
@@ -870,8 +871,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);
         }
         isEncryptionRequired = data.encryption_required;
-        schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                data.schema_auto_update_compatibility_strategy);
+        setSchemaCompatibilityStrategy(data);
+        isAllowAutoUpdateSchema = data.is_allow_auto_update_Schema;
         schemaValidationEnforced = data.schema_validation_enforced;
 
         producers.forEach(producer -> {
@@ -922,13 +923,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
 
     @Override
-    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
-            .thenCompose((hasSchema) -> {
+                .thenCompose((hasSchema) -> {
                     if (hasSchema || isActive() || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
                         return isSchemaCompatible(schema);
                     } else {
-                        return addSchema(schema).thenApply((ignore) -> true);
+                        addSchema(schema);
+                        return CompletableFuture.completedFuture(null);
                     }
                 });
     }
