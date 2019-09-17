@@ -549,6 +549,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .build();
 
         @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        admin.topics().createNonPartitionedTopic(outputTopicName);
+        @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic(outputTopicName)
             .subscriptionName("source-tester")
@@ -871,6 +874,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
 
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
             retryStrategically((test) -> {
                 try {
                     return admin.topics().getStats(inputTopicName).subscriptions.size() == 1;
@@ -959,7 +964,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-input-" + randomName(8);
         String outputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-output-" + randomName(8);
-
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         CommandGenerator generator = CommandGenerator.createDefaultGenerator(
                 inputTopicName,
@@ -1116,6 +1124,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-neg-ack-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-neg-ack-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         String functionName = "test-neg-ack-fn-" + randomName(8);
         final int numMessages = 20;
@@ -1292,6 +1304,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-publish-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-publish-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         String functionName = "test-publish-fn-" + randomName(8);
         final int numMessages = 10;
@@ -1418,6 +1434,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-exclamation-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-exclamation-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
         if (isTopicPattern) {
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -1928,6 +1948,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        admin.topics().createNonPartitionedTopic(consumeTopicName);
+        admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
         Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())

@@ -89,7 +89,7 @@ public class PulsarFunctionE2ESecurityTest {
     final String TENANT2 = "tenant2";
 
     final String NAMESPACE = "test-ns";
-    String pulsarFunctionsNamespace = TENANT + "/use/pulsar-function-admin";
+    String pulsarFunctionsNamespace = TENANT + "/pulsar-function-admin";
     String primaryHost;
     String workerId;
 
@@ -132,6 +132,7 @@ public class PulsarFunctionE2ESecurityTest {
         config.setBrokerServicePort(Optional.of(brokerServicePort));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
+        config.setAllowAutoTopicCreationType("non-partitioned");
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
