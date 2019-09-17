@@ -23,11 +23,14 @@
  */
 package org.apache.pulsar.common.util;
 
+import com.google.common.primitives.UnsignedBytes;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import com.google.common.primitives.UnsignedBytes;
-
+/**
+ * Implementation of the MurmurHash3 non-cryptographic hash function.
+ */
+@SuppressWarnings("checkstyle:TypeName")
 public class Murmur3_32Hash implements Hash {
     private static final Murmur3_32Hash instance = new Murmur3_32Hash();
 

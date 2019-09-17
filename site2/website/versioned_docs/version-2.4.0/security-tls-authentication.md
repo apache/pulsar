@@ -66,6 +66,15 @@ To configure brokers to authenticate clients, put the following in `broker.conf`
 # Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+
+# operations and publish/consume from all topics
+superUserRoles=admin
+
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+brokerClientTlsEnabled=true
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
+brokerClientAuthenticationParameters=tlsCertFile:/path/my-ca/admin.cert.pem,tlsKeyFile:/path/my-ca/admin.key-pk8.pem
+brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 ```
 
 ### ... on Proxies

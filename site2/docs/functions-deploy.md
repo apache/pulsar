@@ -1,7 +1,7 @@
 ---
 id: functions-deploy
-title: Pulsar Functions Deploy
-sidebar_label: Deploy
+title: Deploy Pulsar Functions
+sidebar_label: How-to: Deploy
 ---
 
 ## Requirements
@@ -31,8 +31,8 @@ Function name | You can specify any value for the class name (except org, librar
 Tenant | Derived from names of the input topics. If the input topics are under the `marketing` tenant, which means the topic names have the form `persistent://marketing/{namespace}/{topicName}`, the tenant is `marketing`.
 Namespace | Derived from names of the input topics. If the input topics are under the `asia` namespace under the `marketing` tenant, which means the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace is `asia`.
 Output topic | `{input topic}-{function name}-output`. For example, if an input topic name of a function is `incoming`, and the function name is `exclamation`, then the name of the output topic is `incoming-exclamation-output`.
-Subscription type | For `at-least-once` and `at-most-once` [processing guarantees](functions-guarantees.md), the [`SHARED`](concepts-messaging.md#shared) mode is applied by default; for `effectively-once` guarantees, the [`FAILOVER`](concepts-messaging.md#failover) mode is applied.
-Processing guarantees | [`ATLEAST_ONCE`](functions-guarantees.md)
+Subscription type | For `at-least-once` and `at-most-once` [processing guarantees](functions-overview.md#processing-guarantees), the [`SHARED`](concepts-messaging.md#shared) mode is applied by default; for `effectively-once` guarantees, the [`FAILOVER`](concepts-messaging.md#failover) mode is applied.
+Processing guarantees | [`ATLEAST_ONCE`](functions-overview.md#processing-guarantees)
 Pulsar service URL | `pulsar://localhost:6650`
 
 ### Example of default arguments
@@ -152,7 +152,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 > #### Resources are *per instance*
-> The resources that you apply to a given Pulsar Function are applied to each [instance](#parallelism) of the function. For example, if you apply 8 GB of RAM to a function with a parallelism of 5, you are applying 40 GB of RAM for the function in total. Make sure that you take the parallelism (the number of instances) factor into your resource calculations.
+> The resources that you apply to a given Pulsar Function are applied to each instance of the function. For example, if you apply 8 GB of RAM to a function with a parallelism of 5, you are applying 40 GB of RAM for the function in total. Make sure that you take the parallelism (the number of instances) factor into your resource calculations.
 
 ## Trigger Pulsar Functions
 
@@ -160,7 +160,7 @@ If a Pulsar Function is running in [cluster mode](#cluster-mode), you can **trig
 
 > Triggering a function is to invoke a function by producing a message on one of the input topics. With the [`pulsar-admin functions trigger`](reference-pulsar-admin.md#trigger) command, you can send messages to functions without using the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
 
-To learn how to trigger a function, you can start with [Python function](functions-api.md#functions-for-python) that returns a simple string based on the input.
+To learn how to trigger a function, you can start with Python function that returns a simple string based on the input.
 
 ```python
 # myfunc.py
@@ -168,7 +168,7 @@ def process(input):
     return "This function has been triggered with a value of {0}".format(input)
 ```
 
-You can run the function in [local run mode](functions-deploying.md#local-run-mode).
+You can run the function in [local run mode](functions-deploy.md#local-run-mode).
 
 ```bash
 $ bin/pulsar-admin functions create \

@@ -74,14 +74,9 @@ $ bin/pulsar compact-topic \
 
 How often you [trigger compaction](#trigger) will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
 
-## Consumer configuration {#config}
+## Consumer configuration
 
 Pulsar consumers and readers need to be configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients. If the
-
-
-> #### Java only
-> Currently, only [Java](#java) clients can consume messages from compacted topics.
-
 
 ### Java
 

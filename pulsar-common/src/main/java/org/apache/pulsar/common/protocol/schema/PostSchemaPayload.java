@@ -23,6 +23,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Payload with information about a schema.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

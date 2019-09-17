@@ -26,7 +26,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 /**
  * Provides a priority-queue implementation specialized on items composed by 3 longs.
  *
- * This class is not thread safe and the items are stored in direct memory.
+ * <p>This class is not thread safe and the items are stored in direct memory.
  */
 public class TripleLongPriorityQueue implements AutoCloseable {
 
@@ -44,14 +44,14 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     private int size;
 
     /**
-     * Create a new priority queue with default initial capacity
+     * Create a new priority queue with default initial capacity.
      */
     public TripleLongPriorityQueue() {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
     /**
-     * Create a new priority queue with a given initial capacity
+     * Create a new priority queue with a given initial capacity.
      * @param initialCapacity
      */
     public TripleLongPriorityQueue(int initialCapacity) {
@@ -61,7 +61,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     }
 
     /**
-     * Close the priority queue and free the memory associated
+     * Close the priority queue and free the memory associated.
      */
     @Override
     public void close() {
@@ -69,7 +69,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     }
 
     /**
-     * Add a tuple of 3 long items to the priority queue
+     * Add a tuple of 3 long items to the priority queue.
      *
      * @param n1
      * @param n2
@@ -87,8 +87,8 @@ public class TripleLongPriorityQueue implements AutoCloseable {
 
     /**
      * Read the 1st long item in the top tuple in the priority queue.
-     * <p>
-     * The tuple will not be extracted
+     *
+     * <p>The tuple will not be extracted
      */
     public long peekN1() {
         checkArgument(size != 0);
@@ -97,8 +97,8 @@ public class TripleLongPriorityQueue implements AutoCloseable {
 
     /**
      * Read the 2nd long item in the top tuple in the priority queue.
-     * <p>
-     * The tuple will not be extracted
+     *
+     * <p>The tuple will not be extracted
      */
     public long peekN2() {
         checkArgument(size != 0);
@@ -107,8 +107,8 @@ public class TripleLongPriorityQueue implements AutoCloseable {
 
     /**
      * Read the 3rd long item in the top tuple in the priority queue.
-     * <p>
-     * The tuple will not be extracted
+     *
+     * <p>The tuple will not be extracted
      */
     public long peekN3() {
         checkArgument(size != 0);
@@ -126,14 +126,14 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     }
 
     /**
-     * Returns whether the priority queue is empty
+     * Returns whether the priority queue is empty.
      */
     public boolean isEmpty() {
         return size == 0;
     }
 
     /**
-     * Returns the number of tuples in the priority queue
+     * Returns the number of tuples in the priority queue.
      */
     public int size() {
         return size;

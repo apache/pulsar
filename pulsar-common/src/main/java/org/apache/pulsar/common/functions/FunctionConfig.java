@@ -22,27 +22,42 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.TreeMap;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
+/**
+ * Configuration of Pulsar Function.
+ */
 @Getter
 @Setter
 @Data
 @EqualsAndHashCode
 @ToString
-@Builder(toBuilder=true)
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FunctionConfig {
 
+    /**
+     * Definition of possible processing guarantees.
+     */
     public enum ProcessingGuarantees {
         ATLEAST_ONCE,
         ATMOST_ONCE,
         EFFECTIVELY_ONCE
     }
 
+    /**
+     * Definition of possible runtime environments.
+     */
     public enum Runtime {
         JAVA,
         PYTHON,
@@ -63,7 +78,7 @@ public class FunctionConfig {
     private Map<String, String> customSchemaInputs;
 
     /**
-     * A generalized way of specifying inputs
+     * A generalized way of specifying inputs.
      */
     private Map<String, ConsumerConfig> inputSpecs;
 
@@ -71,7 +86,7 @@ public class FunctionConfig {
 
     /**
      * Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema
-     * implementation
+     * implementation.
      */
     private String outputSchemaType;
 

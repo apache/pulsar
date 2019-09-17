@@ -246,6 +246,15 @@ Flag | Description
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (we don't recommend using a different port).
 `--broker-service-url-tls` | If you're using [TLS](security-tls-transport.md), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (we don't recommend using a different port).
 
+> If you don't have a DNS server, you can use multi-host in service URL with the following settings:
+>
+> ```properties
+> --web-service-url http://host1:8080,host2:8080,host3:8080 \
+> --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
+> --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
+> --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+> ```
+
 ## Deploying a BookKeeper cluster
 
 [BookKeeper](https://bookkeeper.apache.org) handles all persistent data storage in Pulsar. You will need to deploy a cluster of BookKeeper bookies to use Pulsar. We recommend running a **3-bookie BookKeeper cluster**.
@@ -383,9 +392,16 @@ Once your Pulsar cluster is up and running, you should be able to connect with i
 To use the `pulsar-client` tool, first modify the client configuration file in [`conf/client.conf`](reference-configuration.md#client) in your binary package. You'll need to change the values for `webServiceUrl` and `brokerServiceUrl`, substituting `localhost` (which is the default), with the DNS name that you've assigned to your broker/bookie hosts. Here's an example:
 
 ```properties
-webServiceUrl=http://us-west.example.com:8080/
-brokerServiceurl=pulsar://us-west.example.com:6650/
+webServiceUrl=http://us-west.example.com:8080
+brokerServiceurl=pulsar://us-west.example.com:6650
 ```
+
+> If you don't have a DNS server, you can specify multi-host in service URL like below:
+>
+> ```properties
+> webServiceUrl=http://host1:8080,host2:8080,host3:8080
+> brokerServiceurl=pulsar://host1:6650,host2:6650,host3:6650
+> ```
 
 Once you've done that, you can publish a message to Pulsar topic:
 

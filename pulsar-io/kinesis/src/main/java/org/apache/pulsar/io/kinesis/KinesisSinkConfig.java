@@ -22,7 +22,6 @@ package org.apache.pulsar.io.kinesis;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.*;
-import lombok.experimental.Accessors;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,46 +30,11 @@ import java.util.Map;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@Accessors(chain = true)
-public class KinesisSinkConfig implements Serializable {
+@EqualsAndHashCode(callSuper=true)
+public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
-
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "Kinesis end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
-    )
-    private String awsEndpoint;
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "Appropriate aws region. E.g. us-west-1, us-west-2"
-    )
-    private String awsRegion;
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "Kinesis stream name"
-    )
-    private String awsKinesisStreamName;
-    @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "Fully-Qualified class name of implementation of AwsCredentialProviderPlugin."
-            + " It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink."
-            + " If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map"
-            + " of credentials in `awsCredentialPluginParam`")
-    private String awsCredentialPluginName;
-    @FieldDoc(
-        required = false,
-        defaultValue = "",
-        help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
-    private String awsCredentialPluginParam;
+    
     @FieldDoc(
         required = true,
         defaultValue = "ONLY_RAW_PAYLOAD",
@@ -93,6 +57,7 @@ public class KinesisSinkConfig implements Serializable {
             + "  #   properties and encryptionCtx, and publishes flatbuffer payload into the configured kinesis stream."
     )
     private MessageFormat messageFormat = MessageFormat.ONLY_RAW_PAYLOAD; // default : ONLY_RAW_PAYLOAD
+    
     @FieldDoc(
         required = false,
         defaultValue = "false",
@@ -109,10 +74,6 @@ public class KinesisSinkConfig implements Serializable {
         return mapper.readValue(new ObjectMapper().writeValueAsString(map), KinesisSinkConfig.class);
     }
     
-    /**
-     * Message format in which kinesis-sink converts pulsar-message and publishes to kinesis stream.
-     *
-     */
     public static enum MessageFormat {
         /**
          * Kinesis sink directly publishes pulsar-payload as a message into the kinesis-stream
@@ -135,4 +96,5 @@ public class KinesisSinkConfig implements Serializable {
          */
         FULL_MESSAGE_IN_FB;
     }
+    
 }

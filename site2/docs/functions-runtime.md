@@ -1,9 +1,8 @@
 ---
 id: functions-runtime
 title: Configure Functions runtime
-sidebar_label: Admin: Configure Functions runtime
+sidebar_label: Setup: Configure Functions runtime
 ---
-This guide is used for administrator. 
 
 Pulsar Functions support the following methods to run functions.
 

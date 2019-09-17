@@ -20,15 +20,17 @@ package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.base.Objects;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
+/**
+ * Parser of a value from the namespace field provided in configuration.
+ */
 public class NamespaceName implements ServiceUnitId {
 
     private final String namespace;
@@ -127,7 +129,7 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     /**
-     * Compose the topic name from namespace + topic
+     * Compose the topic name from namespace + topic.
      *
      * @param domain
      * @param topic
@@ -208,7 +210,7 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     /**
-     * Returns true if this is a V2 namespace prop/namespace-name
+     * Returns true if this is a V2 namespace prop/namespace-name.
      * @return true if v2
      */
     public boolean isV2() {

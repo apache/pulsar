@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import java.util.Collection;
-import java.util.Set;
-
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 
 /**
  * A set comprising zero or more ranges type of key-value pair.
@@ -36,9 +38,9 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     * lower} and less than or equal to {@code upper}.) to this {@code RangeSet} (optional operation). That is, for equal
      * range sets a and b, the result of {@code a.add(range)} is that {@code a} will be the minimal range set for which
      * both {@code a.enclosesAll(b)} and {@code a.encloses(range)}.
-     * 
+     *
      * <pre>
-     *  
+     *
      * &#64;param lowerKey :  value for key of lowerEndpoint of Range
      * &#64;param lowerValue: value for value of lowerEndpoint of Range
      * &#64;param upperKey  : value for key of upperEndpoint of Range
@@ -58,7 +60,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
 
     /**
      * Remove range that contains all values less than or equal to given key-value.
-     * 
+     *
      * @param key
      * @param value
      */
@@ -70,67 +72,88 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
 
     /**
      * Returns the minimal range which {@linkplain Range#encloses(Range) encloses} all ranges in this range set.
-     * 
+     *
      * @return
      */
     Range<T> span();
 
     /**
      * Returns a view of the {@linkplain Range#isConnected disconnected} ranges that make up this range set.
-     * 
+     *
      * @return
      */
     Collection<Range<T>> asRanges();
-    
+
     /**
-     * Performs the given action for each entry in this map until all entries have been processed or action returns "false".
-     * Unless otherwise specified by the implementing class, actions are performed in the order of entry
-     * set iteration (if an iteration order is specified.)
-     * 
+     * Performs the given action for each entry in this map until all entries have been processed
+     * or action returns "false". Unless otherwise specified by the implementing class,
+     * actions are performed in the order of entry set iteration (if an iteration order is specified.)
+     *
      * @param action
      */
     void forEach(RangeProcessor<T> action);
-    
+
     /**
-     * Performs the given action for each entry in this map until all entries have been processed or action returns "false".
-     * Unless otherwise specified by the implementing class, actions are performed in the order of entry
-     * set iteration (if an iteration order is specified.)
-     * 
+     * Performs the given action for each entry in this map until all entries have been processed
+     * or action returns "false". Unless otherwise specified by the implementing class,
+     * actions are performed in the order of entry set iteration (if an iteration order is specified.)
+     *
      * @param action
      * @param consumer
      */
     void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer);
-    
+
     /**
      * Returns total number of ranges into the set.
-     * 
+     *
      * @return
      */
     int size();
 
     /**
      * It returns very first smallest range in the rangeSet.
-     * 
-     * @return Range<T> first smallest range into the set
+     *
+     * @return first smallest range into the set
      */
     Range<T> firstRange();
 
-    public static interface LongPairConsumer<T> {
+    /**
+     * It returns very last biggest range in the rangeSet.
+     *
+     * @return last biggest range into the set
+     */
+    Range<T> lastRange();
+
+    /**
+     * Represents a function that accepts two long arguments and produces a result.
+     *
+     * @param <T> the type of the result.
+     */
+    public interface LongPairConsumer<T> {
         T apply(long key, long value);
     }
 
-    public static interface RangeProcessor<T extends Comparable<T>> {
+    /**
+     * The interface exposing a method for processing of ranges.
+     * @param <T> - The incoming type of data in the range object.
+     */
+    public interface RangeProcessor<T extends Comparable<T>> {
         /**
-         * 
+         *
          * @param range
          * @return false if there is no further processing required
          */
         boolean process(Range<T> range);
     }
-    
-    public static class LongPair implements Comparable<LongPair> {
 
+    /**
+     * This class is a simple key-value data structure.
+     */
+    class LongPair implements Comparable<LongPair> {
+
+        @SuppressWarnings("checkstyle:ConstantName")
         public static final LongPair earliest = new LongPair(-1, -1);
+        @SuppressWarnings("checkstyle:ConstantName")
         public static final LongPair latest = new LongPair(Integer.MAX_VALUE, Integer.MAX_VALUE);
 
         private long key;
@@ -160,7 +183,12 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
     }
 
-    public static class DefaultRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
+    /**
+     * Generic implementation of a default range set.
+     *
+     * @param <T> the type of values in ranges.
+     */
+    class DefaultRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
         RangeSet<T> set = TreeRangeSet.create();
 
@@ -230,7 +258,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
                 }
             }
         }
-        
+
         @Override
         public boolean contains(long key, long value) {
             return this.contains(consumer.apply(key, value));
@@ -239,6 +267,15 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         @Override
         public Range<T> firstRange() {
             return set.asRanges().iterator().next();
+        }
+
+        @Override
+        public Range<T> lastRange() {
+            if (set.asRanges().isEmpty()) {
+                return null;
+            }
+            List<Range<T>> list = Lists.newArrayList(set.asRanges().iterator());
+            return list.get(list.size() - 1);
         }
 
         @Override

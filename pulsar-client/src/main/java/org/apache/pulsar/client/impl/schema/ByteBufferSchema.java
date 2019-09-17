@@ -76,7 +76,9 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
             return null;
         } else {
             int size = byteBuf.readableBytes();
-            return byteBuf.nioBuffer(0, byteBuf.readableBytes());
+            byte[] bytes = new byte[size];
+            byteBuf.readBytes(bytes);
+            return ByteBuffer.wrap(bytes);
         }
     }
 

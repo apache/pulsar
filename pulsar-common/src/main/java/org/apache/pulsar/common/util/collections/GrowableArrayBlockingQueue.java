@@ -32,13 +32,10 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import io.netty.util.internal.MathUtil;
-
 /**
  * This implements a {@link BlockingQueue} backed by an array with no fixed capacity.
  *
- * When the capacity is reached, data will be moved to a bigger array.
- *
+ * <p>When the capacity is reached, data will be moved to a bigger array.
  */
 public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements BlockingQueue<T> {
 
@@ -64,7 +61,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         headIndex.value = 0;
         tailIndex.value = 0;
 
-        int capacity = MathUtil.findNextPositivePowerOfTwo(initialCapacity);
+        int capacity = io.netty.util.internal.MathUtil.findNextPositivePowerOfTwo(initialCapacity);
         data = (T[]) new Object[capacity];
     }
 

@@ -20,10 +20,14 @@ package org.apache.pulsar.client.api.schema;
 
 import java.io.InputStream;
 
+/**
+ * Deserialize messages from bytes.
+ */
+
 public interface SchemaReader<T> {
 
     /**
-     * serialize bytes convert pojo
+     * Serialize bytes convert pojo.
      *
      * @param bytes the data
      * @return the serialized object

@@ -25,20 +25,16 @@ import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyF
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
@@ -118,6 +114,7 @@ import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 @UtilityClass
 @Slf4j
+@SuppressWarnings("checkstyle:JavadocType")
 public class Commands {
 
     // default message size for transfer
@@ -125,6 +122,7 @@ public class Commands {
     public static final int MESSAGE_SIZE_FRAME_PADDING = 10 * 1024;
     public static final int INVALID_MAX_MESSAGE_SIZE = -1;
 
+    @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
     private static final int checksumSize = 4;
 
@@ -134,7 +132,8 @@ public class Commands {
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, null, null, null);
+        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, null, null,
+            null);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker,
@@ -262,7 +261,8 @@ public class Commands {
                 .build())
             .build();
 
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthChallenge(challenge));
+        ByteBuf res = serializeWithSize(
+            BaseCommand.newBuilder().setType(Type.AUTH_CHALLENGE).setAuthChallenge(challenge));
         challenge.recycle();
         challengeBuilder.recycle();
         return res;
@@ -304,7 +304,8 @@ public class Commands {
         return newProducerSuccess(requestId, producerName, -1, schemaVersion);
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId, SchemaVersion schemaVersion) {
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId,
+        SchemaVersion schemaVersion) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
@@ -371,7 +372,7 @@ public class Commands {
     /**
      * Read the checksum and advance the reader index in the buffer.
      *
-     * Note: This method assume the checksum presence was already verified before.
+     * <p>Note: This method assume the checksum presence was already verified before.
      */
     public static int readChecksum(ByteBuf buffer) {
         buffer.skipBytes(2); //skip magic bytes
@@ -386,8 +387,8 @@ public class Commands {
 
     public static MessageMetadata parseMessageMetadata(ByteBuf buffer) {
         try {
-            // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
-            // metadata
+            // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata
+            // to parse metadata
             skipChecksumIfPresent(buffer);
             int metadataSize = (int) buffer.readUnsignedInt();
 
@@ -413,7 +414,8 @@ public class Commands {
         buffer.skipBytes(metadataSize);
     }
 
-    public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount, ByteBuf metadataAndPayload) {
+    public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount,
+        ByteBuf metadataAndPayload) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
         msgBuilder.setConsumerId(consumerId);
         msgBuilder.setMessageId(messageId);
@@ -670,8 +672,8 @@ public class Commands {
     }
 
     public static ByteBuf newPartitionMetadataResponse(ServerError error, String errorMsg, long requestId) {
-        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder = CommandPartitionedTopicMetadataResponse
-                .newBuilder();
+        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder =
+            CommandPartitionedTopicMetadataResponse.newBuilder();
         partitionMetadataResponseBuilder.setRequestId(requestId);
         partitionMetadataResponseBuilder.setError(error);
         partitionMetadataResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Failed);
@@ -700,8 +702,8 @@ public class Commands {
     }
 
     public static ByteBuf newPartitionMetadataResponse(int partitions, long requestId) {
-        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder = CommandPartitionedTopicMetadataResponse
-                .newBuilder();
+        CommandPartitionedTopicMetadataResponse.Builder partitionMetadataResponseBuilder =
+            CommandPartitionedTopicMetadataResponse.newBuilder();
         partitionMetadataResponseBuilder.setPartitions(partitions);
         partitionMetadataResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Success);
         partitionMetadataResponseBuilder.setRequestId(requestId);
@@ -756,7 +758,8 @@ public class Commands {
         connectionBuilder.setResponse(LookupType.Failed);
 
         CommandLookupTopicResponse connectionBroker = connectionBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(connectionBroker));
+        ByteBuf res = serializeWithSize(
+            BaseCommand.newBuilder().setType(Type.LOOKUP_RESPONSE).setLookupTopicResponse(connectionBroker));
         connectionBuilder.recycle();
         connectionBroker.recycle();
         return res;
@@ -995,7 +998,8 @@ public class Commands {
     }
 
     public static ByteBuf newGetLastMessageIdResponse(long requestId, MessageIdData messageIdData) {
-        PulsarApi.CommandGetLastMessageIdResponse.Builder response = PulsarApi.CommandGetLastMessageIdResponse.newBuilder()
+        PulsarApi.CommandGetLastMessageIdResponse.Builder response =
+            PulsarApi.CommandGetLastMessageIdResponse.newBuilder()
             .setLastMessageId(messageIdData)
             .setRequestId(requestId);
 
@@ -1325,9 +1329,10 @@ public class Commands {
         int payloadSize = payload.readableBytes();
         int magicAndChecksumLength = ChecksumType.Crc32c.equals(checksumType) ? (2 + 4 /* magic + checksumLength*/) : 0;
         boolean includeChecksum = magicAndChecksumLength > 0;
-        int headerContentSize = 4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize; // cmdLength + cmdSize + magicLength +
-                                                                           // checksumSize + msgMetadataLength +
-                                                                           // msgMetadataSize
+        // cmdLength + cmdSize + magicLength +
+        // checksumSize + msgMetadataLength +
+        // msgMetadataSize
+        int headerContentSize = 4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize;
         int totalSize = headerContentSize + payloadSize;
         int headersSize = 4 + headerContentSize; // totalSize + headerLength
         int checksumReaderIndex = -1;
@@ -1581,7 +1586,10 @@ public class Commands {
         return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getNumber();
     }
 
-    public static enum ChecksumType {
+    /**
+     * Definition of possible checksum types.
+     */
+    public enum ChecksumType {
         Crc32c,
         None;
     }

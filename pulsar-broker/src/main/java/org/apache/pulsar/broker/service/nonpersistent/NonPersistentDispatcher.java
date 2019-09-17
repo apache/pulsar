@@ -52,7 +52,7 @@ public interface NonPersistentDispatcher extends Dispatcher{
 
     void sendMessages(List<Entry> entries);
 
-    Rate getMesssageDropRate();
+    Rate getMessageDropRate();
 
     boolean hasPermits();
 
