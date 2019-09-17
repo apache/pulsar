@@ -123,4 +123,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             return;
         }
     }
+
+    public void resetCloseFuture() {
+        // noop
+    }
 }

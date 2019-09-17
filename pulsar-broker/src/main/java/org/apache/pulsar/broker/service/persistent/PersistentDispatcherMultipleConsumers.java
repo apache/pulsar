@@ -82,13 +82,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
     private final boolean isDelayedDeliveryEnabled;
 
-    private boolean havePendingRead = false;
-    private boolean havePendingReplayRead = false;
+    private volatile boolean havePendingRead = false;
+    private volatile boolean havePendingReplayRead = false;
     private boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
 
-    protected int totalAvailablePermits = 0;
-    private int readBatchSize;
+    protected volatile int totalAvailablePermits = 0;
+    private volatile int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "totalUnackedMessages");
@@ -370,6 +370,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (delayedDeliveryTracker.isPresent()) {
             delayedDeliveryTracker.get().close();
         }
+
+        if (dispatchRateLimiter.isPresent()) {
+            dispatchRateLimiter.get().close();
+        }
+
         return disconnectAllConsumers();
     }
 
@@ -388,7 +393,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
+    public synchronized void resetCloseFuture() {
+        closeFuture = null;
+    }
+
+    @Override
     public void reset() {
+        resetCloseFuture();
         IS_CLOSED_UPDATER.set(this, FALSE);
     }
 

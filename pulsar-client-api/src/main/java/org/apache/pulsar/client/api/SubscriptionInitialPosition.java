@@ -26,15 +26,14 @@ package org.apache.pulsar.client.api;
  */
 public enum SubscriptionInitialPosition {
     /**
-     * the latest position which means the start consuming position will be the last message
+     * The latest position which means the start consuming position will be the last message.
      */
     Latest(0),
 
     /**
-     * the earliest position which means the start consuming position will be the first message
+     * The earliest position which means the start consuming position will be the first message.
      */
-    Earliest(1),
-    ;
+    Earliest(1);
 
 
     private final int value;
@@ -43,6 +42,8 @@ public enum SubscriptionInitialPosition {
         this.value = value;
     }
 
-    public final int getValue() { return value; }
+    public final int getValue() {
+        return value;
+    }
 
 }

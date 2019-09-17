@@ -41,11 +41,11 @@
       "io-overview",
       "io-quickstart",
       "io-use",
-      "io-managing",
       "io-debug",
       "io-connectors",
+      "io-cdc",
       "io-develop",
-      "io-cdc"
+      "reference-connector-admin"
     ],
     "Pulsar SQL": [
       "sql-overview",
@@ -98,6 +98,7 @@
       "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics",
+      "admin-api-non-partitioned-topics",
       "admin-api-schemas"
     ],
     "Adaptors": [
@@ -127,7 +128,6 @@
       "reference-terminology",
       "reference-cli-tools",
       "pulsar-admin",
-      "reference-connector-admin",
       "reference-configuration",
       "reference-metrics"
     ]

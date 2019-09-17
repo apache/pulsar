@@ -50,6 +50,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_SERVER = "Server";
     @Category
+    private static final String CATEGORY_PROTOCOLS = "Protocols";
+    @Category
     private static final String CATEGORY_STORAGE_BK = "Storage (BookKeeper)";
     @Category
     private static final String CATEGORY_STORAGE_ML = "Storage (Managed Ledger)";
@@ -541,6 +543,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Max number of snapshot to be cached per subscription.")
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
+
+    /**** --- Messaging Protocols --- ****/
+
+    @FieldContext(
+        category = CATEGORY_PROTOCOLS,
+        doc = "The directory to locate messaging protocol handlers"
+    )
+    private String protocolHandlerDirectory = "./protocols";
+
+    @FieldContext(
+        category = CATEGORY_PROTOCOLS,
+        doc = "List of messaging protocols to load, which is a list of protocol names"
+    )
+    private Set<String> messagingProtocols = Sets.newTreeSet();
 
     /***** --- TLS --- ****/
     @FieldContext(

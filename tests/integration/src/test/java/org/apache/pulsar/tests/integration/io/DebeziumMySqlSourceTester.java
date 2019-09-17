@@ -91,9 +91,9 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
         while(msg != null) {
             recordsNumber ++;
-            log.info("Received message: {}.", msg.getValue());
-            String key = new String(msg.getValue().getKey());
-            String value = new String(msg.getValue().getValue());
+            final String key = new String(msg.getValue().getKey());
+            final String value = new String(msg.getValue().getValue());
+            log.info("Received message: key = {}, value = {}.", key, value);
             Assert.assertTrue(key.contains("dbserver1.inventory.products.Key"));
             Assert.assertTrue(value.contains("dbserver1.inventory.products.Value"));
             consumer.acknowledge(msg);

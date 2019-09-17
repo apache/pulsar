@@ -25,6 +25,9 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
+/**
+ * Data structure representing a schema information including its version.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
