@@ -186,9 +186,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start the function thread
         functionClassLoader = loadJars();
 
-        Object object = Reflections.createInstance(
-                instanceConfig.getFunctionDetails().getClassName(),
-                functionClassLoader);
+        Object object;
+        if (instanceConfig.getFunctionDetails().getClassName().equals(org.apache.pulsar.functions.windowing.WindowFunctionExecutor.class.getName())) {
+            object = Reflections.createInstance(
+                    instanceConfig.getFunctionDetails().getClassName(),
+                    instanceClassLoader);
+        } else {
+            object = Reflections.createInstance(
+                    instanceConfig.getFunctionDetails().getClassName(),
+                    functionClassLoader);
+        }
+
 
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
@@ -213,7 +221,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType, this.stats);
+                collectorRegistry, metricsLabels, this.componentType, this.stats, stateTable);
     }
 
     /**
@@ -232,10 +240,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     this.componentType);
 
             javaInstance = setupJavaInstance();
-            if (null != stateTable) {
-                StateContextImpl stateContext = new StateContextImpl(stateTable);
-                javaInstance.getContext().setStateContext(stateContext);
-            }
             while (true) {
                 currentRecord = readInput();
 

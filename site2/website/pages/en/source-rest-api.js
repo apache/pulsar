@@ -11,8 +11,7 @@ class SourceRestApi extends React.Component {
     return (
       <div className="pageContainer">
         <Container className="mainContainer documentContainer postContainer" >
-          <redoc spec-url={`${swaggerUrl}`} lazy-rendering="true"></redoc>
-          <script src="https://rebilly.github.io/ReDoc/releases/latest/redoc.min.js"></script>
+          <script base-url={`${swaggerUrl}`} src="../js/getSwaggerByVersion.js"></script>
         </Container>
       </div>
     );

@@ -100,7 +100,7 @@ When a message is not consumed successfully, and you want to trigger the broker 
 
 Dead letter topic enables you to consume new messages when some messages cannot be consumed successfully by a consumer. In this mechanism, messages that are failed to be consumed are stored in a separate topic, which is called dead letter topic. You can decide how to handle messages in the dead letter topic.
 
-The following example shows how to enable dead letter topic in Java client.
+The following example shows how to enable dead letter topic in a Java client using the default dead letter topic:
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
@@ -113,7 +113,28 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
               .subscribe();
                 
 ```
-Dead letter topic depends on message re-delivery. You need to confirm message re-delivery method: negative acknowledgement or acknowledgement timeout. Use negative acknowledgement prior to acknowledgement timeout. 
+The default dead letter topic uses this format: 
+```
+<topicname>-<subscriptionname>-DLQ
+```
+  
+If you want to specify the name of the dead letter topic, use this Java client example:
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+              .topic(topic)
+              .subscriptionName("my-subscription")
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .deadLetterTopic("your-topic-name")
+                    .build())
+              .subscribe();
+                
+```
+  
+
+Dead letter topic depends on message re-delivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > Note    
 > Currently, dead letter topic is enabled only in the shared subscription mode.
@@ -313,7 +334,7 @@ By default, non-persistent topics are enabled on Pulsar brokers. You can disable
 
 ### Performance
 
-Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is deliver to all connected subscribers. Producers thus see comparatively low publish latency with non-persistent topic.
+Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is delivered to connected brokers. Producers thus see comparatively low publish latency with non-persistent topic.
 
 ### Client API
 

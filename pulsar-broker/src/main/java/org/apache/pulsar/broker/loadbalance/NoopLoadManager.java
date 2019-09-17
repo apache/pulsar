@@ -61,6 +61,7 @@ public class NoopLoadManager implements LoadManager {
 
         localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        localData.setProtocols(pulsar.getProtocolDataToAdvertise());
     }
 
     @Override

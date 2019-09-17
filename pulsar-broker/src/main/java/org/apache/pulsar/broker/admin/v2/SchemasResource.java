@@ -316,41 +316,48 @@ public class SchemasResource extends AdminResource {
         getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
             SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy
                     .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
-            pulsar().getSchemaRegistryService().putSchemaIfAbsent(
-                    buildSchemaId(tenant, namespace, topic),
-                    SchemaData.builder()
-                            .data(payload.getSchema().getBytes(Charsets.UTF_8))
-                            .isDeleted(false)
-                            .timestamp(clock.millis())
-                            .type(SchemaType.valueOf(payload.getType()))
-                            .user(defaultIfEmpty(clientAppId(), ""))
-                            .props(payload.getProperties())
-                            .build(),
-                    schemaCompatibilityStrategy
-
-            ).thenAccept(version ->
-                    response.resume(
-                            Response.accepted().entity(
-                                    PostSchemaResponse.builder()
-                                            .version(version)
-                                            .build()
-                            ).build()
-                    )
-            ).exceptionally(error -> {
-                if (error.getCause() instanceof IncompatibleSchemaException) {
-                    response.resume(Response.status(Response.Status.CONFLICT).build());
-                } else if (error instanceof InvalidSchemaDataException) {
-                    response.resume(Response.status(
-                            422, /* Unprocessable Entity */
-                            error.getMessage()
-                    ).build());
-                } else {
-                    response.resume(
-                            Response.serverError().build()
-                    );
-                }
-                return null;
-            });
+        byte[] data;
+        if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
+            data = DefaultImplementation
+                    .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
+        } else {
+            data = payload.getSchema().getBytes(Charsets.UTF_8);
+        }
+        pulsar().getSchemaRegistryService().putSchemaIfAbsent(
+            buildSchemaId(tenant, namespace, topic),
+            SchemaData.builder()
+                .data(data)
+                .isDeleted(false)
+                .timestamp(clock.millis())
+                .type(SchemaType.valueOf(payload.getType()))
+                .user(defaultIfEmpty(clientAppId(), ""))
+                .props(payload.getProperties())
+                .build(),
+                schemaCompatibilityStrategy
+        ).thenAccept(version ->
+            response.resume(
+                Response.accepted().entity(
+                    PostSchemaResponse.builder()
+                        .version(version)
+                        .build()
+                ).build()
+            )
+        ).exceptionally(error -> {
+            if (error.getCause() instanceof IncompatibleSchemaException) {
+                response.resume(Response.status(Response.Status.CONFLICT.getStatusCode(),
+                        error.getCause().getMessage()).build());
+            } else if (error instanceof InvalidSchemaDataException) {
+                response.resume(Response.status(
+                        422, /* Unprocessable Entity */
+                        error.getMessage()
+                ).build());
+            } else {
+                response.resume(
+                        Response.serverError().build()
+                );
+            }
+            return null;
+        });
         }).exceptionally(error -> {
             if (error.getCause() instanceof RestException) {
                 response.resume(Response.status(

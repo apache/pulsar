@@ -20,14 +20,13 @@ package org.apache.pulsar.common.compression;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import lombok.extern.slf4j.Slf4j;
 import org.xerial.snappy.Snappy;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-
 /**
- * Snappy Compression
+ * Snappy Compression.
  */
 @Slf4j
 public class CompressionCodecSnappy implements CompressionCodec {

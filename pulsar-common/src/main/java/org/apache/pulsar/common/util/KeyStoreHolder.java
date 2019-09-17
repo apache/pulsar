@@ -25,6 +25,11 @@ import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 
+/**
+ * Holder for the secure key store.
+ *
+ * @see java.security.KeyStore
+ */
 public class KeyStoreHolder {
 
     private KeyStore keyStore = null;

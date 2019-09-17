@@ -27,6 +27,9 @@ import javax.management.ObjectName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Logger for the JVM G1 GC metrics.
+ */
 public class JvmG1GCMetricsLogger implements JvmGCMetricsLogger {
 
     private volatile long accumulatedYoungGcCount = 0;

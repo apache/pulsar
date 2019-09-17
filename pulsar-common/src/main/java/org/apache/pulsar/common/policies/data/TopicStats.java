@@ -20,44 +20,47 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 /**
+ * Statistics for a Pulsar topic.
  */
 public class TopicStats {
     private int count;
 
-    /** Total rate of messages published on the topic. msg/s */
+    /** Total rate of messages published on the topic (msg/s). */
     public double msgRateIn;
 
-    /** Total throughput of messages published on the topic. byte/s */
+    /** Total throughput of messages published on the topic (byte/s). */
     public double msgThroughputIn;
 
-    /** Total rate of messages dispatched for the topic. msg/s */
+    /** Total rate of messages dispatched for the topic (msg/s). */
     public double msgRateOut;
 
-    /** Total throughput of messages dispatched for the topic. byte/s */
+    /** Total throughput of messages dispatched for the topic (byte/s). */
     public double msgThroughputOut;
 
-    /** Average size of published messages. bytes */
+    /** Average size of published messages (bytes). */
     public double averageMsgSize;
 
-    /** Space used to store the messages for the topic. bytes */
+    /** Space used to store the messages for the topic (bytes). */
     public long storageSize;
 
-    /** List of connected publishers on this topic w/ their stats */
+    /** Get estimated total unconsumed or backlog size in bytes. */
+    public long backlogSize;
+
+    /** List of connected publishers on this topic w/ their stats. */
     public List<PublisherStats> publishers;
 
-    /** Map of subscriptions with their individual statistics */
+    /** Map of subscriptions with their individual statistics. */
     public Map<String, SubscriptionStats> subscriptions;
 
-    /** Map of replication statistics by remote cluster context */
+    /** Map of replication statistics by remote cluster context. */
     public Map<String, ReplicatorStats> replication;
-    
+
     public String deduplicationStatus;
 
     public TopicStats() {
@@ -74,6 +77,7 @@ public class TopicStats {
         this.msgThroughputOut = 0;
         this.averageMsgSize = 0;
         this.storageSize = 0;
+        this.backlogSize = 0;
         this.publishers.clear();
         this.subscriptions.clear();
         this.replication.clear();
@@ -81,7 +85,7 @@ public class TopicStats {
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats
+    // stats.
     public TopicStats add(TopicStats stats) {
         checkNotNull(stats);
         this.count++;
@@ -92,6 +96,7 @@ public class TopicStats {
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;
+        this.backlogSize += stats.backlogSize;
         if (this.publishers.size() != stats.publishers.size()) {
             for (int i = 0; i < stats.publishers.size(); i++) {
                 PublisherStats publisherStats = new PublisherStats();

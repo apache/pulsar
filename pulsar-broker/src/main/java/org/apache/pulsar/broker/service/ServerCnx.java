@@ -1047,8 +1047,6 @@ public class ServerCnx extends PulsarHandler {
         }
 
         startSendOperation();
-
-        // Persist the message
         producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
     }
 

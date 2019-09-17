@@ -145,8 +145,9 @@ public class TGTRefreshThread extends Thread {
                 nextRefreshDate = new Date(nextRefresh);
                 if (nextRefresh > expiry) {
                     Object[] logPayload = {nextRefreshDate, expiryDate};
-                    log.error("next refresh: {} is later than expiry {}." + " This may indicate a clock skew problem."
-                            + "Check that this host and the KDC's " + "hosts' clocks are in sync. Exiting refresh thread.",
+                    log.error(
+                        "next refresh: {} is later than expiry {}." + " This may indicate a clock skew problem."
+                        + "Check that this host and the KDC's " + "hosts' clocks are in sync. Exiting refresh thread.",
                         logPayload);
                     return;
                 }

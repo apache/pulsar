@@ -32,6 +32,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import com.google.common.collect.Range;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -72,6 +73,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
+    protected volatile Range<PositionImpl> lastIndividualDeletedRangeFromCursorRecovery;
 
     private CompletableFuture<Void> closeFuture = null;
     LongPairSet messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2);
@@ -80,13 +82,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
     private final boolean isDelayedDeliveryEnabled;
 
-    private boolean havePendingRead = false;
-    private boolean havePendingReplayRead = false;
+    private volatile boolean havePendingRead = false;
+    private volatile boolean havePendingReplayRead = false;
     private boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
 
-    protected int totalAvailablePermits = 0;
-    private int readBatchSize;
+    protected volatile int totalAvailablePermits = 0;
+    private volatile int readBatchSize;
     private final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> TOTAL_UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "totalUnackedMessages");
@@ -106,6 +108,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         super(subscription);
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.cursor = cursor;
+        this.lastIndividualDeletedRangeFromCursorRecovery = cursor.getLastIndividualDeletedRange();
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
@@ -367,6 +370,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (delayedDeliveryTracker.isPresent()) {
             delayedDeliveryTracker.get().close();
         }
+
+        if (dispatchRateLimiter.isPresent()) {
+            dispatchRateLimiter.get().close();
+        }
+
         return disconnectAllConsumers();
     }
 
@@ -385,7 +393,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
+    public synchronized void resetCloseFuture() {
+        closeFuture = null;
+    }
+
+    @Override
     public void reset() {
+        resetCloseFuture();
         IS_CLOSED_UPDATER.set(this, FALSE);
     }
 
@@ -431,6 +445,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+
+        if (entries == null || entries.size() == 0) {
+            return;
+        }
+        if (needTrimAckedMessages()) {
+            cursor.trimDeletedEntries(entries);
+        }
         int start = 0;
         int entriesToDispatch = entries.size();
         long totalMessagesSent = 0;
@@ -558,6 +579,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     }
 
+    private boolean needTrimAckedMessages() {
+        if (lastIndividualDeletedRangeFromCursorRecovery == null) {
+            return false;
+        } else {
+            return lastIndividualDeletedRangeFromCursorRecovery.upperEndpoint()
+                    .compareTo((PositionImpl) cursor.getReadPosition()) > 0;
+        }
+    }
 
     /**
      * returns true only if {@link consumerList} has atleast one unblocked consumer and have available permits
@@ -723,6 +752,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return delayedDeliveryTracker.get().getNumberOfDelayedMessages();
         } else {
             return 0;
+        }
+    }
+
+    @Override
+    public void cursorIsReset() {
+        if (this.lastIndividualDeletedRangeFromCursorRecovery != null) {
+            this.lastIndividualDeletedRangeFromCursorRecovery = null;
         }
     }
 

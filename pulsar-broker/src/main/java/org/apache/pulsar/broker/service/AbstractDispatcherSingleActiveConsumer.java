@@ -138,6 +138,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             log.warn("[{}] Dispatcher is already closed. Closing consumer ", this.topicName, consumer);
             consumer.disconnect();
         }
+
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
             throw new ConsumerBusyException("Exclusive consumer is already connected");
         }
@@ -227,7 +228,13 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return closeFuture;
     }
 
+    @Override
+    public synchronized void resetCloseFuture() {
+        closeFuture = null;
+    }
+
     public void reset() {
+        resetCloseFuture();
         IS_CLOSED_UPDATER.set(this, FALSE);
     }
 

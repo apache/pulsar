@@ -26,6 +26,9 @@ import lombok.ToString;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+/**
+ * Schema data.
+ */
 @Builder
 @Data
 @ToString
@@ -53,7 +56,7 @@ public class SchemaData {
     }
 
     /**
-     * Convert a schema info to a schema data
+     * Convert a schema info to a schema data.
      *
      * @param schemaInfo schema info
      * @return the converted schema schema data

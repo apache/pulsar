@@ -299,4 +299,14 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             throw getApiException(e);
         }
     }
+
+    @Override
+    public void reloadBuiltInSources() throws PulsarAdminException {
+        try {
+            request(source.path("reloadBuiltInSources"))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 }
