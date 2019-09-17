@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.web.PulsarWebResource.path;
+import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -41,12 +42,13 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadData;
-import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
@@ -195,11 +197,12 @@ public class LoadManagerShared {
      * @param target
      *            Map to fill.
      */
-    public static void fillNamespaceToBundlesMap(final Set<String> bundles, final Map<String, Set<String>> target) {
+    public static void fillNamespaceToBundlesMap(final Set<String> bundles,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> target) {
         bundles.forEach(bundleName -> {
             final String namespaceName = getNamespaceNameFromBundleName(bundleName);
             final String bundleRange = getBundleRangeFromBundleName(bundleName);
-            target.computeIfAbsent(namespaceName, k -> new HashSet<>()).add(bundleRange);
+            target.computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>()).add(bundleRange);
         });
     }
 
@@ -258,41 +261,32 @@ public class LoadManagerShared {
      *            Map from brokers to namespaces to bundle ranges.
      */
     public static void removeMostServicingBrokersForNamespace(final String assignedBundleName,
-            final Set<String> candidates, final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange) {
+            final Set<String> candidates,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange) {
         if (candidates.isEmpty()) {
             return;
         }
+
         final String namespaceName = getNamespaceNameFromBundleName(assignedBundleName);
         int leastBundles = Integer.MAX_VALUE;
+
         for (final String broker : candidates) {
-            if (brokerToNamespaceToBundleRange.containsKey(broker)) {
-                final Set<String> bundleRanges = brokerToNamespaceToBundleRange.get(broker).get(namespaceName);
-                if (bundleRanges == null) {
-                    // Assume that when the namespace is absent, there are no bundles for this namespace assigned to
-                    // that broker.
-                    leastBundles = 0;
-                    break;
-                }
-                leastBundles = Math.min(leastBundles, bundleRanges.size());
-            } else {
-                // Assume non-present brokers have 0 bundles.
-                leastBundles = 0;
+            int bundles = (int) brokerToNamespaceToBundleRange
+                    .computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>())
+                    .computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>()).size();
+            leastBundles = Math.min(leastBundles, bundles);
+            if (leastBundles == 0) {
                 break;
             }
         }
-        if (leastBundles == 0) {
-            // By assumption, the namespace name will not be present if there are no bundles in the namespace
-            // assigned to the broker.
-            candidates.removeIf(broker -> brokerToNamespaceToBundleRange.containsKey(broker)
-                    && brokerToNamespaceToBundleRange.get(broker).containsKey(namespaceName));
-        } else {
-            final int finalLeastBundles = leastBundles;
-            // We may safely assume that each broker has at least one bundle for this namespace.
-            // Note that this case is far less likely since it implies that there are at least as many bundles for this
-            // namespace as brokers.
-            candidates.removeIf(broker -> brokerToNamespaceToBundleRange.get(broker).get(namespaceName)
-                    .size() != finalLeastBundles);
-        }
+
+        // Since `brokerToNamespaceToBundleRange` can be updated by other threads,
+        // `leastBundles` may differ from the actual value.
+
+        final int finalLeastBundles = leastBundles;
+        candidates.removeIf(
+                broker -> brokerToNamespaceToBundleRange.computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>())
+                        .computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>()).size() > finalLeastBundles);
     }
 
     /**
@@ -324,7 +318,8 @@ public class LoadManagerShared {
      * @param brokerToNamespaceToBundleRange
      */
     public static void filterAntiAffinityGroupOwnedBrokers(final PulsarService pulsar, final String assignedBundleName,
-            final Set<String> candidates, final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange,
+            final Set<String> candidates,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange,
             Map<String, String> brokerToDomainMap) {
         if (candidates.isEmpty()) {
             return;
@@ -424,8 +419,8 @@ public class LoadManagerShared {
      * @return
      */
     public static CompletableFuture<Map<String, Integer>> getAntiAffinityNamespaceOwnedBrokers(
-            final PulsarService pulsar, String namespaceName,
-            Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange) {
+            final PulsarService pulsar, final String namespaceName,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange) {
 
         CompletableFuture<Map<String, Integer>> antiAffinityNsBrokersResult = new CompletableFuture<>();
         ZooKeeperDataCache<Policies> policiesCache = pulsar.getConfigurationCache().policiesCache();
@@ -440,6 +435,10 @@ public class LoadManagerShared {
             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
             brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
                 nsToBundleRange.forEach((ns, bundleRange) -> {
+                    if (bundleRange.isEmpty()) {
+                        return;
+                    }
+
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     futures.add(future);
                     policiesCache.getAsync(path(POLICIES, ns)).thenAccept(nsPolicies -> {
@@ -481,7 +480,8 @@ public class LoadManagerShared {
      * @throws Exception
      */
     public static boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker,
-            final PulsarService pulsar, Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange,
+            final PulsarService pulsar,
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange,
             Set<String> candidateBroekrs) throws Exception {
 
         Map<String, Integer> brokerNamespaceCount = getAntiAffinityNamespaceOwnedBrokers(pulsar, namespace,

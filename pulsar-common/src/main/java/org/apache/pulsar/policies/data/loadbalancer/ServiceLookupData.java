@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import java.util.Map;
+import java.util.Optional;
+
 /**
  * For backwards compatibility purposes.
  */
@@ -29,4 +32,20 @@ public interface ServiceLookupData {
     String getPulsarServiceUrl();
 
     String getPulsarServiceUrlTls();
+
+    /**
+     * Get all the protocols advertised by the broker.
+     *
+     * @return the protocols advertised by the broker.
+     */
+    Map<String, String> getProtocols();
+
+    /**
+     * Get the protocol data of the given <tt>protocol</tt>.
+     *
+     * @param protocol the protocol advertised by the broker.
+     * @return the optional protocol data advertised by the broker.
+     */
+    Optional<String> getProtocol(String protocol);
+
 }
