@@ -39,7 +39,7 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     protected final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
     protected final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
-    protected int currentConsumerRoundRobinIndex = 0;
+    protected volatile int currentConsumerRoundRobinIndex = 0;
 
     protected static final int FALSE = 0;
     protected static final int TRUE = 1;
