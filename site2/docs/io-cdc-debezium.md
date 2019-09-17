@@ -73,27 +73,27 @@ You can use one of the following methods to create a configuration file.
 
     configs:
 
-    ## config for mysql, docker image: debezium/example-mysql:0.8
-    database.hostname: "localhost"
-    database.port: "3306"
-    database.user: "debezium"
-    database.password: "dbz"
-    database.server.id: "184054"
-    database.server.name: "dbserver1"
-    database.whitelist: "inventory"
-    database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
-    database.history.pulsar.topic: "history-topic"
-    database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+        ## config for mysql, docker image: debezium/example-mysql:0.8
+        database.hostname: "localhost"
+        database.port: "3306"
+        database.user: "debezium"
+        database.password: "dbz"
+        database.server.id: "184054"
+        database.server.name: "dbserver1"
+        database.whitelist: "inventory"
+        database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
+        database.history.pulsar.topic: "history-topic"
+        database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
 
-    ## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG
-    key.converter: "org.apache.kafka.connect.json.JsonConverter"
-    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+        ## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG
+        key.converter: "org.apache.kafka.connect.json.JsonConverter"
+        value.converter: "org.apache.kafka.connect.json.JsonConverter"
 
-    ## PULSAR_SERVICE_URL_CONFIG
-    pulsar.service.url: "pulsar://127.0.0.1:6650"
+        ## PULSAR_SERVICE_URL_CONFIG
+        pulsar.service.url: "pulsar://127.0.0.1:6650"
 
-    ## OFFSET_STORAGE_TOPIC_CONFIG
-    offset.storage.topic: "offset-topic"
+        ## OFFSET_STORAGE_TOPIC_CONFIG
+        offset.storage.topic: "offset-topic"
     ```
 
 ### Usage
@@ -206,17 +206,17 @@ You can use one of the following methods to create a configuration file.
 
     configs:
 
-    ## config for pg, docker image: debezium/example-postgress:0.8
-    database.hostname: "localhost"
-    database.port: "5432"
-    database.user: "postgres"
-    database.password: "postgres"
-    database.dbname: "postgres"
-    database.server.name: "dbserver1"
-    schema.whitelist: "inventory"
+        ## config for pg, docker image: debezium/example-postgress:0.8
+        database.hostname: "localhost"
+        database.port: "5432"
+        database.user: "postgres"
+        database.password: "postgres"
+        database.dbname: "postgres"
+        database.server.name: "dbserver1"
+        schema.whitelist: "inventory"
 
-    ## PULSAR_SERVICE_URL_CONFIG
-    pulsar.service.url: "pulsar://127.0.0.1:6650"
+        ## PULSAR_SERVICE_URL_CONFIG
+        pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
 
 ### Usage
