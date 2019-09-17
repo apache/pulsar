@@ -37,7 +37,7 @@ public interface SchemaReader<T> {
     }
 
     /**
-     * serialize bytes convert pojo
+     * serialize bytes convert pojo.
      *
      * @param bytes the data
      * @param offset the byte[] initial position
@@ -47,7 +47,7 @@ public interface SchemaReader<T> {
     T read(byte[] bytes, int offset, int length);
 
     /**
-     * serialize bytes convert pojo
+     * serialize bytes convert pojo.
      *
      * @param inputStream the stream of message
      * @return the serialized object
