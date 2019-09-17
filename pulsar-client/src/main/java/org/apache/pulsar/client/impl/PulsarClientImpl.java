@@ -352,6 +352,7 @@ public class PulsarClientImpl implements PulsarClient {
                 int partitionIndex = TopicName.getPartitionIndex(topic);
                 consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, listenerThread, partitionIndex, false,
                         consumerSubscribedFuture, SubscriptionMode.Durable, null, schema, interceptors,
+                        true /* createTopicIfDoesNotExist */,
                         this.conf.getDefaultBackoffIntervalNanos(), this.conf.getMaxBackoffIntervalNanos());
             }
 
@@ -371,7 +372,8 @@ public class PulsarClientImpl implements PulsarClient {
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         ConsumerBase<T> consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
-                externalExecutorProvider.getExecutor(), consumerSubscribedFuture, schema, interceptors);
+                externalExecutorProvider.getExecutor(), consumerSubscribedFuture, schema, interceptors,
+                true /* createTopicIfDoesNotExist */);
 
         synchronized (consumers) {
             consumers.put(consumer, Boolean.TRUE);
