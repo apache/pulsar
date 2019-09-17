@@ -27,12 +27,4 @@ Currently Pulsar supports the following authentication providers:
 - [Kerberos](security-kerberos.md)
 - [JSON Web Token Authentication](security-jwt.md)
 
-## Contents
-
-- [Encryption](security-tls-transport.md) and [Authentication](security-tls-authentication.md) using TLS
-- [Authentication using JESN Web Token](security-jwt.md)
-- [Authentication using Athenz](security-athenz.md)
-- [Authentication using Kerberos](security-kerberos.md)
-- [Authorization and ACLs](security-authorization.md)
-- [End-to-End Encryption](security-encryption.md)
 
