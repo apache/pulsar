@@ -378,6 +378,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             boolean topicExist = pulsar().getNamespaceService()
                     .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                    .join()
                     .contains(topicName.toString());
             if (topicExist) {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
@@ -1201,7 +1202,7 @@ public class PersistentTopicsBase extends AdminResource {
                         return;
                     }
                 }
-                
+
                 if (partitionException.get() != null) {
                     log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
                             subscriptionName, targetMessageId, partitionException.get());
