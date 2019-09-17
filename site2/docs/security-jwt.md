@@ -12,7 +12,7 @@ Pulsar supports authenticating clients using security tokens that are based on
 You can use tokens to identify a Pulsar client and associate with some "principal" (or "role") that
 is permitted to do some actions (eg: publish to a topic or consume from a topic).
 
-A user typically gets a user a token string from the administrator (or some automated service).
+A user typically gets a token string from the administrator (or some automated service).
 
 The compact representation of a signed JWT is a string that looks like as the follwing:
 
@@ -23,11 +23,11 @@ eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL6
 Application specifies the token when you create the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
 
 > #### Always use TLS transport encryption
-> Sending a token is equivalent to sending a password over the wire.You had better use TLS encryption all the time when you talk to the Pulsar service. See
+> Sending a token is equivalent to sending a password over the wire.You had better use TLS encryption all the time when you connect to the Pulsar service. See
 > [Transport Encryption using TLS](security-tls-transport.md) for more details.
 
-
-### CLI tools
+<!--DOCUSAURUS_CODE_TABS-->
+<!--CLI-->
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
@@ -42,13 +42,11 @@ authParams=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPt
 ```
 
 The token string can also be read from a file, for example:
-
 ```
 authParams=file:///path/to/token/file
 ```
 
-### Java client
-
+<!--Java-->
 ```java
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
@@ -69,9 +67,7 @@ PulsarClient client = PulsarClient.builder()
         })
     .build();
 ```
-
-### Python client
-
+<!--Python-->
 ```python
 from pulsar import Client, AuthenticationToken
 
@@ -79,7 +75,7 @@ client = Client('pulsar://broker.example.com:6650/'
                 authentication=AuthenticationToken('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY'))
 ```
 
-Alternatively, with a supplier:
+Alternatively, you can also pass a `Supplier`:
 
 ```python
 
@@ -90,18 +86,14 @@ def read_token():
 client = Client('pulsar://broker.example.com:6650/'
                 authentication=AuthenticationToken(read_token))
 ```
-
-### Go client
-
-
+<!--Go-->
 ```go
 client, err := NewClient(ClientOptions{
 	URL:            "pulsar://localhost:6650",
 	Authentication: NewAuthenticationToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"),
 })
 ```
-
-Alternatively, with a supplier:
+Similarly, you can also pass a `Supplier`:
 
 ```go
 client, err := NewClient(ClientOptions{
@@ -112,9 +104,7 @@ client, err := NewClient(ClientOptions{
 	}),
 })
 ```
-
-### C++ client
-
+<!--C++-->
 ```c++
 #include <pulsar/Client.h>
 
@@ -123,6 +113,8 @@ config.setAuth(pulsar::AuthToken::createWithToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIi
 
 pulsar::Client client("pulsar://broker.example.com:6650/", config);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Enable token authentication 
 
@@ -133,12 +125,12 @@ JWT support two different kind of keys in order to generate and validate the tok
  * Symmetric :
     - You can use a single ***Secret*** key both to generate and validate tokens.
  * Asymmetric: A pair of keys consist of the Private key and the Public key.
-    - You can use ***Private*** key to generate tokens
-    - You can use ***Public*** key to validate tokens
+    - You can use ***Private*** key to generate tokens.
+    - You can use ***Public*** key to validate tokens.
 
 ### Create a secret key
 
-When you use a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to the brokers in order to allow them to validate the clients.
+When you use a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to brokers in order to validate the clients.
 
 Output file is generated in the root of your Pulsar installation directory. You can also provide absolute path for the output file using the command below.
 
@@ -166,7 +158,7 @@ $ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output
 
 ### Generate tokens
 
-A token is the credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, this field is typically referred to as **subject**, though they are exactly the same concept.
+A token is the credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, this field is typically referred as **subject**, though they are exactly the same concept.
 
 Then, you need to use this command to require the generated token to have a **subject** field set .
 
