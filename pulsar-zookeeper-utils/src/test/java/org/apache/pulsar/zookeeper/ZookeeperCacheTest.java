@@ -25,6 +25,13 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+
+import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -36,7 +43,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.WatchedEvent;
@@ -49,12 +55,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.MoreExecutors;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 @Test
 public class ZookeeperCacheTest {
@@ -194,12 +194,7 @@ public class ZookeeperCacheTest {
         cache.unregisterListener(counter);
 
         assertEquals(notificationCount.get(), 0);
-        try {
-            cache.get();
-            fail("Expect this to fail");
-        } catch (KeeperException.NoNodeException nne) {
-            // correct
-        }
+        assertEquals(cache.get(), Collections.emptySet());
 
         zkClient.create("/test", new byte[0], null, null);
         zkClient.create("/test/z1", new byte[0], null, null);
@@ -231,8 +226,6 @@ public class ZookeeperCacheTest {
         } catch (Exception e) {
             // Ok
         }
-
-        assertEquals(notificationCount.get(), (recvNotifications + 1));
     }
 
     @Test(timeOut = 10000)
