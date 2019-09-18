@@ -571,6 +571,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (!subscribeFuture.isDone()) {
                 // unable to create new consumer, fail operation
                 setState(State.Failed);
+                closeConsumerTasks();
                 subscribeFuture.completeExceptionally(e);
                 client.cleanupConsumer(this);
             } else {
@@ -645,20 +646,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public CompletableFuture<Void> closeAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
-            unAckedMessageTracker.close();
-            if (possibleSendToDeadLetterTopicMessages != null) {
-                possibleSendToDeadLetterTopicMessages.clear();
-            }
+            closeConsumerTasks();
             return CompletableFuture.completedFuture(null);
         }
 
         if (!isConnected()) {
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             setState(State.Closed);
-            unAckedMessageTracker.close();
-            if (possibleSendToDeadLetterTopicMessages != null) {
-                possibleSendToDeadLetterTopicMessages.clear();
-            }
+            closeConsumerTasks();
             client.cleanupConsumer(this);
             return CompletableFuture.completedFuture(null);
         }
@@ -667,7 +662,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         setState(State.Closing);
 
-        acknowledgmentsGroupingTracker.close();
+        closeConsumerTasks();
 
         long requestId = client.newRequestId();
 
@@ -694,14 +689,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private void cleanupAtClose(CompletableFuture<Void> closeFuture) {
         log.info("[{}] [{}] Closed consumer", topic, subscription);
         setState(State.Closed);
-        unAckedMessageTracker.close();
-        if (possibleSendToDeadLetterTopicMessages != null) {
-            possibleSendToDeadLetterTopicMessages.clear();
-        }
+        closeConsumerTasks();
         closeFuture.complete(null);
         client.cleanupConsumer(this);
         // fail all pending-receive futures to notify application
         failPendingReceive();
+    }
+
+    private void closeConsumerTasks() {
+        unAckedMessageTracker.close();
+        if (possibleSendToDeadLetterTopicMessages != null) {
+            possibleSendToDeadLetterTopicMessages.clear();
+        }
+
+        acknowledgmentsGroupingTracker.close();
     }
 
     private void failPendingReceive() {

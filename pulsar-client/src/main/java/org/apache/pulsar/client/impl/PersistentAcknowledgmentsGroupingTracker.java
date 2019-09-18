@@ -217,7 +217,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     @Override
     public void close() {
         flush();
-        if (scheduledTask != null) {
+        if (scheduledTask != null && !scheduledTask.isCancelled()) {
             scheduledTask.cancel(true);
         }
     }
