@@ -1,4 +1,3 @@
-
 ---
 id: io-kafka-sink
 title: Kafka sink connector
@@ -18,32 +17,50 @@ The configuration of the Kafka sink connector has the following parameters.
 |------|----------|---------|-------------|-------------|
 |  `bootstrapServers` |String| true | " " (empty string) | A comma-separated list of host and port pairs for establishing the initial connection to the Kafka cluster. |
 |`ack`|String|true|" " (empty string) |The number of acknowledgments that the producer requires the leader to receive before a request completes. <br/>This controls the durability of the sent records.
-|`batchsize`|
-|`maxRequestSize`|
-|`topic`|
-| `keyDeserializationClass` | String|false | org.apache.kafka.common.serialization.StringDeserializer | The deserializer class for Kafka consumers to deserialize keys.
-| `valueDeserializationClass` | String|false | org.apache.kafka.common.serialization.ByteArrayDeserializer | The deserializer class for Kafka consumers to deserialize values.
-|`producerConfigProperties`
-
-
-
-
+|`batchsize`|long||16384L|The batch size that a Kafka producer attempts to batch records together before sending them to brokers.
+|`maxRequestSize`|long||1048576L|The maximum size of a Kafka request in bytes.
+|`topic`|String|true|" " (empty string) |The Kafka topic which receives messages from Pulsar.
+| `keyDeserializationClass` | String|false | org.apache.kafka.common.serialization.StringSerializer | The serializer class for Kafka producers to serialize keys.
+| `valueDeserializationClass` | String|false | org.apache.kafka.common.serialization.ByteArraySerializer | The serializer class for Kafka producers to serialize values.<br/><br/>The serializer is set by a specific implementation of [`KafkaAbstractSink`](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSink.java).
+|`producerConfigProperties`|Map||" " (empty string)|The producer configuration properties to be passed to producers. <br/><br/>**Note:  other properties specified in the connector configuration file take precedence over this configuration**.
 
 
 ### Example
 
-Before using the Kafka source connector, you need to create a configuration file through one of the following methods.
+Before using the Kafka sink connector, you need to create a configuration file through one of the following methods.
 
 * JSON 
+
+    ```json
+    {
+        "bootstrapServers": "localhost:6667",
+        "topic": "test",
+        "acks": "1",
+        "batchSize": "16384",
+        "maxRequestSize": "1048576",
+        "producerConfigProperties":
+        ｛
+            "client.id": "test-pulsar-producer",
+            "security.protocol": "SASL_PLAINTEXT",
+            "sasl.mechanism": "GSSAPI",
+            "sasl.kerberos.service.name": "kafka",
+            "acks": "all" 
+         ｝
+    }
+
+* YAML
   
-"bootstrapServers": "localhost:6667"
-"topic": "test"
-"acks": "1"
-"batchSize": "16384"
-"maxRequestSize": "1048576"
-"producerConfigProperties":
-    "client.id": "test-pulsar-producer"
-    "security.protocol": "SASL_PLAINTEXT"
-    "sasl.mechanism": "GSSAPI"
-    "sasl.kerberos.service.name": "kafka"
-    "acks": "all"
+    ```yaml
+    configs:
+        bootstrapServers: "localhost:6667"
+        topic: "test"
+        acks: "1"
+        batchSize: "16384"
+        maxRequestSize: "1048576"
+        producerConfigProperties:
+            client.id: "test-pulsar-producer"
+            security.protocol: "SASL_PLAINTEXT"
+            sasl.mechanism: "GSSAPI"
+            sasl.kerberos.service.name: "kafka"
+            acks: "all"   
+    ```
