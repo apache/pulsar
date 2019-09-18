@@ -24,8 +24,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -189,7 +187,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         boolean isEmpty;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty()
+            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join().isEmpty()
                     && getPartitionedTopicList(TopicDomain.persistent).isEmpty()
                     && getPartitionedTopicList(TopicDomain.non_persistent).isEmpty();
         } catch (Exception e) {
@@ -319,7 +317,7 @@ public abstract class NamespacesBase extends AdminResource {
         NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
         try {
-            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
             for (String topic : topics) {
                 NamespaceBundle topicBundle = (NamespaceBundle) pulsar().getNamespaceService()
                         .getBundle(TopicName.get(topic));

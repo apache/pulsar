@@ -20,6 +20,8 @@ package org.apache.pulsar.zookeeper;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.pulsar.zookeeper.ZooKeeperCache.CacheUpdater;
@@ -49,12 +51,24 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
     }
 
     public Set<String> get() throws KeeperException, InterruptedException {
-        return cache.getChildren(path, this);
+        return get(this.path);
     }
 
     public Set<String> get(String path) throws KeeperException, InterruptedException {
-        LOG.debug("getChildren called at: {}", path);
-        return cache.getChildren(path, this);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("getChildren called at: {}", path);
+        }
+
+        Set<String> children = cache.getChildrenAsync(path, this).join();
+        if (children == null) {
+            throw KeeperException.create(KeeperException.Code.NONODE);
+        }
+
+        return children;
+    }
+
+    public CompletableFuture<Set<String>> getAsync(String path) {
+        return cache.getChildrenAsync(path, this);
     }
 
     public void clear() {
@@ -67,18 +81,17 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
 
     @Override
     public void reloadCache(final String path) {
-        try {
-            cache.invalidate(path);
-            Set<String> children = cache.getChildren(path, this);
-            LOG.info("reloadCache called in zookeeperChildrenCache for path {}", path);
-            for (ZooKeeperCacheListener<Set<String>> listener : listeners) {
-                listener.onUpdate(path, children, null);
-            }
-        } catch (KeeperException.NoNodeException nne) {
-            LOG.debug("Node [{}] does not exist", nne.getPath());
-        } catch (Exception e) {
-            LOG.warn("Reloading ZooKeeperDataCache failed at path:{}", path);
-        }
+        cache.invalidate(path);
+        cache.getChildrenAsync(path, this)
+                .thenAccept(children -> {
+                    LOG.info("reloadCache called in zookeeperChildrenCache for path {}", path);
+                    for (ZooKeeperCacheListener<Set<String>> listener : listeners) {
+                        listener.onUpdate(path, children, null);
+                    }
+                }).exceptionally(ex -> {
+                    LOG.warn("Reloading ZooKeeperDataCache failed at path:{}", path, ex);
+                    return null;
+                }).join();
     }
 
     @Override

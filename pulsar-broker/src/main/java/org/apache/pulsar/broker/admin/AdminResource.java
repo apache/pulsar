@@ -597,6 +597,7 @@ public abstract class AdminResource extends PulsarWebResource {
             try {
                 topicExist = pulsar.getNamespaceService()
                         .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                        .join()
                         .contains(topicName.toString());
             } catch (Exception e) {
                 log.warn("Unexpected error while getting list of topics. topic={}. Error: {}",
