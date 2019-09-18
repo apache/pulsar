@@ -26,8 +26,7 @@ Application specifies the token when you create the client instance. An alternat
 > Sending a token is equivalent to sending a password over the wire.You had better use TLS encryption all the time when you connect to the Pulsar service. See
 > [Transport Encryption using TLS](security-tls-transport.md) for more details.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--CLI-->
+### CLI Tools
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
@@ -45,7 +44,7 @@ The token string can also be read from a file, for example:
 ```
 authParams=file:///path/to/token/file
 ```
-
+<!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
 ```java
 PulsarClient client = PulsarClient.builder()
@@ -67,6 +66,7 @@ PulsarClient client = PulsarClient.builder()
         })
     .build();
 ```
+
 <!--Python-->
 ```python
 from pulsar import Client, AuthenticationToken
