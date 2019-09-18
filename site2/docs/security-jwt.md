@@ -30,8 +30,7 @@ Application specifies the token when you create the client instance. An alternat
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
-You need to add the following parameters to that file to use the token authentication with
-CLI tools of Pulsar:
+You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
 
 ```properties
 webServiceUrl=http://broker.example.com:8080/
@@ -44,6 +43,11 @@ The token string can also be read from a file, for example:
 ```
 authParams=file:///path/to/token/file
 ```
+
+### Pulsar client
+
+You can also use tokens to authenticate the following Pulsar clients.
+
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
 ```java
