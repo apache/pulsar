@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util.collections;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,13 +29,11 @@ import java.util.concurrent.locks.StampedLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import com.google.common.collect.Lists;
-
 /**
- * Concurrent hash set
+ * Concurrent hash set.
  *
- * Provides similar methods as a ConcurrentMap<K,V> but since it's an open hash map with linear probing, no node
- * allocations are required to store the values
+ * <p>Provides similar methods as a {@code ConcurrentMap<K,V>} but since it's an open hash map with linear probing,
+ * no node allocations are required to store the values.
  *
  * @param <V>
  */
@@ -359,7 +358,7 @@ public class ConcurrentOpenHashSet<V> {
             }
         }
 
-        private final void cleanBucket(int bucket) {
+        private void cleanBucket(int bucket) {
             int nextInArray = signSafeMod(bucket + 1, capacity);
             if (values[nextInArray] == EmptyValue) {
                 values[bucket] = (V) EmptyValue;
@@ -450,7 +449,7 @@ public class ConcurrentOpenHashSet<V> {
         }
     }
 
-    private static final long HashMixer = 0xc6a4a7935bd1e995l;
+    private static final long HashMixer = 0xc6a4a7935bd1e995L;
     private static final int R = 47;
 
     final static <K> long hash(K key) {
@@ -460,11 +459,11 @@ public class ConcurrentOpenHashSet<V> {
         return hash;
     }
 
-    static final int signSafeMod(long n, int Max) {
-        return (int) n & (Max - 1);
+    static final int signSafeMod(long n, int max) {
+        return (int) n & (max - 1);
     }
 
-    private static final int alignToPowerOfTwo(int n) {
+    private static int alignToPowerOfTwo(int n) {
         return (int) Math.pow(2, 32 - Integer.numberOfLeadingZeros(n - 1));
     }
 }

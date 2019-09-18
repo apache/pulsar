@@ -70,6 +70,11 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+        return completedFuture(null);
+    }
+
+    @Override
     public SchemaVersion versionFromBytes(byte[] version) {
         return null;
     }

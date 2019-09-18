@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.namespace;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import io.netty.channel.EventLoopGroup;
+
+import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -54,7 +56,6 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -68,6 +69,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -863,14 +865,15 @@ public class NamespaceService {
         return getBundle(topicName);
     }
 
-    public List<String> getFullListOfTopics(NamespaceName namespaceName) throws Exception {
-        List<String> topics = getListOfPersistentTopics(namespaceName);
-        topics.addAll(getListOfNonPersistentTopics(namespaceName));
-        return topics;
+    public CompletableFuture<List<String>> getFullListOfTopics(NamespaceName namespaceName) {
+        return getListOfPersistentTopics(namespaceName)
+                .thenCombine(getListOfNonPersistentTopics(namespaceName),
+                        (persistentTopics, nonPersistentTopics) -> {
+                            return ListUtils.union(persistentTopics, nonPersistentTopics);
+                        });
     }
 
-    public List<String> getListOfTopics(NamespaceName namespaceName, Mode mode)
-        throws Exception {
+    public CompletableFuture<List<String>> getListOfTopics(NamespaceName namespaceName, Mode mode) {
         switch (mode) {
             case ALL:
                 return getFullListOfTopics(namespaceName);
@@ -882,30 +885,26 @@ public class NamespaceService {
         }
     }
 
-    public List<String> getListOfPersistentTopics(NamespaceName namespaceName) throws Exception {
-        List<String> topics = Lists.newArrayList();
-
+    public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {
         // For every topic there will be a managed ledger created.
-        try {
-            String path = String.format("/managed-ledgers/%s/persistent", namespaceName);
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Getting children from managed-ledgers now: {}", path);
-            }
-
-            for (String topic : pulsar.getLocalZkCacheService().managedLedgerListCache().get(path)) {
-                topics.add(String.format("persistent://%s/%s", namespaceName, Codec.decode(topic)));
-            }
-        } catch (KeeperException.NoNodeException e) {
-            // NoNode means there are no persistent topics for this namespace
+        String path = String.format("/managed-ledgers/%s/persistent", namespaceName);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Getting children from managed-ledgers now: {}", path);
         }
 
-        topics.sort(null);
-        return topics;
+        return pulsar.getLocalZkCacheService().managedLedgerListCache().getAsync(path)
+                .thenApply(znodes -> {
+                    List<String> topics = Lists.newArrayList();
+                    for (String znode : znodes) {
+                        topics.add(String.format("persistent://%s/%s", namespaceName, Codec.decode(znode)));
+                    }
+
+                    topics.sort(null);
+                    return topics;
+                });
     }
 
-    public List<String> getListOfNonPersistentTopics(NamespaceName namespaceName) throws Exception {
-        List<String> topics = Lists.newArrayList();
-
+    public CompletableFuture<List<String>> getListOfNonPersistentTopics(NamespaceName namespaceName) {
         ClusterData peerClusterData;
         try {
             peerClusterData = PulsarWebResource.checkLocalOrGetPeerReplicationCluster(pulsar, namespaceName)
@@ -921,6 +920,7 @@ public class NamespaceService {
         }
 
         // Non-persistent topics don't have managed ledgers so we have to retrieve them from local cache.
+        List<String> topics = Lists.newArrayList();
         synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
             if (pulsar.getBrokerService().getMultiLayerTopicMap().containsKey(namespaceName.toString())) {
                 pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString()).values()
@@ -935,13 +935,13 @@ public class NamespaceService {
         }
 
         topics.sort(null);
-        return topics;
+        return CompletableFuture.completedFuture(topics);
     }
 
-    private List<String> getNonPersistentTopicsFromPeerCluster(ClusterData peerClusterData,
-                                                               NamespaceName namespace) throws Exception {
+    private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterData peerClusterData,
+                                                               NamespaceName namespace) {
         PulsarClientImpl client = getNamespaceClient(peerClusterData);
-        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT).get();
+        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT);
     }
 
 

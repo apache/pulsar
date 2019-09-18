@@ -81,8 +81,11 @@ Directory | Contains
 
 Each Pulsar instance relies on two separate ZooKeeper quorums.
 
-* [Local ZooKeeper](#deploy-local-zookeeper). It operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
-* [Configuration Store](#deploy-configuration-store). It operates at the instance level and provides configuration management for the entire system (and thus across clusters). An independent cluster of machines or the same machines that local ZooKeeper uses can provide the configuration store quorum.
+* [Local ZooKeeper](#deploy-local-zookeeper) operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
+* [Configuration Store](#deploy-the-configuration-store) operates at the instance level and provides configuration management for the entire system (and thus across clusters). An independent cluster of machines or the same machines that local ZooKeeper uses can provide the configuration store quorum.
+
+The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
+
 
 ### Deploy local ZooKeeper
 
@@ -235,25 +238,28 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 
 ### Start bookies
 
-You can start up a bookie in two ways: in the foreground or as a background daemon.
+You can start a bookie in two ways: in the foreground or as a background daemon.
 
-To start up a bookie in the foreground, use the [`bookeeper`](reference-cli-tools.md#bookkeeper)
+To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
-```shell
+```bash
 $ bin/pulsar-daemon start bookie
 ```
 
 You can verify that the bookie works properly using the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
-
 ```shell
 $ bin/bookkeeper shell bookiesanity
 ```
 
 This command creates a new ledger on the local bookie, writes a few entries, reads them back and finally deletes the ledger.
 
-### Hardware considerations
+After you have started all bookies, you can use the `simpletest` command for [BookKeeper shell](reference-cli-tools.md#shell) on any bookie node, to verify that all bookies in the cluster are running.
 
-Bookie hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, having a suitable hardware configuration is essential for the bookies. You can use two key dimensions to bookie hardware capacity:
+```bash
+$ bin/bookkeeper shell simpletest --ensemble <num-bookies> --writeQuorum <num-bookies> --ackQuorum <num-bookies> --numEntries <num-entries>
+```
+
+Bookie hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, having a suitable hardware configuration is essential for the bookies. The following are key dimensions for bookie hardware capacity.
 
 * Disk I/O capacity read/write
 * Storage capacity
@@ -308,13 +314,13 @@ Pulsar brokers do not require any special hardware since they do not use the loc
 
 ### Start the broker service
 
-You can start a broker in the background using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+You can start a broker in the background by using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
 ```shell
 $ bin/pulsar-daemon start broker
 ```
 
-You can also start brokers in the foreground using [`pulsar broker`](reference-cli-tools.md#pulsar-broker):
+You can also start brokers in the foreground by using [`pulsar broker`](reference-cli-tools.md#broker):
 
 ```shell
 $ bin/pulsar broker
@@ -351,7 +357,6 @@ To start the discovery service:
 $ bin/pulsar-daemon start discovery
 ```
 
-
 ## Admin client and verification
 
 At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](admin-api-overview.md) for each cluster. You can use the [`conf/client.conf`](reference-configuration.md#client) configuration file to configure admin clients.
@@ -366,7 +371,9 @@ serviceUrl=http://pulsar.us-west.example.com:8080/
 
 Pulsar is built as a fundamentally multi-tenant system.
 
-To make a new tenant to use the system, you need to create a new one. You can create a new tenant using the [`pulsar-admin`](reference-pulsar-admin.md#tenants-create) CLI tool:
+
+If a new tenant wants to use the system, you need to create a new one. You can create a new tenant by using the [`pulsar-admin`](reference-pulsar-admin.md#tenants) CLI tool:
+
 
 ```shell
 $ bin/pulsar-admin tenants create test-tentant \
@@ -374,10 +381,10 @@ $ bin/pulsar-admin tenants create test-tentant \
   --admin-roles test-admin-role
 ```
 
-Users who identify with role `test-admin-role` can use this command to administer the configuration for the tenant `test` which can only use the cluster `us-west`. From now on, this tenant is able to self-manage its resources.
- 
+In this command, users who identify with `test-admin-role` role can administer the configuration for the `test-tenant` tenant. The `test-tenant` tenant can only use the `us-west` cluster. From now on, this tenant can manage its resources.
 
 Once you create a tenant, you need to create [namespaces](reference-terminology.md#namespace) for topics within that tenant.
+
 
 The first step is to create a namespace. A namespace is an administrative unit that can contain many topics. A common practice is to create a namespace for each different use case from a single tenant.
 
@@ -387,7 +394,9 @@ $ bin/pulsar-admin namespaces create test-tenant/ns1
 
 ##### Test producer and consumer
 
-Everything is now ready to send and receive messages. The quickest way to test the system is through the `pulsar-perf` client tool.
+
+Everything is now ready to send and receive messages. The quickest way to test the system is through the [`pulsar-perf`](reference-cli-tools.md#pulsar-perf) client tool.
+
 
 You can use a topic in the namespace that you have just created. Topics are automatically created the first time when a producer or a consumer tries to use them.
 
@@ -400,17 +409,17 @@ persistent://test-tenant/ns1/my-topic
 Start a consumer that creates a subscription on the topic and waits for messages:
 
 ```shell
-$ bin/pulsar-perf consume persistent://test-tenant/us-west/ns1/my-topic
+$ bin/pulsar-perf consume persistent://test-tenant/ns1/my-topic
 ```
 
 Start a producer that publishes messages at a fixed rate and reports stats every 10 seconds:
 
 ```shell
-$ bin/pulsar-perf produce persistent://test-tenant/us-west/ns1/my-topic
+$ bin/pulsar-perf produce persistent://test-tenant/ns1/my-topic
 ```
 
 To report the topic stats:
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://test-tenant/us-west/ns1/my-topic
+$ bin/pulsar-admin topics stats persistent://test-tenant/ns1/my-topic
 ```

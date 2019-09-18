@@ -2978,3 +2978,72 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
         timeWaited += 500;
     }
 }
+
+TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "testPartitionedTopicWithOnePartition";
+    std::string subsName = topicName + "-sub-";
+
+    // call admin api to make 1 partition
+    std::string url = adminUrl + "admin/v2/persistent/public/default/" + topicName + "/partitions";
+    int putRes = makePutRequest(url, "1");
+    LOG_INFO("res = " << putRes);
+    ASSERT_FALSE(putRes != 204 && putRes != 409);
+
+    Consumer consumer1;
+    ConsumerConfiguration conf;
+    Result result = client.subscribe(topicName, subsName + "1", consumer1);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer2;
+    result = client.subscribe(topicName + "-partition-0", subsName + "2", consumer2);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 2 consumer");
+
+    Producer producer1;
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingEnabled(false);
+    result = client.createProducer(topicName, producerConf, producer1);
+    ASSERT_EQ(ResultOk, result);
+
+    Producer producer2;
+    result = client.createProducer(topicName + "-partition-0", producerConf, producer2);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 2 producer");
+
+    // create messages
+    int numMessages = 10;
+    for (int i = 0; i < numMessages; i++) {
+        Message msg = MessageBuilder().setContent("test-producer1-" + topicName + std::to_string(i)).build();
+        producer1.send(msg);
+        msg = MessageBuilder().setContent("test-producer2-" + topicName + std::to_string(i)).build();
+        producer2.send(msg);
+    }
+
+    // produced 10 messages by each producer.
+    // expected receive 20 messages by each consumer.
+    for (int i = 0; i < numMessages * 2; i++) {
+        LOG_INFO("begin to receive message " << i);
+
+        Message msg;
+        Result res = consumer1.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        consumer1.acknowledge(msg);
+
+        res = consumer2.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        consumer2.acknowledge(msg);
+    }
+
+    // No more messages expected
+    Message msg;
+    Result res = consumer1.receive(msg, 100);
+    ASSERT_EQ(ResultTimeout, res);
+
+    res = consumer2.receive(msg, 100);
+    ASSERT_EQ(ResultTimeout, res);
+    client.shutdown();
+}

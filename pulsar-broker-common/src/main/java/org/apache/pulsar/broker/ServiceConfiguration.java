@@ -50,6 +50,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_SERVER = "Server";
     @Category
+    private static final String CATEGORY_PROTOCOLS = "Protocols";
+    @Category
     private static final String CATEGORY_STORAGE_BK = "Storage (BookKeeper)";
     @Category
     private static final String CATEGORY_STORAGE_ML = "Storage (Managed Ledger)";
@@ -542,6 +544,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Max number of snapshot to be cached per subscription.")
     private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
 
+    /**** --- Messaging Protocols --- ****/
+
+    @FieldContext(
+        category = CATEGORY_PROTOCOLS,
+        doc = "The directory to locate messaging protocol handlers"
+    )
+    private String protocolHandlerDirectory = "./protocols";
+
+    @FieldContext(
+        category = CATEGORY_PROTOCOLS,
+        doc = "List of messaging protocols to load, which is a list of protocol names"
+    )
+    private Set<String> messagingProtocols = Sets.newTreeSet();
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -771,6 +787,36 @@ public class ServiceConfiguration implements PulsarConfiguration {
             "preference) to read all entries for a ledger.")
     private boolean bookkeeperEnableStickyReads = true;
 
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the client security provider factory class name. "
+            + "Default: org.apache.bookkeeper.tls.TLSContextFactory")
+    private String bookkeeperTLSProviderFactoryClass = "org.apache.bookkeeper.tls.TLSContextFactory";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable tls authentication with bookie")
+    private boolean bookkeeperTLSClientAuthentication = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Supported type: PEM, JKS, PKCS12. Default value: PEM")
+    private String bookkeeperTLSKeyFileType = "PEM";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Supported type: PEM, JKS, PKCS12. Default value: PEM")
+    private String bookkeeperTLSTrustCertTypes = "PEM";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path to file containing keystore password, "
+            + "if the client keystore is password protected.")
+    private String bookkeeperTLSKeyStorePasswordPath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path to file containing truststore password, "
+            + "if the client truststore is password protected.")
+    private String bookkeeperTLSTrustStorePasswordPath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the TLS private key file")
+    private String bookkeeperTLSKeyFilePath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the TLS certificate file")
+    private String bookkeeperTLSCertificateFilePath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
+    private String bookkeeperTLSTrustCertsFilePath;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
@@ -849,9 +895,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double managedLedgerDefaultMarkDeleteRateLimit = 1.0;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
-    	doc = "Allow automated creation of non-partition topics if set to true (default value)."
+    	doc = "Allow automated creation of topics if set to true (default value)."
     )
     private boolean allowAutoTopicCreation = true;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
+    )
+    private String allowAutoTopicCreationType = "partitioned";
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "The number of partitioned topics that is allowed to be automatically created"
+                    + "if allowAutoTopicCreationType is partitioned."
+    )
+    private int defaultNumPartitions = 1;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"

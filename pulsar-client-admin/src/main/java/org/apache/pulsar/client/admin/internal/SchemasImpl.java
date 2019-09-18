@@ -229,21 +229,27 @@ public class SchemasImpl extends BaseResource implements Schemas {
 
 
     // the util function exists for backward compatibility concern
-    static String convertSchemaDataToStringLegacy(byte[] schemaData) {
-        if (null == schemaData) {
+    static String convertSchemaDataToStringLegacy(SchemaInfo schemaInfo) {
+        byte[] schemaData = schemaInfo.getSchema();
+        if (null == schemaInfo.getSchema()) {
             return "";
+        }
+
+        if (schemaInfo.getType() == SchemaType.KEY_VALUE) {
+           return DefaultImplementation.convertKeyValueSchemaInfoDataToString(DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfo));
         }
 
         return new String(schemaData, UTF_8);
     }
 
     static PostSchemaPayload convertSchemaInfoToPostSchemaPayload(SchemaInfo schemaInfo) {
+
         PostSchemaPayload payload = new PostSchemaPayload();
         payload.setType(schemaInfo.getType().name());
         payload.setProperties(schemaInfo.getProperties());
         // for backward compatibility concern, we convert `bytes` to `string`
         // we can consider fixing it in a new version of rest endpoint
-        payload.setSchema(convertSchemaDataToStringLegacy(schemaInfo.getSchema()));
+        payload.setSchema(convertSchemaDataToStringLegacy(schemaInfo));
         return payload;
     }
 }

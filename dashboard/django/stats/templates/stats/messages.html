@@ -54,35 +54,50 @@
 
 {% if message %}
 <script>
-$(function() {
+function init_message_tab(id) {
     function activeTab(tab) {
         tab.addClass('active');
         $("#message-" + tab.attr('id')).show();
     }
-    let tabSel = "#message-tab .tab span";
-    let tabContentSel = "#message-tab .tab-content";
+    let tabId = "#message-tab-" + id;
+    let tabSel = tabId + " .tab span";
+    let tabContentSel = tabId + " .tab-content";
     let firstTab = $(tabSel).eq(0);
-    activeTab(firstTab);
+    if (id === 0) {
+        activeTab(firstTab);
+    }
     $(tabSel).bind('click', function(){
         $(tabSel).removeClass('active');
         $(tabContentSel).hide();
         activeTab($(this))
     });
-});
+}
+$(function () {
+    for (let i = 0; i < {{ message | length }}; ++i) {
+        init_message_tab(i)
+    }
+})
 </script>
 
-<div id="message-tab" class="message">
+{% for msg in message %}
+<div id="message-tab-{{ forloop.counter0 }}" class="message">
   <div class="tab clearfix message-title">
-{% for type in message.keys %}
-    <span id="tab-{{type | lower}}"{% if type == 'ERROR' %} class="warn"{% endif %}>{{type}}</span>
+{% for type in msg.keys %}
+    {% with tab_key=type|lower|cut:':' %}
+    <span id="tab-{{tab_key}}-{{forloop.parentloop.counter0}}"{% if type == 'ERROR' %} class="warn"{% endif %}>{{type}}</span>
+    {% endwith %}
 {% endfor %}
   </div>
-{% for type, content in message.items %}
-  <div class="tab-content autoscroll message-content" id="message-tab-{{type | lower}}">
+{% for type, content in msg.items %}
+  {% with tab_key=type|lower|cut:':' %}
+  <div class="tab-content autoscroll message-content" id="message-tab-{{ tab_key }}-{{ forloop.parentloop.counter0 }}">
     <pre>{{content}}</pre>
   </div>
+  {% endwith %}
 {% endfor %}
 </div>
+
+{% endfor %}
 
 {% endif %}
 {% endblock %}

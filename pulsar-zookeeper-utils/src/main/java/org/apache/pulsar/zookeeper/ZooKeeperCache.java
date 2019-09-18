@@ -22,17 +22,17 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
 
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Collections;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +41,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
+import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.KeeperException.NoNodeException;
@@ -77,8 +80,8 @@ public abstract class ZooKeeperCache implements Watcher {
     public static final String ZK_CACHE_INSTANCE = "zk_cache_instance";
 
     protected final AsyncLoadingCache<String, Entry<Object, Stat>> dataCache;
-    protected final Cache<String, Set<String>> childrenCache;
-    protected final Cache<String, Boolean> existsCache;
+    protected final AsyncLoadingCache<String, Set<String>> childrenCache;
+    protected final AsyncLoadingCache<String, Boolean> existsCache;
     private final OrderedExecutor executor;
     private final OrderedExecutor backgroundExecutor = OrderedExecutor.newBuilder().name("zk-cache-background").numThreads(2).build();
     private boolean shouldShutdownExecutor;
@@ -96,8 +99,10 @@ public abstract class ZooKeeperCache implements Watcher {
         this.dataCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
                 .buildAsync((key, executor1) -> null);
 
-        this.childrenCache = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
-        this.existsCache = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
+        this.childrenCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+                .buildAsync((key, executor1) -> null);
+        this.existsCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+                .buildAsync((key, executor1) -> null);
     }
 
     public ZooKeeperCache(ZooKeeper zkSession, int zkOperationTimeoutSeconds) {
@@ -114,14 +119,14 @@ public abstract class ZooKeeperCache implements Watcher {
         final String path = event.getPath();
         if (path != null) {
             dataCache.synchronous().invalidate(path);
-            childrenCache.invalidate(path);
+            childrenCache.synchronous().invalidate(path);
             // sometimes zk triggers one watch per zk-session and if zkDataCache and ZkChildrenCache points to this
             // ZookeeperCache instance then ZkChildrenCache may not invalidate for it's parent. Therefore, invalidate
             // cache for parent if child is created/deleted
             if (event.getType().equals(EventType.NodeCreated) || event.getType().equals(EventType.NodeDeleted)) {
-                childrenCache.invalidate(Paths.get(path).getParent().toString());
+                childrenCache.synchronous().invalidate(Paths.get(path).getParent().toString());
             }
-            existsCache.invalidate(path);
+            existsCache.synchronous().invalidate(path);
             if (executor != null && updater != null) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Submitting reload cache task to the executor for path: {}, updater: {}", path, updater);
@@ -152,7 +157,7 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     private void invalidateAllExists() {
-        existsCache.invalidateAll();
+        existsCache.synchronous().invalidateAll();
     }
 
     public void invalidateAllData() {
@@ -160,7 +165,7 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public void invalidateAllChildren() {
-        childrenCache.invalidateAll();
+        childrenCache.synchronous().invalidateAll();
     }
 
     public void invalidateData(String path) {
@@ -168,11 +173,11 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public void invalidateChildren(String path) {
-        childrenCache.invalidate(path);
+        childrenCache.synchronous().invalidate(path);
     }
 
     private void invalidateExists(String path) {
-        existsCache.invalidate(path);
+        existsCache.synchronous().invalidate(path);
     }
 
     public void asyncInvalidate(String path) {
@@ -203,20 +208,30 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     private boolean exists(final String path, Watcher watcher) throws KeeperException, InterruptedException {
-        try {
-            return existsCache.get(path, () -> zkSession.get().exists(path, watcher) != null);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof KeeperException) {
-                throw (KeeperException) cause;
-            } else if (cause instanceof InterruptedException) {
-                throw (InterruptedException) cause;
-            } else if (cause instanceof RuntimeException) {
-                throw (RuntimeException) cause;
-            } else {
-                throw new RuntimeException(cause);
+        return existsAsync(path, watcher).join();
+    }
+
+    @SuppressWarnings("deprecation")
+    public CompletableFuture<Boolean> existsAsync(String path, Watcher watcher) {
+        return existsCache.get(path, (p, executor) -> {
+            ZooKeeper zk = zkSession.get();
+            if (zk == null) {
+                return FutureUtil.failedFuture(new IOException("ZK session not ready"));
             }
-        }
+
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            zk.exists(path, watcher, (StatCallback) (rc, path1, ctx, stat) -> {
+                if (rc == Code.OK.intValue()) {
+                    future.complete(true);
+                } else if (rc == Code.NONODE.intValue()) {
+                    future.complete(false);
+                } else {
+                    future.completeExceptionally(KeeperException.create(rc));
+                }
+            }, null);
+
+            return future;
+        });
     }
 
     /**
@@ -365,7 +380,15 @@ public abstract class ZooKeeperCache implements Watcher {
      * @throws InterruptedException
      */
     public Set<String> getChildren(final String path) throws KeeperException, InterruptedException {
-        return getChildren(path, this);
+        try {
+            return getChildrenAsync(path, this).join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof KeeperException) {
+                throw (KeeperException)e.getCause();
+            } else {
+                throw e;
+            }
+        }
     }
 
     /**
@@ -375,35 +398,50 @@ public abstract class ZooKeeperCache implements Watcher {
      * @param path
      * @param watcher
      * @return
-     * @throws KeeperException
-     * @throws InterruptedException
      */
-    public Set<String> getChildren(final String path, final Watcher watcher)
-            throws KeeperException, InterruptedException {
-        try {
-            return childrenCache.get(path, () -> {
-                LOG.debug("Fetching children at {}", path);
-                return Sets.newTreeSet(checkNotNull(zkSession.get()).getChildren(path, watcher));
-            });
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            // The node we want may not exist yet, so put a watcher on its existance
-            // before throwing up the exception. Its possible that the node could have
-            // been created after the call to getChildren, but before the call to exists().
-            // If this is the case, exists will return true, and we just call getChildren again.
-            if (cause instanceof KeeperException.NoNodeException
-                    && exists(path, watcher)) {
-                return getChildren(path, watcher);
-            } else if (cause instanceof KeeperException) {
-                throw (KeeperException) cause;
-            } else if (cause instanceof InterruptedException) {
-                throw (InterruptedException) cause;
-            } else if (cause instanceof RuntimeException) {
-                throw (RuntimeException) cause;
-            } else {
-                throw new RuntimeException(cause);
-            }
-        }
+    @SuppressWarnings("deprecation")
+    public CompletableFuture<Set<String>> getChildrenAsync(String path, Watcher watcher) {
+        return childrenCache.get(path, (p, executor) -> {
+            CompletableFuture<Set<String>> future = new CompletableFuture<>();
+            executor.execute(SafeRunnable.safeRun(() -> {
+                ZooKeeper zk = zkSession.get();
+                if (zk == null) {
+                    future.completeExceptionally(new IOException("ZK session not ready"));
+                    return;
+                }
+
+                zk.getChildren(path, watcher, (ChildrenCallback) (rc, path1, ctx, children) -> {
+                    if (rc == Code.OK.intValue()) {
+                        future.complete(Sets.newTreeSet(children));
+                    } else if (rc == Code.NONODE.intValue()) {
+                        // The node we want may not exist yet, so put a watcher on its existence
+                        // before throwing up the exception. Its possible that the node could have
+                        // been created after the call to getChildren, but before the call to exists().
+                        // If this is the case, exists will return true, and we just call getChildren again.
+                        existsAsync(path, watcher).thenAccept(exists -> {
+                            if (exists) {
+                                getChildrenAsync(path, watcher)
+                                        .thenAccept(c -> future.complete(c))
+                                        .exceptionally(ex -> {
+                                            future.completeExceptionally(ex);
+                                            return null;
+                                        });
+                            } else {
+                                // Z-node does not exist
+                                future.complete(Collections.emptySet());
+                            }
+                        }).exceptionally(ex -> {
+                            future.completeExceptionally(ex);
+                            return null;
+                        });
+                    } else {
+                        future.completeExceptionally(KeeperException.create(rc));
+                    }
+                }, null);
+            }));
+
+            return future;
+        });
     }
 
     @SuppressWarnings("unchecked")
@@ -412,7 +450,12 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public Set<String> getChildrenIfPresent(String path) {
-        return childrenCache.getIfPresent(path);
+        CompletableFuture<Set<String>> future = childrenCache.getIfPresent(path);
+        if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
+            return future.getNow(null);
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -422,9 +465,9 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public void invalidateRoot(String root) {
-        for (String key : childrenCache.asMap().keySet()) {
+        for (String key : childrenCache.synchronous().asMap().keySet()) {
             if (key.startsWith(root)) {
-                childrenCache.invalidate(key);
+                childrenCache.synchronous().invalidate(key);
             }
         }
     }

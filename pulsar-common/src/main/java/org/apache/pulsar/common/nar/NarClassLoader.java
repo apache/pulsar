@@ -38,7 +38,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -141,13 +140,14 @@ public class NarClassLoader extends URLClassLoader {
     public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
         try {
-            return new NarClassLoader(unpacked, additionalJars, NarClassLoader.class.getClassLoader() );
+            return new NarClassLoader(unpacked, additionalJars, NarClassLoader.class.getClassLoader());
         } catch (ClassNotFoundException e) {
             throw new IOException(e);
         }
     }
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent) throws IOException {
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent)
+        throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
         try {
             return new NarClassLoader(unpacked, additionalJars, parent);
@@ -198,7 +198,7 @@ public class NarClassLoader extends URLClassLoader {
     }
 
     /**
-     * Read a service definition as a String
+     * Read a service definition as a String.
      */
     public String getServiceDefinition(String serviceName) throws IOException {
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;

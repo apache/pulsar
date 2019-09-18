@@ -26,19 +26,6 @@
     ],
     "Pulsar Functions": [
       "functions-overview",
-      "functions-quickstart",
-      "functions-api",
-      "functions-deploying",
-      "functions-guarantees",
-      "functions-state",
-      "functions-metrics",
-      "functions-worker",
-      "functions-runtime",
-      "functions-deploying",
-      "functions-debugging"
-    ],
-    "Pulsar Functions（New）": [
-      "functions-overview-new",
       "functions-worker",
       "functions-runtime",
       "functions-develop",
@@ -47,15 +34,18 @@
       "functions-configure",
       "functions-monitor",
       "functions-secure",
-      "functions-troubleshoot"
+      "functions-troubleshoot",
+      "functions-cli"
     ],
     "Pulsar IO": [
       "io-overview",
       "io-quickstart",
-      "io-managing",
+      "io-use",
+      "io-debug",
       "io-connectors",
+      "io-cdc",
       "io-develop",
-      "io-cdc"
+      "reference-connector-admin"
     ],
     "Pulsar SQL": [
       "sql-overview",
@@ -108,6 +98,7 @@
       "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics",
+      "admin-api-non-partitioned-topics",
       "admin-api-schemas"
     ],
     "Adaptors": [

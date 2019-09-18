@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import com.google.common.base.MoreObjects;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -50,6 +49,7 @@ public class NonPersistentSubscription implements Subscription {
     private volatile NonPersistentDispatcher dispatcher;
     private final String topicName;
     private final String subName;
+    private final String fullName;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -62,6 +62,7 @@ public class NonPersistentSubscription implements Subscription {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
+        this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
     }
 
@@ -155,7 +156,7 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        return fullName;
     }
 
     @Override
@@ -248,7 +249,9 @@ public class NonPersistentSubscription implements Subscription {
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
-                    dispatcher.reset();
+                    if (dispatcher != null) {
+                        dispatcher.reset();
+                    }
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
                     disconnectFuture.completeExceptionally(exception);
@@ -271,13 +274,27 @@ public class NonPersistentSubscription implements Subscription {
         log.info("[{}][{}] Unsubscribing", topicName, subName);
 
         // cursor close handles pending delete (ack) operations
-        this.close().thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> deleteFuture.complete(null))
-                .exceptionally(exception -> {
+        this.close().thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> {
+            synchronized (this) {
+                (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenRun(() -> {
+                    log.info("[{}][{}] Successfully deleted subscription", topicName, subName);
+                    deleteFuture.complete(null);
+                }).exceptionally(ex -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
-                    log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
-                    deleteFuture.completeExceptionally(exception);
+                    if (dispatcher != null) {
+                        dispatcher.reset();
+                    }
+                    log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
+                    deleteFuture.completeExceptionally(ex);
                     return null;
                 });
+            }
+        }).exceptionally(exception -> {
+            IS_FENCED_UPDATER.set(this, FALSE);
+            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+            deleteFuture.completeExceptionally(exception);
+            return null;
+        });
 
         return deleteFuture;
     }
@@ -337,7 +354,7 @@ public class NonPersistentSubscription implements Subscription {
         }
 
         subStats.type = getType();
-        subStats.msgDropRate = dispatcher.getMesssageDropRate().getValueRate();
+        subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
         return subStats;
     }
 

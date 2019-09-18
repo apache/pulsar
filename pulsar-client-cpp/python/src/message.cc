@@ -19,6 +19,7 @@
 #include "utils.h"
 
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 std::string MessageId_str(const MessageId& msgId) {
     std::stringstream ss;
@@ -109,6 +110,7 @@ void export_message() {
     static const MessageId& _MessageId_latest = MessageId::latest();
 
     class_<MessageId>("MessageId")
+            .def(init<int32_t, int64_t, int64_t, int32_t>())
             .def("__str__", &MessageId_str)
             .def("__eq__", &MessageId_eq)
             .def("__ne__", &MessageId_ne)
@@ -116,6 +118,10 @@ void export_message() {
             .def("__lt__", &MessageId_lt)
             .def("__ge__", &MessageId_ge)
             .def("__gt__", &MessageId_gt)
+            .def("ledger_id", &MessageId::ledgerId)
+            .def("entry_id", &MessageId::entryId)
+            .def("batch_index", &MessageId::batchIndex)
+            .def("partition", &MessageId::partition)
             .add_static_property("earliest", make_getter(&_MessageId_earliest))
             .add_static_property("latest", make_getter(&_MessageId_latest))
             .def("serialize", &MessageId_serialize)
@@ -133,4 +139,15 @@ void export_message() {
             .def("__str__", &Message_str)
             .def("topic_name", &Topic_name_str)
             ;
+
+    MessageBatch& (MessageBatch::*MessageBatchParseFromString)(const std::string& payload, uint32_t batchSize) = &MessageBatch::parseFrom;
+
+    class_<MessageBatch>("MessageBatch")
+            .def("with_message_id", &MessageBatch::withMessageId, return_self<>())
+            .def("parse_from", MessageBatchParseFromString, return_self<>())
+            .def("messages", &MessageBatch::messages, return_value_policy<copy_const_reference>())
+            ;
+
+    class_<std::vector<Message> >("Messages")
+        .def(vector_indexing_suite<std::vector<Message> >() );
 }

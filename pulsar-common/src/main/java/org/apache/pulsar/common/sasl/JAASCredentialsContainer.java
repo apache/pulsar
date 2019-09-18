@@ -61,14 +61,14 @@ public class JAASCredentialsContainer implements Closeable {
         AppConfigurationEntry[] entries = Configuration.getConfiguration()
             .getAppConfigurationEntry(loginContextName);
         if (entries == null) {
-            final String errorMessage = "loginContext name (JAAS file section header) was null. " +
-                "Please check your java.security.login.auth.config (=" +
-                System.getProperty("java.security.login.auth.config") +
-                ") for section header: " + this.loginContextName;
+            final String errorMessage = "loginContext name (JAAS file section header) was null. "
+                + "Please check your java.security.login.auth.config (="
+                + System.getProperty("java.security.login.auth.config")
+                + ") for section header: " + this.loginContextName;
             log.error("No JAAS Configuration section header found for Client: {}", errorMessage);
             throw new LoginException(errorMessage);
         }
-        LoginContext loginContext = new LoginContext(loginContextName,callbackHandler);
+        LoginContext loginContext = new LoginContext(loginContextName, callbackHandler);
         loginContext.login();
         log.info("successfully logged in.");
 

@@ -775,6 +775,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 @Override
                                 public void deleteLedgerComplete(Object ctx) {
                                     brokerService.removeTopicFromCache(topic);
+
+                                    if (dispatchRateLimiter.isPresent()) {
+                                        dispatchRateLimiter.get().close();
+                                    }
+
+                                    if (subscribeRateLimiter.isPresent()) {
+                                        subscribeRateLimiter.get().close();
+                                    }
+
                                     log.info("[{}] Topic deleted", topic);
                                     deleteFuture.complete(null);
                                 }
@@ -850,6 +859,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         ctrl.close();
                     }
 
+                    if (dispatchRateLimiter.isPresent()) {
+                        dispatchRateLimiter.get().close();
+                    }
+
+                    if (subscribeRateLimiter.isPresent()) {
+                        subscribeRateLimiter.get().close();
+                    }
+
                     log.info("[{}] Topic closed", topic);
                     closeFuture.complete(null);
                 }
@@ -861,14 +878,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     closeFuture.complete(null);
                 }
             }, null);
-
-            if (dispatchRateLimiter.isPresent()) {
-                dispatchRateLimiter.get().close();
-            }
-            if (subscribeRateLimiter.isPresent()) {
-                subscribeRateLimiter.get().close();
-            }
-
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             isFenced = false;
@@ -1403,7 +1412,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             stats.replication.put(replicator.getRemoteCluster(), replicatorStats);
         });
 
-        stats.storageSize = ledger.getEstimatedBacklogSize();
+        stats.storageSize = ledger.getTotalSize();
+        stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
 
         return stats;

@@ -122,6 +122,7 @@ class Footer extends React.Component {
     const issuesUrl = 'https://github.com/apache/pulsar/issues'
     const resourcesUrl = this.pageUrl('resources', this.props.language)
     const teamUrl = this.pageUrl('team', this.props.language)
+    const poweredByUrl = this.pageUrl('powered-by', this.props.language)
     const contributingUrl = this.pageUrl('contributing', this.props.language)
 
     const communityMenuJs = `
@@ -140,6 +141,7 @@ class Footer extends React.Component {
             '<li>&nbsp;</li>' +
             '<li><a href="${resourcesUrl}">Resources</a></li>' +
             '<li><a href="${teamUrl}">Team</a></li>' +
+            '<li><a href="${poweredByUrl}">Powered By</a></li>' +
           '</ul>' +
         '</div>' +
         '</li>';
@@ -164,22 +166,6 @@ class Footer extends React.Component {
         <section className="copyright">{this.props.config.copyright}</section>
         <span>
         <script dangerouslySetInnerHTML={{__html: communityMenuJs }} />
-        </span>
-        <span>
-        <script src={this.props.config.baseUrl + 'js/pjax-api.min.js'} />
-        <script dangerouslySetInnerHTML={{__html: `window.navfoo = new Pjax({
-            areas: [
-              // try to use the first query.
-              '.mainContainer, .docsNavContainer .toc .navWrapper, .onPageNav',
-              // fallback
-              'body'
-            ],
-            link: '.docsNavContainer:not(.docsSliderActive) a',
-            update: {
-              script: false,
-            }
-          });
-        `}}></script>
         </span>
       </footer>
     );

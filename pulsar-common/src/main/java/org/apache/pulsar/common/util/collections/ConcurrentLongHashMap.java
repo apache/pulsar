@@ -21,17 +21,16 @@ package org.apache.pulsar.common.util.collections;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.LongFunction;
 
-import com.google.common.collect.Lists;
-
 /**
  * Map from long to an Object.
  *
- * Provides similar methods as a ConcurrentMap<long,Object> with 2 differences:
+ * <p>Provides similar methods as a {@code ConcurrentMap<long,Object>} with 2 differences:
  * <ol>
  * <li>No boxing/unboxing from long -> Long
  * <li>Open hash map with linear probing, no node allocations to store the values
@@ -180,7 +179,12 @@ public class ConcurrentLongHashMap<V> {
         return values;
     }
 
-    public static interface EntryProcessor<V> {
+    /**
+     * Processor for one key-value entry, where the key is {@code long}.
+     *
+     * @param <V> type of the value.
+     */
+    public interface EntryProcessor<V> {
         void accept(long key, V value);
     }
 
@@ -472,7 +476,7 @@ public class ConcurrentLongHashMap<V> {
         }
     }
 
-    private static final long HashMixer = 0xc6a4a7935bd1e995l;
+    private static final long HashMixer = 0xc6a4a7935bd1e995L;
     private static final int R = 47;
 
     static final long hash(long key) {
@@ -482,11 +486,11 @@ public class ConcurrentLongHashMap<V> {
         return hash;
     }
 
-    static final int signSafeMod(long n, int Max) {
-        return (int) n & (Max - 1);
+    static final int signSafeMod(long n, int max) {
+        return (int) n & (max - 1);
     }
 
-    private static final int alignToPowerOfTwo(int n) {
+    private static int alignToPowerOfTwo(int n) {
         return (int) Math.pow(2, 32 - Integer.numberOfLeadingZeros(n - 1));
     }
 }

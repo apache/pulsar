@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.common.util;
 
+import io.netty.handler.ssl.SslContext;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.handler.ssl.SslContext;
-
+@SuppressWarnings("checkstyle:JavadocType")
 public class ClientSslContextRefresher {
     private volatile SslContext sslContext;
     private boolean tlsAllowInsecureConnection;

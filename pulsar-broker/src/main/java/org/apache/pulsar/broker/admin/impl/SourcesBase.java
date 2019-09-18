@@ -473,4 +473,19 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
         }
         return retval;
     }
+
+    @POST
+    @ApiOperation(
+            value = "Reload the available built-in connectors, include Source and Sink",
+            response = Void.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/reloadBuiltInSources")
+    public void reloadSources() {
+        source.reloadConnectors(clientAppId());
+    }
 }

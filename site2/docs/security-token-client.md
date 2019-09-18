@@ -9,20 +9,18 @@ sidebar_label: Client Authentication using tokens
 Pulsar supports authenticating clients using security tokens that are based on
 [JSON Web Tokens](https://jwt.io/introduction/) ([RFC-7519](https://tools.ietf.org/html/rfc7519)).
 
-Tokens are used to identify a Pulsar client and associate with some "principal" (or "role") which
-will be then granted permissions to do some actions (eg: publish or consume from a topic).
+You can use tokens to identify a Pulsar client and associate with some "principal" (or "role") that
+is permitted to do some actions (for example, publish messages to a topic or consume messages from a topic).
 
-A user will typically be given a token string by an administrator (or some automated service).
+The administrator (or some automated service) typically gives a user a token string.
 
-The compact representation of a signed JWT is a string that looks like:
+The compact representation of a signed JWT is a string that looks like as the follwing:
 
 ```
- eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
- ```
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
+```
 
-Application will specify the token when creating the client instance. An alternative is to pass
-a "token supplier", that is to say a function that returns the token when the client library
-will need one.
+Application specifies the token when you are creating the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
 
 See [Token authentication admin](security-token-admin.md) for a reference on how to enable token
 authentication on a Pulsar cluster.
@@ -31,8 +29,7 @@ authentication on a Pulsar cluster.
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
-You'll need to add the following parameters to that file to use the token authentication with
-Pulsar's CLI tools:
+You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
 
 ```properties
 webServiceUrl=http://broker.example.com:8080/
