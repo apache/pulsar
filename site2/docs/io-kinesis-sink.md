@@ -1,18 +1,19 @@
 ---
-id: io-kinesis
-title: AWS Kinesis Connector
-sidebar_label: AWS Kinesis Connector
+id: io-kinesis-sink
+title: Kinesis sink connector
+sidebar_label: Kinesis sink connector
 ---
 
-## Sink
+The Kinesis sink connector pulls data from Pulsar persists data into Amazon Kinesis.
 
-The Kinesis Sink connector is used to pull data from Pulsar topics and persist the data into
-AWS Kinesis.
+## Configuration
 
-### Sink Configuration Options
+The configuration of the Kinesis sink connector has the following parameters.
 
-| Name | Required | Default | Description |
-|------|----------|---------|-------------|
+### Parameter
+
+| Name | Type|Required | Default | Description 
+|------|----------|----------|---------|-------------|
 | awsEndpoint | `true` | null | kinesis end-point url can be found at : https://docs.aws.amazon.com/general/latest/gr/rande.html |
 | awsRegion | `true` | null | appropriate aws region eg: us-west-1, us-west-2 |
 | awsKinesisStreamName | `true` | null | kinesis stream name |
