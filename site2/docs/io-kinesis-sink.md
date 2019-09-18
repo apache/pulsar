@@ -4,7 +4,7 @@ title: Kinesis sink connector
 sidebar_label: Kinesis sink connector
 ---
 
-The Kinesis sink connector pulls data from Pulsar persists data into Amazon Kinesis.
+The Kinesis sink connector pulls data from Pulsar and persists data into Amazon Kinesis.
 
 ## Configuration
 
@@ -14,24 +14,41 @@ The configuration of the Kinesis sink connector has the following parameters.
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-| awsEndpoint | `true` | null | kinesis end-point url can be found at : https://docs.aws.amazon.com/general/latest/gr/rande.html |
-| awsRegion | `true` | null | appropriate aws region eg: us-west-1, us-west-2 |
-| awsKinesisStreamName | `true` | null | kinesis stream name |
-| awsCredentialPluginName | `false` | null | Fully-Qualified class name of implementation of {@inject: github:`AwsCredentialProviderPlugin`:/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/AwsCredentialProviderPlugin.java}. It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink. If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map of credentials in `awsCredentialPluginParam` | 
-| awsCredentialPluginParam | `false` | null | json-parameters to initialize `AwsCredentialsProviderPlugin` |
-| messageFormat | `true` | `ONLY_RAW_PAYLOAD` | Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams |
+`messageFormat`|MessageFormat|true|ONLY_RAW_PAYLOAD|Message format in which Kinesis sink converts Pulsar messages and publishes to Kinesis streams.<br/><br/>Below are the available options:<br/><br/><li>`ONLY_RAW_PAYLOAD`: Kinesis sink directly publishes Pulsar message payload as a message into the configured Kinesis stream. <br/><br/><li>`FULL_MESSAGE_IN_JSON`: Kinesis sink creates a JSON payload with Pulsar message payload, properties and encryptionCtx, and publishes JSON payload into the configured Kinesis stream.<br/><br/><li>`FULL_MESSAGE_IN_FB`: Kinesis sink creates a flatbuffer serialized payload with Pulsar message payload, properties and encryptionCtx, and publishes flatbuffer payload into the configured Kinesis stream.
+`retainOrdering`|boolean|false|false|Whether Pulsar connectors to retain ordering when moving messages from Pulsar to Kinesis or not.
+`awsEndpoint`|String|false|" " (empty string)|The Kinesis end-point URL, which can be found at [here](https://docs.aws.amazon.com/general/latest/gr/rande.html).
+`awsRegion`|String|false|" " (empty string)|The AWS region. <br/><br/>**Example**<br/> us-west-1, us-west-2
+`awsKinesisStreamName`|String|true|" " (empty string)|The Kinesis stream name.
+`awsCredentialPluginName`|String|false|" " (empty string)|The fully-qualified class name of implementation of {@inject: github:`AwsCredentialProviderPlugin`:/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/AwsCredentialProviderPlugin.java}. <br/><br/>It is a factory class which creates an AWSCredentialsProvider that is used by Kinesis sink. <br/><br/>If it is empty, the Kinesis sink creates a default AWSCredentialsProvider which accepts json-map of credentials in `awsCredentialPluginParam`.
+`awsCredentialPluginParam`|String |false|" " (empty string)|The JSON parameter to initialize `awsCredentialsProviderPlugin`.
 
-### Message Formats
+### Example
 
-The available message formats are listed as below:
+Before using the Kinesis sink connector, you need to create a configuration file through one of the following methods.
 
-#### **ONLY_RAW_PAYLOAD**
+* JSON 
 
-Kinesis sink directly publishes pulsar message payload as a message into the configured kinesis stream.
-#### **FULL_MESSAGE_IN_JSON**
+    ```json
+    {
+        "awsEndpoint": "https://some.endpoint.aws",
+        "awsRegion": "us-east-1",
+        "awsKinesisStreamName": "my-stream",
+        "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
+        "messageFormat": "ONLY_RAW_PAYLOAD",
+        "retainOrdering": "true"
+    }
+    ```
 
-Kinesis sink creates a json payload with pulsar message payload, properties and encryptionCtx, and publishes json payload into the configured kinesis stream.
+* YAML
 
-#### **FULL_MESSAGE_IN_FB**
+    ```yaml
+    configs:
+        awsEndpoint: "https://some.endpoint.aws"
+        awsRegion: "us-east-1"
+        awsKinesisStreamName: "my-stream"
+        awsCredentialPluginParam: "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}"
+        messageFormat: "ONLY_RAW_PAYLOAD"
+        retainOrdering: "true"
+    ```
 
-Kinesis sink creates a flatbuffer serialized paylaod with pulsar message payload, properties and encryptionCtx, and publishes flatbuffer payload into the configured kinesis stream.
+
