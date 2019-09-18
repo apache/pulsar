@@ -39,13 +39,13 @@ Before using the Kafka sink connector, you need to create a configuration file t
         "batchSize": "16384",
         "maxRequestSize": "1048576",
         "producerConfigProperties":
-        ｛
+         {
             "client.id": "test-pulsar-producer",
             "security.protocol": "SASL_PLAINTEXT",
             "sasl.mechanism": "GSSAPI",
             "sasl.kerberos.service.name": "kafka",
             "acks": "all" 
-         ｝
+         }
     }
 
 * YAML
