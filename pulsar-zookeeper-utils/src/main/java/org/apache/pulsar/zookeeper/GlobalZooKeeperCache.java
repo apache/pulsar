@@ -115,7 +115,7 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
 
                     //
                     dataCache.synchronous().invalidateAll();
-                    childrenCache.invalidateAll();
+                    childrenCache.synchronous().invalidateAll();
                     return;
                 default:
                     break;

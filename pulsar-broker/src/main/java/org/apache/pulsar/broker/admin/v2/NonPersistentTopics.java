@@ -136,6 +136,7 @@ public class NonPersistentTopics extends PersistentTopics {
         try {
             boolean topicExist = pulsar().getNamespaceService()
                     .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                    .join()
                     .contains(topicName.toString());
             if (topicExist) {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
