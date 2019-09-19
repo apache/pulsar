@@ -29,10 +29,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Getter;
 import lombok.Setter;
-
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.protocol.Commands;
@@ -1222,19 +1220,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The schema storage implementation used by this broker"
     )
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
-
-    @FieldContext(
-            category = CATEGORY_SCHEMA,
-            doc = "The schema storage implementation used by this broker"
-    )
-    private String schemaCompatibilityStrategy = "FULL";
-
-    @FieldContext(
-            category = CATEGORY_SCHEMA,
-            doc = "The schema storage implementation used by this broker"
-    )
-    private boolean isAllowSchemaAutoUpdate = true;
-
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The list compatibility checkers to be used in schema registry"
