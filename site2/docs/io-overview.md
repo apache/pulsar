@@ -50,7 +50,7 @@ Delivery semantic | Description
 `at-least-once`  | Each message sent to a connector is to be **processed once** or **more than once**.
 `effectively-once` | Each message sent to a connector has **one output associated** with it.
 
-> Processing guarantees for connectors not just relied on Pulsar guarantee but also **related to external systems**, that is, **the implementation of source and sink**.
+> Processing guarantees for connectors not just rely on Pulsar guarantee but also **relate to external systems**, that is, **the implementation of source and sink**.
 
 * Source: Pulsar ensures that writing messages to Pulsar topics respects to the processing guarantees. It is within Pulsar's control.
 
