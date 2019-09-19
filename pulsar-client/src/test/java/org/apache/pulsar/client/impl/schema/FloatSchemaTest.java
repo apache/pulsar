@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -40,14 +42,23 @@ public class FloatSchemaTest {
     @Test
     public void testSchemaEncodeDecodeFidelity() {
         FloatSchema schema = FloatSchema.of();
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(4);
         Float dbl = new Float(1234578.8754321);
-        Assert.assertEquals(dbl, schema.decode(schema.encode(dbl)));
+        byte[] bytes = schema.encode(dbl);
+        byteBuf.writeBytes(schema.encode(dbl));
+        Assert.assertEquals(dbl, schema.decode(bytes));
+        Assert.assertEquals(dbl, schema.decode(byteBuf));
+
     }
 
     @Test
     public void testNullEncodeDecode() {
+        ByteBuf byteBuf = null;
+        byte[] bytes = null;
         Assert.assertNull(FloatSchema.of().encode(null));
-        Assert.assertNull(FloatSchema.of().decode(null));
+        Assert.assertNull(FloatSchema.of().decode(bytes));
+        Assert.assertNull(FloatSchema.of().decode(byteBuf));
     }
-
 }
+
+
