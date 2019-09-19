@@ -1849,7 +1849,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void validatePartitionTopicUpdate(String topicName, int numberOfPartition) {
         List<String> nonPartitionTopicList = internalGetList();
         TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
-        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false);
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
         int oldPartition = metadata.partitions;
         String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
         for (String nonPartitionTopic : nonPartitionTopicList) {
@@ -1929,7 +1929,7 @@ public class PersistentTopicsBase extends AdminResource {
                 long suffix = Long.parseLong(topicName.substring(partitionIndex
                         + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
                 TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName.substring(0, partitionIndex));
-                PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false);
+                PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
 
                 // Partition topic index is 0 to (number of partition - 1)
                 if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
