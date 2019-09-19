@@ -18,7 +18,7 @@ The configuration of the HDFS2 sink connector has the following properties.
 | `hdfsConfigResources` | String|true|  | A file or a comma-separated list containing the Hadoop file system configuration.<br/><br/>**Example**<br/>'core-site.xml'<br/>'hdfs-site.xml' |
 | `directory` | String | true | |The HDFS directory where files read from or written to. |
 | `encoding` | String |false | |The character encoding for the files.<br/><br/>**Example**<br/>UTF-8<br/>ASCII |
-| `compression` | Compression |false | |The compression code used to compress or de-compress the files on HDFS. |
+| `compression` | Compression |false | |The compression code used to compress or de-compress the files on HDFS. <br/><br/>Below are the available options:<br/><li>BZIP2<br/><li>DEFLATE<br/><li>GZIP<br/><li>LZ4<br/><li>SNAPPY|
 | `kerberosUserPrincipal` |String| false| |The principal account of Kerberos user used for authentication. |
 | `keytab` | String|false|| The full pathname of the Kerberos keytab file used for authentication. |
 | `filenamePrefix` |String| false | |The prefix of the files created inside the HDFS directory.<br/><br/>**Example**<br/> The value of topicA result in files named topicA-. |
