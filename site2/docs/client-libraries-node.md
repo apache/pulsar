@@ -397,6 +397,5 @@ The message id object have the following static methods available:
 | :----- | :---------- | :---------- |
 | `earliest()` | MessageId representing the earliest, or oldest available message stored in the topic. | `Object` |
 | `latest()` | MessageId representing the latest, or last published message in the topic. | `Object` |
-| `finalize()` |  | `void` |
 | `deserialize(Buffer)` | Deserialize a message id object from a Buffer. | `Object` |
 
