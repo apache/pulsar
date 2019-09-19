@@ -1292,7 +1292,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-schema-autoupdate-strategy", new SetSchemaAutoUpdateStrategy());
 
         jcommander.addCommand("get-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
-        jcommander.addCommand("set-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
+        jcommander.addCommand("set-schema-compatibility-strategy", new SetSchemaCompatibilityStrategy());
 
         jcommander.addCommand("get-is-allow-auto-update-schema", new GetIsAllowAutoUpdateSchema());
         jcommander.addCommand("set-is-allow-auto-update-schema", new SetIsAllowAutoUpdateSchema());
