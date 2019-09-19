@@ -54,7 +54,7 @@ Delivery semantic | Description
 
 * Source: Pulsar ensures that writing messages to Pulsar topics respects to the processing guarantees. It is within Pulsar's control.
 
-* Sink: the processing guarantees replies on the sink implementation. If the sink implementation does not handle retries in an idempotent way, the sink does not respect to the processing guarantees.
+* Sink: the processing guarantees rely on the sink implementation. If the sink implementation does not handle retries in an idempotent way, the sink does not respect to the processing guarantees.
 
 ### Set
 
