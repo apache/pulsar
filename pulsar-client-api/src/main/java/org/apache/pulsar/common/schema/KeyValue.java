@@ -23,7 +23,7 @@ import java.util.Objects;
 import org.apache.pulsar.client.api.Schema;
 
 /**
- * A simple KeyValue class
+ * A simple KeyValue class.
  */
 public class KeyValue<K, V> {
     private final K key;

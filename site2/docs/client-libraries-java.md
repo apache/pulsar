@@ -74,7 +74,7 @@ If you're using [TLS](security-tls-authentication.md) authentication, the URL wi
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
-## Client configuration
+## Client 
 
 You can instantiate a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object using just a URL for the target Pulsar [cluster](reference-terminology.md#cluster), like this:
 
@@ -123,7 +123,7 @@ Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/
 
 > In addition to client-level configuration, you can also apply [producer](#configuring-producers) and [consumer](#configuring-consumers) specific configuration, as you'll see in the sections below.
 
-## Producers
+## Producer
 
 In Pulsar, producers write messages to topics. Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object (as in the section [above](#client-configuration)), you can create a {@inject: javadoc:Producer:/client/org/apache/pulsar/client/api/Producer} for a specific Pulsar [topic](reference-terminology.md#topic).
 
@@ -162,9 +162,29 @@ stringProducer.send("My message");
 >    });
 > ```
 
-### Configuring producers
+### Configure producer
 
-If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. 
+If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer uses the default configuration. 
+
+If you create a producer, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
+
+Type | Name| <div style="width:300px">Description</div>|  Default
+|---|---|---|---
+String|	`topicName`|	Topic name| null|
+String|`producerName`|Producer name| null
+long|`sendTimeoutMs`|Message send timeout in ms.<br/><br/>If a message is not acknowledged by a server before the `sendTimeout` expires, an error is triggered.|30000
+boolean|`blockIfQueueFull`|If set to `true`, when the outgoing message queue is full, the `Send` and `SendAsync` methods of producer block rather than failing and throwing errors. <br/><br>If set to `false`, when the outgoing message queue is full, the `Send` and `SendAsync` methods of producer fail and throw `ProducerQueueIsFullError` exceptions.<br/><br/>The size of the outgoing message queue is determined by the `MaxPendingMessages` parameter.|false
+int|`maxPendingMessages`|Maximum size of a queue holding pending messages.<br/><br/>For example, a message waiting to receive an acknowledgment from a [broker](reference-terminology.md#broker). <br/><br/>By default, when the queue is full, all calls to the `Send` and `SendAsync` methods fail **unless** `BlockIfQueueFull` is set to `true`.|1000
+int|`maxPendingMessagesAcrossPartitions`|Maximum number of pending messages across partitions. <br/><br/>This setting is used to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total exceeds the configured value.|50000
+MessageRoutingMode|`messageRoutingMode`|Message routing logic for producers on [partitioned topics](concepts-architecture-overview.md#partitioned-topics).<br/><br/> This logic is applied only when no key is set on messages. <br/><br/>Below are the available options: <br/><br/><li>`pulsar.RoundRobinDistribution`: round robin<br/><br/> <li>`pulsar.UseSinglePartition`: publish all messages to a single partition<br/><br/><li>`pulsar.CustomPartition`: a custom partitioning scheme|`pulsar.RoundRobinDistribution`
+HashingScheme|`hashingScheme`|Hashing function that determines the partition on which a particular message is published (**partitioned topics only**).<br/><br/>Below are the available options:<br/><br/><li> `pulsar.JavaStringHash`: the equivalent of `String.hashCode()` in Java<br/><br/><li> `pulsar.Murmur3_32Hash`: applies the [Murmur3](https://en.wikipedia.org/wiki/MurmurHash) hashing function<br/><br/><li>`pulsar.BoostHash`: applies the hashing function from C++'s [Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library |`HashingScheme.JavaStringHash`
+ProducerCryptoFailureAction|`cryptoFailureAction`|Producer should take action when encryption fails.<br/><br/><li>**FAIL**: if encryption fails, unencrypted messages fail to send.</li><br/><li> **SEND**: if encryption fails, unencrypted messages are sent. |`ProducerCryptoFailureAction.FAIL`
+long|`batchingMaxPublishDelayMicros`|Time period within which messages sent will be batched.|TimeUnit.MILLISECONDS.toMicros(1)
+int|batchingMaxMessages|Maximum number of messages permitted in a batch.|1000
+boolean|`batchingEnabled`|Enable batching of messages. |true
+CompressionType|`compressionType`|Message data compression type used by a producer. <br/><br/>Below are the available options:<li>[`LZ4`](https://github.com/lz4/lz4)<br/><li>[`ZLIB`](https://zlib.net/)<br/><li>[`ZSTD`](https://facebook.github.io/zstd/)<br/><li>[`SNAPPY`](https://google.github.io/snappy/)| No compression
+
+To use a non-default configuration, there's a variety of configurable parameters that you can set. 
 
 For a full listing, see the Javadoc for the {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. Here's an example:
 
@@ -195,7 +215,7 @@ producer.sendAsync("my-async-message".getBytes()).thenAccept(msgId -> {
 
 As you can see from the example above, async send operations return a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
-### Configuring messages
+### Configure messages
 
 In addition to a value, it's possible to set additional items on a given message:
 
@@ -211,7 +231,7 @@ producer.newMessage()
 As for the previous case, it's also possible to terminate the builder chain with `sendAsync()` and
 get a future returned.
 
-## Consumers
+## Consumer
 
 In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new [consumer](reference-terminology.md#consumer) by first instantiating a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
 
@@ -245,7 +265,7 @@ while (true) {
 }
 ```
 
-### Configuring consumers
+### Configure consumer
 
 If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. 
 
@@ -551,7 +571,7 @@ consumer 2 will receive:
 >
 > If the message key is not specified, messages without key will be dispatched to one consumer in order by default.
 
-## Reader interface
+## Reader 
 
 With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic, a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}, and {@inject: javadoc:ReaderConfiguration:/client/org/apache/pulsar/client/api/ReaderConfiguration}.
 
@@ -576,7 +596,21 @@ In the example above, a `Reader` object is instantiated for a specific topic and
 
 The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
 
-## Schemas
+If you create a reader, you may use the `loadConf` configuration. Below are the available parameters used in `loadConf`.
+
+| Type | Name | <div style="width:300px">Description</div> | Default
+|---|---|---|---
+String|`topicName`|Topic name. |None
+int|`receiverQueueSize`|Size of a consumer's receiver queue.<br/><br/>For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.<br/><br/>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000
+ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None
+String|`readerName`|Read name.|null
+String|`subscriptionRolePrefix`|Prefix of subscription role. |null
+CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key store.|null
+ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not decrypt.<br/><br/><li>**FAIL**: this is the default option to fail messages until crypto succeeds.</li><br/><li> **DISCARD**: message is silently acknowledged and not delivered to an application.</li><br/><li>**CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.<br/><br/>If message are compressed, the decompression fails. <br/><br/>If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br/><br/>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL</li>
+boolean|`readCompacted`|If `readCompacted` is enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br/><br/> This means if a topic has been compacted, a consumer only see the latest value for each key in the topic, up until the point in the topic message when backlog that has been compacted. Beyond that point, the messages are sent as normal.<br/><br/>`readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions). <br/><br/>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false
+boolean|`resetIncludeHead`|If set to true, the first message to be returned is the one specified by `messageId`.<br/><br/>If set to false, the first message to be returned is the one next to the message specified by `messageId`.|false
+
+## Schema
 
 In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](concepts-schema-registry.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
 

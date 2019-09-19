@@ -21,14 +21,14 @@ package org.apache.pulsar.tests.integration.containers;
 
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
-public class DebeziumPostgresqlContainer extends ChaosContainer<DebeziumPostgresqlContainer> {
+public class DebeziumPostgreSqlContainer extends ChaosContainer<DebeziumPostgreSqlContainer> {
 
     public static final String NAME = "debezium-postgresql-example";
     static final Integer[] PORTS = { 5432 };
 
     private static final String IMAGE_NAME = "debezium/example-postgres:0.10";
 
-    public DebeziumPostgresqlContainer(String clusterName) {
+    public DebeziumPostgreSqlContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);
         this.withEnv("POSTGRES_USER", "postgres");
         this.withEnv("POSTGRES_PASSWORD", "postgres");

@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
@@ -29,6 +30,9 @@ import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
@@ -51,6 +55,11 @@ public class StringSchemaTest {
 
         String decodedString = schema.decode(data);
         assertEquals(decodedString, myString);
+
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(data.length);
+        byteBuf.writeBytes(data);
+
+        assertEquals(schema.decode(byteBuf), myString);
     }
 
     @Test
@@ -69,6 +78,11 @@ public class StringSchemaTest {
 
         String decodedString = schema.decode(data);
         assertEquals(decodedString, myString);
+
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(data.length);
+        byteBuf.writeBytes(data);
+
+        assertEquals(schema.decode(byteBuf), myString);
     }
 
     @Test
@@ -86,6 +100,10 @@ public class StringSchemaTest {
 
         String decodedString = schema.decode(data);
         assertEquals(decodedString, myString);
+
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(data.length);
+        byteBuf.writeBytes(data);
+        assertEquals(schema.decode(byteBuf), myString);
     }
 
     @DataProvider(name = "charsets")
@@ -117,6 +135,11 @@ public class StringSchemaTest {
 
         String decodedString = schema.decode(data);
         assertEquals(decodedString, myString);
+
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(data.length);
+        byteBuf.writeBytes(data);
+
+        assertEquals(schema.decode(byteBuf), myString);
     }
 
 }

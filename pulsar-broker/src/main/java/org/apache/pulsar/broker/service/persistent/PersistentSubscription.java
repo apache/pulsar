@@ -633,6 +633,10 @@ public class PersistentSubscription implements Subscription {
         }
 
         disconnectFuture.whenComplete((aVoid, throwable) -> {
+            if (dispatcher != null) {
+                dispatcher.resetCloseFuture();
+            }
+
             if (throwable != null) {
                 log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
@@ -640,6 +644,7 @@ public class PersistentSubscription implements Subscription {
                         new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
                 return;
             }
+
             log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset",
                     topicName, subName);
 
@@ -785,13 +790,27 @@ public class PersistentSubscription implements Subscription {
         log.info("[{}][{}] Unsubscribing", topicName, subName);
 
         // cursor close handles pending delete (ack) operations
-        this.close().thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> deleteFuture.complete(null))
-                .exceptionally(exception -> {
+        this.close().thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> {
+            synchronized (this) {
+                (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenRun(() -> {
+                    log.info("[{}][{}] Successfully deleted subscription", topicName, subName);
+                    deleteFuture.complete(null);
+                }).exceptionally(ex -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
-                    log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
-                    deleteFuture.completeExceptionally(exception);
+                    if (dispatcher != null) {
+                        dispatcher.reset();
+                    }
+                    log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
+                    deleteFuture.completeExceptionally(ex);
                     return null;
                 });
+            }
+        }).exceptionally(exception -> {
+            IS_FENCED_UPDATER.set(this, FALSE);
+            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+            deleteFuture.completeExceptionally(exception);
+            return null;
+        });
 
         return deleteFuture;
     }

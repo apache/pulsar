@@ -28,9 +28,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
@@ -76,6 +79,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -173,6 +177,7 @@ public class PulsarService implements AutoCloseable {
     private final String brokerVersion;
     private SchemaRegistryService schemaRegistryService = null;
     private final Optional<WorkerService> functionWorkerService;
+    private ProtocolHandlers protocolHandlers = null;
 
     private final MessagingServiceShutdownHook shutdownService;
 
@@ -304,8 +309,12 @@ public class PulsarService implements AutoCloseable {
 
             offloaderManager.close();
 
-            state = State.Closed;
+            if (protocolHandlers != null) {
+                protocolHandlers.close();
+                protocolHandlers = null;
+            }
 
+            state = State.Closed;
         } catch (Exception e) {
             throw new PulsarServerException(e);
         } finally {
@@ -329,6 +338,14 @@ public class PulsarService implements AutoCloseable {
      */
     public Optional<WorkerConfig> getWorkerConfig() {
         return functionWorkerService.map(service -> service.getWorkerConfig());
+    }
+
+    public Map<String, String> getProtocolDataToAdvertise() {
+        if (null == protocolHandlers) {
+            return Collections.emptyMap();
+        } else {
+            return protocolHandlers.getProtocolDataToAdvertise();
+        }
     }
 
     /**
@@ -356,6 +373,10 @@ public class PulsarService implements AutoCloseable {
             if (!config.getBrokerServicePort().isPresent() && !config.getBrokerServicePortTls().isPresent()) {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
             }
+
+            // Initialize the message protocol handlers
+            protocolHandlers = ProtocolHandlers.load(config);
+            protocolHandlers.initialize(config);
 
             // Now we are ready to start services
             localZooKeeperConnectionProvider = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
@@ -445,6 +466,15 @@ public class PulsarService implements AutoCloseable {
             webService.start();
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            // start the protocol handlers only after the broker is ready and before starting
+            // the load manager service. so that the protocol handlers can access broker service
+            // properly and advertise the protocol data together with Pulsar protocol data.
+            this.protocolHandlers.start(brokerService);
+
+            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
+                this.protocolHandlers.newChannelInitializers();
+            this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
 
             // By starting the Load manager service, the broker will also become visible
             // to the rest of the broker by creating the registration z-node. This needs
@@ -619,7 +649,7 @@ public class PulsarService implements AutoCloseable {
             List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
             long topicLoadStart = System.nanoTime();
 
-            for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)) {
+            for (String topic : getNamespaceService().getListOfPersistentTopics(nsName).join()) {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName)) {
@@ -943,7 +973,6 @@ public class PulsarService implements AutoCloseable {
     public String getSafeBrokerServiceUrl() {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
     }
-
 
     private void startWorkerService(AuthenticationService authenticationService,
                                     AuthorizationService authorizationService)

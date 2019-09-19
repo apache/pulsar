@@ -56,6 +56,10 @@ athenzDomainNames=pulsar
 tlsEnabled=true
 tlsCertificateFilePath=/path/to/broker-cert.pem
 tlsKeyFilePath=/path/to/broker-key.pem
+
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
+brokerClientAuthenticationParameters={"tenantDomain":"shopping","tenantService":"some_app","providerDomain":"pulsar","privateKey":"file:///path/to/private.pem","keyId":"v1"}
 ```
 
 > A full listing of parameters is available in the `conf/broker.conf` file, you can also find the default
