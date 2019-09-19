@@ -73,8 +73,7 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
-      "security-token-client",
-      "security-token-admin",
+      "security-jwt"
       "security-athenz",
       "security-kerberos",
       "security-authorization",
