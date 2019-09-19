@@ -146,13 +146,13 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
 
     <!-- apache commons -->
-    <commons-compress.version>1.15</commons-compress.version>
+    <commons-compress.version>1.19</commons-compress.version>
 
     <bookkeeper.version>4.9.2</bookkeeper.version>
     <zookeeper.version>3.4.13</zookeeper.version>
     <netty.version>4.1.32.Final</netty.version>
     <storm.version>2.0.0</storm.version>
-    <jetty.version>9.4.12.v20180830</jetty.version>
+    <jetty.version>9.4.20.v20190813</jetty.version>
     <jersey.version>2.27</jersey.version>
     <athenz.version>1.8.17</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
@@ -200,7 +200,8 @@ flexible messaging model and an intuitive client API.</description>
     <zstd.version>1.3.7-3</zstd.version>
     <snappy.version>1.1.1.3</snappy.version>
     <hbase.version>1.4.9</hbase.version>
-
+    <guava.version>28.1-jre</guava.version>
+    
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
@@ -451,7 +452,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty</artifactId>
-        <version>3.10.1.Final</version>
+        <version>3.10.6.Final</version>
       </dependency>
 
       <dependency>
@@ -463,7 +464,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>21.0</version>
+        <version>${guava.version}</version>
       </dependency>
 
       <dependency>

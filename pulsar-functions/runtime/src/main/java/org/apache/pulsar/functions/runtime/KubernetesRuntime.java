@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import com.squareup.okhttp.Response;
@@ -329,7 +330,7 @@ public class KubernetesRuntime implements Runtime {
             public void onSuccess(FunctionStatus t) {
                 retval.complete(t);
             }
-        });
+        }, MoreExecutors.directExecutor());
         return retval;
     }
 
@@ -372,7 +373,7 @@ public class KubernetesRuntime implements Runtime {
             public void onSuccess(InstanceCommunication.MetricsData t) {
                 retval.complete(t);
             }
-        });
+        }, MoreExecutors.directExecutor());
         return retval;
     }
 
