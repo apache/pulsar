@@ -359,8 +359,4 @@ public class SchemaCompatibilityCheckTest extends PulsarTestSuite {
         }
 
     }
-
-
-
-
 }

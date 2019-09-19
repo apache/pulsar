@@ -2039,7 +2039,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected boolean internalGetIsAllowAutoUpdateSchema() {
         validateSuperUserAccess();
         validateAdminAccessForTenant(namespaceName.getTenant());
-        return getNamespacePolicies(namespaceName).is_allow_auto_update_Schema;
+        return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
     }
 
     protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
@@ -2047,9 +2047,9 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
-                    policies.is_allow_auto_update_Schema = isAllowAutoUpdateSchema;
+                    policies.is_allow_auto_update_schema = isAllowAutoUpdateSchema;
                     return policies;
-                }, (policies) -> policies.is_allow_auto_update_Schema,
+                }, (policies) -> policies.is_allow_auto_update_schema,
                 "isAllowAutoUpdateSchema");
     }
 

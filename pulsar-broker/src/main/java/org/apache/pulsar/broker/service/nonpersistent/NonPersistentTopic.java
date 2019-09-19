@@ -144,7 +144,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
-            isAllowAutoUpdateSchema = policies.is_allow_auto_update_Schema;
+            isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
             setSchemaCompatibilityStrategy(policies);
 
             schemaValidationEnforced = policies.schema_validation_enforced;
@@ -872,7 +872,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         }
         isEncryptionRequired = data.encryption_required;
         setSchemaCompatibilityStrategy(data);
-        isAllowAutoUpdateSchema = data.is_allow_auto_update_Schema;
+        isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         schemaValidationEnforced = data.schema_validation_enforced;
 
         producers.forEach(producer -> {

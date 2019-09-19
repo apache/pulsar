@@ -124,24 +124,30 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 }
             }
             if (isAllowAutoUpdateSchema) {
+                CompletableFuture<Void> isCompatibility = new CompletableFuture<>();
                 if (schemaAndMetadataList.size() != 0) {
                     if (isTransitiveStrategy(strategy)) {
-                        checkCompatibilityWithAll(schemaId, schema, strategy);
+                        isCompatibility = checkCompatibilityWithAll(schemaId, schema, strategy);
                     } else {
-                        checkCompatibilityWithLatest(schemaId, schema, strategy);
+                        isCompatibility = checkCompatibilityWithLatest(schemaId, schema, strategy);
                     }
+                } else {
+                    isCompatibility.complete(null);
                 }
-                byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-                SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-                        .setType(Functions.convertFromDomainType(schema.getType()))
-                        .setSchema(ByteString.copyFrom(schema.getData()))
-                        .setSchemaId(schemaId)
-                        .setUser(schema.getUser())
-                        .setDeleted(false)
-                        .setTimestamp(clock.millis())
-                        .addAllProps(toPairs(schema.getProps()))
-                        .build();
-                return schemaStorage.put(schemaId, info.toByteArray(), context);
+                return isCompatibility.thenCompose((v) -> {
+                    byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
+                    SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
+                            .setType(Functions.convertFromDomainType(schema.getType()))
+                            .setSchema(ByteString.copyFrom(schema.getData()))
+                            .setSchemaId(schemaId)
+                            .setUser(schema.getUser())
+                            .setDeleted(false)
+                            .setTimestamp(clock.millis())
+                            .addAllProps(toPairs(schema.getProps()))
+                            .build();
+                    return schemaStorage.put(schemaId, info.toByteArray(), context);
+
+                });
             } else {
                 return FutureUtils.exception(new IncompatibleSchemaException("Do allow auto update schema."));
             }
