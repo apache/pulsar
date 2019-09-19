@@ -33,37 +33,16 @@ public interface SchemaCompatibilityCheck {
      * @param to the future schema i.e. the schema sent by the producer
      * @param strategy the strategy to use when comparing schemas
      */
-    default void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
-        checkCompatible(from, to, strategy, false);
-    }
+    void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException;
 
     /**
      *
      * @param from the current schemas i.e. schemas that the broker has
      * @param to the future schema i.e. the schema sent by the producer
      * @param strategy the strategy to use when comparing schemas
+     * @return whether the schemas are compatible
      */
-    default void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
-        checkCompatible(from, to, strategy, false);
-    }
-
-    /**
-     *
-     * @param from the current schemas i.e. schemas that the broker has
-     * @param to the future schema i.e. the schema sent by the producer
-     * @param strategy the strategy to use when comparing schemas
-     * @param isConsumer the flag to judge whether it is consumer
-     */
-    void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException;
-
-    /**
-     *
-     * @param from the current schema i.e. schema that the broker has
-     * @param to the future schema i.e. the schema sent by the producer
-     * @param strategy the strategy to use when comparing schemas
-     * @param isConsumer the flag to judge whether it is consumer
-     */
-    void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException;
+    void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException;
 
     default boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
         try {
@@ -92,25 +71,13 @@ public interface SchemaCompatibilityCheck {
 
         @Override
         public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
-            defaultCompatibilityCheck(strategy);
+            if (strategy == SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE) {
+                throw new IncompatibleSchemaException("Schema compatibility strategy is ALWAYS_INCOMPATIBLE");
+            }
         }
 
         @Override
         public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)  throws IncompatibleSchemaException {
-            defaultCompatibilityCheck(strategy);
-        }
-
-        @Override
-        public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
-            defaultCompatibilityCheck(strategy);
-        }
-
-        @Override
-        public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
-            defaultCompatibilityCheck(strategy);
-        }
-
-        private void defaultCompatibilityCheck(SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
             if (strategy == SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE) {
                 throw new IncompatibleSchemaException("Schema compatibility strategy is ALWAYS_INCOMPATIBLE");
             }

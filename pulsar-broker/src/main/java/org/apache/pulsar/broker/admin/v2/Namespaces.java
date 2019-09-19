@@ -942,7 +942,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{tenant}/{cluster}/{namespace}/schemaCompatibilityStrategy")
+    @Path("/{tenant}/{namespace}/schemaCompatibilityStrategy")
     @ApiOperation(value = "The strategy of the namespace schema compatibility ")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
@@ -955,7 +955,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @PUT
-    @Path("/{tenant}/{cluster}/{namespace}/schemaAutoUpdateCompatibilityStrategy")
+    @Path("/{tenant}/{namespace}/schemaCompatibilityStrategy")
     @ApiOperation(value = "Update the strategy used to check the compatibility of new schema")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
@@ -968,7 +968,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{tenant}/{cluster}/{namespace}/isAllowAutoUpdateSchema")
+    @Path("/{tenant}/{namespace}/isAllowAutoUpdateSchema")
     @ApiOperation(value = "The flag of whether allow auto update schema")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
@@ -981,7 +981,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{cluster}/{namespace}/isAllowAutoUpdateSchema")
+    @Path("/{tenant}/{namespace}/isAllowAutoUpdateSchema")
     @ApiOperation(value = "Update flag of whether allow auto update schema")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),

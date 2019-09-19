@@ -25,8 +25,6 @@ import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
-import java.io.IOException;
-
 public class AvroReader<T> implements SchemaReader<T> {
 
     private ReflectDatumReader<T> reader;
@@ -50,7 +48,7 @@ public class AvroReader<T> implements SchemaReader<T> {
                 decoders.set(decoder);
             }
             return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, decoder));
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new SchemaSerializationException(e);
         }
     }

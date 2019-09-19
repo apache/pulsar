@@ -74,7 +74,7 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
 
     @Override
     public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData, SchemaCompatibilityStrategy strategy) {
-        return this.checkConsumerCompatibility(schemaId, schemaData, strategy);
+        return this.service.checkConsumerCompatibility(schemaId, schemaData, strategy);
     }
 
     @Override

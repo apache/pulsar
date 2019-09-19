@@ -96,14 +96,4 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         keyCheck.checkCompatible(fromKeyList, toKeyValue.getKey(), strategy);
         valueCheck.checkCompatible(fromValueList, toKeyValue.getValue(), strategy);
     }
-
-    @Override
-    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
-        throw new IncompatibleSchemaException("KeyValueSchemaCompatibilityCheck don't support this method");
-    }
-
-    @Override
-    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy, boolean isConsumer) throws IncompatibleSchemaException {
-        throw new IncompatibleSchemaException("KeyValueSchemaCompatibilityCheck don't support this method");
-    }
 }
