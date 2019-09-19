@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,16 +55,12 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
-import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
 
 @Path("/namespaces")
 @Produces(MediaType.APPLICATION_JSON)
@@ -81,21 +82,25 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get the list of all the topics under a certain namespace.", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public List<String> getTopics(@PathParam("tenant") String tenant,
+    public void getTopics(@PathParam("tenant") String tenant,
                                   @PathParam("namespace") String namespace,
-                                  @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode) {
+                                  @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode,
+                                  @Suspended AsyncResponse asyncResponse) {
         validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         getNamespacePolicies(namespaceName);
 
-        try {
-            return pulsar().getNamespaceService().getListOfTopics(namespaceName, mode);
-        } catch (Exception e) {
-            log.error("Failed to get topics list for namespace {}", namespaceName, e);
-            throw new RestException(e);
-        }
+        pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
+                .thenAccept(topics -> {
+                    asyncResponse.resume(topics);
+                })
+                .exceptionally(ex -> {
+                    log.error("Failed to get topics list for namespace {}", namespaceName, ex);
+                    asyncResponse.resume(ex);
+                    return null;
+                });
     }
 
     @GET

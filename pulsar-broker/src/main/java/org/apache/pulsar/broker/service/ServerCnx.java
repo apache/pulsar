@@ -34,7 +34,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
-import java.util.List;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -1287,27 +1287,27 @@ public class ServerCnx extends PulsarHandler {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
         final String namespace = commandGetTopicsOfNamespace.getNamespace();
         final CommandGetTopicsOfNamespace.Mode mode = commandGetTopicsOfNamespace.getMode();
+        final NamespaceName namespaceName = NamespaceName.get(namespace);
 
-        try {
-            final NamespaceName namespaceName = NamespaceName.get(namespace);
+        getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
+                .thenAccept(topics -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
+                                remoteAddress, namespace, requestId, topics.size());
+                    }
 
-            final List<String> topics = getBrokerService().pulsar().getNamespaceService()
-                .getListOfTopics(namespaceName, mode);
+                    ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
+                })
+                .exceptionally(ex -> {
+                    log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
+                            remoteAddress, namespace, requestId);
+                    ctx.writeAndFlush(
+                            Commands.newError(requestId,
+                                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
+                                    ex.getMessage()));
 
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
-                    remoteAddress, namespace, requestId, topics.size());
-            }
-
-            ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
-        } catch (Exception e) {
-            log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
-                remoteAddress, namespace, requestId);
-            ctx.writeAndFlush(
-                Commands.newError(requestId,
-                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(e)),
-                    e.getMessage()));
-        }
+                    return null;
+                });
     }
 
     @Override
