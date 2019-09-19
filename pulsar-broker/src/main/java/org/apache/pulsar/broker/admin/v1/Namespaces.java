@@ -113,21 +113,25 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the list of all the topics under a certain namespace.", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public List<String> getTopics(@PathParam("property") String property,
+    public void getTopics(@PathParam("property") String property,
                                   @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-                                  @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode) {
+                                  @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode,
+                                  @Suspended AsyncResponse asyncResponse) {
         validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         getNamespacePolicies(namespaceName);
 
-        try {
-            return pulsar().getNamespaceService().getListOfTopics(namespaceName, mode);
-        } catch (Exception e) {
-            log.error("Failed to get topics list for namespace {}/{}/{}", property, cluster, namespace, e);
-            throw new RestException(e);
-        }
+        pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
+                .thenAccept(topics -> {
+                    asyncResponse.resume(topics);
+                })
+                .exceptionally(ex -> {
+                    log.error("Failed to get topics list for namespace {}", namespaceName, ex);
+                    asyncResponse.resume(ex);
+                    return null;
+                });
     }
 
     @GET

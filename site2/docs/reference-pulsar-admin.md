@@ -1505,7 +1505,7 @@ Subcommands
 * `info-internal`
 * `partitioned-stats`
 * `skip`
-* `skip-all`
+* `clear-backlog`
 * `expire-messages`
 * `expire-messages-all-subscriptions`
 * `peek-messages`
@@ -1800,12 +1800,12 @@ Options
 |`-s`, `--subscription`|The subscription on which to skip messages||
 
 
-### `skip-all`
-Skip all the messages for the subscription
+### `clear-backlog`
+Clear backlog (skip all the messages) for the subscription
 
 Usage
 ```bash
-$ pulsar-admin topics skip-all topic options
+$ pulsar-admin topics clear-backlog topic options
 ```
 
 Options

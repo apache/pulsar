@@ -220,8 +220,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         final String nonPartitionTopic2 = "secondary-non-partitioned-topic";
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopic2, true);
-        Assert.assertEquals(
-                persistentTopics.getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true) .partitions,
+        Assert.assertEquals(persistentTopics
+                        .getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true, false).partitions,
                 0);
     }
 
@@ -230,7 +230,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "standard-topic-partition-a";
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
         PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
-                testTenant, testNamespace, topicName, true);
+                testTenant, testNamespace, topicName, true, false);
         Assert.assertEquals(pMetadata.partitions, 0);
     }
 

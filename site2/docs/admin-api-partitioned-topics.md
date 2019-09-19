@@ -62,49 +62,6 @@ int numPartitions = 4;
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 ```
 
-## Nonpartitioned topics resources
-
-### Create
-
-Nonpartitioned topics in Pulsar must be explicitly created if allowAutoTopicCreation or createIfMissing is disabled.
-When creating a non-partitioned topic, you need to provide a topic name.
-
-> #### Note
->
-> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
->
-> To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
->
-> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
->
-> For more information about these two parameters, see [here](reference-configuration.md#broker).
-
-#### pulsar-admin
-
-You can create non-partitioned topics using the [`create`](reference-pulsar-admin.md#create)
-command and specifying the topic name as an argument. This is an example command:
-
-```shell
-$ bin/pulsar-admin topics create persistent://my-tenant/my-namespace/my-topic
-``` 
-
-> #### Note
->
-> It's only allow to create non partitioned topic of name contains suffix '-partition-' followed by numeric value like
-> 'xyz-topic-partition-10', if there's already a partitioned topic with same name, in this case 'xyz-topic', and has
-> number of partition larger then that numeric value in this case 10. Else creation of such topic will fail.
-
-#### REST API
-
-{@inject: endpoint|PUT|admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
-
-#### Java
-
-```java
-String topicName = "persistent://my-tenant/my-namespace/my-topic";
-admin.topics().createNonPartitionedTopic(topicName);
-```
-
 ### Get metadata
 
 Partitioned topics have metadata associated with them that you can fetch as a JSON object.

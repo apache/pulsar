@@ -237,6 +237,7 @@ You can configure Pulsar authentication provider directly from the Kafka propert
 | [`pulsar.use.tcp.nodelay`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTcpNoDelay-boolean-) | `true` | TCP no-delay. |
 | [`pulsar.concurrent.lookup.requests`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setConcurrentLookupRequest-int-) | `50000` | The maximum number of concurrent topic lookups. |
 | [`pulsar.max.number.rejected.request.per.connection`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setMaxNumberOfRejectedRequestPerConnection-int-) | `50` | The threshold of errors to forcefully close a connection. |
+| [`pulsar.keepalive.interval.ms`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientBuilder.html#keepAliveInterval-int-java.util.concurrent.TimeUnit-)| `30000` | Keep alive interval for each client-broker-connection.  |
 
 
 ### Pulsar producer properties

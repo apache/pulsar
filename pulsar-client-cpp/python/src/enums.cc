@@ -40,6 +40,7 @@ void export_enums() {
             .value("Exclusive", ConsumerExclusive)
             .value("Shared", ConsumerShared)
             .value("Failover", ConsumerFailover)
+            .value("KeyShared", ConsumerKeyShared)
             ;
 
     enum_<Result >("Result", "Collection of return codes")

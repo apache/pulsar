@@ -1591,6 +1591,73 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topicName);
     }
 
+    @Test
+    public void persistentTopicsCursorResetAndFailover() throws Exception {
+        final String namespace = "prop-xyz/ns1";
+        final String topicName = "persistent://" + namespace + "/reset-cursor-and-failover";
+        final String subName = "sub1";
+
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(10, 10));
+
+        // Create consumer and failover subscription
+        Consumer<byte[]> consumerA = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .consumerName("consumerA").subscriptionType(SubscriptionType.Failover)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+
+        publishMessagesOnPersistentTopic(topicName, 5, 0);
+
+        // Allow at least 1ms for messages to have different timestamps
+        Thread.sleep(1);
+        long messageTimestamp = System.currentTimeMillis();
+
+        publishMessagesOnPersistentTopic(topicName, 5, 5);
+
+        // Currently the active consumer is consumerA
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> message = consumerA.receive(5, TimeUnit.SECONDS);
+            consumerA.acknowledge(message);
+        }
+
+        admin.topics().resetCursor(topicName, subName, messageTimestamp);
+
+        // In v2.5 or later, the first connected consumer is active.
+        // So consumerB connected later will not be active.
+        // cf. https://github.com/apache/pulsar/pull/4604
+        Thread.sleep(1000);
+        Consumer<byte[]> consumerB = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .consumerName("consumerB").subscriptionType(SubscriptionType.Failover)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+
+        int receivedAfterReset = 0;
+        for (int i = 4; i < 10; i++) {
+            Message<byte[]> message = consumerA.receive(5, TimeUnit.SECONDS);
+            consumerA.acknowledge(message);
+            ++receivedAfterReset;
+            String expected = "message-" + i;
+            assertEquals(message.getData(), expected.getBytes());
+        }
+        assertEquals(receivedAfterReset, 6);
+
+        // Closing consumerA activates consumerB
+        consumerA.close();
+
+        publishMessagesOnPersistentTopic(topicName, 5, 10);
+
+        int receivedAfterFailover = 0;
+        for (int i = 10; i < 15; i++) {
+            Message<byte[]> message = consumerB.receive(5, TimeUnit.SECONDS);
+            consumerB.acknowledge(message);
+            ++receivedAfterFailover;
+            String expected = "message-" + i;
+            assertEquals(message.getData(), expected.getBytes());
+        }
+        assertEquals(receivedAfterFailover, 5);
+
+        consumerB.close();
+        admin.topics().deleteSubscription(topicName, subName);
+        admin.topics().delete(topicName);
+    }
+
     @Test(dataProvider = "topicName")
     public void partitionedTopicsCursorReset(String topicName) throws Exception {
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(10, 10));

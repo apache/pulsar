@@ -706,9 +706,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());
                 if (subscription.getDispatcher() != null) {
-                    subscription.getDispatcher().getMesssageDropRate().calculateRate();
+                    subscription.getDispatcher().getMessageDropRate().calculateRate();
                     topicStatsStream.writePair("msgDropRate",
-                            subscription.getDispatcher().getMesssageDropRate().getValueRate());
+                            subscription.getDispatcher().getMessageDropRate().getValueRate());
                 }
 
                 // Close consumers

@@ -45,20 +45,13 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
+import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
-import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
-import org.apache.pulsar.tests.integration.io.DebeziumMySqlSourceTester;
-import org.apache.pulsar.tests.integration.io.ElasticSearchSinkTester;
-import org.apache.pulsar.tests.integration.io.HdfsSinkTester;
-import org.apache.pulsar.tests.integration.io.JdbcSinkTester;
+import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
-import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
-import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
-import org.apache.pulsar.tests.integration.io.SinkTester;
-import org.apache.pulsar.tests.integration.io.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.assertj.core.api.Assertions;
@@ -123,6 +116,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     @Test
     public void testDebeziumMySqlSource() throws Exception {
         testDebeziumMySqlConnect();
+    }
+
+    @Test
+    public void testDebeziumPostgreSqlSource() throws Exception {
+        testDebeziumPostgreSqlConnect();
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
@@ -549,6 +547,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .build();
 
         @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        admin.topics().createNonPartitionedTopic(outputTopicName);
+        @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic(outputTopicName)
             .subscriptionName("source-tester")
@@ -871,6 +872,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
 
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
             retryStrategically((test) -> {
                 try {
                     return admin.topics().getStats(inputTopicName).subscriptions.size() == 1;
@@ -959,7 +962,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-input-" + randomName(8);
         String outputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-output-" + randomName(8);
-
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         CommandGenerator generator = CommandGenerator.createDefaultGenerator(
                 inputTopicName,
@@ -1116,6 +1122,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-neg-ack-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-neg-ack-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         String functionName = "test-neg-ack-fn-" + randomName(8);
         final int numMessages = 20;
@@ -1292,6 +1302,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-publish-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-publish-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         String functionName = "test-publish-fn-" + randomName(8);
         final int numMessages = 10;
@@ -1418,6 +1432,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-exclamation-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-exclamation-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
         if (isTopicPattern) {
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -1930,6 +1948,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .build();
 
         @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        admin.topics().createNonPartitionedTopic(consumeTopicName);
+        admin.topics().createNonPartitionedTopic(outputTopicName);
+
+        @Cleanup
         Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
             .topic(consumeTopicName)
             .subscriptionName("debezium-source-tester")
@@ -1942,6 +1965,62 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // setup debezium mysql server
         DebeziumMySQLContainer mySQLContainer = new DebeziumMySQLContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mySQLContainer);
+
+        // prepare the testing environment for source
+        prepareSource(sourceTester);
+
+        // submit the source connector
+        submitSourceConnector(sourceTester, tenant, namespace, sourceName, outputTopicName);
+
+        // get source info
+        getSourceInfoSuccess(sourceTester, tenant, namespace, sourceName);
+
+        // get source status
+        getSourceStatus(tenant, namespace, sourceName);
+
+        // wait for source to process messages
+        waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
+
+        // validate the source result
+        sourceTester.validateSourceResult(consumer, 9);
+
+        // delete the source
+        deleteSource(tenant, namespace, sourceName);
+
+        // get source info (source should be deleted)
+        getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private  void testDebeziumPostgreSqlConnect() throws Exception {
+
+        final String tenant = TopicName.PUBLIC_TENANT;
+        final String namespace = TopicName.DEFAULT_NAMESPACE;
+        final String outputTopicName = "debe-output-topic-name";
+        final String consumeTopicName = "public/default/dbserver1.inventory.products";
+        final String sourceName = "test-source-connector-"
+                + functionRuntimeType + "-name-" + randomName(8);
+
+        // This is the binlog count that contained in postgresql container.
+        final int numMessages = 26;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        @Cleanup
+        DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster);
+
+        // setup debezium postgresql server
+        DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(postgreSqlContainer);
 
         // prepare the testing environment for source
         prepareSource(sourceTester);

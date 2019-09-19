@@ -23,7 +23,7 @@ import java.io.Serializable;
 /**
  * Producer statistics recorded by client.
  *
- * All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
+ * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
  * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
  */
 public interface ProducerStats extends Serializable {
