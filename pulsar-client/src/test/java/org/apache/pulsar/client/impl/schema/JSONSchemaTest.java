@@ -21,6 +21,8 @@ package org.apache.pulsar.client.impl.schema;
 import java.util.Collections;
 import java.util.List;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -301,5 +303,27 @@ public class JSONSchemaTest {
     public void testNotAllowNullDecodeWithInvalidContent() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         jsonSchema.decode(new byte[0]);
+    }
+
+    @Test
+    public void testDecodeByteBuf() {
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
+
+        Foo foo1 = new Foo();
+        foo1.setField1("foo1");
+        foo1.setField2("bar1");
+        foo1.setField4(new Bar());
+        foo1.setFieldUnableNull("notNull");
+
+        Foo foo2 = new Foo();
+        foo2.setField1("foo2");
+        foo2.setField2("bar2");
+
+        byte[] bytes1 = jsonSchema.encode(foo1);
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(bytes1.length);
+        byteBuf.writeBytes(bytes1);
+        Assert.assertTrue(bytes1.length > 0);
+        assertEquals(jsonSchema.decode(byteBuf), foo1);
+
     }
 }

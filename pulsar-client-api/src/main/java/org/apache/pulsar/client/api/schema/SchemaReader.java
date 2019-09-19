@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+import java.io.InputStream;
+
 /**
  * Deserialize messages from bytes.
  */
+
 public interface SchemaReader<T> {
 
     /**
@@ -29,5 +32,25 @@ public interface SchemaReader<T> {
      * @param bytes the data
      * @return the serialized object
      */
-    T read(byte[] bytes);
+    default T read(byte[] bytes) {
+        return read(bytes, 0, bytes.length);
+    }
+
+    /**
+     * serialize bytes convert pojo.
+     *
+     * @param bytes the data
+     * @param offset the byte[] initial position
+     * @param length the byte[] read length
+     * @return the serialized object
+     */
+    T read(byte[] bytes, int offset, int length);
+
+    /**
+     * serialize bytes convert pojo.
+     *
+     * @param inputStream the stream of message
+     * @return the serialized object
+     */
+    T read(InputStream inputStream);
 }
