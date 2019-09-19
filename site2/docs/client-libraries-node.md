@@ -51,15 +51,15 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you're using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL will look like something like this:
+If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL will look like something like this:
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
-## Creating a client
+## Create a client
 
-In order to interact with Pulsar, you'll first need a client object. You can create a client instance using a `new` operator and the `Client` method, passing in a client options object (more on configuration [below](#client-configuration)).
+In order to interact with Pulsar, you will first need a client object. You can create a client instance using a `new` operator and the `Client` method, passing in a client options object (more on configuration [below](#client-configuration)).
 
 Here is an example:
 
@@ -121,7 +121,7 @@ Pulsar Node.js producers have the following methods available:
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
 | `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function. | `Promise<null>` |
-| `flush()` | Send message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function. | `Promise<null>` |
+| `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function. | `Promise<null>` |
 | `close()` | Closes the producer and releases all resources allocated to it. If `close()` is called then no more messages will be accepted from the publisher. This method will return Promise object, and when all pending publish requests have been persisted by Pulsar then run executor function. If an error is thrown, no pending writes will be retried. | `Promise<null>` |
 
 ### Producer configuration
@@ -129,7 +129,7 @@ Pulsar Node.js producers have the following methods available:
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
 | `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer will publish messages. | |
-| `producerName` | A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name.  If you choose to explicitly assign a name, it will need to be unique across *all* Pulsar clusters, otherwise the creation operation will throw an error. | |
+| `producerName` | A name for the producer. If you do not explicitly assign a name, Pulsar will automatically generate a globally unique name.  If you choose to explicitly assign a name, it will need to be unique across *all* Pulsar clusters, otherwise the creation operation will throw an error. | |
 | `sendTimeoutMs` | When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set `sendTimeoutMs` to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication.md) feature. | 30000 |
 | `initialSequenceId` | The initial sequence ID of the message. When producer send message, add sequence ID to message. The ID is increased each time to send. | |
 | `maxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the [broker](reference-terminology.md#broker)). By default, when the queue is full all calls to the `send` method will fail *unless* `blockIfQueueFull` is set to `true`. | 1000 |
@@ -143,9 +143,9 @@ Pulsar Node.js producers have the following methods available:
 | `batchingMaxMessages` | The maximum size of sending message in each time of batching. | 1000 |
 | `properties` | The metadata of producer. | |
 
-### Produce example
+### Producer example
 
-This creates a Node.js producer for the `my-topic` topic and send 10 messages on that topic:
+This example creates a Node.js producer for the `my-topic` topic and sends 10 messages to that topic:
 
 ```JavaScript
 const Pulsar = require('pulsar-client');
@@ -226,9 +226,9 @@ Pulsar Node.js consumers have the following methods available:
 | `consumerName` | The name of consumer. Currently(v2.4.1), [failover](concepts-messaging.md#failover) mode use consumer name in ordering. | |
 | `properties` | The metadata of consumer. | |
 
-### Consume example
+### Consumer example
 
-This creates a Node.js consumer with the `my-subscription` subscription on the `my-topic` topic, receive messages, print the content that arrive, and acknowledge each message to the Pulsar broker for 10 times:
+This example creates a Node.js consumer with the `my-subscription` subscription on the `my-topic` topic, receives messages, prints the content that arrive, and acknowledges each message to the Pulsar broker for 10 times:
 
 ```JavaScript
 const Pulsar = require('pulsar-client');
@@ -260,7 +260,7 @@ const Pulsar = require('pulsar-client');
 
 ## Readers
 
-Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can [configure](#reader-configuration) Node.js readers using a reader configuration object.
+Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recently unacked message). You can [configure](#reader-configuration) Node.js readers using a reader configuration object.
 
 Here is an example:
 
@@ -292,14 +292,14 @@ Pulsar Node.js readers have the following methods available:
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
 | `topic` | The Pulsar [topic](reference-terminology.md#topic) on which the reader will establish a subscription and listen for messages. | |
-| `startMessageId` | The initial reader position, i.e. the message at which the reader begins processing messages. The options are `Pulsar.MessageId.earliest` (the earliest available message on the topic), `Pulsar.MessageId.latest` (the latest available message on the topic), or a message ID object for a position that isn't earliest or latest. | |
+| `startMessageId` | The initial reader position, i.e. the message at which the reader begins processing messages. The options are `Pulsar.MessageId.earliest` (the earliest available message on the topic), `Pulsar.MessageId.latest` (the latest available message on the topic), or a message ID object for a position that is not earliest or latest. | |
 | `receiverQueueSize` | Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls `readNext`. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization. | 1000 |
 | `readerName` | The name of the reader. |  |
 | `subscriptionRolePrefix` | The subscription role prefix. | |
 
 ### Reader example
 
-This create a Node.js reader with the `my-topic` topic, read messages, print the content that arrive for 10 times:
+This example creates a Node.js reader with the `my-topic` topic, reads messages, and prints the content that arrive for 10 times:
 
 ```JavaScript
 const Pulsar = require('pulsar-client');
@@ -389,9 +389,9 @@ The message id object have the following methods available:
 | `serialize()` | Serialize the message id into a Buffer for storing. | `Buffer` |
 | `toString()` | Get message id as String. | `String` |
 
-The client have static method of message id object. You can access it as `Pulsar.MessageId.someStaticMethod` too.
+The client has static method of message id object. You can access it as `Pulsar.MessageId.someStaticMethod` too.
 
-The message id object have the following static methods available:
+The following static methods are available for the message id object:
 
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
