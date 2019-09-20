@@ -108,9 +108,9 @@ public interface Consumer<T> extends Closeable {
     Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     /**
-     * Batch receiving messages
-     * <p>
-     * This calls blocks until has enough messages or wait timeout, more details to see {@link BatchReceivePolicy}
+     * Batch receiving messages.
+     *
+     * <p>This calls blocks until has enough messages or wait timeout, more details to see {@link BatchReceivePolicy}.
      *
      * @return messages
      * @since 2.4.1
@@ -119,14 +119,14 @@ public interface Consumer<T> extends Closeable {
     Messages<T> batchReceive() throws PulsarClientException;
 
     /**
-     * Batch receiving messages
+     * Batch receiving messages.
      * <p>
      * Retrieves messages when has enough messages or wait timeout and
      * completes {@link CompletableFuture} with received messages.
      * </p>
      * <p>
-     * {@code batchReceiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete with
-     * received messages. Else it creates <i> backlog of receive requests </i> in the application.
+     * {@code batchReceiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
+     * with received messages. Else it creates <i> backlog of receive requests </i> in the application.
      * </p>
      * @return messages
      * @since 2.4.1
@@ -135,7 +135,7 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Messages<T>> batchReceiveAsync();
 
     /**
-     * Acknowledge the consumption of a single message
+     * Acknowledge the consumption of a single message.
      *
      * @param message
      *            The {@code Message} to be acknowledged
@@ -155,7 +155,7 @@ public interface Consumer<T> extends Closeable {
     void acknowledge(MessageId messageId) throws PulsarClientException;
 
     /**
-     * Acknowledge the consumption of {@link Messages}
+     * Acknowledge the consumption of {@link Messages}.
      *
      * @param messages messages
      * @throws PulsarClientException.AlreadyClosedException
@@ -214,16 +214,15 @@ public interface Consumer<T> extends Closeable {
     void negativeAcknowledge(MessageId messageId);
 
     /**
-     * Acknowledge the failure to process {@link Messages}
-     * <p>
-     * When messages is "negatively acked" it will be marked for redelivery after
+     * Acknowledge the failure to process {@link Messages}.
+     *
+     * <p>When messages is "negatively acked" it will be marked for redelivery after
      * some fixed delay. The delay is configurable when constructing the consumer
      * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
-     * <p>
-     * This call is not blocking.
      *
-     * <p>
-     * Example of usage:
+     * <p>This call is not blocking.
+     *
+     * <p>Example of usage:
      * <pre><code>
      * while (true) {
      *     Messages&lt;String&gt; msgs = consumer.batchReceive();
@@ -239,7 +238,7 @@ public interface Consumer<T> extends Closeable {
      * }
      * </code></pre>
      *
-     * @param message
+     * @param messages
      *            The {@code Message} to be acknowledged
      */
     void negativeAcknowledge(Messages<?> messages);
@@ -297,7 +296,7 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> acknowledgeAsync(MessageId messageId);
 
     /**
-     * Asynchronously acknowledge the consumption of {@link Messages}
+     * Asynchronously acknowledge the consumption of {@link Messages}.
      *
      * @param messages
      *            The {@link Messages} to be acknowledged

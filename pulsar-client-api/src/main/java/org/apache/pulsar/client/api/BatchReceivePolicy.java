@@ -23,21 +23,19 @@ import java.util.concurrent.TimeUnit;
 /**
  * Configuration for message batch receive {@link Consumer#batchReceive()} {@link Consumer#batchReceiveAsync()}.
  *
- * Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a timeout
+ * <p>Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a timeout
  * for waiting for enough messages for this batch.
  *
- * This batch receive will be completed as long as any one of the
+ * <p>This batch receive will be completed as long as any one of the
  * conditions(has enough number of messages, has enough of size of messages, wait timeout) is met.
  *
- * Examples:
- *
+ * <p>Examples:
  * 1.If set maxNumMessages = 10, maxSizeOfMessages = 1MB and without timeout, it
  * means {@link Consumer#batchReceive()} will always wait until there is enough messages.
- *
  * 2.If set maxNumberOfMessages = 0, maxNumBytes = 0 and timeout = 100ms, it
  * means {@link Consumer#batchReceive()} will waiting for 100ms whether or not there is enough messages.
  *
- * Note:
+ * <p>Note:
  * Must specify messages limitation(maxNumMessages, maxNumBytes) or wait timeout.
  * Otherwise, {@link Messages} ingest {@link Message} will never end.
  *
@@ -46,11 +44,11 @@ import java.util.concurrent.TimeUnit;
 public class BatchReceivePolicy {
 
     /**
-     * Default batch receive policy
+     * Default batch receive policy.
      *
-     * Max number of messages: 100
+     * <p>Max number of messages: 100
      * Max number of bytes: 10MB
-     * Timeout: 100ms
+     * Timeout: 100ms<p/>
      */
     public static final BatchReceivePolicy DEFAULT_POLICY = new BatchReceivePolicy(
             -1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS);
@@ -80,8 +78,8 @@ public class BatchReceivePolicy {
 
     public void verify() {
         if (maxNumMessages <= 0 && maxNumBytes <= 0 && timeout <= 0) {
-            throw new IllegalArgumentException("At least " +
-                    "one of maxNumMessages, maxNumBytes, timeout must be specified.");
+            throw new IllegalArgumentException("At least "
+                    + "one of maxNumMessages, maxNumBytes, timeout must be specified.");
         }
         if (timeout > 0 && timeoutUnit == null) {
             throw new IllegalArgumentException("Must set timeout unit for timeout.");
@@ -100,6 +98,9 @@ public class BatchReceivePolicy {
         return maxNumBytes;
     }
 
+    /**
+     * Builder of BatchReceivePolicy.
+     */
     public static class Builder {
 
         private int maxNumMessages;
@@ -134,11 +135,11 @@ public class BatchReceivePolicy {
 
     @Override
     public String toString() {
-        return "BatchReceivePolicy{" +
-                "maxNumMessages=" + maxNumMessages +
-                ", maxNumBytes=" + maxNumBytes +
-                ", timeout=" + timeout +
-                ", timeoutUnit=" + timeoutUnit +
-                '}';
+        return "BatchReceivePolicy{"
+                + "maxNumMessages=" + maxNumMessages
+                + ", maxNumBytes=" + maxNumBytes
+                + ", timeout=" + timeout
+                + ", timeoutUnit=" + timeoutUnit
+                + '}';
     }
 }

@@ -548,7 +548,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Set batch receive policy {@link BatchReceivePolicy} for consumer.
      * By default, consumer will use {@link BatchReceivePolicy#DEFAULT_POLICY} as batch receive policy.
      *
-     * Example:
+     * <p>Example:
      * <pre>
      * client.newConsumer().batchReceivePolicy(BatchReceivePolicy.builder()
      *              .maxNumberOfMessages(100)
