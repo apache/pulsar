@@ -341,10 +341,9 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                 SchemaCompatibilityStrategy.FULL,
                     true
             ).get();
-
         Consumer<AvroEncodedPojo> consumer = pulsarClient
             .newConsumer(AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
-                    withPojo(AvroEncodedPojo.class).build()))
+                    withPojo(AvroEncodedPojo.class).withAlwaysAllowNull(false).build()))
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();

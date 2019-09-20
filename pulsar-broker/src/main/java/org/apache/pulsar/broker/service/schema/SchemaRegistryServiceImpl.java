@@ -245,27 +245,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                               SchemaCompatibilityStrategy strategy) {
         return getSchema(schemaId).thenCompose(existingSchema -> {
             if (existingSchema != null && !existingSchema.schema.isDeleted()) {
-                CompletableFuture<Void> result = new CompletableFuture<>();
                     if (strategy == SchemaCompatibilityStrategy.BACKWARD ||
                             strategy == SchemaCompatibilityStrategy.FORWARD ||
                             strategy == SchemaCompatibilityStrategy.FORWARD_TRANSITIVE ||
                             strategy == SchemaCompatibilityStrategy.FULL) {
-                        checkCompatibilityWithLatest(schemaId, schemaData, SchemaCompatibilityStrategy.BACKWARD).whenComplete((v, ex) -> {
-                            if (ex != null) {
-                                result.completeExceptionally(ex);
-                            }
-                        });
+                        return checkCompatibilityWithLatest(schemaId, schemaData, SchemaCompatibilityStrategy.BACKWARD);
                     } else {
-                        checkCompatibilityWithAll(schemaId, schemaData, strategy).whenComplete((v, ex) -> {
-                           if (ex != null) {
-                               result.completeExceptionally(ex);
-                           }
-                        });
+                        return checkCompatibilityWithAll(schemaId, schemaData, strategy);
                     }
-                if (!result.isCompletedExceptionally()) {
-                    result.complete(null);
-                }
-                return result;
             } else {
                 return FutureUtil.failedFuture(
                         new IncompatibleSchemaException(
