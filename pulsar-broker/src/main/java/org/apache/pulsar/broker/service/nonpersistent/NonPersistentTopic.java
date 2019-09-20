@@ -929,8 +929,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     if (hasSchema || isActive() || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
                         return isSchemaCompatible(schema);
                     } else {
-                        addSchema(schema);
-                        return CompletableFuture.completedFuture(null);
+                        return addSchema(schema).thenCompose(schemaVersion->
+                                CompletableFuture.completedFuture(null));
                     }
                 });
     }

@@ -1863,8 +1863,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (hasSchema || isActive() || ledger.getTotalSize() != 0) {
                         return isSchemaCompatible(schema);
                     } else {
-                        addSchema(schema);
-                        return CompletableFuture.completedFuture(null);
+                        return addSchema(schema).thenCompose(schemaVersion ->
+                                CompletableFuture.completedFuture(null));
                     }
                 });
     }
