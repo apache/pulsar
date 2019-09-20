@@ -34,7 +34,6 @@ import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -49,10 +48,8 @@ import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public class SimpleSchemaTest extends ProducerConsumerBase {
@@ -329,17 +326,15 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         int total = 20;
         int batch = 5;
         int incompatible = 3;
-        List<Future<MessageId>> waiters = new ArrayList<>();
         for (int i = 0; i < total; ++i) {
-            Future<MessageId> future;
             if (i / batch % 2 == 0) {
                 byte[] content = v1DataAvroWriter.write(new V1Data(i));
-                future = ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
-                                                  .value(content).sendAsync();
+                ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
+                                         .value(content).sendAsync();
             } else {
                 byte[] content = v2DataAvroWriter.write(new V2Data(i, i + total));
-                future = ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V2Data.class)))
-                                                  .value(content).sendAsync();
+                ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V2Data.class)))
+                                         .value(content).sendAsync();
             }
             if ((i + 1) % incompatible == 0) {
                 byte[] content = incompatibleDataAvroWriter.write(new IncompatibleData(-i, -i));
@@ -347,28 +342,11 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                     ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(IncompatibleData.class)))
                                              .value(content).send();
                 } catch (Exception e) {
-                    Assert.assertTrue(e instanceof IncompatibleSchemaException);
+                    Assert.assertTrue(e instanceof IncompatibleSchemaException, e.getMessage());
                 }
             }
-            waiters.add(future);
         }
         p.flush();
-        BatchMessageIdImpl prev = null;
-        for (int i = 0; i < total; ++i) {
-            MessageId messageId = waiters.get(i).get();
-            Assert.assertTrue(messageId instanceof BatchMessageIdImpl);
-            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-            if (i % batch != 0) {
-                BatchMessageIdImpl expect = new BatchMessageIdImpl(prev.getLedgerId(),
-                                                                   prev.getEntryId(),
-                                                                   prev.getPartitionIndex(),
-                                                                   prev.getBatchIndex() + 1);
-                Assert.assertEquals(batchMessageId, expect);
-            } else if (i != 0) {
-                Assert.assertNotEquals(batchMessageId.getEntryId(), prev.getEntryId());
-            }
-            prev = (BatchMessageIdImpl) messageId;
-        }
         for (int i = 0; i < total; ++i) {
             V2Data value = c.receive().getValue();
             if (i / batch % 2 == 0) {

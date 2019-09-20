@@ -19,9 +19,12 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.lang.String.format;
+import static org.apache.pulsar.client.impl.MessageImpl.SchemaState.Broken;
+import static org.apache.pulsar.client.impl.MessageImpl.SchemaState.None;
 import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Auto;
 import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Enabled;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
@@ -37,9 +40,9 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,7 +51,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -354,7 +356,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
-        if (!fillMessageSchema(msgMetadataBuilder, msg.getSchema(), callback)) {
+        if (!populateMessageSchema(msg, callback)) {
             compressedPayload.release();
             return;
         }
@@ -381,8 +383,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                     msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
-
-                if (isBatchMessagingEnabled() && !msgMetadataBuilder.hasDeliverAtTime()) {
+                if (canAddToBatch(msg)) {
                     // handle boundary cases where message being added would exceed
                     // batch size and/or max message size
                     if (canAddToCurrentBatch(msg)) {
@@ -398,46 +399,33 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                 } else {
                     ByteBuf encryptedPayload = encryptMessage(msgMetadataBuilder, compressedPayload);
-
-                    MessageMetadata msgMetadata = msgMetadataBuilder.build();
-
                     // When publishing during replication, we need to set the correct number of message in batch
                     // This is only used in tracking the publish rate stats
                     int numMessages = msg.getMessageBuilder().hasNumMessagesInBatch()
                             ? msg.getMessageBuilder().getNumMessagesInBatch()
                             : 1;
-                    ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, msgMetadata, encryptedPayload);
-                    msgMetadataBuilder.recycle();
-                    msgMetadata.recycle();
-
-                    final OpSendMsg op = OpSendMsg.create(msg, cmd, sequenceId, callback);
+                    final OpSendMsg op;
+                    if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
+                        MessageMetadata msgMetadata = msgMetadataBuilder.build();
+                        ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, msgMetadata, encryptedPayload);
+                        op = OpSendMsg.create(msg, cmd, sequenceId, callback);
+                        msgMetadataBuilder.recycle();
+                        msgMetadata.recycle();
+                    } else {
+                        op = OpSendMsg.create(msg, null, sequenceId, callback);
+                        op.rePopulate = () -> {
+                            MessageMetadata msgMetadata = msgMetadataBuilder.build();
+                            op.cmd = sendMessage(producerId, sequenceId, numMessages, msgMetadata, encryptedPayload);
+                            msgMetadataBuilder.recycle();
+                            msgMetadata.recycle();
+                        };
+                    }
                     op.setNumMessagesInBatch(numMessages);
                     op.setBatchSizeByte(encryptedPayload.readableBytes());
-                    pendingMessages.put(op);
                     lastSendFuture = callback.getFuture();
-
-                    // Read the connection before validating if it's still connected, so that we avoid reading a null
-                    // value
-                    ClientCnx cnx = cnx();
-                    if (isConnected()) {
-                        // If we do have a connection, the message is sent immediately, otherwise we'll try again once a
-                        // new
-                        // connection is established
-                        cmd.retain();
-                        cnx.ctx().channel().eventLoop().execute(WriteInEventLoopCallback.create(this, cnx, op));
-                        stats.updateNumMsgsSent(op.numMessagesInBatch, op.batchSizeByte);
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] Connection is not ready -- sequenceId {}", topic, producerName,
-                                    sequenceId);
-                        }
-                    }
+                    processOpSendMsg(op);
                 }
             }
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            semaphore.release();
-            callback.sendComplete(new PulsarClientException(ie));
         } catch (PulsarClientException e) {
             semaphore.release();
             callback.sendComplete(e);
@@ -447,11 +435,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private boolean fillMessageSchema(MessageMetadata.Builder msgMetadataBuilder,
-                                      Schema msgSchema,
-                                      SendCallback callback) {
-        if (msgSchema == schema) {
+    private boolean populateMessageSchema(MessageImpl msg, SendCallback callback) {
+        MessageMetadata.Builder msgMetadataBuilder = msg.getMessageBuilder();
+        if (msg.getSchema() == schema) {
             schemaVersion.ifPresent(v -> msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(v)));
+            msg.setSchemaState(MessageImpl.SchemaState.Ready);
             return true;
         }
         if (!isMultiSchemaEnabled(true)) {
@@ -459,85 +447,69 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     "Multiple schema disabled"));
             return false;
         }
-        byte[] schemaVersion;
-        try {
-            schemaVersion = schemaCache.computeIfAbsent(
-                    SchemaHash.of(msgSchema), (hash) -> {
-                        SchemaInfo schemaInfo = Optional.ofNullable(msgSchema)
-                                                        .map(Schema::getSchemaInfo)
-                                                        .filter(si -> si.getType().getValue() > 0)
-                                                        .orElse(Schema.BYTES.getSchemaInfo());
-                        try {
-                            return getOrCreateSchemaAsync(schemaInfo).get();
-                        } catch (Throwable t) {
-                            log.warn("[{}][{}] GetOrCreateSchema error", topic, producerName, t);
-                            callback.sendComplete(PulsarClientException.unwrap(t));
-                            throw new RuntimeException(t);
-                        }
-                    });
-        } catch (RuntimeException e) {
-            return false;
+        SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
+        byte[] schemaVersion = schemaCache.get(schemaHash);
+        if (schemaVersion != null) {
+            msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion));
+            msg.setSchemaState(MessageImpl.SchemaState.Ready);
         }
-        msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion));
         return true;
     }
 
-    private CompletableFuture<byte[]> getOrCreateSchemaAsync(SchemaInfo schemaInfo) {
-        if (getState() == State.Closing || getState() == State.Closed) {
-            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException(
-                    "Producer was already closed"));
+    private boolean rePopulateMessageSchema(MessageImpl msg) {
+        SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
+        byte[] schemaVersion = schemaCache.get(schemaHash);
+        if (schemaVersion == null) {
+            return false;
         }
-
-        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
-        Backoff backoff = new BackoffBuilder()
-                .setInitialTime(100, TimeUnit.MILLISECONDS)
-                .setMax(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                .useUserConfiguredIntervals(
-                        client.getConfiguration().getDefaultBackoffIntervalNanos(),
-                        client.getConfiguration().getMaxBackoffIntervalNanos())
-                .create();
-        CompletableFuture<byte[]> future = new CompletableFuture<>();
-        doGetOrCreateSchemaAsync(backoff, opTimeoutMs, schemaInfo, future);
-        return future;
+        msg.getMessageBuilder().setSchemaVersion(ByteString.copyFrom(schemaVersion));
+        msg.setSchemaState(MessageImpl.SchemaState.Ready);
+        return true;
     }
 
-    private void doGetOrCreateSchemaAsync(Backoff backoff,
-                                          AtomicLong remainingTime,
-                                          SchemaInfo schemaInfo,
-                                          CompletableFuture<byte[]> future) {
-        ClientCnx cnx = cnx();
-        if (cnx != null && isConnected()) {
-            if (!Commands.peerSupportsGetOrCreateSchema(cnx.getRemoteEndpointProtocolVersion())) {
-                future.completeExceptionally(
-                        new PulsarClientException.NotSupportedException(
-                                "GetOrCreateSchema Not supported for ProtocolVersion: " +
-                                cnx.getRemoteEndpointProtocolVersion()));
-                return;
-            }
-            long requestId = client.newRequestId();
-            ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, schemaInfo);
-            log.info("[{}][{}] GetOrCreateSchema request", topic, producerName);
-            cnx.sendGetOrCreateSchema(request, requestId).thenAccept((version) -> {
-                log.info("[{}][{}] GetOrCreateSchema request succeed", topic, producerName);
-                future.complete(version);
-            }).exceptionally(e -> {
-                log.error("[{}][{}] GetOrCreateSchema request failed", topic, producerName);
-                future.completeExceptionally(e.getCause());
-                return null;
-            });
-        } else {
-            long nextDelay = Math.min(backoff.next(), remainingTime.get());
-            if (nextDelay <= 0) {
-                future.completeExceptionally(new PulsarClientException.TimeoutException(
-                        "Could not GetOrCreateSchema within configured timeout."));
-            }
-            client.timer().newTimeout(timeout -> {
-                log.info("[{}][{}] GetOrCreateSchema request retry", topic, producerName);
-                remainingTime.addAndGet(-nextDelay);
-                doGetOrCreateSchemaAsync(backoff, remainingTime, schemaInfo, future);
-            }, nextDelay, TimeUnit.MILLISECONDS);
+    private void tryRegisterSchema(ClientCnx cnx, MessageImpl msg, SendCallback callback) {
+        if (!changeToRegisteringSchemaState()) {
+            return;
         }
+        SchemaInfo schemaInfo = Optional.ofNullable(msg.getSchema())
+                                        .map(Schema::getSchemaInfo)
+                                        .filter(si -> si.getType().getValue() > 0)
+                                        .orElse(Schema.BYTES.getSchemaInfo());
+        getOrCreateSchemaAsync(cnx, schemaInfo).handle((v, ex) -> {
+            if (ex != null) {
+                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                log.warn("[{}] [{}] GetOrCreateSchema error", topic, producerName, t);
+                if (t instanceof PulsarClientException.IncompatibleSchemaException) {
+                    msg.setSchemaState(MessageImpl.SchemaState.Broken);
+                    callback.sendComplete((PulsarClientException.IncompatibleSchemaException) t);
+                }
+            } else {
+                log.warn("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
+                SchemaHash schemaHash = SchemaHash.of(msg.getSchema());
+                schemaCache.putIfAbsent(schemaHash, v);
+                msg.getMessageBuilder().setSchemaVersion(ByteString.copyFrom(v));
+                msg.setSchemaState(MessageImpl.SchemaState.Ready);
+            }
+            cnx.ctx().channel().eventLoop().execute(() -> {
+                synchronized (ProducerImpl.this) {
+                    recoverProcessOpSendMsgFrom(cnx, msg);
+                }
+            });
+            return null;
+        });
+    }
+
+    private CompletableFuture<byte[]> getOrCreateSchemaAsync(ClientCnx cnx, SchemaInfo schemaInfo) {
+        if (!Commands.peerSupportsGetOrCreateSchema(cnx.getRemoteEndpointProtocolVersion())) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.NotSupportedException(
+                            "GetOrCreateSchema Not supported for ProtocolVersion: " +
+                            cnx.getRemoteEndpointProtocolVersion()));
+        }
+        long requestId = client.newRequestId();
+        ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, schemaInfo);
+        log.info("[{}] [{}] GetOrCreateSchema request", topic, producerName);
+        return cnx.sendGetOrCreateSchema(request, requestId);
     }
 
     protected ByteBuf encryptMessage(MessageMetadata.Builder msgMetadata, ByteBuf compressedPayload)
@@ -563,7 +535,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
-            ByteBuf compressedPayload) throws IOException {
+            ByteBuf compressedPayload) {
         ChecksumType checksumType;
 
         if (connectionHandler.getClientCnx() == null
@@ -573,6 +545,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             checksumType = ChecksumType.None;
         }
         return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
+    }
+
+    private boolean canAddToBatch(MessageImpl<T> msg) {
+        return msg.getSchemaState() == MessageImpl.SchemaState.Ready
+                && isBatchMessagingEnabled() && !msg.getMessageBuilder().hasDeliverAtTime();
     }
 
     private boolean canAddToCurrentBatch(MessageImpl<T> msg) {
@@ -597,6 +574,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // OK
         case Connecting:
             // We are OK to queue the messages on the client, it will be sent to the broker once we get the connection
+        case RegisteringSchema:
+            // registering schema
             return true;
         case Closing:
         case Closed:
@@ -938,6 +917,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         List<MessageImpl<?>> msgs;
         ByteBufPair cmd;
         SendCallback callback;
+        Runnable rePopulate;
         long sequenceId;
         long createdAt;
         long batchSizeByte = 0;
@@ -968,6 +948,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             msgs = null;
             cmd = null;
             callback = null;
+            rePopulate = null;
             sequenceId = -1;
             createdAt = -1;
             recyclerHandle.recycle(this);
@@ -1173,29 +1154,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
 
                 log.info("[{}] [{}] Re-Sending {} messages to server", topic, producerName, messagesToResend);
-
-                final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
-                for (OpSendMsg op : pendingMessages) {
-
-                    if (stripChecksum) {
-                        stripChecksum(op);
-                    }
-                    op.cmd.retain();
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Re-Sending message in cnx {}, sequenceId {}", topic, producerName,
-                                cnx.channel(), op.sequenceId);
-                    }
-                    cnx.ctx().write(op.cmd, cnx.ctx().voidPromise());
-                    stats.updateNumMsgsSent(op.numMessagesInBatch, op.batchSizeByte);
-                }
-
-                cnx.ctx().flush();
-                if (!changeToReadyState()) {
-                    // Producer was closed while reconnecting, close the connection to make sure the broker
-                    // drops the producer on its side
-                    cnx.channel().close();
-                    return;
-                }
+                recoverProcessOpSendMsgFrom(cnx, null);
             }
         });
     }
@@ -1405,16 +1364,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         if (!batchMessageContainer.isEmpty()) {
             try {
+                List<OpSendMsg> opSendMsgs;
                 if (batchMessageContainer.isMultiBatches()) {
-                    List<OpSendMsg> opSendMsgs = batchMessageContainer.createOpSendMsgs();
-                    for (OpSendMsg opSendMsg : opSendMsgs) {
-                        processOpSendMsg(opSendMsg);
-                    }
+                    opSendMsgs = batchMessageContainer.createOpSendMsgs();
                 } else {
-                    OpSendMsg opSendMsg = batchMessageContainer.createOpSendMsg();
-                    if (opSendMsg != null) {
-                        processOpSendMsg(opSendMsg);
-                    }
+                    opSendMsgs = Collections.singletonList(batchMessageContainer.createOpSendMsg());
+                }
+                batchMessageContainer.clear();
+                for (OpSendMsg opSendMsg : opSendMsgs) {
+                    processOpSendMsg(opSendMsg);
                 }
             } catch (PulsarClientException e) {
                 Thread.currentThread().interrupt();
@@ -1428,10 +1386,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private void processOpSendMsg(OpSendMsg op) {
         try {
-            batchMessageContainer.clear();
+            if (op.msg != null && isBatchMessagingEnabled()) {
+                batchMessageAndSend();
+            }
             pendingMessages.put(op);
             ClientCnx cnx = cnx();
             if (isConnected()) {
+                if (op.msg != null && op.msg.getSchemaState() == None) {
+                    tryRegisterSchema(cnx, op.msg, op.callback);
+                    return;
+                }
                 // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new
                 // connection is established
                 op.cmd.retain();
@@ -1455,6 +1419,58 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException(t));
             }
+        }
+    }
+
+    private void recoverProcessOpSendMsgFrom(ClientCnx cnx, MessageImpl from) {
+        final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
+        Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
+        OpSendMsg pendingRegisteringOp = null;
+        while (msgIterator.hasNext()) {
+            OpSendMsg op = msgIterator.next();
+            if (from != null) {
+                if (op.msg == from) {
+                    from = null;
+                } else {
+                    continue;
+                }
+            }
+            if (op.msg != null) {
+                if (op.msg.getSchemaState() == None) {
+                    if (!rePopulateMessageSchema(op.msg)) {
+                        pendingRegisteringOp = op;
+                        break;
+                    }
+                } else if (op.msg.getSchemaState() == Broken) {
+                    op.recycle();
+                    msgIterator.remove();
+                    continue;
+                }
+            }
+            if (op.cmd == null) {
+                checkState(op.rePopulate != null);
+                op.rePopulate.run();
+            }
+            if (stripChecksum) {
+                stripChecksum(op);
+            }
+            op.cmd.retain();
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Re-Sending message in cnx {}, sequenceId {}", topic, producerName,
+                          cnx.channel(), op.sequenceId);
+            }
+            cnx.ctx().write(op.cmd, cnx.ctx().voidPromise());
+            stats.updateNumMsgsSent(op.numMessagesInBatch, op.batchSizeByte);
+        }
+        cnx.ctx().flush();
+        if (!changeToReadyState()) {
+            // Producer was closed while reconnecting, close the connection to make sure the broker
+            // drops the producer on its side
+            cnx.channel().close();
+            return;
+        }
+        if (pendingRegisteringOp != null) {
+            tryRegisterSchema(cnx, pendingRegisteringOp.msg, pendingRegisteringOp.callback);
         }
     }
 
