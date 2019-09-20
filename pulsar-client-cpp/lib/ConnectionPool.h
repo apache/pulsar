@@ -55,6 +55,8 @@ class PULSAR_PUBLIC ConnectionPool {
     Future<Result, ClientConnectionWeakPtr> getConnectionAsync(const std::string& logicalAddress,
                                                                const std::string& physicalAddress);
 
+    void close();
+
    private:
     ClientConfiguration clientConfiguration_;
     ExecutorServiceProviderPtr executorProvider_;

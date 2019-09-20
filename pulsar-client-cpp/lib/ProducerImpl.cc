@@ -88,9 +88,6 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
 
 ProducerImpl::~ProducerImpl() {
     LOG_DEBUG(getName() << "~ProducerImpl");
-    if (dataKeyGenTImer_) {
-        dataKeyGenTImer_->cancel();
-    }
     closeAsync(ResultCallback());
     printStats();
 }
@@ -473,6 +470,8 @@ void ProducerImpl::printStats() {
 void ProducerImpl::closeAsync(CloseCallback callback) {
     Lock lock(mutex_);
 
+    cancelTimers();
+
     if (state_ != Ready) {
         lock.unlock();
         if (callback) {
@@ -682,10 +681,20 @@ void ProducerImpl::start() { HandlerBase::start(); }
 void ProducerImpl::shutdown() {
     Lock lock(mutex_);
     state_ = Closed;
+    cancelTimers();
+    producerCreatedPromise_.setFailed(ResultAlreadyClosed);
+}
+
+void ProducerImpl::cancelTimers() {
+    if (dataKeyGenTImer_) {
+        dataKeyGenTImer_->cancel();
+        dataKeyGenTImer_.reset();
+    }
+
     if (sendTimer_) {
         sendTimer_->cancel();
+        sendTimer_.reset();
     }
-    producerCreatedPromise_.setFailed(ResultAlreadyClosed);
 }
 
 bool ProducerImplCmp::operator()(const ProducerImplPtr& a, const ProducerImplPtr& b) const {

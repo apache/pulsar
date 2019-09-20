@@ -564,6 +564,7 @@ void ClientImpl::shutdown() {
     ioExecutorProvider_->close();
     listenerExecutorProvider_->close();
     partitionListenerExecutorProvider_->close();
+    pool_.close();
 }
 
 uint64_t ClientImpl::newProducerId() {

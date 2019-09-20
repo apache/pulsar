@@ -1338,11 +1338,14 @@ void ClientConnection::close() {
 
     if (keepAliveTimer_) {
         keepAliveTimer_->cancel();
+        keepAliveTimer_.reset();
     }
 
     if (consumerStatsRequestTimer_) {
         consumerStatsRequestTimer_->cancel();
+        consumerStatsRequestTimer_.reset();
     }
+
     for (ProducersMap::iterator it = producers.begin(); it != producers.end(); ++it) {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
@@ -1381,6 +1384,10 @@ void ClientConnection::close() {
 
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
+    }
+
+    if (executor_) {
+        executor_.reset();
     }
 }
 
