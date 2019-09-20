@@ -326,7 +326,7 @@ The Apache Software License, Version 2.0
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
  * Guava
-    - com.google.guava-guava-28.1-jre.jar
+    - com.google.guava-guava-25.1-jre.jar
     - com.google.guava-failureaccess-1.0.1.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.3.jar
