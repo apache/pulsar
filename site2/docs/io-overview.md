@@ -36,12 +36,8 @@ For the complete list of Pulsar built-in sink connectors, see [sink connector](i
 
 ## Processing guarantee
 
-Processing guarantees are used to:
-
-* handle errors when writing messages to Pulsar topics.
+Processing guarantees are used to handle errors when writing messages to Pulsar topics.
   
-* determine the subscription type used by Pulsar when reading messages from Pulsar topics.
-
 > Pulsar connectors and Functions use the **same** processing guarantees as below.
 
 Delivery semantic | Description
