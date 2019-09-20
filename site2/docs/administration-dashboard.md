@@ -8,7 +8,7 @@ The Pulsar dashboard is a web application that enables users to monitor current 
 
 The dashboard is a data collector that polls stats from all the brokers in a Pulsar instance (across multiple clusters) and stores all the information in a [PostgreSQL](https://www.postgresql.org/) database.
 
-You can use a [Django](https://www.djangoproject.com) web app to render the collected data.
+You can use the [Django](https://www.djangoproject.com) web app to render the collected data.
 
 ## Install
 
@@ -21,7 +21,7 @@ $ docker run -p 80:80 \
   apachepulsar/pulsar-dashboard:{{pulsar:version}}
 ```
 
-You can find the {@inject: github:`Dockerfile`:/dashboard/Dockerfile} in `dashboard` directory, you can build a image from scratch also:
+You can find the {@inject: github:`Dockerfile`:/dashboard/Dockerfile} in the `dashboard` directory and build an image from scratch as well:
 
 ```shell
 $ docker build -t apachepulsar/pulsar-dashboard dashboard
