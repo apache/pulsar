@@ -43,7 +43,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
-import org.apache.avro.SchemaValidator;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
@@ -127,7 +126,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 CompletableFuture<Void> isCompatibility = new CompletableFuture<>();
                 if (schemaAndMetadataList.size() != 0) {
                     if (isTransitiveStrategy(strategy)) {
-                        isCompatibility = checkCompatibilityWithAll(schemaId, schema, strategy);
+                        isCompatibility = checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList);
                     } else {
                         isCompatibility = checkCompatibilityWithLatest(schemaId, schema, strategy);
                     }
@@ -183,7 +182,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             case FORWARD_TRANSITIVE:
             case BACKWARD_TRANSITIVE:
             case FULL_TRANSITIVE:
-                return checkCompatibilityWithAll(schemaId, schema, strategy).thenApply(maxDeleteVersion -> null);
+                return checkCompatibilityWithAll(schemaId, schema, strategy);
             default:
                 return checkCompatibilityWithLatest(schemaId, schema, strategy);
         }
@@ -297,18 +296,24 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private CompletableFuture<Void> checkCompatibilityWithAll(String schemaId, SchemaData schema,
                                                                      SchemaCompatibilityStrategy strategy) {
 
-        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList -> {
-            CompletableFuture<Void> result = new CompletableFuture<>();
-            try {
-                compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT).checkCompatible(schemaAndMetadataList
-                        .stream()
-                        .map(schemaAndMetadata -> schemaAndMetadata.schema)
-                        .collect(Collectors.toList()), schema, strategy);
-            } catch (IncompatibleSchemaException e) {
-                result.completeExceptionally(e);
-            }
-            return result;
-        });
+        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
+                checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList));
+    }
+
+    private CompletableFuture<Void> checkCompatibilityWithAll(SchemaData schema,
+                                                              SchemaCompatibilityStrategy strategy,
+                                                              List<SchemaAndMetadata> schemaAndMetadataList) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        try {
+            compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT).checkCompatible(schemaAndMetadataList
+                    .stream()
+                    .map(schemaAndMetadata -> schemaAndMetadata.schema)
+                    .collect(Collectors.toList()), schema, strategy);
+            result.complete(null);
+        } catch (IncompatibleSchemaException e) {
+            result.completeExceptionally(e);
+        }
+        return result;
     }
 
     public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
