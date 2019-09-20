@@ -28,6 +28,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -76,15 +77,31 @@ public class MessageDeduplication {
         Failed,
     }
 
+    enum MessageDupStatus {
+        // whether a message is a definitely a duplicate or not cannot be determined at this time
+        Unknown,
+        // message is definitely NOT a duplicate
+        NotDup,
+        // message is definitely a duplicate
+        Dup,
+    }
+
+    public static class MessageDupUnknownException extends RuntimeException {
+
+    }
+
+
     private volatile Status status;
 
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
-    private final ConcurrentOpenHashMap<String, Long> highestSequencedPushed = new ConcurrentOpenHashMap<>(16, 1);
+    @VisibleForTesting
+    final ConcurrentOpenHashMap<String, Long> highestSequencedPushed = new ConcurrentOpenHashMap<>(16, 1);
 
     // Map that contains the highest sequenceId that have been persistent by each producers. The map will be updated
     // after the messages are persisted
-    private final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted = new ConcurrentOpenHashMap<>(16, 1);
+    @VisibleForTesting
+    final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted = new ConcurrentOpenHashMap<>(16, 1);
 
     // Number of persisted entries after which to store a snapshot of the sequence ids map
     private final int snapshotInterval;
@@ -258,9 +275,9 @@ public class MessageDeduplication {
      *
      * @return true if the message should be published or false if it was recognized as a duplicate
      */
-    public boolean shouldPublishNextMessage(PublishContext publishContext, ByteBuf headersAndPayload) {
+    public MessageDupStatus isDuplicate(PublishContext publishContext, ByteBuf headersAndPayload) {
         if (!isEnabled()) {
-            return true;
+            return MessageDupStatus.NotDup;
         }
 
         String producerName = publishContext.getProducerName();
@@ -287,12 +304,22 @@ public class MessageDeduplication {
                     log.debug("[{}] Message identified as duplicated producer={} seq-id={} -- highest-seq-id={}",
                             topic.getName(), producerName, sequenceId, lastSequenceIdPushed);
                 }
-                return false;
+
+                // Also need to check sequence ids that has been persisted.
+                // If current message's seq id is smaller smaller or equals to the lastSequenceIdPersisted than its definitely a dup
+                // If current message's seq id is between lastSequenceIdPersisted and lastSequenceIdPushed, then we cannot be sure whether the message is a dup or not
+                // we should return an error to the producer for the latter case so that it can retry at a future time
+                Long lastSequenceIdPersisted = highestSequencedPersisted.get(producerName);
+                if (lastSequenceIdPersisted != null && sequenceId <= lastSequenceIdPersisted) {
+                    return MessageDupStatus.Dup;
+                } else {
+                    return MessageDupStatus.Unknown;
+                }
             }
 
             highestSequencedPushed.put(producerName, sequenceId);
         }
-        return true;
+        return MessageDupStatus.NotDup;
     }
 
     /**
