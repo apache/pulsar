@@ -87,7 +87,9 @@ public class MessageDeduplication {
     }
 
     public static class MessageDupUnknownException extends RuntimeException {
-
+        public MessageDupUnknownException() {
+            super("Cannot determine whether the message is a duplicate at this time");
+        }
     }
 
 
