@@ -19,14 +19,16 @@
 package org.apache.pulsar.client.impl.schema;
 
 import java.nio.ByteBuffer;
-import org.apache.pulsar.client.api.Schema;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A bytebuffer schema is effectively a `BYTES` schema.
  */
-public class ByteBufferSchema implements Schema<ByteBuffer> {
+public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
 
     public static ByteBufferSchema of() {
         return INSTANCE;
@@ -65,6 +67,18 @@ public class ByteBufferSchema implements Schema<ByteBuffer> {
             return null;
         } else {
             return ByteBuffer.wrap(data);
+        }
+    }
+
+    @Override
+    public ByteBuffer decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        } else {
+            int size = byteBuf.readableBytes();
+            byte[] bytes = new byte[size];
+            byteBuf.readBytes(bytes);
+            return ByteBuffer.wrap(bytes);
         }
     }
 

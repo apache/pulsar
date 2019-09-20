@@ -70,7 +70,7 @@ public class PulsarWorkerAssignmentTest {
     BrokerStats brokerStatsClient;
     WorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
-    final String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
+    final String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
     String workerId;
 

@@ -148,6 +148,9 @@ public class WorkerService {
             }
             log.info("Created Pulsar client");
 
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
             this.schedulerManager = new SchedulerManager(this.workerConfig, this.client, this.brokerAdmin,
                     this.executor);

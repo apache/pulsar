@@ -1,40 +1,42 @@
 ---
 id: io-overview
-title: Pulsar IO Overview
+title: Pulsar connector overview
 sidebar_label: Overview
 ---
 
-Messaging systems are most powerful when you can easily use them in conjunction with external systems like databases and other messaging systems. **Pulsar IO** is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar **connectors** that interact with external systems, such as [Apache Cassandra](https://cassandra.apache.org), [Aerospike](https://www.aerospike.com), and many others.
+Messaging systems are most powerful when you can easily use them with external systems like databases and other messaging systems. 
 
-> #### Pulsar IO and Pulsar Functions
-> Under the hood, Pulsar IO connectors are specialized [Pulsar Functions](functions-overview.md) purpose-built to interface with external systems. The [administrative interface](io-quickstart.md) for Pulsar IO is, in fact, quite similar to that of Pulsar Functions.
+**Pulsar IO connectors** enable you to easily create, deploy, and manage connectors that interact with external systems, such as [Apache Cassandra](https://cassandra.apache.org), [Aerospike](https://www.aerospike.com), and many others.
 
-## Sources and sinks
 
-Pulsar IO connectors come in two types:
+## Concept
 
-* **Sources** feed data *into* Pulsar from other systems. Common sources include other messaging systems and "firehose"-style data pipeline APIs.
-* **Sinks** are fed data *from* Pulsar. Common sinks include other messaging systems and SQL and NoSQL databases.
+Pulsar IO connectors come in two types: **source** and **sink**.
 
-This diagram illustrates the relationship between sources, sinks, and Pulsar:
+This diagram illustrates the relationship between source, Pulsar, and sink:
 
 ![Pulsar IO diagram](assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
 
-## Working with connectors
 
-Pulsar IO connectors can be managed via the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, in particular the [`source`](reference-pulsar-admin.md#source) and [`sink`](reference-pulsar-admin.md#sink) commands.
+### Source
 
-> For a guide to managing connectors in your Pulsar installation, see the [Getting started with Pulsar IO](io-quickstart.md)
+> Sources **feed data from external systems into Pulsar**. 
 
-The following connectors are currently available for Pulsar:
+Common sources include other messaging systems and firehose-style data pipeline APIs.
 
-|Name|Java Class|Documentation|
-|---|---|---|
-|[Aerospike sink](https://www.aerospike.com/)|[`org.apache.pulsar.io.aerospike.AerospikeSink`](https://github.com/apache/pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/io/aerospike/AerospikeStringSink.java)|[Documentation](io-aerospike.md)|
-|[Cassandra sink](https://cassandra.apache.org)|[`org.apache.pulsar.io.cassandra.CassandraSink`](https://github.com/apache/pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/io/cassandra/CassandraStringSink.java)|[Documentation](io-cassandra.md)|
-|[Kafka source](https://kafka.apache.org)|[`org.apache.pulsar.io.kafka.KafkaSource`](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaStringSource.java)|[Documentation](io-kafka.md#source)|
-|[Kafka sink](https://kafka.apache.org)|[`org.apache.pulsar.io.kafka.KafkaSink`](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaStringSink.java)|[Documentation](io-kafka.md#sink)|
-|[Kinesis sink](https://aws.amazon.com/kinesis/)|[`org.apache.pulsar.io.kinesis.KinesisSink`](https://github.com/apache/pulsar/blob/master/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/KinesisSink.java)|[Documentation](io-kinesis.md#sink)|
-|[RabbitMQ source](https://www.rabbitmq.com)|[`org.apache.pulsar.io.rabbitmq.RabbitMQSource`](https://github.com/apache/pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/io/rabbitmq/RabbitMQSource.java)|[Documentation](io-rabbitmq.md#sink)|
-|[Twitter Firehose source](https://developer.twitter.com/en/docs)|[`org.apache.pulsar.io.twitter.TwitterFireHose`](https://github.com/apache/pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/io/twitter/TwitterFireHose.java)|[Documentation](io-twitter.md#source)|
-|[CDC Connector](https://debezium.io/)|[`org.apache.pulsar.io.kafka.connect.KafkaConnectSource`](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka-connect-adaptor/src/main/java/org/apache/pulsar/io/kafka/connect/KafkaConnectSource.java)|[Documentation](io-cdc.md)|
+For the complete list of Pulsar built-in source connectors, see [source connector](io-connectors.md#source-connector).
+
+### Sink
+
+> Sinks **feed data from Pulsar into external systems**. 
+
+Common sinks include other messaging systems and SQL and NoSQL databases.
+
+For the complete list of Pulsar built-in sink connectors, see [sink connector](io-connectors.md#sink-connector).
+
+## Work with connector
+
+You can manage Pulsar connectors (for example, create, update, start, stop, restart, reload, delete and perform other operations on connectors) via the [Connector CLI](reference-connector-admin.md) with [sources](reference-connector-admin.md#sources) and [sinks](reference-connector-admin.md#sinks) subcommands.
+
+Connectors (sources and sinks) and Functions are components of instances, and they all run on Functions workers. When managing a source, sink or function via **Pulsar admin CLI** (that is, [Connector CLI](reference-connector-admin.md) and [Functions CLI](functions-cli.md)), an instance is started on a worker. For more information, see [Functions worker](functions-worker.md#run-functions-worker-separately).
+
