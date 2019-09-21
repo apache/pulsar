@@ -26,7 +26,7 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 - [Twitter firehose source connector](io-twitter.md)
 
-- [Kafka source connector](io-kafka.md)
+- [Kafka source connector](io-kafka-source.md)
 
 - [Kafka-connect-adaptor source connector](io-kafka-connect.md)
 
@@ -58,7 +58,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 - [JDBC sink connector](io-jdbc.md)
 
-- [Kafka sink connector](io-kafka.md)
+- [Kafka sink connector](io-kafka-sink.md)
 
 - [MongoDB sink connector](io-mongo.md)
 
