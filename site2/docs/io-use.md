@@ -4,6 +4,9 @@ title: How to use Pulsar connectors
 sidebar_label: Use
 ---
 
+
+blah
+
 This guide describes how to use Pulsar connectors.
 
 ## Install a connector
