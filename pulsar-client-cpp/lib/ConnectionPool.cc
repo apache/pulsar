@@ -42,6 +42,22 @@ ConnectionPool::ConnectionPool(const ClientConfiguration& conf, ExecutorServiceP
       poolConnections_(poolConnections),
       mutex_() {}
 
+ConnectionPool::~ConnectionPool() {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    if (poolConnections_) {
+        for (auto cnxIt = pool_.begin(); cnxIt != pool_.end(); cnxIt++) {
+            ClientConnectionPtr cnx = cnxIt->second.lock();
+            if (cnx && !cnx->isClosed()) {
+                cnx->close();
+            }
+        }
+        pool_.clear();
+    }
+
+    lock.unlock();
+}
+
 Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     const std::string& logicalAddress, const std::string& physicalAddress) {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -78,22 +94,6 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
 
     cnx->tcpConnectAsync();
     return future;
-}
-
-void ConnectionPool::close() {
-    std::unique_lock<std::mutex> lock(mutex_);
-
-    if (poolConnections_) {
-        for (auto cnxIt = pool_.begin(); cnxIt != pool_.end(); cnxIt++) {
-            ClientConnectionPtr cnx = cnxIt->second.lock();
-            if (cnx && !cnx->isClosed()) {
-                cnx->close();
-            }
-        }
-        pool_.clear();
-    }
-
-    lock.unlock();
 }
 
 }  // namespace pulsar

@@ -36,6 +36,8 @@ class PULSAR_PUBLIC ConnectionPool {
     ConnectionPool(const ClientConfiguration& conf, ExecutorServiceProviderPtr executorProvider,
                    const AuthenticationPtr& authentication, bool poolConnections = true);
 
+    ~ConnectionPool();
+
     /**
      * Get a connection from the pool.
      * <p>
@@ -54,8 +56,6 @@ class PULSAR_PUBLIC ConnectionPool {
      */
     Future<Result, ClientConnectionWeakPtr> getConnectionAsync(const std::string& logicalAddress,
                                                                const std::string& physicalAddress);
-
-    void close();
 
    private:
     ClientConfiguration clientConfiguration_;
