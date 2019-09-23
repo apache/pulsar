@@ -44,7 +44,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
   
 - [Cassandra sink connector](io-cassandra.md)
 
-- [ElasticSearch sink connector](io-elasticsearch.md)
+- [ElasticSearch sink connector](io-elasticsearch-sink.md)
 
 - [Flume sink connector](io-flume-sink.md)
 
