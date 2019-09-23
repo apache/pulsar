@@ -147,4 +147,13 @@ public class BookKeeperClientFactoryImplTest {
 
     }
 
+    @Test
+    public void testSetDiskWeightBasedPlacementEnabled() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertFalse(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
+        conf.setBookkeeperDiskWeightBasedPlacementEnabled(true);
+        assertTrue(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
+    }
+
 }
