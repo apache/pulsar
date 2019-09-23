@@ -4,7 +4,7 @@ title: Aerospike sink connector
 sidebar_label: Aerospike sink connector
 ---
 
-The Aerospike sink connector writes messages from Pulsar topics to Aerospike clusters.
+The Aerospike sink connector pulls messages from Pulsar topics to Aerospike clusters.
 
 ## Configuration
 
