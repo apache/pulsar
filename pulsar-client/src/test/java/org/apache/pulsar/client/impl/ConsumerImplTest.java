@@ -69,6 +69,14 @@ public class ConsumerImplTest {
         consumer.notifyPendingReceivedCallback(null, null);
     }
 
+    @Test(invocationTimeOut = 500)
+    public void testCorrectBackoffConfiguration() {
+        final Backoff backoff = consumer.getConnectionHandler().backoff;
+        ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
+        Assert.assertEquals(backoff.getMax(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.next(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
+    }
+
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_CompleteWithException() {
         CompletableFuture<Message<ConsumerImpl>> receiveFuture = new CompletableFuture<>();
