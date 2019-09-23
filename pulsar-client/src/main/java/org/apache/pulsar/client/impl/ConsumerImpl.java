@@ -212,7 +212,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         this.connectionHandler = new ConnectionHandler(this,
         		        new BackoffBuilder()
-                                .setInitialTime(client.getConfiguration().getDefaultBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                                 .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                                 .setMandatoryStop(0, TimeUnit.MILLISECONDS)
                                 .create(),
