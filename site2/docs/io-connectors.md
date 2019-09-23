@@ -64,7 +64,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 - [MongoDB sink connector](io-mongo.md)
 
-- [RabbitMQ sink connector](io-rabbitmq.md)
+- [RabbitMQ sink connector](io-rabbitmq-sink.md)
 
 - [Redis sink connector](io-redis.md)
 
