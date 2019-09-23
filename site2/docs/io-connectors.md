@@ -34,13 +34,13 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 - [Netty source connector](io-netty.md)
 
-- [RabbitMQ source connector](io-rabbitmq.md)
+- [RabbitMQ source connector](io-rabbitmq-source.md)
 
 ## Sink connector
 
 Pulsar has various sink connectors, which are sorted alphabetically as below.
 
-- [Aerospike sink connector](io-aerospike.md)
+- [Aerospike sink connector](io-aerospike-sink.md)
   
 - [Cassandra sink connector](io-cassandra.md)
 
