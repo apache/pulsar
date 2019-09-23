@@ -4,7 +4,7 @@ title: Cassandra sink connector
 sidebar_label: Cassandra sink connector
 ---
 
-The Cassandra sink connector write messages from Pulsar topics to Cassandra clusters.
+The Cassandra sink connector pulls messages from Pulsar topics to Cassandra clusters.
 
 ## Configuration
 
