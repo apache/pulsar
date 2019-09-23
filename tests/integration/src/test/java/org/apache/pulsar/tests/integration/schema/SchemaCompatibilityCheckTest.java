@@ -112,8 +112,8 @@ public class SchemaCompatibilityCheckTest extends PulsarTestSuite {
             );
 
             admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
-            admin.schemas().createSchema(topic, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
-            admin.schemas().createSchema(topic, Schema.AVRO(SchemaDefinition.builder()
+            admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
+            admin.schemas().createSchema(fqtn, Schema.AVRO(SchemaDefinition.builder()
                     .withAlwaysAllowNull(false).withPojo(Schemas.PersonTwo.class).build()).getSchemaInfo());
 
             Consumer<Schemas.PersonThree> consumerThree = client.newConsumer(Schema.AVRO(
@@ -188,8 +188,8 @@ public class SchemaCompatibilityCheckTest extends PulsarTestSuite {
         );
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
-        admin.schemas().createSchema(topic, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
-        admin.schemas().createSchema(topic, Schema.AVRO(SchemaDefinition.builder()
+        admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
+        admin.schemas().createSchema(fqtn, Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(false).withPojo(Schemas.PersonTwo.class).build()).getSchemaInfo());
         Consumer<Schemas.PersonThree> consumerThree = null;
         try {
@@ -228,7 +228,7 @@ public class SchemaCompatibilityCheckTest extends PulsarTestSuite {
         );
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
-        admin.schemas().createSchema(topic, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
+        admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = client
@@ -239,7 +239,7 @@ public class SchemaCompatibilityCheckTest extends PulsarTestSuite {
         try {
             producerThreeBuilder.create();
         } catch (Exception e) {
-            Assert.assertTrue(e.getCause().getMessage().contains("Do allow auto update schema."));
+            Assert.assertTrue(e.getMessage().contains("Do allow auto update schema."));
         }
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true);
@@ -285,8 +285,8 @@ public class SchemaCompatibilityCheckTest extends PulsarTestSuite {
         );
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
-        admin.schemas().createSchema(topic, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
-        admin.schemas().createSchema(topic, Schema.AVRO(SchemaDefinition.builder()
+        admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
+        admin.schemas().createSchema(fqtn, Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(false).withPojo(Schemas.PersonTwo.class).build()).getSchemaInfo());
 
         Producer<Schemas.PersonOne> producerOne = client
@@ -340,8 +340,8 @@ public class SchemaCompatibilityCheckTest extends PulsarTestSuite {
         );
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
-        admin.schemas().createSchema(topic, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
-        admin.schemas().createSchema(topic, Schema.AVRO(SchemaDefinition.builder()
+        admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
+        admin.schemas().createSchema(fqtn, Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(false).withPojo(Schemas.PersonTwo.class).build()).getSchemaInfo());
 
         Consumer<Schemas.PersonFour> consumerFour = null;
