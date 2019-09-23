@@ -27,7 +27,6 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 // All variables are in TimeUnit millis by default
-@Slf4j
 @Data
 public class Backoff {
     public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
@@ -63,8 +62,6 @@ public class Backoff {
         if (current < max) {
             this.next = Math.min(this.next * 2, this.max);
         }
-
-        log.info("next: {} max: {}", this.next, this.max);
 
         // Check for mandatory stop
         if (!mandatoryStopMade) {
