@@ -188,11 +188,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         this.connectionHandler = new ConnectionHandler(this,
         	new BackoffBuilder()
-        	    .setInitialTime(100, TimeUnit.MILLISECONDS)
-			    .setMax(60, TimeUnit.SECONDS)
+        	    .setInitialTime(client.getConfiguration().getDefaultBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+			    .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
 			    .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
-			    .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(),
-			                                client.getConfiguration().getMaxBackoffIntervalNanos())
 			    .create(),
             this);
 
