@@ -115,6 +115,80 @@ public class MessageDuplicationTest {
         assertEquals(lastSequenceIdPushed.longValue(), 5);
     }
 
+    @Test
+    public void testIsDuplicateWithFailure() {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        PersistentTopic persistentTopic = mock(PersistentTopic.class);
+        ManagedLedger managedLedger = mock(ManagedLedger.class);
+        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, persistentTopic, managedLedger));
+        doReturn(true).when(messageDeduplication).isEnabled();
+
+        String producerName1 = "producer1";
+        ByteBuf byteBuf1 = getMessage(producerName1, 0);
+        Topic.PublishContext publishContext1 = getPublishContext(producerName1, 0);
+
+        String producerName2 = "producer2";
+        ByteBuf byteBuf2 = getMessage(producerName2, 1);
+        Topic.PublishContext publishContext2 = getPublishContext(producerName2, 1);
+
+        MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+
+        Long lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
+        assertTrue(lastSequenceIdPushed != null);
+        assertEquals(lastSequenceIdPushed.longValue(), 0);
+
+        status = messageDeduplication.isDuplicate(publishContext2, byteBuf2);
+        assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+        lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
+        assertTrue(lastSequenceIdPushed != null);
+        assertEquals(lastSequenceIdPushed.longValue(), 1);
+
+        byteBuf1 = getMessage(producerName1, 1);
+        publishContext1 = getPublishContext(producerName1, 1);
+        status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+        lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
+        assertTrue(lastSequenceIdPushed != null);
+        assertEquals(lastSequenceIdPushed.longValue(), 1);
+
+        byteBuf1 = getMessage(producerName1, 5);
+        publishContext1 = getPublishContext(producerName1, 5);
+        status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+        lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
+        assertTrue(lastSequenceIdPushed != null);
+        assertEquals(lastSequenceIdPushed.longValue(), 5);
+
+        byteBuf1 = getMessage(producerName1, 0);
+        publishContext1 = getPublishContext(producerName1, 0);
+        status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        // should expect unknown because highestSequencePersisted is empty
+        assertEquals(status, MessageDeduplication.MessageDupStatus.Unknown);
+        lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
+        assertTrue(lastSequenceIdPushed != null);
+        assertEquals(lastSequenceIdPushed.longValue(), 5);
+
+        // update highest sequence persisted
+        messageDeduplication.highestSequencedPersisted.put(producerName1, 0L);
+
+        byteBuf1 = getMessage(producerName1, 0);
+        publishContext1 = getPublishContext(producerName1, 0);
+        status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        // now that highestSequencedPersisted, message with seqId of zero can be classified as a dup
+        assertEquals(status, MessageDeduplication.MessageDupStatus.Dup);
+        lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
+        assertTrue(lastSequenceIdPushed != null);
+        assertEquals(lastSequenceIdPushed.longValue(), 5);
+    }
+
+
     public ByteBuf getMessage(String producerName, long seqId) {
         PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
                 .setProducerName(producerName).setSequenceId(seqId)

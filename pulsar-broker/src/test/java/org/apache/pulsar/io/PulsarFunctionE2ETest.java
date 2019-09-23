@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.sun.net.httpserver.Headers;
@@ -37,8 +38,10 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.ConsumerConfig;
@@ -67,6 +70,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -83,10 +87,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -101,6 +109,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Test Pulsar sink on function
@@ -388,6 +397,104 @@ public class PulsarFunctionE2ETest {
         sinkConfig.setSourceSubscriptionName(subName);
         sinkConfig.setCleanupSubscription(true);
         return sinkConfig;
+    }
+
+
+    @Test
+    public void test() throws  Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String subscriptionName = "sub";
+        final String consumerName = "test-consumer-1";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setDeduplicationStatus(replNamespace, true);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic)
+                .producerName("test-producer-1").create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sourceTopic)
+                .consumerName(consumerName).subscriptionName(subscriptionName).subscribe();
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats topicStats = admin.topics().getStats(sourceTopic);
+                return topicStats!= null
+                        && topicStats.subscriptions.get(subscriptionName) != null
+                        && topicStats.subscriptions.get(subscriptionName).consumers.size() > 0
+                        && topicStats.subscriptions.get(subscriptionName).consumers.get(0).consumerName.equals(consumerName);
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 200);
+
+        TopicStats topicStats = admin.topics().getStats(sourceTopic);
+        assertTrue(topicStats!= null);
+        assertTrue(topicStats.subscriptions.get(subscriptionName) != null);
+        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
+        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.get(0).consumerName, consumerName);
+
+        for (int i=0; i<10; i++) {
+            producer.newMessage().sequenceId(i).value("foo-" + i).send();
+        }
+
+        for (int i=0; i<10; i++) {
+            Message<String> msg = consumer.receive();
+            consumer.acknowledge(msg);
+            log.info("msg: {} - {}", msg.getSequenceId(), msg.getValue());
+            assertEquals(msg.getValue(), "foo-" + i);
+            assertEquals(msg.getSequenceId(), i);
+        }
+
+        log.info("Stopping BK...");
+        bkEnsemble.stopBK();
+
+        Thread.sleep(5000);
+
+        List<CompletableFuture<MessageId>> futures = new LinkedList<>();
+        for (int i=10; i<20; i++) {
+            CompletableFuture<MessageId> future = producer.newMessage().sequenceId(i).value("foo-" + i).sendAsync();
+            int finalI = i;
+            future.thenRun(() -> log.error("message: {} successful", finalI)).exceptionally((Function<Throwable, Void>) throwable -> {
+                        log.info("message: {} failed: {}", finalI, throwable, throwable);
+                        return null;
+                    });
+            futures.add(future);
+        }
+
+        for (int i = 0; i < futures.size(); i++) {
+            try {
+                // message should not be produced successfully
+                futures.get(i).join();
+                fail();
+            } catch (CompletionException ex) {
+
+            } catch (Exception e) {
+                fail();
+            }
+        }
+
+        log.info("Starting BK...");
+        bkEnsemble.startBK();
+
+        Thread.sleep(5000);
+
+        producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).producerName("test-producer-1").create();
+        for (int i=20; i<30; i++) {
+            producer.newMessage().sequenceId(i).value("foo-" + i).send();
+        }
+
+        MessageId lastMessageId = null;
+        for (int i=20; i<30; i++) {
+            Message<String> msg = consumer.receive();
+            lastMessageId = msg.getMessageId();
+            consumer.acknowledge(msg);
+            log.info("msg: {} - {}", msg.getSequenceId(), msg.getValue());
+            assertEquals(msg.getValue(), "foo-" + i);
+            assertEquals(msg.getSequenceId(), i);
+        }
+
+        assertEquals(consumer.getLastMessageId(), lastMessageId);
     }
     /**
      * Validates pulsar sink e2e functionality on functions.

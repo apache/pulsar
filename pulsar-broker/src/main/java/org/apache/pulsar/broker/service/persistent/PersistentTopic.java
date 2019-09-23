@@ -34,7 +34,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.function.Function;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -90,6 +93,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -104,6 +108,7 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -162,6 +167,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return new TopicStatsHelper();
         }
     };
+
+    private AtomicLong pendingWriteOps = new AtomicLong(0);
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -272,17 +279,27 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
-        MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
-        switch (status){
-            case NotDup:
-                ledger.asyncAddEntry(headersAndPayload, this, publishContext);
-                break;
-            case Dup:
-                // Immediately acknowledge duplicated message
-                publishContext.completed(null, -1, -1);
-                break;
-            default:
-                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+        log.info("publishMessage: {} - {} isFenced: {}", publishContext.getProducerName(), publishContext.getSequenceId(), isFenced);
+//        PulsarApi.MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+//        log.info("publishMessage: {} - {} isFenced: {}", md.getProducerName(), md.getSequenceId(), isFenced);
+//        md.recycle();
+        if (!isFenced) {
+            pendingWriteOps.incrementAndGet();
+            MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+            log.info("MessageDupStatus: {}", status);
+            switch (status) {
+                case NotDup:
+                    ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                    break;
+                case Dup:
+                    // Immediately acknowledge duplicated message
+                    publishContext.completed(null, -1, -1);
+                    break;
+                default:
+                    publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+            }
+        } else {
+            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
         }
     }
 
@@ -294,35 +311,68 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
+
+        synchronized (pendingWriteOps) {
+            pendingWriteOps.decrementAndGet();
+            pendingWriteOps.notifyAll();
+        }
     }
 
     @Override
     public void addFailed(ManagedLedgerException exception, Object ctx) {
-        PublishContext callback = (PublishContext) ctx;
-
-        if (exception instanceof ManagedLedgerAlreadyClosedException) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
-            }
-
-            callback.completed(new TopicClosedException(exception), -1, -1);
-            return;
-
-        } else {
-            log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
-        }
-
-        if (exception instanceof ManagedLedgerTerminatedException) {
-            // Signal the producer that this topic is no longer available
-            callback.completed(new TopicTerminatedException(exception), -1, -1);
-        } else {
-            // Use generic persistence exception
-            callback.completed(new PersistenceException(exception), -1, -1);
+        log.info("addFailed: {}", exception, exception);
+        // fence topic
+        isFenced = true;
+        synchronized (pendingWriteOps) {
+            pendingWriteOps.decrementAndGet();
+            pendingWriteOps.notifyAll();
         }
 
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
+        } else {
+
+            // close all producers
+            List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            producers.forEach(producer -> futures.add(producer.disconnect()));
+            FutureUtil.waitForAll(futures);
+
+            PublishContext callback = (PublishContext) ctx;
+
+            if (exception instanceof ManagedLedgerAlreadyClosedException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+                }
+
+                callback.completed(new TopicClosedException(exception), -1, -1);
+                return;
+
+            } else {
+                log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+            }
+
+            if (exception instanceof ManagedLedgerTerminatedException) {
+                // Signal the producer that this topic is no longer available
+                callback.completed(new TopicTerminatedException(exception), -1, -1);
+            } else {
+                // Use generic persistence exception
+                callback.completed(new PersistenceException(exception), -1, -1);
+            }
+
+            brokerService.executor().submit(() -> {
+                synchronized (pendingWriteOps) {
+                    while (pendingWriteOps.get() > 0) {
+                        try {
+                            pendingWriteOps.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                messageDeduplication.resetHighestSequenceIdPushed();
+                isFenced = false;
+            });
         }
     }
 

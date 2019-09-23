@@ -26,7 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -40,6 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -345,6 +348,27 @@ public class MessageDeduplication {
             snapshotCounter = 0;
             takeSnapshot(position);
         }
+    }
+
+    AtomicBoolean reset = new AtomicBoolean(false);
+    public void resetHighestSequenceIdPushed() {
+        log.info("resetHighestSequenceIdPushed: {} - {}", highestSequencedPushed.keys(), highestSequencedPushed.values());
+        if (!isEnabled()) {
+            return;
+        }
+
+        // only need to be executed once even if multiple threads have called it
+        if (reset.compareAndSet(false, true)) {
+
+            highestSequencedPushed.clear();
+            for (String producer : highestSequencedPersisted.keys()) {
+                highestSequencedPushed.put(producer, highestSequencedPersisted.get(producer));
+            }
+
+            reset.set(false);
+        }
+
+        log.info("after reset: {} - {}", highestSequencedPushed.keys(), highestSequencedPushed.values());
     }
 
     private void takeSnapshot(PositionImpl position) {
