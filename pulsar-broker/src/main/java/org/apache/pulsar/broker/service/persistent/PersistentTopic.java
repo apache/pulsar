@@ -120,6 +120,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -129,8 +130,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCallback {
 
     // Managed ledger associated with the topic
-    @VisibleForTesting
-    ManagedLedger ledger;
+    protected final ManagedLedger ledger;
 
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
@@ -150,8 +150,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
-    @VisibleForTesting
-    MessageDeduplication messageDeduplication;
+    protected final MessageDeduplication messageDeduplication;
 
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
@@ -169,7 +168,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     };
 
-    private AtomicLong pendingWriteOps = new AtomicLong(0);
+    private final AtomicLong pendingWriteOps = new AtomicLong(0);
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -247,8 +246,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     // for testing purposes
-    PersistentTopic(String topic, BrokerService brokerService) {
+    @VisibleForTesting
+    PersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger, MessageDeduplication messageDeduplication) {
         super(topic, brokerService);
+        this.ledger = ledger;
+        this.messageDeduplication = messageDeduplication;
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
@@ -293,21 +295,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
             decrementPendingWriteOpsAndCheck();
             return;
-        } else {
-            MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
-            switch (status) {
-                case NotDup:
-                    ledger.asyncAddEntry(headersAndPayload, this, publishContext);
-                    break;
-                case Dup:
-                    // Immediately acknowledge duplicated message
-                    publishContext.completed(null, -1, -1);
-                    pendingWriteOps.decrementAndGet();
-                    break;
-                default:
-                    publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
-                    pendingWriteOps.decrementAndGet();
-            }
+        }
+
+        MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+        switch (status) {
+            case NotDup:
+                ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                break;
+            case Dup:
+                // Immediately acknowledge duplicated message
+                publishContext.completed(null, -1, -1);
+                decrementPendingWriteOpsAndCheck();
+                break;
+            default:
+                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                decrementPendingWriteOpsAndCheck();
+
         }
     }
 
@@ -317,6 +320,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             synchronized (this) {
                 if (isFenced) {
                     messageDeduplication.resetHighestSequenceIdPushed();
+                    log.info("[{}] Un-fencing topic...", topic);
                     isFenced = false;
                 }
 
@@ -350,7 +354,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // close all producers
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
             producers.forEach(producer -> futures.add(producer.disconnect()));
-            FutureUtil.waitForAll(futures);
+            FutureUtil.waitForAll(futures).handle((BiFunction<Void, Throwable, Void>) (aVoid, throwable) -> {
+                decrementPendingWriteOpsAndCheck();
+                return null;
+            });
 
             PublishContext callback = (PublishContext) ctx;
 
@@ -372,13 +379,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             } else {
                 // Use generic persistence exception
                 callback.completed(new PersistenceException(exception), -1, -1);
-            }
-
-            long pending = pendingWriteOps.decrementAndGet();
-            if (pending == 0) {
-                messageDeduplication.resetHighestSequenceIdPushed();
-                isFenced = false;
-
             }
         }
     }

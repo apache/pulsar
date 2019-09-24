@@ -159,9 +159,7 @@ public class MessageDuplicationTest {
         doReturn(scheduledExecutorService).when(brokerService).executor();
         doReturn(pulsarService).when(brokerService).pulsar();
 
-        PersistentTopic persistentTopic = spy(new PersistentTopic("topic-1", brokerService));
-        persistentTopic.messageDeduplication = messageDeduplication;
-        persistentTopic.ledger = managedLedger;
+        PersistentTopic persistentTopic = spy(new PersistentTopic("topic-1", brokerService, managedLedger, messageDeduplication));
 
         String producerName1 = "producer1";
         ByteBuf byteBuf1 = getMessage(producerName1, 0);
