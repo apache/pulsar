@@ -6,7 +6,7 @@ sidebar_label: Upgrade
 
 ## Upgrade guidelines
 
-Apache Pulsar is comprised of multiple components, ZooKeeper, bookies and brokers. These components are either stateful or stateless. You do not have to upgrade ZooKeeper nodes unless you have special requirement. While you upgrade, you need to pay attention to bookies (stateful), brokers and proxies (stateless).
+Apache Pulsar is comprised of multiple components, ZooKeeper, bookies, and brokers. These components are either stateful or stateless. You do not have to upgrade ZooKeeper nodes unless you have special requirement. While you upgrade, you need to pay attention to bookies (stateful), brokers and proxies (stateless).
 
 The following are some guidelines on upgrading a Pulsar cluster. Read the guidelines before upgrading.
 
@@ -34,7 +34,7 @@ To upgrade an Apache Pulsar cluster, follow the upgrade sequence.
        ```shell
        bin/bookkeeper shell autorecovery -disable
        ```  
-    - b. Rollout the upgraded version to all bookies in the cluster after you determines that a version is safe after canary.  
+    - b. Rollout the upgraded version to all bookies in the cluster after you determine that a version is safe after canary.  
     - c. After you upgrade all bookies, re-enable `autorecovery` with the following command.
        ```shell
        bin/bookkeeper shell autorecovery -enable
@@ -96,7 +96,7 @@ To upgrade bookie to a new version, complete the following steps:
 
 #### Canary rollback
 
-If issues occur during canary test, you can shut down the problematic bookie node. Other bookies in the cluster replaces this problematic bookie node with autorecovery. 
+If issues occur during the canary test, you can shut down the problematic bookie node. Other bookies in the cluster replaces this problematic bookie node with autorecovery. 
 
 ### Upgrade all bookies
 
@@ -113,7 +113,7 @@ While you upgrade in both scenarios, the procedure is the same for each bookie.
 2. Start the bookie.
 
 > **Advanced operations**   
-> When you upgrade a large BookKeeper cluster in rolling upgrade scenario, upgrading one bookie at a time is slow. If you configure rack-aware or region-aware placement policy, you can upgrade bookies rack by rack or region by region, which speeds up the whole upgrade process.
+> When you upgrade a large BookKeeper cluster in a rolling upgrade scenario, upgrading one bookie at a time is slow. If you configure rack-aware or region-aware placement policy, you can upgrade bookies rack by rack or region by region, which speeds up the whole upgrade process.
 
 ## Upgrade brokers and proxies
 
