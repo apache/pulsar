@@ -350,21 +350,14 @@ public class MessageDeduplication {
         }
     }
 
-    AtomicBoolean reset = new AtomicBoolean(false);
     public void resetHighestSequenceIdPushed() {
         if (!isEnabled()) {
             return;
         }
 
-        // only need to be executed once even if multiple threads have called it
-        if (reset.compareAndSet(false, true)) {
-
-            highestSequencedPushed.clear();
-            for (String producer : highestSequencedPersisted.keys()) {
-                highestSequencedPushed.put(producer, highestSequencedPersisted.get(producer));
-            }
-
-            reset.set(false);
+        highestSequencedPushed.clear();
+        for (String producer : highestSequencedPersisted.keys()) {
+            highestSequencedPushed.put(producer, highestSequencedPersisted.get(producer));
         }
     }
 

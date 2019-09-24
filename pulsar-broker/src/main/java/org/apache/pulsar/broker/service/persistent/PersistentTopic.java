@@ -290,22 +290,39 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
-        if (!isFenced) {
+        pendingWriteOps.incrementAndGet();
+        if (isFenced) {
+            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        } else {
             MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
             switch (status) {
                 case NotDup:
-                    pendingWriteOps.incrementAndGet();
                     ledger.asyncAddEntry(headersAndPayload, this, publishContext);
                     break;
                 case Dup:
                     // Immediately acknowledge duplicated message
                     publishContext.completed(null, -1, -1);
+                    pendingWriteOps.incrementAndGet();
                     break;
                 default:
                     publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                    pendingWriteOps.incrementAndGet();
             }
-        } else {
-            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+        }
+    }
+
+    private void decrementPendingWriteOpsAndCheck() {
+        long pending = pendingWriteOps.decrementAndGet();
+        if (pending == 0 && isFenced) {
+            synchronized (this) {
+                if (isFenced) {
+                    messageDeduplication.resetHighestSequenceIdPushed();
+                    isFenced = false;
+                }
+
+            }
         }
     }
 
@@ -318,20 +335,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         messageDeduplication.recordMessagePersisted(publishContext, position);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
 
-        synchronized (pendingWriteOps) {
-            pendingWriteOps.decrementAndGet();
-            pendingWriteOps.notifyAll();
-        }
+        decrementPendingWriteOpsAndCheck();
     }
 
     @Override
-    public void addFailed(ManagedLedgerException exception, Object ctx) {
+    public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
+
         // fence topic when failed to write a message to BK
         isFenced = true;
-        synchronized (pendingWriteOps) {
-            pendingWriteOps.decrementAndGet();
-            pendingWriteOps.notifyAll();
-        }
 
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
@@ -365,19 +376,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 callback.completed(new PersistenceException(exception), -1, -1);
             }
 
-            brokerService.executor().submit(() -> {
-                synchronized (pendingWriteOps) {
-                    while (pendingWriteOps.get() > 0) {
-                        try {
-                            pendingWriteOps.wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
+            long pending = pendingWriteOps.decrementAndGet();
+            if (pending == 0) {
                 messageDeduplication.resetHighestSequenceIdPushed();
                 isFenced = false;
-            });
+
+            }
         }
     }
 
