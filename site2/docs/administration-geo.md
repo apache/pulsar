@@ -126,3 +126,32 @@ For geo-replication topics, each region uses a fault-tolerant mechanism to decid
 You can explicitly disable topic garbage collection by setting `brokerDeleteInactiveTopicsEnabled` to `false` in your [broker configuration](reference-configuration.md#broker).
 
 To delete a geo-replication topic, close all producers and consumers on the topic, and delete all of its local subscriptions in every replication cluster. When Pulsar determines that no valid subscription for the topic remains across the system, it will garbage collect the topic.
+
+## Replicated subscriptions
+
+Pulsar supports replicated subscriptions, so you can keep subscription state in sync, within a sub-second timeframe, in the context of a topic that is being asynchronously replicated across multiple geographical regions.
+
+In case of failover, a consumer can restart consuming from the failure point. 
+
+### Enable replicated subscription
+
+Replicated subscription is enabled/disabled by default. You can enable replicated subscription when creating a consumer. 
+
+```java
+Consumer<String> consumer = client.newConsumer(Schema.STRING)
+            .topic("my-topic")
+            .subscriptionName("my-subscription")
+            .replicateSubscriptionState(true)
+            .subscribe();
+```
+
+### Advantages
+
+ * It is easy to implement the logic. 
+ * You can choose to enable or disable replicated subscription.
+ * When you enable it, the overhead is low, and it is easy to configure. 
+ * When you disable it, the overhead is zero.
+
+### Limitations
+
+When you enable replicated subscription, you're creating a consistent distributed snapshot to establish an association between message ids from different clusters. The snapshots are taken periodically. The default value is `1 second`. It means that a consumer failing over to a different cluster can potentially receive 1 second of duplicates. You can also configure the frequency of the snapshot in the `broker.conf` file.
