@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import com.carrotsearch.hppc.ObjectObjectHashMap;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -130,7 +131,8 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCallback {
 
     // Managed ledger associated with the topic
-    protected final ManagedLedger ledger;
+    @VisibleForTesting
+    ManagedLedger ledger;
 
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
@@ -150,7 +152,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
-    private final MessageDeduplication messageDeduplication;
+    @VisibleForTesting
+    MessageDeduplication messageDeduplication;
 
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
@@ -245,6 +248,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         checkReplicatedSubscriptionControllerState();
     }
 
+    // for testing purposes
+    PersistentTopic(String topic, BrokerService brokerService) {
+        super(topic, brokerService);
+        this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        this.replicators = new ConcurrentOpenHashMap<>(16, 1);
+        this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
+    }
+
     private void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
         synchronized (dispatchRateLimiter) {
             // dispatch rate limiter for topic
@@ -279,16 +290,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
-        log.info("publishMessage: {} - {} isFenced: {}", publishContext.getProducerName(), publishContext.getSequenceId(), isFenced);
-//        PulsarApi.MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
-//        log.info("publishMessage: {} - {} isFenced: {}", md.getProducerName(), md.getSequenceId(), isFenced);
-//        md.recycle();
         if (!isFenced) {
-            pendingWriteOps.incrementAndGet();
             MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
-            log.info("MessageDupStatus: {}", status);
             switch (status) {
                 case NotDup:
+                    pendingWriteOps.incrementAndGet();
                     ledger.asyncAddEntry(headersAndPayload, this, publishContext);
                     break;
                 case Dup:
@@ -320,8 +326,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void addFailed(ManagedLedgerException exception, Object ctx) {
-        log.info("addFailed: {}", exception, exception);
-        // fence topic
+        // fence topic when failed to write a message to BK
         isFenced = true;
         synchronized (pendingWriteOps) {
             pendingWriteOps.decrementAndGet();

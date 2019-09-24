@@ -15,8 +15,6 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.io.PulsarFunctionE2ETest;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
@@ -45,7 +43,6 @@ public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
     ServiceConfiguration config;
-    WorkerConfig workerConfig;
     URL url;
     PulsarService pulsar;
     PulsarAdmin admin;
@@ -137,8 +134,6 @@ public class ClientDeduplicationFailureTest {
             while(true) {
                 try {
                     Message<String> msg = consumer2.receive();
-                    log.info("consumer2 msg: {} - {}", msg.getSequenceId(), msg.getValue());
-
                     msgRecvd.add(msg);
                     consumer2.acknowledge(msg);
                 } catch (PulsarClientException e) {
@@ -183,7 +178,6 @@ public class ClientDeduplicationFailureTest {
         for (int i=0; i<10; i++) {
             Message<String> msg = consumer1.receive();
             consumer1.acknowledge(msg);
-            log.info("msg: {} - {}", msg.getSequenceId(), msg.getValue());
             assertEquals(msg.getValue(), "foo-" + i);
             assertEquals(msg.getSequenceId(), i);
         }
@@ -231,12 +225,6 @@ public class ClientDeduplicationFailureTest {
         log.info("Starting BK...");
         bkEnsemble.startBK();
 
-        log.info("!------------ sleeping -----------------!");
-        Thread.sleep(10000);
-
-        log.info("producers: {}", ObjectMapperFactory.getThreadLocal().writeValueAsString(admin.topics().getStats(sourceTopic)));
-
-//        producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).producerName("test-producer-1").create();
         for (int i=20; i<30; i++) {
             producer.newMessage().sequenceId(i).value("foo-" + i).send();
         }
@@ -246,14 +234,13 @@ public class ClientDeduplicationFailureTest {
             Message<String> msg = consumer1.receive();
             lastMessageId = msg.getMessageId();
             consumer1.acknowledge(msg);
-            log.info("msg: {} - {}", msg.getSequenceId(), msg.getValue());
             assertEquals(msg.getValue(), "foo-" + i);
             assertEquals(msg.getSequenceId(), i);
         }
 
-        Thread.sleep(5000);
-
         // check all messages
+        retryStrategically((test) -> msgRecvd.size() >= 20, 5, 200);
+
         assertEquals(msgRecvd.size(), 20);
         for (int i=0; i<10; i++) {
             assertEquals(msgRecvd.get(i).getValue(), "foo-" + i);

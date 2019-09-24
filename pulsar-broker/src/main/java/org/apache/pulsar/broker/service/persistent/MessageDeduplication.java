@@ -352,7 +352,6 @@ public class MessageDeduplication {
 
     AtomicBoolean reset = new AtomicBoolean(false);
     public void resetHighestSequenceIdPushed() {
-        log.info("resetHighestSequenceIdPushed: {} - {}", highestSequencedPushed.keys(), highestSequencedPushed.values());
         if (!isEnabled()) {
             return;
         }
@@ -367,8 +366,6 @@ public class MessageDeduplication {
 
             reset.set(false);
         }
-
-        log.info("after reset: {} - {}", highestSequencedPushed.keys(), highestSequencedPushed.values());
     }
 
     private void takeSnapshot(PositionImpl position) {
