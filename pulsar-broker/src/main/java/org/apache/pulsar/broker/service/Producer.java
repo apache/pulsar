@@ -132,7 +132,6 @@ public class Producer {
     }
 
     public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
-        log.info("producer-publishMessage: {} - {}", producerId, sequenceId);
         if (isClosed) {
             cnx.ctx().channel().eventLoop().execute(() -> {
                 cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.PersistenceError,
