@@ -24,6 +24,8 @@ The configuration of the Flume source connector has the following properties.
 
 Before using the Flume source connector, you need to create a configuration file through one of the following methods.
 
+> For more information about the `source.conf` in the example below, see [here](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/resources/flume/source.conf).
+
 * JSON 
 
     ```json
