@@ -348,8 +348,8 @@ public class PulsarClientImpl implements PulsarClient {
             } else {
                 int partitionIndex = TopicName.getPartitionIndex(topic);
                 consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, listenerThread, partitionIndex, false,
-                        consumerSubscribedFuture, SubscriptionMode.Durable, null, schema, interceptors,
-                        this.conf.getDefaultBackoffIntervalNanos(), this.conf.getMaxBackoffIntervalNanos());
+                        consumerSubscribedFuture, SubscriptionMode.Durable, null, schema, interceptors
+                );
             }
 
             synchronized (consumers) {

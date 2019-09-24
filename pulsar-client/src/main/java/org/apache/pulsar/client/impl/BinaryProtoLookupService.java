@@ -213,8 +213,6 @@ public class BinaryProtoLookupService implements LookupService {
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                 .setMax(0, TimeUnit.MILLISECONDS)
-                .useUserConfiguredIntervals(client.getConfiguration().getDefaultBackoffIntervalNanos(),
-                                            client.getConfiguration().getMaxBackoffIntervalNanos())
                 .create();
         getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;
