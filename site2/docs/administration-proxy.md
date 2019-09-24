@@ -24,7 +24,7 @@ configurationStoreServers=zk-0:2184,zk-remote:2184
 
 The more secure method of configuring the proxy is to specify a URL to connect to the brokers.
 
-> [Authorization](security-authorization#enable-authorization-and-assign-superusers) at the proxy requires access to ZooKeeper, so if you use this broker URLs to connect to the brokers, you should diable the Proxy level authorization. Brokers still authorize requests after the proxy forwards them.
+> [Authorization](security-authorization#enable-authorization-and-assign-superusers) at the proxy requires access to ZooKeeper, so if you use these broker URLs to connect to the brokers, you should disable the Proxy level authorization. Brokers still authorize requests after the proxy forwards them.
 
 You can configure the broker URLs in `conf/proxy.conf` as follows.
 
