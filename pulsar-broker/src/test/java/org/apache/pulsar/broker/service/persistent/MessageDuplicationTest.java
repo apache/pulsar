@@ -29,7 +29,6 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
-import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
@@ -38,7 +37,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -294,7 +292,6 @@ public class MessageDuplicationTest {
         assertEquals(lastSequenceIdPushed.longValue(), 8);
 
     }
-
 
     public ByteBuf getMessage(String producerName, long seqId) {
         PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()

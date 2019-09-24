@@ -32,9 +32,9 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 - [Kinesis source connector](io-kinesis-source.md)
 
-- [Netty source connector](io-netty.md)
+- [Netty source connector](io-netty-source.md)
 
-- [RabbitMQ source connector](io-rabbitmq.md)
+- [RabbitMQ source connector](io-rabbitmq-source.md)
 
 ## Sink connector
 
