@@ -19,16 +19,18 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+
 import java.time.Clock;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 // All variables are in TimeUnit millis by default
+@Data
 public class Backoff {
     public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
     public static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
-    private final long backoffIntervalNanos;
-    private final long maxBackoffIntervalNanos;
     private final long initial;
     private final long max;
     private final Clock clock;
@@ -42,31 +44,17 @@ public class Backoff {
 
     @VisibleForTesting
     Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-            TimeUnit unitMandatoryStop, Clock clock, long backoffIntervalNanos, long maxBackoffIntervalNanos) {
+            TimeUnit unitMandatoryStop, Clock clock) {
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
         this.next = this.initial;
         this.mandatoryStop = unitMandatoryStop.toMillis(mandatoryStop);
         this.clock = clock;
-        this.backoffIntervalNanos = backoffIntervalNanos;
-        this.maxBackoffIntervalNanos = maxBackoffIntervalNanos;
     }
 
-    @VisibleForTesting
-    Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-            TimeUnit unitMandatoryStop, Clock clock) {
-        this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock,
-    		 Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS);
-    }
     public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
                    TimeUnit unitMandatoryStop) {
         this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone());
-    }
-
-    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-                   TimeUnit unitMandatoryStop, long backoffIntervalMs, long maxBackoffIntervalMs) {
-        this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone(),
-    	     backoffIntervalMs, maxBackoffIntervalMs);
     }
 
     public long next() {
@@ -113,16 +101,6 @@ public class Backoff {
     @VisibleForTesting
     long getFirstBackoffTimeInMillis() {
         return firstBackoffTimeInMillis;
-    }
-
-    @VisibleForTesting
-    long backoffIntervalNanos() {
-    	return backoffIntervalNanos;
-    }
-
-    @VisibleForTesting
-    long maxBackoffIntervalNanos() {
-    	return maxBackoffIntervalNanos;
     }
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,

@@ -79,7 +79,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -352,8 +351,7 @@ public class PulsarClientImpl implements PulsarClient {
                 int partitionIndex = TopicName.getPartitionIndex(topic);
                 consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, listenerThread, partitionIndex, false,
                         consumerSubscribedFuture, SubscriptionMode.Durable, null, schema, interceptors,
-                        true /* createTopicIfDoesNotExist */,
-                        this.conf.getDefaultBackoffIntervalNanos(), this.conf.getMaxBackoffIntervalNanos());
+                        true /* createTopicIfDoesNotExist */);
             }
 
             synchronized (consumers) {
