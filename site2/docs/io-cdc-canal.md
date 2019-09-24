@@ -163,9 +163,9 @@ Here is an example of storing MySQL data using the configuration file as above.
     
     ```bash
     $ docker exec -it pulsar-standalone /bin/bash
-    $ wget http://apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors
-    $ ./bin/pulsar-admin sources localrun \
-    --archive ./connectors/pulsar-io-canal-2.3.0.nar \
+    $ wget http://apache.01link.hk/pulsar/pulsar-2.4.1/connectors/pulsar-io-canal-2.4.1.nar -P connectors
+    $ ./bin/pulsar-admin source localrun \
+    --archive ./connectors/pulsar-io-canal-2.4.1.nar \
     --classname org.apache.pulsar.io.canal.CanalStringSource \
     --tenant public \
     --namespace default \
