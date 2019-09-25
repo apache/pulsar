@@ -67,3 +67,71 @@ Before using the File source connector, you need to create a configuration file 
         pollingInterval: 5000
         numWorkers: 1
     ```
+
+## Usage
+
+Here is an example of using the File source connecter.
+
+1. Pull a Pulsar image.
+
+    ```bash
+    $ docker pull apachepulsar/pulsar:{version}
+    ```
+
+2. Start Pulsar standalone.
+   
+    ```bash
+    $ docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
+    ```
+
+3. Create a configuration file _file-connector.yaml_.
+
+    ```yaml
+    configs:
+        inputDirectory: "/opt"
+    ```
+
+4. Copy the configuration file _file-connector.yaml_ to the container.
+
+    ```bash
+    $ docker cp connectors/file-connector.yaml pulsar-standalone:/pulsar/
+    ```
+
+5. Download the File source connector.
+
+    ```bash
+    $ curl -O https://mirrors.tuna.tsinghua.edu.cn/apache/pulsar/pulsar-{version}/connectors/pulsar-io-file-{version}.nar
+    ```
+
+6. Start the File source connector.
+
+    ```bash
+    $ docker exec -it pulsar-standalone /bin/bash
+
+    $ ./bin/pulsar-admin sources localrun \
+    --archive /pulsar/pulsar-io-file-{version}.nar \
+    --name file-test \
+    --destination-topic-name  pulsar-file-test \
+    --source-config-file /pulsar/file-connector.yaml
+    ```
+
+7. Start a consumer.
+
+    ```bash
+    ./bin/pulsar-client consume -s file-test -n 0 pulsar-file-test
+    ```
+
+8. Write the message to the file _test.txt_.
+   
+    ```bash
+    echo "hello world!" > /opt/test.txt
+    ```
+
+    The following information appears on the consumer terminal window.
+
+    ```bash
+    ----- got message -----
+    hello world!
+    ```
+
+    
