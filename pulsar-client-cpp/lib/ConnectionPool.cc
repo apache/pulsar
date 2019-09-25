@@ -47,7 +47,7 @@ ConnectionPool::~ConnectionPool() {
 
     if (poolConnections_) {
         for (auto cnxIt = pool_.begin(); cnxIt != pool_.end(); cnxIt++) {
-            ClientConnectionPtr cnx = cnxIt->second;
+            ClientConnectionPtr cnx = cnxIt->second.lock();
             if (cnx && !cnx->isClosed()) {
                 cnx->close();
             }
@@ -65,17 +65,17 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     if (poolConnections_) {
         PoolMap::iterator cnxIt = pool_.find(logicalAddress);
         if (cnxIt != pool_.end()) {
-            ClientConnectionPtr cnx = cnxIt->second;
+            ClientConnectionPtr cnx = cnxIt->second.lock();
 
             if (cnx && !cnx->isClosed()) {
                 // Found a valid or pending connection in the pool
                 LOG_DEBUG("Got connection from pool for " << logicalAddress << " use_count: "  //
-                                                          << (cnx.use_count() - 2) << " @ " << cnx.get());
+                                                          << (cnx.use_count() - 1) << " @ " << cnx.get());
                 return cnx->getConnectFuture();
             } else {
                 // Deleting stale connection
                 LOG_INFO("Deleting stale connection from pool for "
-                         << logicalAddress << " use_count: " << (cnx.use_count() - 2) << " @ " << cnx.get());
+                         << logicalAddress << " use_count: " << (cnx.use_count() - 1) << " @ " << cnx.get());
                 pool_.erase(logicalAddress);
             }
         }

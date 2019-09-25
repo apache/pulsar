@@ -61,7 +61,7 @@ class PULSAR_PUBLIC ConnectionPool {
     ClientConfiguration clientConfiguration_;
     ExecutorServiceProviderPtr executorProvider_;
     AuthenticationPtr authentication_;
-    typedef std::map<std::string, ClientConnectionPtr> PoolMap;
+    typedef std::map<std::string, ClientConnectionWeakPtr> PoolMap;
     PoolMap pool_;
     bool poolConnections_;
     std::mutex mutex_;
