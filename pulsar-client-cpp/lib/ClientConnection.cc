@@ -1385,10 +1385,6 @@ void ClientConnection::close() {
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
     }
-
-    if (executor_) {
-        executor_.reset();
-    }
 }
 
 bool ClientConnection::isClosed() const { return state_ == Disconnected; }
