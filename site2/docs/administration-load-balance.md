@@ -9,11 +9,13 @@ sidebar_label: Load balance
 Pulsar is an horizontally scalable messaging system, so the traffic
 in a logical cluster must be spread across all the available Pulsar brokers as evenly as possible, which is a core requirement.
 
-In most cases, this requirement is true out of the box and you should not worry about it. Though,you can use multiple settings and tools to control the traffic distribution and they require a bit of context to understand how the traffic is managed in Pulsar.
+You can use multiple settings and tools to control the traffic distribution which require a bit of context to understand how the traffic is managed in Pulsar. Though, in most cases, the core requirement mentioned above is true out of the box and you should not worry about it. 
 
 ## Pulsar load manager architecture
 
-### Dynamic assignment of topics to brokers
+The following part introduces the basic architecture of the Pulsar load manager.
+
+### Assign topics to brokers dynamically
 
 Topics are dynamically assigned to brokers based on the load conditions of all brokers in the cluster.
 
@@ -21,20 +23,15 @@ When a client starts using new topics that are not assigned to any broker, a pro
 
 In case of partitioned topics, different partitions are assigned to different brokers. Here "topic" means either a non-partitioned topic or one partition of a topic.
 
-The assignment is "dynamic" because the assignment changes quickly. For example, if the broker owning
-the topic crashes, the topic is reassigned immediately to another broker. Another scenario is
-that the broker owning the topic becomes overloaded. In this case, the topic is reassigned to a less loaded broker.
+The assignment is "dynamic" because the assignment changes quickly. For example, if the broker owning the topic crashes, the topic is reassigned immediately to another broker. Another scenario is that the broker owning the topic becomes overloaded. In this case, the topic is reassigned to a less loaded broker.
 
 The stateless nature of brokers makes the dynamic assignment possible, so you can quickly expand or shrink the cluster based on usage.
 
-
-### Assignment granularity
+#### Assignment granularity
 
 The assignment of topics or partitions to brokers is not done at the topics or partitions level, but done at the Bundle level (a higher level). The reason is to amortize the amount of information that you need to keep track. Based on CPU, memory, traffic load and other indexes, topics are assigned to a particular broker dynamically. 
 
-Instead of individual topic or partition assignment, each broker takes ownership of a subset of the
-topics for a namespace. This subset is called a "*bundle*" and effectively this subset is a sharding
-mechanism.
+Instead of individual topic or partition assignment, each broker takes ownership of a subset of the topics for a namespace. This subset is called a "*bundle*" and effectively this subset is a sharding mechanism.
 
 The namespace is the "administrative" unit: many config knobs or operations are done at the namespace level.
 
@@ -47,7 +44,7 @@ Each bundle is independent of the others and thus is independently assigned to d
 
 ### Create namespaces and bundles
 
-When you create a new namespace, the new namrspace sets to use the default number of bundles. You can set this in `conf/broker.conf`:
+When you create a new namespace, the new namespace sets to use the default number of bundles. You can set this in `conf/broker.conf`:
 
 ```properties
 # When a namespace is created without specifying the number of bundle, this
@@ -63,15 +60,13 @@ $ bin/pulsar-admin namespaces create my-tenant/my-namespace --clusters us-west -
 
 With this command, you create a namespace with 16 initial bundles. Therefore the topics for this namespaces can immediately be spread across up to 16 brokers.
 
-In general, if the expected traffic and number of topics is known in advance, to start with a reasonable number of bundles instead of waiting for the system to auto-correct the
-distribution is a good idea.
+In general, if you know the expected traffic and number of topics in advance, you had better start with a reasonable number of bundles instead of waiting for the system to auto-correct the distribution.
 
-On a same note, to start with more bundles than number of brokers is normally beneficial, primarily because of the hashing nature of the distribution of topics into bundles. For example, for a namespace with 1000 topics, using something like 64 bundles achieves a good distribution
-of traffic across 16 brokers.
+On a same note, due to the hashing nature of the topics distribution into bundles, starting with more bundles than number of brokers is better. For example, for a namespace with 1000 topics, using something like 64 bundles achieves a good distribution of traffic across 16 brokers.
 
 ### Unload topics and bundles
 
-You can use an admin operation of "unloading" a topic in Pulsar. Unloading means to close the topics,
+You can "unload" a topic in Pulsar with admin operation. Unloading means to close the topics,
 release ownership and reassign the topics to a new broker, based on current load.
 
 When unloading happens, the client experiences a small latency blip, typically in the order of tens of milliseconds, while the topic is reassigned.
@@ -92,8 +87,7 @@ pulsar-admin namespaces unload tenant/namespace
 
 ### Split namespace bundles 
 
-Since the load for the topics in a bundle might change over time, or could just be hard to predict
-upfront, brokers can spilt bundles  in 2. The new smaller bundles can then be reassigned to different brokers.
+Since the load for the topics in a bundle might change over time, or predicting upfront might just be hard, brokers can spilt bundles in 2. The new smaller bundles can then be reassigned to different brokers.
 
 The splitting happens based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution.
 
@@ -119,7 +113,6 @@ loadBalancerNamespaceBundleMaxBandwidthMbytes=100
 # maximum number of bundles in a namespace (for auto-split)
 loadBalancerNamespaceMaximumBundles=128
 ```
-
 
 ### Shed load automatically
 
