@@ -148,7 +148,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
                 });
             } else {
-                return FutureUtils.exception(new IncompatibleSchemaException("Do allow auto update schema."));
+                return FutureUtils.exception(new IncompatibleSchemaException("Don't allow auto update schema."));
             }
         });
     }
