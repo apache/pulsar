@@ -98,6 +98,7 @@ To install the Python bindings:
 
     client.close()
 """
+import logging
 
 import _pulsar
 
@@ -335,6 +336,7 @@ class Client:
                  message_listener_threads=1,
                  concurrent_lookup_requests=50000,
                  log_conf_file_path=None,
+                 logger=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
@@ -368,6 +370,8 @@ class Client:
           to prevent overload on the broker.
         * `log_conf_file_path`:
           Initialize log4cxx from a configuration file.
+        * `logger`:
+          Set a Python logger for this Pulsar client.
         * `use_tls`:
           Configure whether to use TLS encryption on the connection. This setting
           is deprecated. TLS will be automatically enabled if the `serviceUrl` is
@@ -390,6 +394,7 @@ class Client:
         _check_type(int, message_listener_threads, 'message_listener_threads')
         _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
         _check_type_or_none(str, log_conf_file_path, 'log_conf_file_path')
+        _check_type_or_none(logging.Logger, logger, 'logger')
         _check_type(bool, use_tls, 'use_tls')
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
@@ -404,6 +409,8 @@ class Client:
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
+        if logger:
+            conf.set_logger(logger)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
             conf.use_tls(True)
         if tls_trust_certs_file_path:
