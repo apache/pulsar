@@ -137,6 +137,8 @@ public final class Schemas {
     @Setter
     @ToString
     @EqualsAndHashCode
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class PersonOne{
         int id;
     }

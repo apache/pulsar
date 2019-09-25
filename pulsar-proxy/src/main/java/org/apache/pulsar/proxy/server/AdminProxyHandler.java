@@ -104,7 +104,7 @@ class AdminProxyHandler extends ProxyServlet {
 
         value = config.getInitParameter("idleTimeout");
         if (value == null)
-            value = "30000";
+            value = "120000";
         client.setIdleTimeout(Long.parseLong(value));
 
         value = config.getInitParameter("requestBufferSize");

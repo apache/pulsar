@@ -239,7 +239,7 @@ public class SchemaCompatibilityCheckTest extends PulsarTestSuite {
         try {
             producerThreeBuilder.create();
         } catch (Exception e) {
-            Assert.assertTrue(e.getMessage().contains("Do allow auto update schema."));
+            Assert.assertTrue(e.getMessage().contains("Don't allow auto update schema."));
         }
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true);
