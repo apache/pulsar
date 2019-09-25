@@ -44,7 +44,6 @@ ConnectionPool::ConnectionPool(const ClientConfiguration& conf, ExecutorServiceP
 
 ConnectionPool::~ConnectionPool() {
     std::unique_lock<std::mutex> lock(mutex_);
-
     if (poolConnections_) {
         for (auto cnxIt = pool_.begin(); cnxIt != pool_.end(); cnxIt++) {
             ClientConnectionPtr cnx = cnxIt->second.lock();
@@ -54,8 +53,6 @@ ConnectionPool::~ConnectionPool() {
         }
         pool_.clear();
     }
-
-    lock.unlock();
 }
 
 Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
