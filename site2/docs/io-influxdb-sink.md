@@ -17,7 +17,7 @@ The configuration of the InfluxDB sink connector has the following properties.
 |------|----------|----------|---------|-------------|
 | `influxdbUrl` |String| true|" " (empty string) | The URL of the InfluxDB instance. |
 | `username` | String|false| " " (empty string) |The username used to authenticate to InfluxDB. |
-| `password` | String| true|" " (empty string)  | The password used to authenticate to InfluxDB. |
+| `password` | String| false|" " (empty string)  | The password used to authenticate to InfluxDB. |
 | `database` |String| true | " " (empty string)| The InfluxDB to which write messages. |
 | `consistencyLevel` | String|false|ONE | The consistency level for writing data to InfluxDB. <br><br>Below are the available options:<li>ALL<br><li> ANY<br><li>ONE<br><li>QUORUM |
 | `logLevel` | String|false| NONE|The log level for InfluxDB request and response. <br><br>Below are the available options:<li>NONE<br><li>BASIC<br><li>HEADERS<br><li>FULL|
