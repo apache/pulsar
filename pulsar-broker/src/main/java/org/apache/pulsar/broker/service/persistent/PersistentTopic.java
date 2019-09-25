@@ -277,11 +277,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
-        if (messageDeduplication.shouldPublishNextMessage(publishContext, headersAndPayload)) {
-            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
-        } else {
-            // Immediately acknowledge duplicated message
-            publishContext.completed(null, -1, -1);
+        MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+        switch (status){
+            case NotDup:
+                ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                break;
+            case Dup:
+                // Immediately acknowledge duplicated message
+                publishContext.completed(null, -1, -1);
+                break;
+            default:
+                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
         }
     }
 

@@ -59,7 +59,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, long backoffIntervalNanos, long maxBackoffIntervalNanos) {
         super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture, subscriptionMode, startMessageId,
-              schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);
+              schema, interceptors);
     }
 
     @Override
