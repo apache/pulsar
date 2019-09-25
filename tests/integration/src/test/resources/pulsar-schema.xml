@@ -22,7 +22,6 @@
 <suite name="Pulsar Schema Integration Tests" verbose="2" annotations="JDK">
     <test name="pulsar-schema-test-suite" preserve-order="true" >
         <classes>
-            <class name="org.apache.pulsar.tests.integration.schema.SchemaCompatibilityCheckTest" />
             <class name="org.apache.pulsar.tests.integration.schema.SchemaTest" />
         </classes>
     </test>
