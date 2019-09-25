@@ -131,7 +131,7 @@ To delete a geo-replication topic, close all producers and consumers on the topi
 
 Pulsar supports replicated subscriptions, so you can keep subscription state in sync, within a sub-second timeframe, in the context of a topic that is being asynchronously replicated across multiple geographical regions.
 
-In case of failover, a consumer can restart consuming from the failure point. 
+In case of failover, a consumer can restart consuming from the failure point in a different cluster. 
 
 ### Enable replicated subscription
 
