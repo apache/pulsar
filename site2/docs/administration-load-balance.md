@@ -38,7 +38,8 @@ The namespace is the "administrative" unit: many config knobs or operations are 
 For assignment, a namespaces is sharded into a list of "bundles", with each bundle comprising
 a portion of overall hash range of the namespace.
 
-You can take the hash of the topic name and see in which bundle the hash falls into to assign topics to a particular bundle.
+Topics are assigned to a particular bundle by taking the hash of the topic name and seeing in which
+bundle the hash falls into.
 
 Each bundle is independent of the others and thus is independently assigned to different brokers.
 
