@@ -21,12 +21,27 @@
 class LoggerWrapper: public Logger {
     std::string _logger;
     PyObject* _pyLogger;
+    int _currentPythonLogLevel = 10 + (Logger::LEVEL_INFO*10);
+
+    void _updateCurrentPythonLogLevel() {
+        PyGILState_STATE state = PyGILState_Ensure();
+
+        try {
+            _currentPythonLogLevel = py::call_method<int>(_pyLogger, "getEffectiveLevel");
+        } catch (py::error_already_set e) {
+            PyErr_Print();
+        }
+
+        PyGILState_Release(state);
+    };
 
 public:
 
     LoggerWrapper(const std::string &logger, PyObject* pyLogger) : _logger(logger) {
         _pyLogger = pyLogger;
         Py_XINCREF(_pyLogger);
+
+        _updateCurrentPythonLogLevel();
     }
 
     LoggerWrapper(const LoggerWrapper& other) {
@@ -45,20 +60,8 @@ public:
     }
 
     bool isEnabled(Level level) {
-        PyGILState_STATE state = PyGILState_Ensure();
-        bool isEnabled = true;
-
-        try {
-            // Python levels are: DEBUGGING=10, INFO=20, WARNING=30 and ERROR=40
-            isEnabled = py::call_method<bool>(_pyLogger, "isEnabledFor", 10 + (level*10));
-        } catch (py::error_already_set e) {
-            PyErr_Print();
-        }
-
-        PyGILState_Release(state);
-
-        return isEnabled;
-    };
+        return 10 + (level*10) >= _currentPythonLogLevel;
+    }
 
     void log(Level level, int line, const std::string& message) {
         PyGILState_STATE state = PyGILState_Ensure();
