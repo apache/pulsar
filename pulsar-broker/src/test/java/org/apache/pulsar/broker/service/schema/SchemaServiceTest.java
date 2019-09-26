@@ -259,7 +259,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         try {
             schemaRegistryService.putSchemaIfAbsent(schemaId1, schema2, SchemaCompatibilityStrategy.FULL, false).get();
         } catch (Exception e) {
-            assertEquals("Do allow auto update schema.", e.getCause().getMessage());
+            assertEquals("Don't allow auto update schema.", e.getCause().getMessage());
         }
 
     }
