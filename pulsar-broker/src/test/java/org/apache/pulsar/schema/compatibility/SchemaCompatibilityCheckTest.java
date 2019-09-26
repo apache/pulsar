@@ -41,8 +41,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
+import java.util.concurrent.ThreadLocalRandom;
 
-import static org.apache.pulsar.client.admin.internal.SchemaCompatibilityCheckTest.randomName;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.junit.Assert.assertEquals;
 
@@ -359,5 +359,12 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(e.getMessage().contains("Unable to read schema"));
         }
 
+    }
+    public static String randomName(int numChars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < numChars; i++) {
+            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
+        }
+        return sb.toString();
     }
 }
