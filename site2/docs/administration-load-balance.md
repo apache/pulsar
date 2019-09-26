@@ -38,7 +38,7 @@ The namespace is the "administrative" unit: many config knobs or operations are 
 For assignment, a namespaces is sharded into a list of "bundles", with each bundle comprising
 a portion of overall hash range of the namespace.
 
-Topics are assigned to a particular bundle by taking the hash of the topic name and seeing in which
+Topics are assigned to a particular bundle by taking the hash of the topic name and checking in which
 bundle the hash falls into.
 
 Each bundle is independent of the others and thus is independently assigned to different brokers.
@@ -63,7 +63,7 @@ With this command, you create a namespace with 16 initial bundles. Therefore the
 
 In general, if you know the expected traffic and number of topics in advance, you had better start with a reasonable number of bundles instead of waiting for the system to auto-correct the distribution.
 
-On a same note, due to the hashing nature of the topics distribution into bundles, starting with more bundles than number of brokers is better. For example, for a namespace with 1000 topics, using something like 64 bundles achieves a good distribution of traffic across 16 brokers.
+On the same note, it is beneficial to start with more bundles than the number of brokers, because of the hashing nature of the distribution of topics into bundles. For example, for a namespace with 1000 topics, using something like 64 bundles achieves a good distribution of traffic across 16 brokers.
 
 ### Unload topics and bundles
 
@@ -88,7 +88,7 @@ pulsar-admin namespaces unload tenant/namespace
 
 ### Split namespace bundles 
 
-Since the load for the topics in a bundle might change over time, or predicting upfront might just be hard, brokers can spilt bundles in 2. The new smaller bundles can then be reassigned to different brokers.
+Since the load for the topics in a bundle might change over time, or predicting upfront might just be hard, brokers can split bundles into two. The new smaller bundles can be reassigned to different brokers.
 
 The splitting happens based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution.
 
