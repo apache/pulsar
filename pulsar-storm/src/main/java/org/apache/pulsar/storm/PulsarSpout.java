@@ -242,9 +242,9 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
                 // emit the tuple if retry doesn't need backoff else sleep with backoff time and return without doing
                 // anything
                 if (Backoff.shouldBackoff(messageRetries.getTimeStamp(), TimeUnit.NANOSECONDS,
-                        messageRetries.getNumRetries(), clientConf.getDefaultBackoffIntervalNanos(),
+                        messageRetries.getNumRetries(), clientConf.getInitialBackoffIntervalNanos(),
                         clientConf.getMaxBackoffIntervalNanos())) {
-                    Utils.sleep(TimeUnit.NANOSECONDS.toMillis(clientConf.getDefaultBackoffIntervalNanos()));
+                    Utils.sleep(TimeUnit.NANOSECONDS.toMillis(clientConf.getInitialBackoffIntervalNanos()));
                 } else {
                     // remove the message from the queue and emit to the topology, only if it should not be backedoff
                     LOG.info("[{}] Retrying failed message {}", spoutId, msg.getMessageId());

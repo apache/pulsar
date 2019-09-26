@@ -25,7 +25,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Lists;
-import com.google.protobuf.MapEntry;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
@@ -768,9 +767,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                                 configurationData, client.externalExecutorProvider().getExecutor(),
                                 partitionIndex, true, subFuture,
-                                SubscriptionMode.Durable, null, schema, interceptors,
-                                client.getConfiguration().getDefaultBackoffIntervalNanos(),
-                                client.getConfiguration().getMaxBackoffIntervalNanos());
+                                SubscriptionMode.Durable, null, schema, interceptors
+                        );
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
@@ -782,8 +780,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
             ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
                     client.externalExecutorProvider().getExecutor(), -1, true, subFuture, SubscriptionMode.Durable, null,
-                    schema, interceptors, client.getConfiguration().getDefaultBackoffIntervalNanos(),
-                    client.getConfiguration().getMaxBackoffIntervalNanos());
+                    schema, interceptors
+            );
             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
 
             futureList = Collections.singletonList(subFuture);
@@ -999,9 +997,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
                             client, partitionName, configurationData,
                             client.externalExecutorProvider().getExecutor(),
-                            partitionIndex, true, subFuture, SubscriptionMode.Durable, null, schema, interceptors,
-                            client.getConfiguration().getDefaultBackoffIntervalNanos(),
-                            client.getConfiguration().getMaxBackoffIntervalNanos());
+                            partitionIndex, true, subFuture, SubscriptionMode.Durable, null, schema, interceptors
+                        );
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] create consumer {} for partitionName: {}",
