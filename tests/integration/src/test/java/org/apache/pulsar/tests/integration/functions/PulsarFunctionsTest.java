@@ -148,7 +148,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             sinkTester.stopServiceContainer(pulsarCluster);
         }
     }
-    private void runSinkTester(SinkTester tester, boolean builtin) throws Exception {
+    private <T extends GenericContainer> void runSinkTester(SinkTester<T> tester, boolean builtin) throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String inputTopicName = "test-sink-connector-"
@@ -532,7 +532,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // Source Test
     //
 
-    private void testSource(SourceTester tester)  throws Exception {
+    private <T extends GenericContainer> void testSource(SourceTester<T> tester)  throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "test-source-connector-"
@@ -549,6 +549,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
         admin.topics().createNonPartitionedTopic(outputTopicName);
+
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic(outputTopicName)
@@ -1336,6 +1337,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                     .build();
+
             @Cleanup Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
                     .topic(outputTopicName)
                     .subscriptionType(SubscriptionType.Exclusive)
@@ -1767,11 +1769,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         @Cleanup PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
+
         @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic(outputTopic)
             .subscriptionType(SubscriptionType.Exclusive)
             .subscriptionName("test-sub")
             .subscribe();
+
         if (inputTopic.endsWith(".*")) {
             @Cleanup Producer<String> producer1 = client.newProducer(Schema.STRING)
                     .topic(inputTopic.substring(0, inputTopic.length() - 2) + "1")

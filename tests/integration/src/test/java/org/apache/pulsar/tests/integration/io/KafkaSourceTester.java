@@ -124,7 +124,7 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
             producer.send(record).get();
         }
 
-        log.info("Successfully produce {} messages to kafka topic {}", kafkaTopicName);
+        log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
         return kvs;
     }
 }

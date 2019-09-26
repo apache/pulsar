@@ -78,12 +78,12 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
     }
 
     @Override
-    public void prepareSource() throws Exception {
+    public void prepareSource() {
         log.info("debezium postgresql server already contains preconfigured data.");
     }
 
     @Override
-    public Map<String, String> produceSourceMessages(int numMessages) throws Exception {
+    public Map<String, String> produceSourceMessages(int numMessages) {
         log.info("debezium postgresql server already contains preconfigured data.");
         return null;
     }
