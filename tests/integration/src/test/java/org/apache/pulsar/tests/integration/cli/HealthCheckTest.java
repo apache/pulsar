@@ -44,11 +44,16 @@ import org.testng.annotations.Test;
 /**
  * Test the healthcheck command.
  */
-public class HealthcheckTest {
-    private final static Logger log = LoggerFactory.getLogger(HealthcheckTest.class);
+public class HealthCheckTest {
+
+    private final static Logger log = LoggerFactory.getLogger(HealthCheckTest.class);
+
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
-        .clusterName("HealthcheckTest-" + UUID.randomUUID().toString().substring(0, 8))
-        .numProxies(0).numFunctionWorkers(0).enablePrestoWorker(false).build();
+        .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
+        .numProxies(0)
+        .numFunctionWorkers(0)
+        .enablePrestoWorker(false).build();
+
     private PulsarCluster pulsarCluster = null;
 
     @BeforeMethod
@@ -58,7 +63,7 @@ public class HealthcheckTest {
     }
 
     @AfterMethod
-    public void tearDownCluster() throws Exception {
+    public void tearDownCluster() {
         if (pulsarCluster != null) {
             pulsarCluster.stop();
             pulsarCluster = null;
