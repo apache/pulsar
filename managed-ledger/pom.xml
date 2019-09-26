@@ -29,7 +29,7 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>managed-ledger-original</artifactId>
+  <artifactId>managed-ledger</artifactId>
   <name>Managed Ledger</name>
 
   <dependencies>
