@@ -139,6 +139,8 @@ class ProducerImpl : public HandlerBase,
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
 
+    void cancelTimers();
+
     typedef std::unique_lock<std::mutex> Lock;
 
     ProducerConfiguration conf_;
