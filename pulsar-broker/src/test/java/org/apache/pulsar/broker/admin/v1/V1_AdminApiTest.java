@@ -578,9 +578,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.tenants().updateTenant("prop-xyz", newPropertyAdmin);
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), newPropertyAdmin);
-        // Delete system topic first.
-        admin.topics().delete(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/use/ns1"),
-            EventType.TOPIC_POLICY).toString(), true);
+
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.tenants().deleteTenant("prop-xyz");
         assertEquals(admin.tenants().getTenants(), Lists.newArrayList());
@@ -1457,9 +1455,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(result.someNewIntField, 0);
         assertNull(result.someNewString);
 
-        // Delete system topic first.
-        admin.topics().delete(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get("prop-xyz/use/ns1"),
-            EventType.TOPIC_POLICY).toString(), true);
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.tenants().deleteTenant("prop-xyz");
         assertEquals(admin.tenants().getTenants(), Lists.newArrayList());

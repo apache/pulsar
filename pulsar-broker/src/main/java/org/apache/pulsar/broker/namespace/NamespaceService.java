@@ -343,10 +343,6 @@ public class NamespaceService {
             targetMap = findingBundlesNotAuthoritative;
         }
 
-        if (targetMap.get(bundle) != null && !targetMap.get(bundle).isDone()) {
-            return findBrokerServiceUrlInternal(bundle, authoritative, readOnly);
-        }
-
         return targetMap.computeIfAbsent(bundle, (k) -> {
             CompletableFuture<Optional<LookupResult>> future = findBrokerServiceUrlInternal(bundle, authoritative, readOnly);
 
