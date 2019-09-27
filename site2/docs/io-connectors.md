@@ -20,7 +20,7 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
   
 - [Debezium PostgreSQL source Connector](io-postgresql-debezium.md)
   
-- [File source connector](io-file.md)
+- [File source connector](io-file-source.md)
   
 - [Flume source connector](io-flume-source.md)
 
