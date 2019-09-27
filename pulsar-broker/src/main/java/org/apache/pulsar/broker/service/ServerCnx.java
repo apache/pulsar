@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
@@ -611,6 +612,7 @@ public class ServerCnx extends PulsarHandler {
         final InitialPosition initialPosition = subscribe.getInitialPosition();
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
+        final boolean forceTopicCreation = subscribe.getForceTopicCreation();
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -676,8 +678,18 @@ public class ServerCnx extends PulsarHandler {
                             }
                         }
 
-                        service.getOrCreateTopic(topicName.toString())
-                                .thenCompose(topic -> {
+                        boolean createTopicIfDoesNotExist = forceTopicCreation
+                                && service.pulsar().getConfig().isAllowAutoTopicCreation();
+
+                        service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
+                                .thenCompose(optTopic -> {
+                                    if (!optTopic.isPresent()) {
+                                        return FutureUtil
+                                                .failedFuture(new TopicNotFoundException("Topic does not exist"));
+                                    }
+
+                                    Topic topic = optTopic.get();
+
                                     if (schema != null) {
                                         return topic.addSchemaIfIdleOrCheckCompatible(schema)
                                             .thenCompose(isCompatible -> {
@@ -728,6 +740,9 @@ public class ServerCnx extends PulsarHandler {
                                                     remoteAddress, topicName, subscriptionName,
                                                     exception.getCause().getMessage());
                                         }
+                                    } else if (exception.getCause() instanceof BrokerServiceException) {
+                                        log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
+                                                subscriptionName, exception.getCause().getMessage());
                                     } else {
                                         log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
                                                 subscriptionName, exception.getCause().getMessage(), exception);
