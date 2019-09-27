@@ -135,7 +135,7 @@ In case of failover, a consumer can restart consuming from the failure point in 
 
 ### Enable replicated subscription
 
-Replicated subscription is enabled/disabled by default. You can enable replicated subscription when creating a consumer. 
+Replicated subscription is disabled by default. You can enable replicated subscription when creating a consumer. 
 
 ```java
 Consumer<String> consumer = client.newConsumer(Schema.STRING)
