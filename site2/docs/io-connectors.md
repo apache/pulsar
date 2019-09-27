@@ -40,7 +40,7 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 Pulsar has various sink connectors, which are sorted alphabetically as below.
 
-- [Aerospike sink connector](io-aerospike.md)
+- [Aerospike sink connector](io-aerospike-sink.md)
   
 - [Cassandra sink connector](io-cassandra-sink.md)
 
