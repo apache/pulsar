@@ -322,7 +322,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         try {
             return result(stateContext.get(key));
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'");
+            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
         }
     }
 
