@@ -53,6 +53,8 @@ public interface Dispatcher {
      */
     CompletableFuture<Void> close();
 
+    boolean isClosed();
+
     /**
      * disconnect all consumers
      *
