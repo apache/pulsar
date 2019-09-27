@@ -1,14 +1,14 @@
 ---
-id: io-flume-source
-title: Flume source connector
-sidebar_label: Flume source connector
+id: io-flume-sink
+title: Flume sink connector
+sidebar_label: Flume sink connector
 ---
 
-The Flume source connector pulls messages from logs to Pulsar topics.
+The Flume sink connector pulls messages from Pulsar topics to logs.
 
 ## Configuration
 
-The configuration of the Flume source connector has the following properties.
+The configuration of the Flume sink connector has the following properties.
 
 ### Property
 
@@ -22,16 +22,16 @@ The configuration of the Flume source connector has the following properties.
 
 ### Example
 
-Before using the Flume source connector, you need to create a configuration file through one of the following methods.
+Before using the Flume sink connector, you need to create a configuration file through one of the following methods.
 
-> For more information about the `source.conf` in the example below, see [here](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/resources/flume/source.conf).
+> For more information about the `sink.conf` in the example below, see [here](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/resources/flume/sink.conf).
 
 * JSON 
 
     ```json
     {
         "name": "a1",
-        "confFile": "source.conf",
+        "confFile": "sink.conf",
         "noReloadConf": "false",
         "zkConnString": "",
         "zkBasePath": ""
@@ -43,7 +43,7 @@ Before using the Flume source connector, you need to create a configuration file
     ```yaml
     configs:
         name: a1
-        confFile: source.conf
+        confFile: sink.conf
         noReloadConf: false
         zkConnString: ""
         zkBasePath: ""
