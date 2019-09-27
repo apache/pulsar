@@ -54,7 +54,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 - [HDFS3 sink connector](io-hdfs3.md)
 
-- [InfluxDB sink connector](io-influxdb.md)
+- [InfluxDB sink connector](io-influxdb-sink.md)
 
 - [JDBC sink connector](io-jdbc-sink.md)
 
