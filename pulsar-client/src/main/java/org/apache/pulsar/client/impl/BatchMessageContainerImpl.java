@@ -123,7 +123,9 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     public void discard(Exception ex) {
         try {
             // Need to protect ourselves from any exception being thrown in the future handler from the application
-            firstCallback.sendComplete(ex);
+            if (firstCallback != null) {
+                firstCallback.sendComplete(ex);
+            }
         } catch (Throwable t) {
             log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName, producerName,
                 sequenceId, t);
@@ -148,9 +150,9 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             cmd.release();
-            if (op != null) {
-                op.callback.sendComplete(new PulsarClientException.InvalidMessageException(
+            discard(new PulsarClientException.InvalidMessageException(
                     "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+            if (op != null) {
                 op.recycle();
             }
             return null;
