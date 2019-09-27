@@ -24,7 +24,7 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
   
 - [Flume source connector](io-flume-source.md)
 
-- [Twitter firehose source connector](io-twitter.md)
+- [Twitter firehose source connector](io-twitter-source.md)
 
 - [Kafka source connector](io-kafka-source.md)
 
