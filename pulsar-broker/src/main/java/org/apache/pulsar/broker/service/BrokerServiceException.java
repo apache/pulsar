@@ -116,6 +116,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TopicNotFoundException extends BrokerServiceException {
+        public TopicNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class SubscriptionBusyException extends BrokerServiceException {
         public SubscriptionBusyException(String msg) {
             super(msg);
@@ -180,6 +186,8 @@ public class BrokerServiceException extends Exception {
         } else if (t instanceof ServiceUnitNotReadyException || t instanceof TopicFencedException
                 || t instanceof SubscriptionFencedException) {
             return PulsarApi.ServerError.ServiceNotReady;
+        } else if (t instanceof TopicNotFoundException) {
+            return PulsarApi.ServerError.TopicNotFound;
         } else if (t instanceof IncompatibleSchemaException
             || t instanceof InvalidSchemaDataException) {
             // for backward compatible with old clients, invalid schema data

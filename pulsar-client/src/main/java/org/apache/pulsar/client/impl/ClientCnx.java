@@ -911,6 +911,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.TopicTerminatedException(errorMsg);
         case IncompatibleSchema:
             return new PulsarClientException.IncompatibleSchemaException(errorMsg);
+        case TopicNotFound:
+            return new PulsarClientException.TopicDoesNotExistException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);
