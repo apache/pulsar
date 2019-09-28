@@ -4,7 +4,7 @@ title: Pulsar connector overview
 sidebar_label: Overview
 ---
 
-Messaging systems are most powerful when you can easily use them with external systems like databases and other messaging systems. 
+Messaging systems are most powerful when you can easily use them with external systems like databases and other messaging systems.
 
 **Pulsar IO connectors** enable you to easily create, deploy, and manage connectors that interact with external systems, such as [Apache Cassandra](https://cassandra.apache.org), [Aerospike](https://www.aerospike.com), and many others.
 
@@ -20,7 +20,7 @@ This diagram illustrates the relationship between source, Pulsar, and sink:
 
 ### Source
 
-> Sources **feed data from external systems into Pulsar**. 
+> Sources **feed data from external systems into Pulsar**.
 
 Common sources include other messaging systems and firehose-style data pipeline APIs.
 
@@ -28,7 +28,7 @@ For the complete list of Pulsar built-in source connectors, see [source connecto
 
 ### Sink
 
-> Sinks **feed data from Pulsar into external systems**. 
+> Sinks **feed data from Pulsar into external systems**.
 
 Common sinks include other messaging systems and SQL and NoSQL databases.
 

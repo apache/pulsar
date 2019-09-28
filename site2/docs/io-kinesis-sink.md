@@ -12,7 +12,7 @@ The configuration of the Kinesis sink connector has the following parameters.
 
 ### Parameter
 
-| Name | Type|Required | Default | Description 
+| Name | Type|Required | Default | Description
 |------|----------|----------|---------|-------------|
 `messageFormat`|MessageFormat|true|ONLY_RAW_PAYLOAD|Message format in which Kinesis sink converts Pulsar messages and publishes to Kinesis streams.<br/><br/>Below are the available options:<br/><br/><li>`ONLY_RAW_PAYLOAD`: Kinesis sink directly publishes Pulsar message payload as a message into the configured Kinesis stream. <br/><br/><li>`FULL_MESSAGE_IN_JSON`: Kinesis sink creates a JSON payload with Pulsar message payload, properties and encryptionCtx, and publishes JSON payload into the configured Kinesis stream.<br/><br/><li>`FULL_MESSAGE_IN_FB`: Kinesis sink creates a flatbuffer serialized payload with Pulsar message payload, properties and encryptionCtx, and publishes flatbuffer payload into the configured Kinesis stream.
 `retainOrdering`|boolean|false|false|Whether Pulsar connectors to retain ordering when moving messages from Pulsar to Kinesis or not.
@@ -26,7 +26,7 @@ The configuration of the Kinesis sink connector has the following parameters.
 
 Before using the Kinesis sink connector, you need to create a configuration file through one of the following methods.
 
-* JSON 
+* JSON
 
     ```json
     {
@@ -51,4 +51,15 @@ Before using the Kinesis sink connector, you need to create a configuration file
         retainOrdering: "true"
     ```
 
+### Built-in `AwsCredentialProviderPlugin` plugins
 
+#### `org.apache.pulsar.io.kinesis.AwsDefaultProviderChainPlugin`
+This plugin takes no configuration, it uses the default AWS provider chain. See the [AWS documentation](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html#credentials-default) for more details
+
+#### `org.apache.pulsar.io.kinesis.STSAssumeRoleProviderPlugin`
+This plugin takes a configuration (via the `awsCredentialPluginParam`) that describes a role to assume when running the KCL.
+
+This configuration takes the form of a small json document like:
+```Json
+{"roleArn": "arn...", "roleSessionName": "name"}
+```

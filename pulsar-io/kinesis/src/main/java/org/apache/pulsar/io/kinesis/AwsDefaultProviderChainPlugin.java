@@ -18,24 +18,30 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import software.amazon.kinesis.processor.ShardRecordProcessor;
-import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
-import java.util.concurrent.LinkedBlockingQueue;
+import java.io.IOException;
 
-public class KinesisRecordProcessorFactory implements ShardRecordProcessorFactory {
+public class AwsDefaultProviderChainPlugin implements AwsCredentialProviderPlugin {
+    @Override
+    public void init(String param) {
 
-    private final LinkedBlockingQueue<KinesisRecord> queue;
-    private final KinesisSourceConfig config;
-    
-    public KinesisRecordProcessorFactory(LinkedBlockingQueue<KinesisRecord> queue, 
-            KinesisSourceConfig kinesisSourceConfig) {
-        this.queue = queue;
-        this.config = kinesisSourceConfig;
     }
 
     @Override
-    public ShardRecordProcessor shardRecordProcessor() {
-        return new KinesisRecordProcessor(queue, config);
+    public AWSCredentialsProvider getCredentialProvider() {
+        return new DefaultAWSCredentialsProviderChain();
+    }
+
+    @Override
+    public software.amazon.awssdk.auth.credentials.AwsCredentialsProvider getV2CredentialsProvider() {
+        return DefaultCredentialsProvider.create();
+    }
+
+    @Override
+    public void close() throws IOException {
+
     }
 }
