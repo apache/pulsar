@@ -210,7 +210,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     public boolean isClosed() {
-        return IS_CLOSED_UPDATER.get(this) == TRUE;
+        return isClosed == TRUE;
     }
 
     /**

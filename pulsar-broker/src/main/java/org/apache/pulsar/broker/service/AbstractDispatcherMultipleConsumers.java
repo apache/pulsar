@@ -65,7 +65,7 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     }
 
     public boolean isClosed() {
-        return IS_CLOSED_UPDATER.get(this) == TRUE;
+        return isClosed == TRUE;
     }
 
     public SubType getType() {
