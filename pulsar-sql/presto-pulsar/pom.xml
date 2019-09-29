@@ -65,7 +65,7 @@
 
         <dependency>
             <groupId>org.apache.pulsar</groupId>
-            <artifactId>managed-ledger-original</artifactId>
+            <artifactId>managed-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -123,7 +123,7 @@
                                 <includes>
                                     <include>org.apache.pulsar:pulsar-client-original</include>
                                     <include>org.apache.pulsar:pulsar-client-admin-original</include>
-                                    <include>org.apache.pulsar:managed-ledger-original</include>
+                                    <include>org.apache.pulsar:managed-ledger</include>
 
                                     <include>org.glassfish.jersey*:*</include>
                                     <include>javax.ws.rs:*</include>
