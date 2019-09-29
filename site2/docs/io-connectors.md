@@ -68,4 +68,4 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 - [Redis sink connector](io-redis.md)
 
-- [Solr sink connector](io-solr.md)
+- [Solr sink connector](io-solr-sink.md)
