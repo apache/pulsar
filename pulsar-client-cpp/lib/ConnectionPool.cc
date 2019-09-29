@@ -42,7 +42,7 @@ ConnectionPool::ConnectionPool(const ClientConfiguration& conf, ExecutorServiceP
       poolConnections_(poolConnections),
       mutex_() {}
 
-ConnectionPool::~ConnectionPool() {
+void ConnectionPool::close() {
     std::unique_lock<std::mutex> lock(mutex_);
     if (poolConnections_) {
         for (auto cnxIt = pool_.begin(); cnxIt != pool_.end(); cnxIt++) {
