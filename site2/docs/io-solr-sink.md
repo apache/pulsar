@@ -39,7 +39,7 @@ Before using the Solr sink connector, you need to create a configuration file th
         "solrUrl": "localhost:2181,localhost:2182/chroot",
         "solrMode": "SolrCloud",
         "solrCollection": "techproducts",
-        "solrCommitWithinMs": "100",
+        "solrCommitWithinMs": 100,
         "username": "fakeuser",
         "password": "fake@123"
     }
