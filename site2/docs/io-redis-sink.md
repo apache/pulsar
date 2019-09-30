@@ -20,7 +20,7 @@ The configuration of the Redis sink connector has the following properties.
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
 | `redisHosts` |String|true|" " (empty string) | A comma-separated list of Redis hosts to connect to. |
-| `redisPassword` |String|true|" " (empty string) | The password used to connect to Redis. |
+| `redisPassword` |String|false|" " (empty string) | The password used to connect to Redis. |
 | `redisDatabase` | int|true|0  | The Redis database to connect to. |
 | `clientMode` |String| false|Standalone | The client mode when interacting with Redis cluster. <br><br>Below are the available options: <br><li>Standalone<br><li>Cluster |
 | `autoReconnect` | boolean|false|true | Whether the Redis client automatically reconnect or not. |
@@ -30,7 +30,7 @@ The configuration of the Redis sink connector has the following properties.
 | `connectTimeout` |long| false|10000 | The time to wait before timing out when connecting in milliseconds. |
 | `operationTimeout` | long|false|10000 | The time before an operation is marked as timed out in milliseconds . |
 | `batchTimeMs` | int|false|1000 | The Redis operation time in milliseconds. |
-| `batchSize` | int|false|1000 | The batch size of writing to Redis database. |
+| `batchSize` | int|false|200 | The batch size of writing to Redis database. |
 
 
 ### Example
