@@ -1937,7 +1937,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * @param properties
      * @param callback
      */
-    private void persistPosition(long cursorsLedgerId, PositionImpl position, Map<String, Long> properties,
+    private void persistPositionWhenClosing(PositionImpl position, Map<String, Long> properties,
             final AsyncCallbacks.CloseCallback callback, final Object ctx) {
 
         if (shouldPersistUnackRangesToLedger()) {
@@ -1947,7 +1947,18 @@ public class ManagedCursorImpl implements ManagedCursor {
                         public void operationComplete() {
                             log.info("[{}][{}] Updated md-position={} into cursor-ledger {}", ledger.getName(), name,
                                     markDeletePosition, cursorLedger.getId());
-                            callback.closeComplete(ctx);
+                            cursorLedger.asyncClose((rc, lh, ctx1) -> {
+                                callback.closeComplete(ctx);
+
+                                if (rc == BKException.Code.OK) {
+                                    log.info("[{}][{}] Closed cursor-ledger {}", ledger.getName(), name,
+                                            cursorLedger.getId());
+                                } else {
+                                    log.warn("[{}][{}] Failed to close cursor-ledger {}: {}", ledger.getName(), name,
+                                            cursorLedger.getId(), BKException.getMessage(rc));
+                                }
+                            }, ctx);
+
                         }
 
                         @Override
@@ -1958,7 +1969,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         }
                     });
         } else {
-            persistPositionMetaStore(cursorsLedgerId, position, properties, new MetaStoreCallback<Void>() {
+            persistPositionMetaStore(-1, position, properties, new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void result, Stat stat) {
                     log.info("[{}][{}] Closed cursor at md-position={}", ledger.getName(), name, markDeletePosition);
@@ -2034,7 +2045,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.closeComplete(ctx);
             return;
         }
-        persistPosition(-1, lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, callback, ctx);
+        persistPositionWhenClosing(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, callback, ctx);
         STATE_UPDATER.set(this, State.Closed);
     }
 
