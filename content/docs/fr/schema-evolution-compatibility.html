@@ -284,31 +284,29 @@
 </th>
   </tr>
   <tr>
-    <td>
-      `ALWAYS_COMPATIBLE`
-    </td>
-<pre><code class="hljs">&lt;td&gt;
-  Disable schema compatibility check.
-&lt;/td&gt;
-
-&lt;td&gt;
-  None
-&lt;/td&gt;
-</code></pre>
-  </tr>
-  <tr>
-    <td>
-      `ALWAYS_INCOMPATIBLE`
-    </td>
-<pre><code class="hljs">&lt;td&gt;
-  Disable schema evolution, that is, any schema change is rejected.
-&lt;/td&gt;
-
-&lt;td&gt;
-  * For all schema types except Avro and JSON, the default schema compatibility check strategy is `ALWAYS_INCOMPATIBLE`. * For Avro and JSON, the default schema compatibility check strategy is `FULL`.
-&lt;/td&gt;
-</code></pre>
-  </tr>
+<td> 
+<p><code>ALWAYS_COMPATIBLE</code></p>
+</td> 
+<td> 
+<p>Disable schema compatibility check.</p>
+</td> 
+<td> 
+<p>None</p>
+</td> 
+</tr>
+<tr>
+<td> 
+<p><code>ALWAYS_INCOMPATIBLE</code></p>
+</td> 
+<td> 
+<p>Disable schema evolution, that is, any schema change is rejected.</p>
+</td> 
+<td> 
+<ul>
+<li><p>For all schema types except Avro and JSON, the default schema compatibility check strategy is <code>ALWAYS_INCOMPATIBLE</code>.</p></li>
+<li><p>For Avro and JSON, the default schema compatibility check strategy is <code>FULL</code>.</p></li>
+</ul>
+</td>  </tr>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
 <ul>
@@ -374,23 +372,20 @@
 <p>Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:</p>
 <table style="table">
   <tr>
-    <th>
-      Compatibility check strategy
-    </th>
-<pre><code class="hljs">&lt;th&gt;
-  Definition
-&lt;/th&gt;
-
-&lt;th&gt;
-  Description
-&lt;/th&gt;
-
-&lt;th&gt;
-  Note
-&lt;/th&gt;
-</code></pre>
-  </tr>
-  <tr>
+<th>
+<p>Compatibility check strategy</p>
+</th>
+<th>
+<p>Definition</p>
+</th>
+<th>
+<p>Description</p>
+</th>
+<th>
+<p>Note</p>
+</th>
+</tr>
+<tr>
 <td> 
 <p><code>FULL</code></p>
 </td> 
@@ -445,8 +440,8 @@
 <th>
 <p>Description</p>
 </th>
-</tr>
-<tr>
+  </tr>
+  <tr>
 <td> 
 <p><code>ALWAYS_COMPATIBLE</code></p>
 </td> 
@@ -506,15 +501,13 @@
 <li><p><code>FULL_TRANSITIVE</code></p></li>
 </ul>
 </td> 
-<pre><code class="hljs">&lt;td&gt;
-  Any order
-&lt;/td&gt;
-
-&lt;td&gt;
-  There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema. Consequently, you can upgrade the producers and consumers in **any order**.
-&lt;/td&gt;
-</code></pre>
-  </tr>
+<td> 
+<p>Any order</p>
+</td> 
+<td> 
+<p>There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema.</p>
+<p>Consequently, you can upgrade the producers and consumers in <strong>any order</strong>.</p>
+</td>  </tr>
 </table></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/schema-understand"><span class="arrow-prev">← </span><span>Understand schema</span></a><a class="docs-next button" href="/docs/fr/schema-manage"><span>Manage schema</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#schema-evolution">Schema evolution</a><ul class="toc-headings"><li><a href="#what-is-schema-evolution">What is schema evolution?</a></li><li><a href="#how-pulsar-schema-should-evolve">How Pulsar schema should evolve?</a></li><li><a href="#how-does-pulsar-support-schema-evolution">How does Pulsar support schema evolution?</a></li></ul></li><li><a href="#schema-compatibility-check-strategy">Schema compatibility check strategy</a><ul class="toc-headings"><li><a href="#backward-and-backward_transitive">BACKWARD and BACKWARD_TRANSITIVE</a></li><li><a href="#forward-and-forward_transitive">FORWARD and FORWARD_TRANSITIVE</a></li><li><a href="#full-and-full_transitive">FULL and FULL_TRANSITIVE</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =

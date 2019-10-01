@@ -129,8 +129,8 @@ $ docker cp pulsar-client.py pulsar-standalone:/pulsar/
 </code></pre></li>
 <li><p>Download a Canal connector and start it.</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-standalone /bin/bash
-$ wget http://apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors
-$ ./bin/pulsar-admin sources localrun \
+$ wget https://archive.apache.org/dist/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors
+$ ./bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
 --archive ./connectors/pulsar-io-canal-2.3.0.nar \
 --classname org.apache.pulsar.io.canal.CanalStringSource \
 --tenant public \

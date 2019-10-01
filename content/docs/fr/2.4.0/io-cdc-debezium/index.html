@@ -112,11 +112,11 @@ database.history: <span class="hljs-string">"org.apache.pulsar.io.debezium.Pulsa
     6. This command will pop <span class="hljs-keyword">out</span> MySQL <span class="hljs-keyword">cli</span>, <span class="hljs-keyword">in</span> this <span class="hljs-keyword">cli</span>, we could <span class="hljs-keyword">do</span> a change <span class="hljs-keyword">in</span> <span class="hljs-keyword">table</span> products, <span class="hljs-keyword">use</span> commands below to change the name of 2 items <span class="hljs-keyword">in</span> <span class="hljs-keyword">table</span> products:
     
         ```
-        mysql&amp;gt; <span class="hljs-keyword">use</span> inventory;
-        mysql&amp;gt; show tables;
-        mysql&amp;gt; SELECT * FROM  products ;
-        mysql&amp;gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-keyword">SET</span> name='1111111111' WHERE id=101;
-        mysql&amp;gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-keyword">SET</span> name='1111111111' WHERE id=107;
+        mysql&gt; <span class="hljs-keyword">use</span> inventory;
+        mysql&gt; show tables;
+        mysql&gt; SELECT * FROM  products ;
+        mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-keyword">SET</span> name='1111111111' WHERE id=101;
+        mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-keyword">SET</span> name='1111111111' WHERE id=107;
         ```
     
      <span class="hljs-keyword">In</span> above subscribe topic terminal <span class="hljs-keyword">tab</span>, we could find that 2 changes has been kept into products topic.

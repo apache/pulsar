@@ -8886,15 +8886,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -8921,6 +8912,15 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -9871,11 +9871,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },

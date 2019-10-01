@@ -103,8 +103,8 @@ docker run -d -it --link pulsar-mysql -e canal<span class="hljs-selector-class">
 <ul>
 <li>Start pulsar standalone</li>
 </ul>
-<pre><code class="hljs css language-$bash">docker pull apachepulsar/pulsar:<span class="hljs-number">2.3</span><span class="hljs-number">.0</span>
-docker run -d -it --link pulsar-canal-server -p <span class="hljs-number">6650</span>:<span class="hljs-number">6650</span> -p <span class="hljs-number">8080</span>:<span class="hljs-number">8080</span> -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:<span class="hljs-number">2.3</span><span class="hljs-number">.0</span> bin/pulsar standalone
+<pre><code class="hljs css language-$bash">docker pull apachepulsar/pulsar:<span class="hljs-number">2.4</span><span class="hljs-number">.1</span>
+docker run -d -it --link pulsar-canal-server -p <span class="hljs-number">6650</span>:<span class="hljs-number">6650</span> -p <span class="hljs-number">8080</span>:<span class="hljs-number">8080</span> -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:<span class="hljs-number">2.4</span><span class="hljs-number">.1</span> bin/pulsar standalone
 </code></pre>
 <ul>
 <li><p>Start pulsar-io in standalone</p></li>
@@ -146,8 +146,8 @@ docker <span class="hljs-keyword">cp</span> pulsar-client.<span class="hljs-keyw
 <li>Download canal connector and start canal connector</li>
 </ul>
 <pre><code class="hljs css language-$bash">docker exec -it pulsar-standalone <span class="hljs-string">/bin/bash</span>
-wget http:<span class="hljs-string">//apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar</span> -P connectors
-<span class="hljs-string">./bin/pulsar-admin</span> sources localrun <span class="hljs-params">--archive</span> <span class="hljs-string">./connectors/pulsar-io-canal-2.3.0.nar</span> <span class="hljs-params">--classname</span> org.apache.pulsar.io.canal.CanalStringSource <span class="hljs-params">--tenant</span> public <span class="hljs-params">--namespace</span> default <span class="hljs-params">--name</span> canal <span class="hljs-params">--destination-topic-name</span> my-topic <span class="hljs-params">--source-config-file</span> <span class="hljs-string">/pulsar/conf/canal-mysql-source-config.yaml</span> <span class="hljs-params">--parallelism</span> 1
+wget http:<span class="hljs-string">//apache.01link.hk/pulsar/pulsar-2.4.1/connectors/pulsar-io-canal-2.4.1.nar</span> -P connectors
+<span class="hljs-string">./bin/pulsar-admin</span> sources localrun <span class="hljs-params">--archive</span> <span class="hljs-string">./connectors/pulsar-io-canal-2.4.1.nar</span> <span class="hljs-params">--classname</span> org.apache.pulsar.io.canal.CanalStringSource <span class="hljs-params">--tenant</span> public <span class="hljs-params">--namespace</span> default <span class="hljs-params">--name</span> canal <span class="hljs-params">--destination-topic-name</span> my-topic <span class="hljs-params">--source-config-file</span> <span class="hljs-string">/pulsar/conf/canal-mysql-source-config.yaml</span> <span class="hljs-params">--parallelism</span> 1
 </code></pre>
 <ul>
 <li>Consumption data</li>
