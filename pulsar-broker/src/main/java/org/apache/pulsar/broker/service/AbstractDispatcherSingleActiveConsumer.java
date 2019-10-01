@@ -197,6 +197,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return disconnectAllConsumers();
     }
 
+    public boolean isClosed() {
+        return isClosed == TRUE;
+    }
+
     /**
      * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
      * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed

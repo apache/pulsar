@@ -88,14 +88,18 @@ public class NonPersistentSubscription implements Subscription {
         }
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
+            Dispatcher previousDispatcher = null;
+
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
+                    previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
+                    previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this);
                 }
                 break;
@@ -107,17 +111,28 @@ public class NonPersistentSubscription implements Subscription {
                 }
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
+                    previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partitionIndex,
                             topic, this);
                 }
                 break;
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                    previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this);
                 }
                 break;
             default:
                 throw new ServerMetadataException("Unsupported subscription type");
+            }
+
+            if (previousDispatcher != null) {
+                previousDispatcher.close().thenRun(() -> {
+                    log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
+                }).exceptionally(ex -> {
+                    log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
+                    return null;
+                });
             }
         } else {
             if (consumer.subType() != dispatcher.getType()) {
