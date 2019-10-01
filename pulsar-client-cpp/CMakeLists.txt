@@ -102,7 +102,11 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-find_package(Boost REQUIRED COMPONENTS program_options regex system)
+if (MSVC)
+  find_package(Boost REQUIRED COMPONENTS program_options regex system date_time)
+else()
+  find_package(Boost REQUIRED COMPONENTS program_options regex system)
+endif()
 
 find_package(ZLIB REQUIRED)
 
@@ -212,16 +216,30 @@ include_directories(
   ${GMOCK_INCLUDE_PATH}
 )
 
-set(COMMON_LIBS
-  ${COMMON_LIBS}
-  ${Boost_REGEX_LIBRARY}
-  ${Boost_SYSTEM_LIBRARY}
-  ${CURL_LIBRARIES}
-  ${OPENSSL_LIBRARIES}
-  ${ZLIB_LIBRARIES}
-  ${Protobuf_LITE_LIBRARIES}
-  ${ADDITIONAL_LIBRARIES}
-)
+if (MSVC)
+  set(COMMON_LIBS
+    ${COMMON_LIBS}
+    ${Boost_REGEX_LIBRARY}
+    ${Boost_SYSTEM_LIBRARY}
+    ${Boost_DATE_TIME_LIBRARY}
+    ${CURL_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    ${Protobuf_LITE_LIBRARIES}
+    ${ADDITIONAL_LIBRARIES}
+  )
+else()
+  set(COMMON_LIBS
+    ${COMMON_LIBS}
+    ${Boost_REGEX_LIBRARY}
+    ${Boost_SYSTEM_LIBRARY}
+    ${CURL_LIBRARIES}
+    ${OPENSSL_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    ${Protobuf_LITE_LIBRARIES}
+    ${ADDITIONAL_LIBRARIES}
+  )
+endif()
 
 if (NOT MSVC)
     set(COMMON_LIBS
