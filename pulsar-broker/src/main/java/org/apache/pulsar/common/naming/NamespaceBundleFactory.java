@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -68,7 +69,9 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
 
-        this.bundlesCache = Caffeine.newBuilder().buildAsync((NamespaceName namespace, Executor executor) -> {
+        this.bundlesCache = Caffeine.newBuilder()
+                .recordStats()
+                .buildAsync((NamespaceName namespace, Executor executor) -> {
             String path = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Loading cache with bundles for {}", namespace);
@@ -100,6 +103,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
             });
             return future;
         });
+
+        CacheMetricsCollector.CAFFEINE.addCache("bundles", this.bundlesCache);
 
         // local-policies have been changed which has contains namespace bundles
         pulsar.getLocalZkCacheService().policiesCache()
