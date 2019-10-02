@@ -817,6 +817,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
     private String bookkeeperTLSTrustCertsFilePath;
 
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
+    private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
