@@ -115,7 +115,7 @@ import org.slf4j.LoggerFactory;
 public class PersistentTopicsBase extends AdminResource {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicsBase.class);
 
-    protected static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
+    public static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
@@ -1609,7 +1609,8 @@ public class PersistentTopicsBase extends AdminResource {
             // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
             // producer/consumer
             checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
-                    .thenCompose(res -> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(pulsar, path, topicName))
+                    .thenCompose(res -> pulsar.getBrokerService()
+                            .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
                     .thenAccept(metadata -> {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, topicName,
@@ -1725,7 +1726,7 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getPersistenceNamingEncoding());
         CompletableFuture<Void> result = new CompletableFuture<>();
-        fetchPartitionedTopicMetadataAsync(pulsar(), path).thenAccept(partitionMetadata -> {
+        pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions <= 1) {
                 result.completeExceptionally(new RestException(Status.CONFLICT, "Topic is not partitioned topic"));
                 return;
