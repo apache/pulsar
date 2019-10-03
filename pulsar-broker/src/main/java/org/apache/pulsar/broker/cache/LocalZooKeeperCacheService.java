@@ -249,6 +249,6 @@ public class LocalZooKeeperCacheService {
     }
 
     public CompletableFuture<Boolean> managedLedgerExists(String persistentPath) {
-        return cache.existsAsync(MANAGED_LEDGER_ROOT + persistentPath, cache);
+        return cache.existsAsync(MANAGED_LEDGER_ROOT + "/" + persistentPath, cache);
     }
 }
