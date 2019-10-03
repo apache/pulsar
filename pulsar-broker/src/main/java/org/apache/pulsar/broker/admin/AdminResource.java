@@ -694,10 +694,14 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected boolean isNamespaceReplicated(NamespaceName namespaceName) {
+        return getNamespaceReplicatedClusters(namespaceName).size() > 1;
+    }
+
+    protected Set<String> getNamespaceReplicatedClusters(NamespaceName namespaceName) {
         try {
             final Policies policies = policiesCache().get(ZkAdminPaths.namespacePoliciesPath(namespaceName))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-            return policies.replication_clusters.size() > 1;
+            return policies.replication_clusters;
         } catch (RestException re) {
             throw re;
         } catch (Exception e) {
