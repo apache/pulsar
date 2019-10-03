@@ -321,6 +321,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (isFenced) {
                     messageDeduplication.resetHighestSequenceIdPushed();
                     log.info("[{}] Un-fencing topic...", topic);
+                    // signal to managed ledger that we are ready to resume by creating a new ledger
+                    ledger.readyToCreateNewLedger();
                     isFenced = false;
                 }
 
