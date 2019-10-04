@@ -263,10 +263,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
             @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
             int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions);
+        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly);
     }
 
     @GET

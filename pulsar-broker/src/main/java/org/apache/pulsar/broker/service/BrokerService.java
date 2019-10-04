@@ -105,6 +105,9 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
+import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -157,6 +160,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics;
 
     private final ConcurrentOpenHashMap<String, PulsarClient> replicationClients;
+    private final ConcurrentOpenHashMap<String, PulsarAdmin> clusterAdmins;
 
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
@@ -213,6 +217,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentOpenHashMap<>();
         this.replicationClients = new ConcurrentOpenHashMap<>();
+        this.clusterAdmins = new ConcurrentOpenHashMap<>();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
         this.configRegisteredListeners = new ConcurrentOpenHashMap<>();
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
@@ -453,6 +458,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         });
 
+        // close replication admins
+        clusterAdmins.forEach((cluster, admin) -> {
+            try {
+                admin.close();
+            } catch (Exception e) {
+                log.warn("Error shutting down repl admin for cluster {}", cluster, e);
+            }
+        });
+
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         statsUpdater.shutdown();
@@ -627,6 +641,44 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 // Share all the IO threads across broker and client connections
                 ClientConfigurationData conf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
                 return new PulsarClientImpl(conf, workerGroup);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    public PulsarAdmin getClusterPulsarAdmin(String cluster) {
+        PulsarAdmin admin = clusterAdmins.get(cluster);
+        if (admin != null) {
+            return admin;
+        }
+        return clusterAdmins.computeIfAbsent(cluster, key -> {
+            try {
+                String path = PulsarWebResource.path("clusters", cluster);
+                ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
+                        .orElseThrow(() -> new KeeperException.NoNodeException(path));
+
+                ServiceConfiguration conf = pulsar.getConfig();
+
+                boolean isTlsUrl = conf.isBrokerClientTlsEnabled() && isNotBlank(data.getServiceUrlTls());
+                String adminApiUrl = isTlsUrl ? data.getServiceUrlTls() : data.getServiceUrl();
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
+                        .authentication( //
+                                conf.getBrokerClientAuthenticationPlugin(), //
+                                conf.getBrokerClientAuthenticationParameters());
+
+                if (isTlsUrl) {
+                    builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
+                }
+
+                // most of the admin request requires to make zk-call so, keep the max read-timeout based on
+                // zk-operation timeout
+                builder.readTimeout(conf.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+
+                PulsarAdmin adminClient = builder.build();
+                log.info("created admin with url {} ", adminApiUrl);
+                return adminClient;
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
