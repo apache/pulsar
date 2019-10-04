@@ -40,7 +40,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -62,6 +61,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -140,10 +140,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private Producer<T> deadLetterProducer;
 
-    private final long backoffIntervalNanos;
-    private final long maxBackoffIntervalNanos;
-
     protected volatile boolean paused;
+
+    private final boolean createTopicIfDoesNotExist;
 
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
@@ -155,29 +154,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-                 ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
-                 SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors) {
-        return ConsumerImpl.newConsumerImpl(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture, subscriptionMode,
-                                            startMessageId, schema, interceptors, Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS);
-    }
-
-    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
             ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
             SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-            long backoffIntervalNanos, long maxBackoffIntervalNanos) {
+            boolean createTopicIfDoesNotExist) {
     	if (conf.getReceiverQueueSize() == 0) {
-            return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
-                    subscriptionMode, startMessageId, schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);
+            return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
+                    subscribeFuture,
+                    subscriptionMode, startMessageId, schema, interceptors,
+                    createTopicIfDoesNotExist);
         } else {
-            return new ConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
-                    subscriptionMode, startMessageId, schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);
+            return new ConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
+                    subscribeFuture,
+                    subscriptionMode, startMessageId, schema, interceptors, createTopicIfDoesNotExist);
         }
     }
 
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                  ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
                  SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-                 long backoffIntervalNanos, long maxBackoffIntervalNanos) {
+                 boolean createTopicIfDoesNotExist) {
         super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
@@ -192,6 +187,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
         this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
         this.resetIncludeHead = conf.isResetIncludeHead();
+        this.createTopicIfDoesNotExist = createTopicIfDoesNotExist;
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -225,13 +221,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         this.connectionHandler = new ConnectionHandler(this,
         		        new BackoffBuilder()
-                           .setInitialTime(100, TimeUnit.MILLISECONDS)
-                           .setMax(60, TimeUnit.SECONDS)
-                           .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                           .useUserConfiguredIntervals(backoffIntervalNanos,
-        	                                           maxBackoffIntervalNanos)
-        	               .create(),
-                        this);
+                                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
+                                .create(),
+                this);
 
         this.topicName = TopicName.get(topic);
         if (this.topicName.isPersistent()) {
@@ -259,9 +253,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
         }
-
-        this.backoffIntervalNanos = backoffIntervalNanos;
-        this.maxBackoffIntervalNanos = maxBackoffIntervalNanos;
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
 
@@ -528,7 +519,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
                 consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                 conf.isReplicateSubscriptionState(), InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
-                si);
+                si, createTopicIfDoesNotExist);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }
@@ -566,18 +557,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             log.warn("[{}][{}] Failed to subscribe to topic on {}", topic, subscription, cnx.channel().remoteAddress());
-            if (e.getCause() instanceof PulsarClientException && getConnectionHandler().isRetriableError((PulsarClientException) e.getCause())
+
+            if (e.getCause() instanceof PulsarClientException
+                    && getConnectionHandler().isRetriableError((PulsarClientException) e.getCause())
                     && System.currentTimeMillis() < subscribeTimeout) {
                 reconnectLater(e.getCause());
-                return null;
-            }
-
-            if (!subscribeFuture.isDone()) {
+            } else if (!subscribeFuture.isDone()) {
                 // unable to create new consumer, fail operation
                 setState(State.Failed);
                 closeConsumerTasks();
                 subscribeFuture.completeExceptionally(e);
                 client.cleanupConsumer(this);
+            } else if (e.getCause() instanceof TopicDoesNotExistException) {
+                // The topic was deleted after the consumer was created, and we're
+                // not allowed to recreate the topic. This can happen in few cases:
+                //  * Regex consumer getting error after topic gets deleted
+                //  * Regular consumer after topic is manually delete and with
+                //    auto-topic-creation set to false
+                // No more retries are needed in this case.
+                setState(State.Failed);
+                client.cleanupConsumer(this);
+                log.warn("[{}][{}] Closed consumer because topic does not exist anymore {}", topic, subscription, cnx.channel().remoteAddress());
             } else {
                 // consumer was subscribed and connected but we got some error, keep trying
                 reconnectLater(e.getCause());
@@ -1498,8 +1498,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
                 .setMax(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                .useUserConfiguredIntervals(backoffIntervalNanos,
-                                            maxBackoffIntervalNanos)
                 .create();
 
         CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();

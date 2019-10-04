@@ -8804,6 +8804,10 @@ public final class PulsarApi {
     // optional bool replicate_subscription_state = 14;
     boolean hasReplicateSubscriptionState();
     boolean getReplicateSubscriptionState();
+    
+    // optional bool force_topic_creation = 15 [default = true];
+    boolean hasForceTopicCreation();
+    boolean getForceTopicCreation();
   }
   public static final class CommandSubscribe extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -9145,6 +9149,16 @@ public final class PulsarApi {
       return replicateSubscriptionState_;
     }
     
+    // optional bool force_topic_creation = 15 [default = true];
+    public static final int FORCE_TOPIC_CREATION_FIELD_NUMBER = 15;
+    private boolean forceTopicCreation_;
+    public boolean hasForceTopicCreation() {
+      return ((bitField0_ & 0x00002000) == 0x00002000);
+    }
+    public boolean getForceTopicCreation() {
+      return forceTopicCreation_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -9160,6 +9174,7 @@ public final class PulsarApi {
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
       initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
       replicateSubscriptionState_ = false;
+      forceTopicCreation_ = true;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -9258,6 +9273,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00001000) == 0x00001000)) {
         output.writeBool(14, replicateSubscriptionState_);
       }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        output.writeBool(15, forceTopicCreation_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -9321,6 +9339,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00001000) == 0x00001000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(14, replicateSubscriptionState_);
+      }
+      if (((bitField0_ & 0x00002000) == 0x00002000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(15, forceTopicCreation_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -9463,6 +9485,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00001000);
         replicateSubscriptionState_ = false;
         bitField0_ = (bitField0_ & ~0x00002000);
+        forceTopicCreation_ = true;
+        bitField0_ = (bitField0_ & ~0x00004000);
         return this;
       }
       
@@ -9553,6 +9577,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00001000;
         }
         result.replicateSubscriptionState_ = replicateSubscriptionState_;
+        if (((from_bitField0_ & 0x00004000) == 0x00004000)) {
+          to_bitField0_ |= 0x00002000;
+        }
+        result.forceTopicCreation_ = forceTopicCreation_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -9607,6 +9635,9 @@ public final class PulsarApi {
         }
         if (other.hasReplicateSubscriptionState()) {
           setReplicateSubscriptionState(other.getReplicateSubscriptionState());
+        }
+        if (other.hasForceTopicCreation()) {
+          setForceTopicCreation(other.getForceTopicCreation());
         }
         return this;
       }
@@ -9762,6 +9793,11 @@ public final class PulsarApi {
             case 112: {
               bitField0_ |= 0x00002000;
               replicateSubscriptionState_ = input.readBool();
+              break;
+            }
+            case 120: {
+              bitField0_ |= 0x00004000;
+              forceTopicCreation_ = input.readBool();
               break;
             }
           }
@@ -10223,6 +10259,27 @@ public final class PulsarApi {
       public Builder clearReplicateSubscriptionState() {
         bitField0_ = (bitField0_ & ~0x00002000);
         replicateSubscriptionState_ = false;
+        
+        return this;
+      }
+      
+      // optional bool force_topic_creation = 15 [default = true];
+      private boolean forceTopicCreation_ = true;
+      public boolean hasForceTopicCreation() {
+        return ((bitField0_ & 0x00004000) == 0x00004000);
+      }
+      public boolean getForceTopicCreation() {
+        return forceTopicCreation_;
+      }
+      public Builder setForceTopicCreation(boolean value) {
+        bitField0_ |= 0x00004000;
+        forceTopicCreation_ = value;
+        
+        return this;
+      }
+      public Builder clearForceTopicCreation() {
+        bitField0_ = (bitField0_ & ~0x00004000);
+        forceTopicCreation_ = true;
         
         return this;
       }

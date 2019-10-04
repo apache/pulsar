@@ -98,7 +98,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger-original</artifactId>
+      <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -116,7 +116,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger-original</artifactId>
+      <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -192,7 +192,7 @@
       <groupId>com.fasterxml.jackson.jaxrs</groupId>
       <artifactId>jackson-jaxrs-json-provider</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>org.glassfish.jersey.inject</groupId>
       <artifactId>jersey-hk2</artifactId>

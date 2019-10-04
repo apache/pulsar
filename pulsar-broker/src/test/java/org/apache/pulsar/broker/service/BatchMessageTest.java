@@ -738,7 +738,7 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "containerBuilder")
-    private void testRetrieveSequenceIdGenerated(BatcherBuilder builder) throws Exception {
+    public void testRetrieveSequenceIdGenerated(BatcherBuilder builder) throws Exception {
 
         int numMsgs = 10;
         final String topicName = "persistent://prop/ns-abc/testRetrieveSequenceIdGenerated-" + UUID.randomUUID();
@@ -770,7 +770,7 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "containerBuilder")
-    private void testRetrieveSequenceIdSpecify(BatcherBuilder builder) throws Exception {
+    public void testRetrieveSequenceIdSpecify(BatcherBuilder builder) throws Exception {
 
         int numMsgs = 10;
         final String topicName = "persistent://prop/ns-abc/testRetrieveSequenceIdSpecify-" + UUID.randomUUID();
@@ -799,6 +799,34 @@ public class BatchMessageTest extends BrokerTestBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test(dataProvider = "codecAndContainerBuilder")
+    public void testSendOverSizeMessage(CompressionType compressionType, BatcherBuilder builder) throws Exception {
+
+        final int numMsgs = 10;
+        final String topicName = "persistent://prop/ns-abc/testSendOverSizeMessage-" + UUID.randomUUID();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(2)
+                .enableBatching(true)
+                .compressionType(compressionType)
+                .batcherBuilder(builder)
+                .create();
+
+        try {
+            producer.send(new byte[1024 * 1024 * 10]);
+        } catch (PulsarClientException e) {
+            assertTrue(e instanceof PulsarClientException.InvalidMessageException);
+        }
+
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(new byte[1024]);
+        }
+
+        producer.close();
+
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BatchMessageTest.class);
