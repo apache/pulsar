@@ -19,6 +19,7 @@
 #include "ProducerImpl.h"
 #include "LogUtils.h"
 #include "MessageImpl.h"
+#include "TimeUtils.h"
 #include "PulsarApi.pb.h"
 #include "Commands.h"
 #include "BatchMessageContainer.h"
@@ -36,7 +37,7 @@ OpSendMsg::OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& ms
       sendCallback_(sendCallback),
       producerId_(producerId),
       sequenceId_(sequenceId),
-      timeout_(now() + milliseconds(conf.getSendTimeout())) {}
+      timeout_(TimeUtils::now() + milliseconds(conf.getSendTimeout())) {}
 
 ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf)
     : HandlerBase(
@@ -206,7 +207,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
             scheduleReconnection(shared_from_this());
         } else {
             // Producer was not yet created, retry to connect to broker if it's possible
-            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < now())) {
+            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < TimeUtils::now())) {
                 LOG_WARN(getName() << "Temporary error in creating producer: " << strResult(result));
                 scheduleReconnection(shared_from_this());
             } else {
@@ -274,10 +275,8 @@ void ProducerImpl::setMessageMetadata(const Message& msg, const uint64_t& sequen
                                       const uint32_t& uncompressedSize) {
     // Call this function after acquiring the mutex_
     proto::MessageMetadata& msgMetadata = msg.impl_->metadata;
-    if (!batchMessageContainer) {
-        msgMetadata.set_producer_name(producerName_);
-    }
-    msgMetadata.set_publish_time(currentTimeMillis());
+    msgMetadata.set_producer_name(producerName_);
+    msgMetadata.set_publish_time(TimeUtils::currentTimeMillis());
     msgMetadata.set_sequence_id(sequenceId);
     if (conf_.getCompressionType() != CompressionNone) {
         msgMetadata.set_compression(CompressionCodecProvider::convertType(conf_.getCompressionType()));
@@ -416,7 +415,8 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
 
     // If we reach this point then you have a reserved spot on the queue
 
-    if (batchMessageContainer) {  // Batching is enabled
+    if (batchMessageContainer && !msg.impl_->metadata.has_deliver_at_time()) {
+        // Batching is enabled and the message is not delayed
         batchMessageContainer->add(msg, cb);
         return;
     }
@@ -553,7 +553,7 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
     } else {
         // If there is at least one message, calculate the diff between the message timeout and
         // the current time.
-        time_duration diff = msg.timeout_ - now();
+        time_duration diff = msg.timeout_ - TimeUtils::now();
         if (diff.total_milliseconds() <= 0) {
             // The diff is less than or equal to zero, meaning that the message has been expired.
             LOG_DEBUG(getName() << "Timer expired. Calling timeout callbacks.");
