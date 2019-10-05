@@ -22,6 +22,7 @@
 
 #include <iosfwd>
 #include <memory>
+#include <string>
 #include <pulsar/defines.h>
 
 namespace pulsar {
