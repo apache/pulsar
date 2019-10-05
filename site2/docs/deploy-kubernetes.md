@@ -100,8 +100,9 @@ The easiest way to run a Kubernetes cluster is to do so locally. To install a mi
 1. Create a kubernetes cluster on Minikube.
     ```shell
     minikube start --memory=8192 --cpus=4 \
-        --kubernetes-version=v1.10.5
+        --kubernetes-version=<version>
     ```
+    `<version>` can be any [Kubernetes version](https://github.com/kubernetes/kubernetes/releases). Example: `v1.16.1`
 1. Set `kubectl` to use Minikube.
     ```shell
     kubectl config use-context minikube
