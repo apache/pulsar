@@ -19,22 +19,12 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import com.carrotsearch.hppc.ObjectObjectHashMap;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -117,6 +107,21 @@ import org.apache.pulsar.utils.StatsOutputStream;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.function.BiFunction;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -145,7 +150,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
-    private final MessageDeduplication messageDeduplication;
+    protected final MessageDeduplication messageDeduplication;
 
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
@@ -162,6 +167,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return new TopicStatsHelper();
         }
     };
+
+    private final AtomicLong pendingWriteOps = new AtomicLong(0);
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -238,6 +245,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         checkReplicatedSubscriptionControllerState();
     }
 
+    // for testing purposes
+    @VisibleForTesting
+    PersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger, MessageDeduplication messageDeduplication) {
+        super(topic, brokerService);
+        this.ledger = ledger;
+        this.messageDeduplication = messageDeduplication;
+        this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        this.replicators = new ConcurrentOpenHashMap<>(16, 1);
+        this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
+    }
+
     private void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
         synchronized (dispatchRateLimiter) {
             // dispatch rate limiter for topic
@@ -272,17 +290,41 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
+        pendingWriteOps.incrementAndGet();
+        if (isFenced) {
+            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
+
         MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
-        switch (status){
+        switch (status) {
             case NotDup:
                 ledger.asyncAddEntry(headersAndPayload, this, publishContext);
                 break;
             case Dup:
                 // Immediately acknowledge duplicated message
                 publishContext.completed(null, -1, -1);
+                decrementPendingWriteOpsAndCheck();
                 break;
             default:
                 publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                decrementPendingWriteOpsAndCheck();
+
+        }
+    }
+
+    private void decrementPendingWriteOpsAndCheck() {
+        long pending = pendingWriteOps.decrementAndGet();
+        if (pending == 0 && isFenced) {
+            synchronized (this) {
+                if (isFenced) {
+                    messageDeduplication.resetHighestSequenceIdPushed();
+                    log.info("[{}] Un-fencing topic...", topic);
+                    isFenced = false;
+                }
+
+            }
         }
     }
 
@@ -294,35 +336,50 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
+
+        decrementPendingWriteOpsAndCheck();
     }
 
     @Override
-    public void addFailed(ManagedLedgerException exception, Object ctx) {
-        PublishContext callback = (PublishContext) ctx;
+    public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
 
-        if (exception instanceof ManagedLedgerAlreadyClosedException) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
-            }
-
-            callback.completed(new TopicClosedException(exception), -1, -1);
-            return;
-
-        } else {
-            log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
-        }
-
-        if (exception instanceof ManagedLedgerTerminatedException) {
-            // Signal the producer that this topic is no longer available
-            callback.completed(new TopicTerminatedException(exception), -1, -1);
-        } else {
-            // Use generic persistence exception
-            callback.completed(new PersistenceException(exception), -1, -1);
-        }
+        // fence topic when failed to write a message to BK
+        isFenced = true;
 
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
+        } else {
+
+            // close all producers
+            List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            producers.forEach(producer -> futures.add(producer.disconnect()));
+            FutureUtil.waitForAll(futures).handle((BiFunction<Void, Throwable, Void>) (aVoid, throwable) -> {
+                decrementPendingWriteOpsAndCheck();
+                return null;
+            });
+
+            PublishContext callback = (PublishContext) ctx;
+
+            if (exception instanceof ManagedLedgerAlreadyClosedException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+                }
+
+                callback.completed(new TopicClosedException(exception), -1, -1);
+                return;
+
+            } else {
+                log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+            }
+
+            if (exception instanceof ManagedLedgerTerminatedException) {
+                // Signal the producer that this topic is no longer available
+                callback.completed(new TopicTerminatedException(exception), -1, -1);
+            } else {
+                // Use generic persistence exception
+                callback.completed(new PersistenceException(exception), -1, -1);
+            }
         }
     }
 
