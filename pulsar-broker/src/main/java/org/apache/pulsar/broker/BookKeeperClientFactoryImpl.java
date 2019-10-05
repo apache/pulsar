@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -72,7 +73,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
     }
 
-    private ClientConfiguration createBkClientConfiguration(ServiceConfiguration conf) {
+    @VisibleForTesting
+    ClientConfiguration createBkClientConfiguration(ServiceConfiguration conf) {
         ClientConfiguration bkConf = new ClientConfiguration();
         if (conf.getBookkeeperClientAuthenticationPlugin() != null
                 && conf.getBookkeeperClientAuthenticationPlugin().trim().length() > 0) {
@@ -102,6 +104,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setEnableDigestTypeAutodetection(true);
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
+        bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
 
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();

@@ -64,6 +64,10 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         return consumerList.size() == 1 && consumerSet.contains(consumer);
     }
 
+    public boolean isClosed() {
+        return isClosed == TRUE;
+    }
+
     public SubType getType() {
         return SubType.Shared;
     }

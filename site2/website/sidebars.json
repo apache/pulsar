@@ -73,7 +73,7 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
-      "security-jwt"
+      "security-jwt",
       "security-athenz",
       "security-kerberos",
       "security-authorization",

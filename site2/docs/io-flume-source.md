@@ -8,14 +8,44 @@ The Flume source connector pulls messages from logs to Pulsar topics.
 
 ## Configuration
 
-The configuration of Flume source connector has the following parameters.
+The configuration of the Flume source connector has the following properties.
 
-### Parameter
+### Property
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-`name`|String|true|"" (empty string)|Name of the agent
-`confFile`|String|true|"" (empty string)|Configuration file
-`noReloadConf`|Boolean|false|false|Whether to reload configuration file if changed
-`zkConnString`|String|true|"" (empty string)|ZooKeeper connection 
-`zkBasePath`|String|true|"" (empty string)|Base path in ZooKeeper for agent configuration
+`name`|String|true|"" (empty string)|The name of the agent.
+`confFile`|String|true|"" (empty string)|The configuration file.
+`noReloadConf`|Boolean|false|false|Whether to reload configuration file if changed.
+`zkConnString`|String|true|"" (empty string)|The ZooKeeper connection.
+`zkBasePath`|String|true|"" (empty string)|The base path in ZooKeeper for agent configuration.
+
+### Example
+
+Before using the Flume source connector, you need to create a configuration file through one of the following methods.
+
+> For more information about the `source.conf` in the example below, see [here](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/resources/flume/source.conf).
+
+* JSON 
+
+    ```json
+    {
+        "name": "a1",
+        "confFile": "source.conf",
+        "noReloadConf": "false",
+        "zkConnString": "",
+        "zkBasePath": ""
+    }
+    ```
+
+* YAML
+
+    ```yaml
+    configs:
+        name: a1
+        confFile: source.conf
+        noReloadConf: false
+        zkConnString: ""
+        zkBasePath: ""
+    ```
+

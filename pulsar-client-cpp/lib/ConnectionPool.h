@@ -36,7 +36,7 @@ class PULSAR_PUBLIC ConnectionPool {
     ConnectionPool(const ClientConfiguration& conf, ExecutorServiceProviderPtr executorProvider,
                    const AuthenticationPtr& authentication, bool poolConnections = true);
 
-    ~ConnectionPool();
+    void close();
 
     /**
      * Get a connection from the pool.

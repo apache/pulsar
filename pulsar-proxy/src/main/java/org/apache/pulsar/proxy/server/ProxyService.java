@@ -63,8 +63,8 @@ public class ProxyService implements Closeable {
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
 
-    private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
-    private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
+    private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-proxy-acceptor");
+    private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-proxy-io");
 
     private BrokerDiscoveryProvider discoveryProvider;
 

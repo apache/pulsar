@@ -169,9 +169,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 409, message = "Partitioned topic does not exist") })
     public void updatePartitionedTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
             int numPartitions) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions);
+        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly);
     }
 
     @GET
