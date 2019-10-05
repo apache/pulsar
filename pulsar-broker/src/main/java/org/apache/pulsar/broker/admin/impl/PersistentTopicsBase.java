@@ -426,7 +426,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to
+     * It updates number of partitions of an existing partitioned topic. It requires partitioned-topic to
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
      *
@@ -436,14 +436,63 @@ public class PersistentTopicsBase extends AdminResource {
      *
      * @param numPartitions
      */
-    protected void internalUpdatePartitionedTopic(int numPartitions) {
+    protected void internalUpdatePartitionedTopic(int numPartitions, boolean updateLocalTopicOnly) {
         validateAdminAccessForTenant(topicName.getTenant());
 
         if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
-            log.error("[{}] Update partitioned-topic is forbidden on global namespace {}", clientAppId(),
-                    topicName);
-            throw new RestException(Status.FORBIDDEN, "Update forbidden on global namespace");
+            Set<String> clusters = getNamespaceReplicatedClusters(topicName.getNamespaceObject());
+            if (!clusters.contains(pulsar().getConfig().getClusterName())) {
+                log.error("[{}] local cluster is not part of replicated cluster for namespace {}", clientAppId(),
+                        topicName);
+                throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate cluster list");
+            }
+            try {
+                createSubscriptions(topicName, numPartitions).get();
+            } catch (Exception e) {
+                if (e.getCause() instanceof RestException) {
+                    throw (RestException) e.getCause();
+                }
+                log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
+                throw new RestException(e);
+            }
+            // if this cluster is the first hop which needs to coordinate with other clusters then update partitions in
+            // other clusters and then update number of partitions.
+            if (!updateLocalTopicOnly) {
+                CompletableFuture<Void> updatePartition = new CompletableFuture<>();
+                final String path = ZkAdminPaths.partitionedTopicPath(topicName);
+                updatePartitionInOtherCluster(numPartitions, clusters).thenAccept((res) -> {
+                    try {
+                        byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
+                        globalZk().setData(path, data, -1, (rc, path1, ctx, stat) -> {
+                            if (rc == KeeperException.Code.OK.intValue()) {
+                                updatePartition.complete(null);
+                            } else {
+                                updatePartition.completeExceptionally(KeeperException
+                                        .create(KeeperException.Code.get(rc), "failed to create update partitions"));
+                            }
+                        }, null);
+                    } catch (Exception e) {
+                        updatePartition.completeExceptionally(e);
+                    }
+
+                }).exceptionally(ex -> {
+                    updatePartition.completeExceptionally(ex);
+                    return null;
+                });
+                try {
+                    updatePartition.get();
+                } catch (Exception e) {
+                    log.error("{} Failed to update number of partitions in zk for topic {} and partitions {}",
+                            clientAppId(), topicName, numPartitions, e);
+                    if (e.getCause() instanceof RestException) {
+                        throw (RestException) e.getCause();
+                    }
+                    throw new RestException(e);
+                }
+            }
+            return;
         }
+        
         if (numPartitions <= 0) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
@@ -456,6 +505,18 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
         }
+    }
+
+    private CompletableFuture<Void> updatePartitionInOtherCluster(int numPartitions, Set<String> clusters) {
+        List<CompletableFuture<Void>> results = new ArrayList<>(clusters.size() -1);
+        clusters.forEach(cluster -> {
+            if (cluster.equals(pulsar().getConfig().getClusterName())) {
+                return;
+            }
+            results.add(pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics()
+                    .updatePartitionedTopicAsync(topicName.toString(), numPartitions, true));
+        });
+        return FutureUtil.waitForAll(results);
     }
 
     protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative, boolean checkAllowAutoCreation) {

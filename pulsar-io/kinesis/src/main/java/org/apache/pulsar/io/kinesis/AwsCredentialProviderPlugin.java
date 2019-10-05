@@ -21,7 +21,9 @@ package org.apache.pulsar.io.kinesis;
 
 import java.io.Closeable;
 
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.BasicSessionCredentials;
 
 /**
@@ -46,5 +48,29 @@ public interface AwsCredentialProviderPlugin extends Closeable {
      * @return
      */
     AWSCredentialsProvider getCredentialProvider();
+
+    /**
+     * Returns a V2 credential provider for use with the v2 SDK.
+     *
+     * Defaults to an implementation that pulls credentials from a v1 provider
+     */
+    default software.amazon.awssdk.auth.credentials.AwsCredentialsProvider getV2CredentialsProvider() {
+        // make a small wrapper to forward requests to v1, this allows
+        // for this interface to not "break" for implementers
+        AWSCredentialsProvider v1Provider = getCredentialProvider();
+        return () -> {
+            AWSCredentials creds = v1Provider.getCredentials();
+            if (creds instanceof AWSSessionCredentials) {
+                return software.amazon.awssdk.auth.credentials.AwsSessionCredentials.create(
+                        creds.getAWSAccessKeyId(),
+                        creds.getAWSSecretKey(),
+                        ((AWSSessionCredentials) creds).getSessionToken());
+            } else {
+                return software.amazon.awssdk.auth.credentials.AwsBasicCredentials.create(
+                        creds.getAWSAccessKeyId(),
+                        creds.getAWSSecretKey());
+            }
+        };
+    }
 
 }

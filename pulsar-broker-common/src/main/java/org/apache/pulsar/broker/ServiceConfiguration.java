@@ -817,6 +817,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
     private String bookkeeperTLSTrustCertsFilePath;
 
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
+    private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
@@ -902,7 +905,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
-    private String allowAutoTopicCreationType = "partitioned";
+    private String allowAutoTopicCreationType = "non-partitioned";
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "The number of partitioned topics that is allowed to be automatically created"

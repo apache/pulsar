@@ -60,8 +60,8 @@ public class ConsumerImplTest {
 
         consumerConf.setSubscriptionName("test-sub");
         consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
-                executorService, -1, false, subscribeFuture, SubscriptionMode.Durable, null, null, null
-        );
+                executorService, -1, false, subscribeFuture, SubscriptionMode.Durable, null, null, null,
+                true);
     }
 
     @Test(invocationTimeOut = 1000)
