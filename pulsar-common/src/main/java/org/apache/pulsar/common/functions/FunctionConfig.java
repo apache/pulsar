@@ -116,4 +116,8 @@ public class FunctionConfig {
     private String go;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;
+    // This is an arbitrary string that can be interpreted by the function runtime
+    // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
+    // interface
+    private String customRuntimeOptions;
 }
