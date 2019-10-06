@@ -186,9 +186,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final Random random = new Random(System.currentTimeMillis());
     private long maximumRolloverTimeMs;
 
-    // Time period in which new write requests will not be accepted, after we fail in creating a new ledger.
-    final static long WaitTimeAfterLedgerCreationFailureMs = 10000;
-
     volatile PositionImpl lastConfirmedEntry;
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
