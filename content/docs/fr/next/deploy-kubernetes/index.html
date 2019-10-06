@@ -141,7 +141,8 @@ $ kubectl proxy
 <li><p>Create a kubernetes cluster on Minikube.
 shell
 minikube start --memory=8192 --cpus=4 <br>
---kubernetes-version=v1.10.5</p></li>
+--kubernetes-version=<version></p>
+<p><code>&lt;version&gt;</code> can be any <a href="https://minikube.sigs.k8s.io/docs/reference/configuration/kubernetes/">Kubernetes version supported by your minikube installation</a>. Example: <code>v1.16.1</code></p></li>
 <li><p>Set <code>kubectl</code> to use Minikube.
 shell
 kubectl config use-context minikube</p></li>

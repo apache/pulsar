@@ -144,8 +144,9 @@ or using <a href="#deploying-pulsar-components-helm"><code>helm</code></a>.</p>
 a <a href="https://github.com/kubernetes/minikube#requirements">VM driver</a>, for example, <code>kvm2</code> on Linux or <code>hyperkit</code> or <code>VirtualBox</code> on macOS.</li>
 <li>Create a kubernetes cluster on Minikube.
 <pre><code class="hljs css language-shell">minikube start --memory=8192 --cpus=4 \
-    --kubernetes-version=v1.10.5
-</code></pre></li>
+    --kubernetes-version=&lt;version&gt;
+</code></pre>
+<code>&lt;version&gt;</code> can be any <a href="https://minikube.sigs.k8s.io/docs/reference/configuration/kubernetes/">Kubernetes version supported by your minikube installation</a>. Example: <code>v1.16.1</code></li>
 <li>Set <code>kubectl</code> to use Minikube.
 <pre><code class="hljs css language-shell">kubectl config use-context minikube
 </code></pre></li>

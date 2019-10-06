@@ -296,7 +296,7 @@ name you configured in <code>broker.conf</code>.</p>
 <tr><td>pulsar_subscription_back_log</td><td>Gauge</td><td>The total backlog of a subscription (messages).</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total number of messages are delayed to be dispatched for a subscription (messages).</td></tr>
 <tr><td>pulsar_subscription_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
-<tr><td>pulsar_subscription_unacked_massages</td><td>Gauge</td><td>The total number of unacknowledged messages of a subscription (messages).</td></tr>
+<tr><td>pulsar_subscription_unacked_messages</td><td>Gauge</td><td>The total number of unacknowledged messages of a subscription (messages).</td></tr>
 <tr><td>pulsar_subscription_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a subscription is blocked on unacknowledged messages or not. <br> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
 <tr><td>pulsar_subscription_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a subscription (messages/second).</td></tr>
 <tr><td>pulsar_subscription_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a subscription (bytes/second).</td></tr>
@@ -322,7 +322,7 @@ are set to true.</p>
 </thead>
 <tbody>
 <tr><td>pulsar_consumer_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
-<tr><td>pulsar_consumer_unacked_massages</td><td>Gauge</td><td>The total number of unacknowledged messages of a consumer (messages).</td></tr>
+<tr><td>pulsar_consumer_unacked_messages</td><td>Gauge</td><td>The total number of unacknowledged messages of a consumer (messages).</td></tr>
 <tr><td>pulsar_consumer_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a consumer is blocked on unacknowledged messages or not. <br> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
 <tr><td>pulsar_consumer_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a consumer (messages/second).</td></tr>
 <tr><td>pulsar_consumer_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a consumer (bytes/second).</td></tr>
