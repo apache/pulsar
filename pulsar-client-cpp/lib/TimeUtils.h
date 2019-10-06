@@ -20,13 +20,15 @@
 
 #include <boost/date_time/local_time/local_time.hpp>
 
+#include <pulsar/defines.h>
+
 namespace pulsar {
 
 using namespace boost::posix_time;
 using boost::posix_time::milliseconds;
 using boost::posix_time::seconds;
 
-class TimeUtils {
+class PULSAR_PUBLIC TimeUtils {
    public:
     static ptime now();
     static int64_t currentTimeMillis();
