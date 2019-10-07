@@ -620,7 +620,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void readyToCreateNewLedger() {
-        STATE_UPDATER.set(this, State.ClosedLedger);
+       // only set transition state to ClosedLedger if current state is WriteFailed
+       STATE_UPDATER.compareAndSet(this, State.WriteFailed, State.ClosedLedger);
     }
 
     @Override
@@ -1233,10 +1234,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (e instanceof BadVersionException) {
                         synchronized (ManagedLedgerImpl.this) {
                             log.error(
-                                    "[{}] Failed to udpate ledger list. z-node version mismatch. Closing managed ledger",
+                                    "[{}] Failed to update ledger list. z-node version mismatch. Closing managed ledger",
                                     name);
                             STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
-                            clearPendingAddEntries(e);
+                            // Return ManagedLedgerFencedException to addFailed callback
+                            // to indicate that the ledger is now fenced and topic needs to be closed
+                            clearPendingAddEntries(new ManagedLedgerFencedException(e));
+                            // Do not need to unlock ledgersListMutex here because we are going to close to topic anyways
                             return;
                         }
                     }

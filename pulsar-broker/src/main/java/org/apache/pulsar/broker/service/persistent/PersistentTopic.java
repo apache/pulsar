@@ -345,15 +345,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
-
-        // fence topic when failed to write a message to BK
-        isFenced = true;
-
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
         } else {
 
+            // fence topic when failed to write a message to BK
+            isFenced = true;
             // close all producers
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
             producers.forEach(producer -> futures.add(producer.disconnect()));

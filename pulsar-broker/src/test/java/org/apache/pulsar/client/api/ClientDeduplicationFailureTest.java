@@ -173,10 +173,9 @@ public class ClientDeduplicationFailureTest {
             try {
                 log.info("Waiting for last message to complete");
                 try {
-                    this.lastMessageFuture.get(5, TimeUnit.SECONDS);
+                    this.lastMessageFuture.get(60, TimeUnit.SECONDS);
                 } catch (TimeoutException e) {
-                    log.warn("Last message hasn't completed within timeout!");
-                    this.thread.interrupt();
+                    throw new RuntimeException("Last message hasn't completed within timeout!");
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
