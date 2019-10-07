@@ -126,6 +126,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>distribution</module>
     <module>docker</module>
     <module>tests</module>
+    <module>pulsar-metadata</module>
   </modules>
 
   <issueManagement>
