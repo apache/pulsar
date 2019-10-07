@@ -25,7 +25,4 @@ public class CacheMetricsCollector {
 
     public static final io.prometheus.client.cache.caffeine.CacheMetricsCollector CAFFEINE = new io.prometheus.client.cache.caffeine.CacheMetricsCollector()
             .register();
-
-    public static final io.prometheus.client.guava.cache.CacheMetricsCollector GUAVA = new io.prometheus.client.guava.cache.CacheMetricsCollector()
-            .register();
 }

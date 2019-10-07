@@ -780,12 +780,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_guava</artifactId>
-        <version>${prometheus.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>com.carrotsearch</groupId>
         <artifactId>hppc</artifactId>
         <version>0.7.3</version>
