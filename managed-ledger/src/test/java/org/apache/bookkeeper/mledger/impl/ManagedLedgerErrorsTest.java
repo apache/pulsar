@@ -342,7 +342,8 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
             // This write will try to create a ledger and it will fail at it
             ledger.addEntry("entry".getBytes());
             fail("should fail");
-        } catch (BadVersionException e) {
+        } catch (ManagedLedgerFencedException e) {
+            assertEquals(e.getCause().getCause().getClass(), org.apache.zookeeper.KeeperException.BadVersionException.class);
             // ok
         }
 
