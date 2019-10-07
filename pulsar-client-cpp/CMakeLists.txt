@@ -86,10 +86,12 @@ if (LINK_STATIC)
         endif (LOG4CXX_USE_DYNAMIC_LIBS)
     endif (USE_LOG4CXX)
 
-    if (NOT MSVC)
-        set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
-    else()
+    if (MSVC)
         add_definitions(-DCURL_STATICLIB)
+    endif()
+
+    if (UNIX AND NOT APPLE)
+        set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
     endif()
 
     SET(Boost_USE_STATIC_LIBS   ON)
