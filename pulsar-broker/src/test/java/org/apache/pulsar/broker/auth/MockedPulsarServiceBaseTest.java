@@ -174,7 +174,6 @@ public abstract class MockedPulsarServiceBaseTest {
             }
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
-            throw e;
         }
     }
 
@@ -304,6 +303,6 @@ public abstract class MockedPulsarServiceBaseTest {
         field.setAccessible(true);
         field.set(classObj, fieldValue);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }
