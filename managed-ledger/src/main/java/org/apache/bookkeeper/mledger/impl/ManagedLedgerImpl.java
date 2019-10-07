@@ -620,7 +620,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void readyToCreateNewLedger() {
        // only set transition state to ClosedLedger if current state is WriteFailed
-       STATE_UPDATER.compareAndSet(this, State.WriteFailed, State.ClosedLedger);
+       if (STATE_UPDATER.compareAndSet(this, State.WriteFailed, State.ClosedLedger)){
+           log.info("[{}] Managed ledger is now ready to accept writes again", name);
+       }
     }
 
     @Override
