@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
@@ -69,7 +70,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, statsOut);
         String metricsStr = new String(statsOut.toByteArray());
-
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
         metrics.entries().forEach(e -> {
@@ -244,7 +244,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
         // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.]+)(\\s(\\d+))?$");
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
         Splitter.on("\n").split(metrics).forEach(line -> {
@@ -253,8 +253,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             }
 
             Matcher matcher = pattern.matcher(line);
-
-            checkArgument(matcher.matches());
+            assertTrue(matcher.matches());
             String name = matcher.group(1);
 
             Metric m = new Metric();
