@@ -311,7 +311,7 @@ public class PulsarFunctionStateTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -327,7 +327,7 @@ public class PulsarFunctionStateTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         retryStrategically((test) -> {
             try {
@@ -336,7 +336,7 @@ public class PulsarFunctionStateTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         FunctionState state = admin.functions().getFunctionState(tenant, namespacePortion, functionName, "foo");
         assertEquals(state.getNumberValue().intValue(), 5);
@@ -375,7 +375,7 @@ public class PulsarFunctionStateTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
