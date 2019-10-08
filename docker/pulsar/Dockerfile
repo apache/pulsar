@@ -32,7 +32,7 @@ COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
 COPY scripts/watch-znode.py /pulsar/bin
 COPY scripts/set_python_version.sh /pulsar/bin
 COPY scripts/install-pulsar-client-27.sh /pulsar/bin
-COPY scripts/install-pulsar-client-35.sh /pulsar/bin
+COPY scripts/install-pulsar-client-37.sh /pulsar/bin
 
 
 ### Create 2nd stage from OpenJDK image
