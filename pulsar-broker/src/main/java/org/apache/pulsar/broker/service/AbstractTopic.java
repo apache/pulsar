@@ -23,6 +23,7 @@ import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -198,8 +200,10 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public void recordAddLatency(long latencyUSec) {
-        addEntryLatencyStatsUsec.addValue(latencyUSec);
+    public void recordAddLatency(long latency, TimeUnit unit) {
+        addEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
+
+        PUBLISH_LATENCY.observe(latency, unit);
     }
 
     protected void setSchemaCompatibilityStrategy (Policies policies) {
@@ -210,4 +214,13 @@ public abstract class AbstractTopic implements Topic {
             schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         }
     }
+    private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
+            .quantile(0.0)
+            .quantile(0.50)
+            .quantile(0.95)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(0.9999)
+            .quantile(1.0)
+            .register();
 }

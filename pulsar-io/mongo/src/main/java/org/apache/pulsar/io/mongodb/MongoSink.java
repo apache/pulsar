@@ -18,14 +18,21 @@
  */
 package org.apache.pulsar.io.mongodb;
 
-import static java.util.stream.Collectors.toList;
-
 import com.google.common.collect.Lists;
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoClients;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
+import org.bson.BSONException;
+import org.bson.Document;
+import org.bson.json.JsonParseException;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -38,16 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.core.annotations.Connector;
-import org.apache.pulsar.io.core.annotations.IOType;
-import org.bson.BSONException;
-import org.bson.Document;
-import org.bson.json.JsonParseException;
+import static java.util.stream.Collectors.toList;
 
 /**
  * The base class for MongoDB sinks.
@@ -88,7 +86,7 @@ public class MongoSink implements Sink<byte[]> {
         log.info("Open MongoDB Sink");
 
         mongoConfig = MongoConfig.load(config);
-        mongoConfig.validate();
+        mongoConfig.validate(true, true);
 
         if (clientProvider != null) {
             mongoClient = clientProvider.get();

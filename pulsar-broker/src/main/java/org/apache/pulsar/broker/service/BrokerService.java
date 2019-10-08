@@ -98,6 +98,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
@@ -962,6 +963,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void updateRates() {
         synchronized (pulsarStats) {
             pulsarStats.updateStats(multiLayerTopicsMap);
+
+            Summary.rotateLatencyCollection();
         }
     }
 
