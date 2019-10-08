@@ -769,7 +769,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
             "preference) to read all entries for a ledger.")
-    private boolean bookkeeperEnableStickyReads = true;
+    private boolean bookkeeperEnableStickyReads = false;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
