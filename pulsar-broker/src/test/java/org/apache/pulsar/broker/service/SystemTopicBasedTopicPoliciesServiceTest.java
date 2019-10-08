@@ -66,17 +66,19 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test
-    public void testGetPolicy() throws ExecutionException, InterruptedException, PulsarClientException {
-        // Init topic policies
-        for (int i = 1; i <= 10; i++) {
-            TopicPolicies initPolicy = TopicPolicies.builder()
-                    .maxConsumerPerTopic(i)
-                    .build();
-            systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
-        }
+    public void testGetPolicy() throws ExecutionException, InterruptedException, PulsarClientException, TopicPoliciesCacheNotInitException {
 
-        // Broker need to own the namespace bundle
-        pulsarClient.newProducer().topic(TOPIC1.toString()).create();
+        // Init topic policies
+        TopicPolicies initPolicy = TopicPolicies.builder()
+                .maxConsumerPerTopic(10)
+                .build();
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy);
+
+        Assert.assertNull(systemTopicBasedTopicPoliciesService.getPoliciesCacheInit(TOPIC1.getNamespaceObject()));
+
+        Thread.sleep(1000);
+
+        Assert.assertTrue(systemTopicBasedTopicPoliciesService.getPoliciesCacheInit(TOPIC1.getNamespaceObject()));
 
         // Assert broker is cache all topic policies
         Assert.assertEquals(10, systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1).getMaxConsumerPerTopic().intValue());
@@ -157,7 +159,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         policies1.setMaxProducerPerTopic(106);
         systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, policies1);
 
-        Thread.sleep(2000);
+        Thread.sleep(1000);
 
         // reader for NAMESPACE1 will back fill the reader cache
         policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);

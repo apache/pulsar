@@ -44,7 +44,7 @@ public interface TopicPoliciesService {
      * @param topicName topic name
      * @return future of the topic policies
      */
-    TopicPolicies getTopicPolicies(TopicName topicName);
+    TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
 
     /**
      * Get policies for a topic without cache async
@@ -75,7 +75,7 @@ public interface TopicPoliciesService {
         }
 
         @Override
-        public TopicPolicies getTopicPolicies(TopicName topicName) {
+        public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
             return null;
         }
 

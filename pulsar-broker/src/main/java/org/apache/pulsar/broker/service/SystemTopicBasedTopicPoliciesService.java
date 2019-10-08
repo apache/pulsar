@@ -58,6 +58,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader>> readerCaches = new ConcurrentHashMap<>();
 
+    private final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
+
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
     }
@@ -114,7 +116,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
+    public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+        if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
+                && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
+            throw new TopicPoliciesCacheNotInitException();
+        }
         return policiesCache.get(topicName);
     }
 
@@ -137,15 +143,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
-        ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(0));
-        ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
         createSystemTopicFactoryIfNeeded();
         synchronized (this) {
             if (readerCaches.get(namespace) != null) {
+                ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
                 result.complete(null);
             } else {
                 SystemTopicClient systemTopicClient = namespaceEventsSystemTopicFactory.createSystemTopic(namespace
                         , EventType.TOPIC_POLICY);
+                ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
+                policyCacheInitMap.put(namespace, false);
                 CompletableFuture<SystemTopicClient.Reader> readerCompletableFuture = systemTopicClient.newReaderAsync();
                 readerCaches.put(namespace, readerCompletableFuture);
                 readerCompletableFuture.whenComplete((reader, ex) -> {
@@ -170,6 +177,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             if (readerCompletableFuture != null) {
                 readerCompletableFuture.thenAccept(SystemTopicClient.Reader::closeAsync);
                 ownedBundlesCountPerNamespace.remove(namespace);
+                policyCacheInitMap.remove(namespace);
                 policiesCache.entrySet().removeIf(entry -> entry.getKey().getNamespaceObject().equals(namespace));
             }
         }
@@ -193,6 +201,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 });
             } else {
                 future.complete(null);
+                policyCacheInitMap.computeIfPresent(reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
             }
         });
     }
@@ -288,6 +297,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     boolean checkReaderIsCached(NamespaceName namespaceName) {
         return readerCaches.get(namespaceName) != null;
+    }
+
+    @VisibleForTesting
+    Boolean getPoliciesCacheInit(NamespaceName namespaceName) {
+        return policyCacheInitMap.get(namespaceName);
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);
