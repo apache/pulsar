@@ -30,7 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public abstract class SystemTopicBase implements SystemTopic {
+public abstract class SystemTopicClientBase implements SystemTopicClient {
 
     protected final TopicName topicName;
     protected final PulsarClient client;
@@ -38,7 +38,7 @@ public abstract class SystemTopicBase implements SystemTopic {
     protected final List<Writer> writers;
     protected final List<Reader> readers;
 
-    public SystemTopicBase(PulsarClient client, TopicName topicName) {
+    public SystemTopicClientBase(PulsarClient client, TopicName topicName) {
         this.client = client;
         this.topicName = topicName;
         this.writers = Collections.synchronizedList(new ArrayList<>());
@@ -113,5 +113,5 @@ public abstract class SystemTopicBase implements SystemTopic {
         return writers;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(SystemTopicBase.class);
+    private static final Logger log = LoggerFactory.getLogger(SystemTopicClientBase.class);
 }

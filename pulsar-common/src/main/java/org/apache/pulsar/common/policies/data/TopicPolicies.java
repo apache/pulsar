@@ -74,7 +74,7 @@ public class TopicPolicies {
         return maxConsumerPerTopic != null;
     }
 
-    public boolean isMaxConsumersPerSubscription() {
+    public boolean isMaxConsumersPerSubscriptionSet() {
         return maxConsumersPerSubscription != null;
     }
 }

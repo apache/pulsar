@@ -34,11 +34,11 @@ public class NamespaceEventsSystemTopicFactory {
         this.client = client;
     }
 
-    public SystemTopic createSystemTopic(NamespaceName namespaceName, EventType eventType) {
+    public SystemTopicClient createSystemTopic(NamespaceName namespaceName, EventType eventType) {
         TopicName topicName = getSystemTopicName(namespaceName, eventType);
         if (topicName != null) {
             log.info("Create system topic {} for {}", topicName.toString(), eventType);
-            return new TopicPoliciesSystemTopic(client, topicName);
+            return new TopicPoliciesSystemTopicClient(client, topicName);
         } else {
             return null;
         }

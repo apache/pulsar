@@ -167,8 +167,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
     private final CompactedTopic compactedTopic;
 
-    private final boolean isSystemTopic;
-
     private CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
             (MessageIdImpl)MessageId.earliest);
 
@@ -212,11 +210,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
-                           boolean isSystemTopic) throws NamingException {
+    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws NamingException {
         super(topic, brokerService);
         this.ledger = ledger;
-        this.isSystemTopic = isSystemTopic;
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         USAGE_COUNT_UPDATER.set(this, 0);
@@ -281,7 +277,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries = brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-        this.isSystemTopic = false;
     }
 
     private void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
@@ -1124,9 +1119,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkMessageExpiry() {
-        if (isSystemTopic) {
-            return;
-        }
         TopicName name = TopicName.get(topic);
         Policies policies;
         try {
@@ -1160,7 +1152,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .orElseThrow(() -> new KeeperException.NoNodeException());
 
 
-            if (isSystemTopic || policies.compaction_threshold != 0
+            if (isSystemTopic() || policies.compaction_threshold != 0
                 && currentCompaction.isDone()) {
 
                 long backlogEstimate = 0;
@@ -1640,9 +1632,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
-        if (isSystemTopic) {
-            return;
-        }
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
         } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
@@ -1861,7 +1850,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             if ((retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold
                     || retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception)
-                    && brokerService.isBacklogExceeded(this)) {
+                    && isBacklogExceeded()) {
                 log.info("[{}] Backlog quota exceeded. Cannot create producer [{}]", this.getName(), producerName);
                 return true;
             } else {
@@ -1869,6 +1858,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }
         return false;
+    }
+
+    /**
+     * @return determine if quota enforcement needs to be done for topic
+     */
+    public boolean isBacklogExceeded() {
+        TopicName topicName = TopicName.get(getName());
+        long backlogQuotaLimitInBytes = brokerService.getBacklogQuotaManager().getBacklogQuotaLimit(topicName.getNamespace());
+        if (backlogQuotaLimitInBytes < 0) {
+            return false;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] - backlog quota limit = [{}]", getName(), backlogQuotaLimitInBytes);
+        }
+
+        // check if backlog exceeded quota
+        long storageSize = getBacklogSize();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Storage size = [{}], limit [{}]", getName(), storageSize, backlogQuotaLimitInBytes);
+        }
+
+        return (storageSize >= backlogQuotaLimitInBytes);
     }
 
     @Override
@@ -2148,6 +2159,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public boolean isSystemTopic() {
-        return isSystemTopic;
+        return false;
     }
 }

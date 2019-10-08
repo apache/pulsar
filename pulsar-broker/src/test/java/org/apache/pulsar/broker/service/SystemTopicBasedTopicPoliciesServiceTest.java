@@ -171,7 +171,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertTrue(systemTopicBasedTopicPoliciesService.checkReaderIsCached(NamespaceName.get(NAMESPACE3)));
 
         // Check get without cache
-        policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPoliciesWithoutCacheAsync(TOPIC1).get();
+        policiesGet1 = systemTopicBasedTopicPoliciesService.getTopicPoliciesBypassCacheAsync(TOPIC1).get();
         Assert.assertEquals(policies1, policiesGet1);
     }
 

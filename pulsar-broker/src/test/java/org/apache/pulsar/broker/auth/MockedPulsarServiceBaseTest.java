@@ -51,7 +51,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
-import org.apache.pulsar.broker.systopic.SystemTopic;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -341,7 +341,7 @@ public abstract class MockedPulsarServiceBaseTest {
         // Check topic policy system topic and then delete them
         assertTrue(topicList.contains(NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.get(namespace),
             EventType.TOPIC_POLICY).toString()));
-        topicList.removeIf(tn -> SystemTopic.isSystemTopic(TopicName.get(tn)));
+        topicList.removeIf(tn -> SystemTopicClient.isSystemTopic(TopicName.get(tn)));
         return topicList;
     }
 

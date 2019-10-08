@@ -62,7 +62,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
     @Test
     public void testSendAndReceiveNamespaceEvents() throws Exception {
-        SystemTopic systemTopicForNamespace1 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE1), EventType.TOPIC_POLICY);
+        SystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE1), EventType.TOPIC_POLICY);
         TopicPolicies policies = TopicPolicies.builder()
             .maxProducerPerTopic(10)
             .build();
@@ -77,33 +77,33 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
                 .policies(policies)
                 .build())
             .build();
-        systemTopicForNamespace1.newWriter().write(event);
-        SystemTopic.Reader reader = systemTopicForNamespace1.newReader();
+        systemTopicClientForNamespace1.newWriter().write(event);
+        SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
         Message<PulsarEvent> received = reader.readNext();
         log.info("Receive pulsar event from system topic : {}", received.getValue());
 
         // test event send and receive
         Assert.assertEquals(received.getValue(), event);
-        Assert.assertEquals(systemTopicForNamespace1.getWriters().size(), 1);
-        Assert.assertEquals(systemTopicForNamespace1.getReaders().size(), 1);
+        Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 1);
+        Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 1);
 
         // test new reader read
-        SystemTopic.Reader reader1 = systemTopicForNamespace1.newReader();
+        SystemTopicClient.Reader reader1 = systemTopicClientForNamespace1.newReader();
         Message<PulsarEvent> received1 = reader1.readNext();
         log.info("Receive pulsar event from system topic : {}", received1.getValue());
         Assert.assertEquals(received1.getValue(), event);
 
         // test writers and readers
-        Assert.assertEquals(systemTopicForNamespace1.getReaders().size(), 2);
-        SystemTopic.Writer writer = systemTopicForNamespace1.newWriter();
-        Assert.assertEquals(systemTopicForNamespace1.getWriters().size(), 2);
+        Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 2);
+        SystemTopicClient.Writer writer = systemTopicClientForNamespace1.newWriter();
+        Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 2);
         writer.close();
         reader.close();
-        Assert.assertEquals(systemTopicForNamespace1.getWriters().size(), 1);
-        Assert.assertEquals(systemTopicForNamespace1.getReaders().size(), 1);
-        systemTopicForNamespace1.close();
-        Assert.assertEquals(systemTopicForNamespace1.getWriters().size(), 0);
-        Assert.assertEquals(systemTopicForNamespace1.getReaders().size(), 0);
+        Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 1);
+        Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 1);
+        systemTopicClientForNamespace1.close();
+        Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 0);
+        Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 0);
     }
 
     private void prepareData() throws PulsarAdminException {

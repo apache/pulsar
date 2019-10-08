@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.broker.systopic.SystemTopic;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterClass;
@@ -108,7 +109,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         cm.removeIf(f -> {
             String topicName = f.tags.get("topic");
             if (StringUtils.isNotBlank(topicName)) {
-                return SystemTopic.isSystemTopic(TopicName.get(topicName));
+                return SystemTopicClient.isSystemTopic(TopicName.get(topicName));
             } else {
                 return false;
             }
@@ -125,7 +126,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         cm.removeIf(f -> {
             String topicName = f.tags.get("topic");
             if (StringUtils.isNotBlank(topicName)) {
-                return SystemTopic.isSystemTopic(TopicName.get(topicName));
+                return SystemTopicClient.isSystemTopic(TopicName.get(topicName));
             } else {
                 return false;
             }

@@ -51,7 +51,7 @@ public interface TopicPoliciesService {
      * @param topicName topic name
      * @return future of the topic policies
      */
-    CompletableFuture<TopicPolicies> getTopicPoliciesWithoutCacheAsync(TopicName topicName);
+    CompletableFuture<TopicPolicies> getTopicPoliciesBypassCacheAsync(TopicName topicName);
 
     /**
      * Add owned namespace bundle async.
@@ -80,7 +80,7 @@ public interface TopicPoliciesService {
         }
 
         @Override
-        public CompletableFuture<TopicPolicies> getTopicPoliciesWithoutCacheAsync(TopicName topicName) {
+        public CompletableFuture<TopicPolicies> getTopicPoliciesBypassCacheAsync(TopicName topicName) {
             return CompletableFuture.completedFuture(null);
         }
 

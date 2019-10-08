@@ -35,9 +35,9 @@ import java.util.concurrent.CompletableFuture;
 /**
  * System topic for topic policy
  */
-public class TopicPoliciesSystemTopic extends SystemTopicBase {
+public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase {
 
-    public TopicPoliciesSystemTopic(PulsarClient client, TopicName topicName) {
+    public TopicPoliciesSystemTopicClient(PulsarClient client, TopicName topicName) {
         super(client, topicName);
     }
 
@@ -49,7 +49,7 @@ public class TopicPoliciesSystemTopic extends SystemTopicBase {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer, TopicPoliciesSystemTopic.this));
+                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer, TopicPoliciesSystemTopicClient.this));
                 });
     }
 
@@ -63,18 +63,18 @@ public class TopicPoliciesSystemTopic extends SystemTopicBase {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new reader is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader, TopicPoliciesSystemTopic.this));
+                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader, TopicPoliciesSystemTopicClient.this));
                 });
     }
 
     private static class TopicPolicyWriter implements Writer {
 
         private final Producer<PulsarEvent> producer;
-        private final SystemTopic systemTopic;
+        private final SystemTopicClient systemTopicClient;
 
-        private TopicPolicyWriter(Producer<PulsarEvent> producer, SystemTopic systemTopic) {
+        private TopicPolicyWriter(Producer<PulsarEvent> producer, SystemTopicClient systemTopicClient) {
             this.producer = producer;
-            this.systemTopic = systemTopic;
+            this.systemTopicClient = systemTopicClient;
         }
 
         @Override
@@ -97,7 +97,7 @@ public class TopicPoliciesSystemTopic extends SystemTopicBase {
         @Override
         public void close() throws IOException {
             this.producer.close();
-            systemTopic.getWriters().remove(TopicPolicyWriter.this);
+            systemTopicClient.getWriters().remove(TopicPolicyWriter.this);
         }
 
         @Override
@@ -106,18 +106,18 @@ public class TopicPoliciesSystemTopic extends SystemTopicBase {
         }
 
         @Override
-        public SystemTopic getSystemTopic() {
-            return systemTopic;
+        public SystemTopicClient getSystemTopicClient() {
+            return systemTopicClient;
         }
     }
 
     private static class TopicPolicyReader implements Reader {
 
         private final org.apache.pulsar.client.api.Reader<PulsarEvent> reader;
-        private final TopicPoliciesSystemTopic systemTopic;
+        private final TopicPoliciesSystemTopicClient systemTopic;
 
         private TopicPolicyReader(org.apache.pulsar.client.api.Reader<PulsarEvent> reader,
-                                  TopicPoliciesSystemTopic systemTopic) {
+                                  TopicPoliciesSystemTopicClient systemTopic) {
             this.reader = reader;
             this.systemTopic = systemTopic;
         }
@@ -157,10 +157,10 @@ public class TopicPoliciesSystemTopic extends SystemTopicBase {
         }
 
         @Override
-        public SystemTopic getSystemTopic() {
+        public SystemTopicClient getSystemTopic() {
             return systemTopic;
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(TopicPoliciesSystemTopic.class);
+    private static final Logger log = LoggerFactory.getLogger(TopicPoliciesSystemTopicClient.class);
 }

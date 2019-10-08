@@ -32,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Pulsar system topic
  */
-public interface SystemTopic {
+public interface SystemTopicClient {
 
     /**
      * Get topic name of the system topic.
@@ -118,7 +118,7 @@ public interface SystemTopic {
          * Get the system topic of the writer
          * @return system topic
          */
-        SystemTopic getSystemTopic();
+        SystemTopicClient getSystemTopicClient();
 
     }
 
@@ -165,7 +165,7 @@ public interface SystemTopic {
          * Get the system topic of the reader
          * @return system topic
          */
-        SystemTopic getSystemTopic();
+        SystemTopicClient getSystemTopic();
     }
 
     static boolean isSystemTopic(TopicName topicName) {
