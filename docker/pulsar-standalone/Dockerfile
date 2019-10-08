@@ -26,9 +26,6 @@ FROM apachepulsar/pulsar-dashboard:latest as dashboard
 # Restart from
 FROM openjdk:8-jdk
 
-# Copy pulsar files from pulsar-all
-COPY --from=pulsar /pulsar /pulsar
-
 # Copy dashboard files from pulsar-dashboard
 COPY --from=dashboard /pulsar/django /pulsar/django
 COPY --from=dashboard /pulsar/requirements.txt /pulsar/django
@@ -58,6 +55,9 @@ redirect_stderr=true" >> /etc/supervisor/conf.d/supervisor-app.conf
 # Configure nginx
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 COPY --from=dashboard /etc/nginx/sites-available/default /etc/nginx/sites-available/default
+
+# Copy pulsar files from pulsar-all
+COPY --from=pulsar /pulsar /pulsar
 
 # Copy web-app sources
 # Setup database and create tables

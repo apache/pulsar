@@ -39,7 +39,6 @@ COPY scripts/install-pulsar-client-37.sh /pulsar/bin
 ### and add Python dependencies (for Pulsar functions)
 
 FROM openjdk:8-jdk-slim
-COPY --from=pulsar /pulsar /pulsar
 
 # Install some utilities
 RUN apt-get update \
@@ -65,8 +64,11 @@ RUN apt-get update \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /pulsar
-
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
+
+
+COPY --from=pulsar /pulsar /pulsar
+WORKDIR /pulsar
+
