@@ -391,6 +391,7 @@ Subcommands
 * `stats`
 * `list`
 * `querystate`
+* `putstate`
 * `trigger`
 
 
@@ -696,6 +697,23 @@ Options
 |`--tenant`|The function's tenant||
 |`-w`, `--watch`|Watch for changes in the value associated with a key for a Pulsar Function|false|
 
+### `putstate`
+Put a key/value pair to the state associated with a Pulsar Function
+
+Usage
+```bash
+$ pulsar-admin functions putstate options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the Pulsar Function||
+|`--name`|The name of a Pulsar Function||
+|`--namespace`|The namespace of a Pulsar Function||
+|`--tenant`|The tenant of a Pulsar Function||
+|`-s`, `--state`|The FunctionState that needs to be put||
 
 ### `trigger`
 Triggers the specified Pulsar Function with a supplied value
