@@ -31,9 +31,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.io.PulsarFunctionE2ETest;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,10 +46,13 @@ import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.mockito.Mockito.spy;
@@ -73,7 +76,7 @@ public class ClientDeduplicationFailureTest {
     private final int brokerWebServicePort = PortManager.nextFreePort();
     private final int brokerServicePort = PortManager.nextFreePort();
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
+    private static final Logger log = LoggerFactory.getLogger(ClientDeduplicationFailureTest.class);
 
     @BeforeMethod(timeOut = 300000)
     void setup(Method method) throws Exception {
@@ -94,6 +97,9 @@ public class ClientDeduplicationFailureTest {
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
         config.setLoadBalancerSheddingEnabled(false);
+        config.setLoadBalancerAutoBundleSplitEnabled(false);
+        config.setLoadBalancerEnabled(false);
+        config.setLoadBalancerAutoUnloadSplitBundlesEnabled(false);
 
         config.setAllowAutoTopicCreationType("non-partitioned");
 
@@ -127,7 +133,141 @@ public class ClientDeduplicationFailureTest {
         bkEnsemble.stop();
     }
 
-    @Test
+    private static class ProducerThread implements Runnable {
+
+        private volatile boolean isRunning = false;
+        private Thread thread;
+        private Producer<String> producer;
+        private long i = 1;
+        private AtomicLong atomicLong = new AtomicLong(0);
+        private CompletableFuture<MessageId> lastMessageFuture;
+
+        public ProducerThread(Producer<String> producer) {
+            this.thread = new Thread(this);
+            this.producer = producer;
+        }
+
+        @Override
+        public void run() {
+            while(isRunning) {
+                lastMessageFuture = producer.newMessage().sequenceId(i).value("foo-" + i).sendAsync();
+                lastMessageFuture.thenAccept(messageId -> {
+                    atomicLong.incrementAndGet();
+
+                }).exceptionally(ex -> {
+                    log.info("publish exception:", ex);
+                    return null;
+                });
+                i++;
+            }
+            log.info("done Producing! Last send: {}", i);
+        }
+
+        public void start() {
+            this.isRunning = true;
+            this.thread.start();
+        }
+
+        public void stop() {
+            this.isRunning = false;
+            try {
+                log.info("Waiting for last message to complete");
+                try {
+                    this.lastMessageFuture.get(60, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    throw new RuntimeException("Last message hasn't completed within timeout!");
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            log.info("Producer Thread stopped!");
+        }
+
+        public long getLastSeqId() {
+            return this.atomicLong.get();
+        }
+    }
+
+    @Test(timeOut = 300000)
+    public void testClientDeduplicationCorrectnessWithFailure() throws Exception {
+        final String namespacePortion = "dedup";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setDeduplicationStatus(replNamespace, true);
+        admin.namespaces().setRetention(replNamespace, new RetentionPolicies(-1, -1));
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .blockIfQueueFull(true).sendTimeout(0, TimeUnit.SECONDS)
+                .topic(sourceTopic)
+                .producerName("test-producer-1")
+                .create();
+
+
+        ProducerThread producerThread = new ProducerThread(producer);
+        producerThread.start();
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats topicStats = admin.topics().getStats(sourceTopic);
+                return topicStats.publishers.size() == 1 && topicStats.publishers.get(0).getProducerName().equals("test-producer-1") && topicStats.storageSize > 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 200);
+
+        TopicStats topicStats = admin.topics().getStats(sourceTopic);
+        assertEquals(topicStats.publishers.size(), 1);
+        assertEquals(topicStats.publishers.get(0).getProducerName(), "test-producer-1");
+        assertTrue(topicStats.storageSize > 0);
+
+        for (int i = 0; i < 5; i++) {
+            log.info("Stopping BK...");
+            bkEnsemble.stopBK();
+
+            Thread.sleep(1000 + new Random().nextInt(500));
+
+            log.info("Starting BK...");
+            bkEnsemble.startBK();
+        }
+
+        producerThread.stop();
+
+        // send last message
+        producer.newMessage().sequenceId(producerThread.getLastSeqId() + 1).value("end").send();
+        producer.close();
+
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).startMessageId(MessageId.earliest).topic(sourceTopic).create();
+        Message<String> prevMessage = null;
+        Message<String> message = null;
+        int count = 0;
+        while(true) {
+            message = reader.readNext(5, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+
+            if (message.getValue().equals("end")) {
+                log.info("Last seq Id received: {}", prevMessage.getSequenceId());
+                break;
+            }
+            if (prevMessage == null) {
+                assertEquals(message.getSequenceId(), 1);
+            } else {
+                assertEquals(message.getSequenceId(), prevMessage.getSequenceId() + 1);
+            }
+            prevMessage = message;
+            count++;
+        }
+
+        log.info("# of messages read: {}", count);
+
+        assertTrue(prevMessage != null);
+        assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
+    }
+
+    @Test(timeOut = 300000)
     public void testClientDeduplicationWithBkFailure() throws  Exception {
         final String namespacePortion = "dedup";
         final String replNamespace = tenant + "/" + namespacePortion;
