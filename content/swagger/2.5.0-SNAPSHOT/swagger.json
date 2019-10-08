@@ -4797,7 +4797,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "401" : {
@@ -8447,6 +8447,16 @@
           "example" : "broker1:8080",
           "description" : "The broker name"
         },
+        "policyName" : {
+          "type" : "string",
+          "example" : "my-policy",
+          "description" : "Policy name"
+        },
+        "isPrimary" : {
+          "type" : "boolean",
+          "example" : false,
+          "description" : "Is Primary broker"
+        },
         "namespaceRegex" : {
           "type" : "array",
           "description" : "The namespace-isolation policies attached to this broker",
@@ -8541,10 +8551,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -8907,13 +8917,6 @@
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -8921,9 +8924,16 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -9100,13 +9110,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
-          "type" : "string"
-        },
         "clientVersion" : {
           "type" : "string"
         },
         "producerName" : {
+          "type" : "string"
+        },
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -9775,13 +9785,13 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
-          "type" : "string"
-        },
         "clientVersion" : {
           "type" : "string"
         },
         "producerName" : {
+          "type" : "string"
+        },
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -9883,11 +9893,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },
