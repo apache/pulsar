@@ -247,4 +247,8 @@ public class LocalZooKeeperCacheService {
     public ZooKeeperChildrenCache managedLedgerListCache() {
         return this.managedLedgerListCache;
     }
+
+    public CompletableFuture<Boolean> managedLedgerExists(String persistentPath) {
+        return cache.existsAsync(MANAGED_LEDGER_ROOT + "/" + persistentPath, cache);
+    }
 }
