@@ -295,6 +295,33 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             .subscribe();
     }
 
+    @Test()
+    public void testCannotUseAcknowledgeCumulative() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared_ack_cumulative-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        @Cleanup
+        Consumer<Integer> consumer = createConsumer(topic);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send(i);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            Message<Integer> message = consumer.receive();
+            if (i == 9) {
+                try {
+                    consumer.acknowledgeCumulative(message);
+                } catch (PulsarClientException e) {
+                    assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
+                }
+            }
+        }
+    }
+
     private Producer<Integer> createProducer(String topic, boolean enableBatch) throws PulsarClientException {
         Producer<Integer> producer = null;
         if (enableBatch) {
