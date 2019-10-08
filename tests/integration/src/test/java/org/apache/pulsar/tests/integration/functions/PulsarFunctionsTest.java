@@ -1015,7 +1015,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .build();
 
         @Cleanup
-        Reader reader = client.newReader().startMessageId(MessageId.earliest)
+        Reader<byte[]> reader = client.newReader().startMessageId(MessageId.earliest)
                 .topic(outputTopicName)
                 .create();
 
@@ -1030,12 +1030,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         int i = 0;
-        while (reader.hasMessageAvailable()) {
-            if (i >= expectedResults.length) {
+        while (true) {
+            if (i > expectedResults.length) {
                 Assertions.fail("More results than expected");
             }
-            String result = new String(reader.readNext().getData()).split(":")[0];
-            log.info("i: {} result: {}", i, result);
+
+            Message<byte[]> msg = reader.readNext(30, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            String msgStr = new String(msg.getData());
+            log.info("i: {} RECV: {}", i, msgStr);
+            String result = msgStr.split(":")[0];
             assertThat(result).contains(expectedResults[i]);
             i++;
         }
@@ -1706,18 +1712,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private static void getFunctionInfoNotFound(String functionName) throws Exception {
-        try {
-            pulsarCluster.getAnyWorker().execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "functions",
-                    "get",
-                    "--tenant", "public",
-                    "--namespace", "default",
-                    "--name", functionName);
-            fail("Command should have exited with non-zero");
-        } catch (ContainerExecException e) {
-            assertTrue(e.getResult().getStderr().contains("Reason: Function " + functionName + " doesn't exist"));
-        }
+        retryStrategically(aVoid -> {
+            try {
+                pulsarCluster.getAnyWorker().execCmd(
+                        PulsarCluster.ADMIN_SCRIPT,
+                        "functions",
+                        "get",
+                        "--tenant", "public",
+                        "--namespace", "default",
+                        "--name", functionName);
+            } catch (ContainerExecException e) {
+                if (e.getResult().getStderr().contains("Reason: Function " + functionName + " doesn't exist")) {
+                    return true;
+                }
+
+            } catch (Exception e) {
+
+            }
+            return false;
+        }, 5, 100, true);
     }
 
     private static void checkSubscriptionsCleanup(String topic) throws Exception {
