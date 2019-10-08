@@ -195,7 +195,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate 2 instances have been started
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.size(), 1);
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 2);
@@ -212,7 +212,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
@@ -252,7 +252,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (Exception e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // Validate registered assignments
         Map<String, Assignment> assignments = runtimeManager.getCurrentAssignments().values().iterator().next();
@@ -281,7 +281,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (Exception e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // Validate registered assignments
         assignments = runtimeManager.getCurrentAssignments().values().iterator().next();
@@ -300,7 +300,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (Exception e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // Validate registered assignments
         assignments = runtimeManager2.getCurrentAssignments().values().iterator().next();
