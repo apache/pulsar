@@ -539,6 +539,30 @@ public class PersistentTopicTest {
         }
     }
 
+    @Test
+    public void testAddRemoveConsumerDurableCursor() throws Exception {
+        doReturn(false).when(cursorMock).isDurable();
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub = new PersistentSubscription(topic, "non-durable-sub", cursorMock, false);
+
+        Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest);
+
+        sub.addConsumer(consumer);
+        assertFalse(sub.getDispatcher().isClosed());
+        sub.removeConsumer(consumer);
+
+        // The dispatcher is closed asynchronously
+        for (int i = 0; i < 100; i++) {
+            if (sub.getDispatcher().isClosed()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        assertTrue(sub.getDispatcher().isClosed());
+    }
+
     public void testMaxConsumersShared() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
