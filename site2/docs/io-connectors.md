@@ -14,11 +14,9 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 - [Canal source connector](io-cdc-canal.md)
 
-- [Data-generator source connector](io-data-generator.md)
-
 - [Debezium MySQL source connector](io-cdc-debezium.md)
 
-- [Debezium PostgreSQL source Connector](io-postgresql-debezium.md)
+- [Debezium PostgreSQL source Connector](io-cdc-debezium.md#example-of-postgresql)
 
 - [File source connector](io-file-source.md)
 
@@ -27,8 +25,6 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 - [Twitter firehose source connector](io-twitter-source.md)
 
 - [Kafka source connector](io-kafka-source.md)
-
-- [Kafka-connect-adaptor source connector](io-kafka-connect.md)
 
 - [Kinesis source connector](io-kinesis-source.md)
 
@@ -50,9 +46,9 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 - [HBase sink connector](io-hbase.md)
 
-- [HDFS2 sink connector](io-hdfs2.md)
+- [HDFS2 sink connector](io-hdfs.md)
 
-- [HDFS3 sink connector](io-hdfs3.md)
+- [HDFS3 sink connector](io-hdfs3-sink.md)
 
 - [InfluxDB sink connector](io-influxdb-sink.md)
 
