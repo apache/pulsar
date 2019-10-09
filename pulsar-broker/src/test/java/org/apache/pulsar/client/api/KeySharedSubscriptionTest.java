@@ -42,6 +42,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
@@ -315,9 +316,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             if (i == 9) {
                 try {
                     consumer.acknowledgeCumulative(message);
-                } catch (PulsarClientException e) {
-                    assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
-                }
+                    fail("should have failed");
+                } catch (PulsarClientException.InvalidConfigurationException ignore) {}
             }
         }
     }
