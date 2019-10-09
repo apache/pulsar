@@ -230,7 +230,7 @@ func (p *producer) LastSequenceID() int64 {
 }
 
 func (p *producer) Send(ctx context.Context, msg ProducerMessage) error {
-	c := make(chan error)
+	c := make(chan error, 1)
 	p.SendAsync(ctx, msg, func(msg ProducerMessage, err error) { c <- err; close(c) })
 
 	select {
@@ -283,7 +283,7 @@ func (p *producer) SendAsync(ctx context.Context, msg ProducerMessage, callback 
 }
 
 func (p *producer) Close() error {
-	c := make(chan error)
+	c := make(chan error, 1)
 	p.CloseAsync(func(err error) { c <- err; close(c) })
 	return <-c
 }
@@ -304,7 +304,7 @@ func pulsarProducerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 }
 
 func (p *producer) Flush() error {
-	f := make(chan error)
+	f := make(chan error, 1)
 	p.FlushAsync(func(err error) {
 		f <- err
 		close(f)
