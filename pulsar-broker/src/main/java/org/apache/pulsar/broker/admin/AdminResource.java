@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import static org.apache.pulsar.common.util.Codec.decode;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -43,13 +44,13 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
@@ -77,13 +78,9 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
-
 public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
-    private static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
 
     protected ZooKeeper globalZk() {
@@ -521,12 +518,11 @@ public abstract class AdminResource extends PulsarWebResource {
             throw new RestException(e);
         }
 
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(), topicName.getEncodedLocalName());
         PartitionedTopicMetadata partitionMetadata;
         if (checkAllowAutoCreation) {
-            partitionMetadata = fetchPartitionedTopicMetadataCheckAllowAutoCreation(pulsar(), path, topicName);
+            partitionMetadata = fetchPartitionedTopicMetadataCheckAllowAutoCreation(pulsar(), topicName);
         } else {
-            partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), path);
+            partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), topicName);
         }
 
         if (log.isDebugEnabled()) {
@@ -536,9 +532,9 @@ public abstract class AdminResource extends PulsarWebResource {
         return partitionMetadata;
     }
 
-    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, String path) {
+    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, TopicName topicName) {
         try {
-            return fetchPartitionedTopicMetadataAsync(pulsar, path).get();
+            return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
                 throw (RestException) e;
@@ -547,37 +543,10 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(
-            PulsarService pulsar, String path) {
-        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
-        try {
-            // gets the number of partitions from the zk cache
-            pulsar.getGlobalZkCache().getDataAsync(path, new Deserializer<PartitionedTopicMetadata>() {
-                @Override
-                public PartitionedTopicMetadata deserialize(String key, byte[] content) throws Exception {
-                    return jsonMapper().readValue(content, PartitionedTopicMetadata.class);
-                }
-            }).thenAccept(metadata -> {
-                // if the partitioned topic is not found in zk, then the topic is not partitioned
-                if (metadata.isPresent()) {
-                    metadataFuture.complete(metadata.get());
-                } else {
-                    metadataFuture.complete(new PartitionedTopicMetadata());
-                }
-            }).exceptionally(ex -> {
-                metadataFuture.completeExceptionally(ex);
-                return null;
-            });
-        } catch (Exception e) {
-            metadataFuture.completeExceptionally(e);
-        }
-        return metadataFuture;
-    }
-
     protected static PartitionedTopicMetadata fetchPartitionedTopicMetadataCheckAllowAutoCreation(
-            PulsarService pulsar, String path, TopicName topicName) {
+            PulsarService pulsar, TopicName topicName) {
         try {
-            return fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(pulsar, path, topicName)
+            return pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName)
                     .get();
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
@@ -587,85 +556,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
-            PulsarService pulsar, String path, TopicName topicName) {
-        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
-        try {
-            boolean allowAutoTopicCreation = pulsar.getConfiguration().isAllowAutoTopicCreation();
-            String topicType = pulsar.getConfiguration().getAllowAutoTopicCreationType();
-            boolean topicExist;
-            try {
-                topicExist = pulsar.getNamespaceService()
-                        .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
-                        .join()
-                        .contains(topicName.toString());
-            } catch (Exception e) {
-                log.warn("Unexpected error while getting list of topics. topic={}. Error: {}",
-                        topicName, e.getMessage(), e);
-                throw new RestException(e);
-            }
-            fetchPartitionedTopicMetadataAsync(pulsar, path).whenCompleteAsync((metadata, ex) -> {
-                if (ex != null) {
-                    metadataFuture.completeExceptionally(ex);
-                    // If topic is already exist, creating partitioned topic is not allowed.
-                } else if (metadata.partitions == 0 && !topicExist && allowAutoTopicCreation &&
-                        TopicType.PARTITIONED.toString().equals(topicType)) {
-                    createDefaultPartitionedTopicAsync(pulsar, path).whenComplete((defaultMetadata, e) -> {
-                        if (e == null) {
-                            metadataFuture.complete(defaultMetadata);
-                        } else if (e instanceof KeeperException) {
-                            try {
-                                Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
-                                if (!pulsar.getGlobalZkCache().exists(path)){
-                                    metadataFuture.completeExceptionally(e);
-                                    return;
-                                }
-                            } catch (InterruptedException | KeeperException exc) {
-                                metadataFuture.completeExceptionally(exc);
-                                return;
-                            }
-                            fetchPartitionedTopicMetadataAsync(pulsar, path).whenComplete((metadata2, ex2) -> {
-                                if (ex2 != null) {
-                                    metadataFuture.completeExceptionally(ex2);
-                                } else {
-                                    metadataFuture.complete(metadata2);
-                                }
-                            });
-                        } else {
-                            metadataFuture.completeExceptionally(e);
-                        }
-                    });
-                } else {
-                    metadataFuture.complete(metadata);
-                }
-            });
-        } catch (Exception e) {
-            metadataFuture.completeExceptionally(e);
-        }
-        return metadataFuture;
-    }
-
-    protected static CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(
-            PulsarService pulsar, String path) {
-        int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
-        checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
-        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
-        CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = new CompletableFuture<>();
-        try {
-            byte[] content = jsonMapper().writeValueAsBytes(configMetadata);
-            ZkUtils.createFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(), path, content,
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            // we wait for the data to be synced in all quorums and the observers
-            Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
-            partitionedTopicFuture.complete(configMetadata);
-        } catch (JsonProcessingException | KeeperException | InterruptedException e) {
-            log.error("Failed to create default partitioned topic.", e);
-            partitionedTopicFuture.completeExceptionally(e);
-        }
-        return partitionedTopicFuture;
-    }
-
-    protected void validateClusterExists(String cluster) {
+   protected void validateClusterExists(String cluster) {
         try {
             if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
@@ -729,19 +620,5 @@ public abstract class AdminResource extends PulsarWebResource {
 
         partitionedTopics.sort(null);
         return partitionedTopics;
-    }
-
-    enum TopicType {
-        PARTITIONED("partitioned"),
-        NON_PARTITIONED("non-partitioned");
-        private String type;
-
-        TopicType(String type) {
-            this.type = type;
-        }
-
-        public String toString() {
-            return type;
-        }
     }
 }
