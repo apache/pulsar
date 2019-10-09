@@ -74,10 +74,10 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected URI lookupUrl;
 
-    protected final int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    protected final int BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
-    protected final int BROKER_PORT = PortManager.nextFreePort();
-    protected final int BROKER_PORT_TLS = PortManager.nextFreePort();
+    protected int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+    protected int BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
+    protected int BROKER_PORT = PortManager.nextFreePort();
+    protected int BROKER_PORT_TLS = PortManager.nextFreePort();
 
     protected MockZooKeeper mockZookKeeper;
     protected NonClosableMockBookKeeper mockBookKeeper;
@@ -92,6 +92,11 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected void resetConfig() {
+        BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+        BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
+        BROKER_PORT = PortManager.nextFreePort();
+        BROKER_PORT_TLS = PortManager.nextFreePort();
+
         this.conf = new ServiceConfiguration();
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setBrokerServicePort(Optional.ofNullable(BROKER_PORT));
@@ -108,6 +113,7 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected final void internalSetup() throws Exception {
+        resetConfig();
         init();
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
@@ -121,6 +127,7 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected final void internalSetupForStatsTest() throws Exception {
+        resetConfig();
         init();
         String lookupUrl = brokerUrl.toString();
         if (isTcpLookup) {
