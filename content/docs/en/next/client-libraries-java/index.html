@@ -196,10 +196,10 @@ client.close();
 </code></pre>
 <p>Close operations can also be asynchronous:</p>
 <pre><code class="hljs css language-java">producer.closeAsync()
-   .thenRun(() -&gt; System.out.println(<span class="hljs-string">"Producer closed"</span>));
+   .thenRun(() -&gt; System.out.println(<span class="hljs-string">"Producer closed"</span>))
    .exceptionally((ex) -&gt; {
        System.err.println(<span class="hljs-string">"Failed to close producer: "</span> + ex);
-       <span class="hljs-keyword">return</span> ex;
+       <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
    });
 </code></pre>
 </blockquote>
