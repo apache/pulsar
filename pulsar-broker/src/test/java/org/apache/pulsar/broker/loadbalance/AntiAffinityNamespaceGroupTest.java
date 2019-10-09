@@ -114,6 +114,7 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setFailureDomainsEnabled(true);
         config1.setLoadBalancerEnabled(true);
         config1.setAdvertisedAddress("localhost");
+        config1.setTopicLevelPoliciesEnabled(false);
         createCluster(bkEnsemble.getZkClient(), config1);
         pulsar1 = new PulsarService(config1);
         pulsar1.setShutdownService(new NoOpShutdownService());
@@ -131,6 +132,7 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config2.setBrokerServicePort(Optional.of(0));
         config2.setFailureDomainsEnabled(true);
+        config2.setTopicLevelPoliciesEnabled(false);
         pulsar2 = new PulsarService(config2);
         pulsar2.setShutdownService(new NoOpShutdownService());
         pulsar2.start();
@@ -497,7 +499,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String namespace = "my-tenant/use/my-ns";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity";
-        final String bundle = "0x00000000_0xffffffff";
+        final String bundle = "0x00000000_0x40000000";
 
         admin1.tenants().createTenant("my-tenant",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
