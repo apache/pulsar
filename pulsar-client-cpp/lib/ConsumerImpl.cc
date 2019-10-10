@@ -96,7 +96,6 @@ ConsumerImpl::~ConsumerImpl() {
     incomingMessages_.clear();
     if (state_ == Ready) {
         LOG_WARN(getName() << "Destroyed consumer which was not properly closed");
-        closeAsync(ResultCallback());
     }
 }
 
@@ -818,6 +817,10 @@ void ConsumerImpl::disconnectConsumer() {
 
 void ConsumerImpl::closeAsync(ResultCallback callback) {
     Lock lock(mutex_);
+
+    // Keep a reference to ensure object is kept alive
+    ConsumerImplPtr ptr = shared_from_this();
+
     if (state_ != Ready) {
         lock.unlock();
         if (callback) {
@@ -853,15 +856,16 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseConsumer(consumerId_, requestId), requestId);
     if (callback) {
+        // Pass the shared pointer "ptr" to the handler to prevent the object from being destroyed
         future.addListener(
-            std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
+            std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback, ptr));
     }
 
     // fail pendingReceive callback
     failPendingReceiveCallback();
 }
 
-void ConsumerImpl::handleClose(Result result, ResultCallback callback) {
+void ConsumerImpl::handleClose(Result result, ResultCallback callback, ConsumerImplPtr consumer) {
     if (result == ResultOk) {
         Lock lock(mutex_);
         state_ = Closed;

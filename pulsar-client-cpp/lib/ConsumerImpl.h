@@ -120,7 +120,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void handleCreateConsumer(const ClientConnectionPtr& cnx, Result result);
 
     void internalListener();
-    void handleClose(Result result, ResultCallback callback);
+    void handleClose(Result result, ResultCallback callback, ConsumerImplPtr consumer);
     virtual HandlerBaseWeakPtr get_weak_from_this() { return shared_from_this(); }
     virtual const std::string& getName() const;
     virtual int getNumOfPrefetchedMessages() const;
