@@ -312,7 +312,7 @@ public class PulsarFunctionE2ETest {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-        
+
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
@@ -1063,7 +1063,7 @@ public class PulsarFunctionE2ETest {
         // get stats after producing
         functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
                 functionName, null);
-        
+
         functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
                 functionName);
 
@@ -1574,7 +1574,7 @@ public class PulsarFunctionE2ETest {
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
         // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.]+)(\\s(\\d+))?$");
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
         Arrays.asList(metrics.split("\n")).forEach(line -> {
             if (line.isEmpty() || line.startsWith("#")) {
