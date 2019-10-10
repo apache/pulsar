@@ -21,7 +21,6 @@ package org.apache.pulsar.sql.presto;
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
 
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
@@ -42,13 +41,6 @@ public class AvroSchemaHandler implements SchemaHandler {
     private final GenericAvroSchema genericAvroSchema;
 
     private final SchemaInfo schemaInfo;
-
-    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
-        @Override
-        protected byte[] initialValue() {
-            return new byte[1024];
-        }
-    };
 
     private static final Logger log = Logger.get(AvroSchemaHandler.class);
 
@@ -71,19 +63,10 @@ public class AvroSchemaHandler implements SchemaHandler {
     @Override
     public Object deserialize(RawMessage rawMessage) {
         ByteBuf payload = rawMessage.getData();
-        int size = payload.readableBytes();
-        byte[] buffer = tmpBuffer.get();
-        if (buffer.length < size) {
-            // If the thread-local buffer is not big enough, replace it with
-            // a bigger one
-            buffer = new byte[size * 2];
-            tmpBuffer.set(buffer);
-        }
-        payload.readBytes(buffer, 0, size);
         if (rawMessage.getSchemaVersion() != null) {
-            return genericAvroSchema.decode(buffer, rawMessage.getSchemaVersion());
+            return genericAvroSchema.decode(payload, rawMessage.getSchemaVersion());
         } else {
-            return genericAvroSchema.decode(buffer);
+            return genericAvroSchema.decode(payload);
         }
     }
 

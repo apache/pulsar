@@ -116,6 +116,8 @@ public class TestAvroSchemaHandler {
                 fields,
                 new Integer[5]);
         columnHandles.add(pulsarColumnHandle);
+        when(message.getData()).thenReturn(ByteBufAllocator.DEFAULT
+                .buffer(bytes.length, bytes.length).writeBytes(byteArrayOutputStream.toByteArray()));
         object = avroSchemaHandler.extractField(0, avroSchemaHandler.deserialize(message));
         Assert.assertEquals(foo1.bar.field1, (String)object);
     }
