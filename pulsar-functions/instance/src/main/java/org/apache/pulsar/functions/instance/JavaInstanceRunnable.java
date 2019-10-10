@@ -207,6 +207,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         ContextImpl contextImpl = setupContext();
 
+        Thread.currentThread().setContextClassLoader(functionClassLoader);
+
         // start the output producer
         setupOutput(contextImpl);
         // start the input consumer
@@ -263,7 +265,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.processTimeStart();
 
                 // process the message
-                Thread.currentThread().setContextClassLoader(functionClassLoader);
                 result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
