@@ -79,18 +79,16 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
         std::string logCtx = logCtxStream.str();
         msgCrypto_ = std::make_shared<MessageCrypto>(logCtx, true);
         msgCrypto_->addPublicKeyCipher(conf_.getEncryptionKeys(), conf_.getCryptoKeyReader());
-
-        dataKeyGenTImer_ = executor_->createDeadlineTimer();
-        dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
-        dataKeyGenTImer_->async_wait(
-            std::bind(&pulsar::ProducerImpl::refreshEncryptionKey, this, std::placeholders::_1));
     }
 }
 
 ProducerImpl::~ProducerImpl() {
     LOG_DEBUG(getName() << "~ProducerImpl");
-    closeAsync(ResultCallback());
+    cancelTimers();
     printStats();
+    if (state_ == Ready) {
+        LOG_WARN(getName() << "Destroyed producer which was not properly closed");
+    }
 }
 
 const std::string& ProducerImpl::getTopic() const { return topic_; }
@@ -171,6 +169,13 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         state_ = Ready;
         backoff_.reset();
         lock.unlock();
+
+        if (!dataKeyGenTImer_ && conf_.isEncryptionEnabled()) {
+            dataKeyGenTImer_ = executor_->createDeadlineTimer();
+            dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
+            dataKeyGenTImer_->async_wait(std::bind(&pulsar::ProducerImpl::refreshEncryptionKey,
+                                                   shared_from_this(), std::placeholders::_1));
+        }
 
         // Initialize the sendTimer only once per producer and only when producer timeout is
         // configured. Set the timeout as configured value and asynchronously wait for the
@@ -470,6 +475,9 @@ void ProducerImpl::printStats() {
 void ProducerImpl::closeAsync(CloseCallback callback) {
     Lock lock(mutex_);
 
+    // Keep a reference to ensure object is kept alive
+    ProducerImplPtr ptr = shared_from_this();
+
     cancelTimers();
 
     if (state_ != Ready) {
@@ -508,12 +516,13 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseProducer(producerId_, requestId), requestId);
     if (callback) {
+        // Pass the shared pointer "ptr" to the handler to prevent the object from being destroyed
         future.addListener(
-            std::bind(&ProducerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
+            std::bind(&ProducerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback, ptr));
     }
 }
 
-void ProducerImpl::handleClose(Result result, ResultCallback callback) {
+void ProducerImpl::handleClose(Result result, ResultCallback callback, ProducerImplPtr producer) {
     if (result == ResultOk) {
         Lock lock(mutex_);
         state_ = Closed;

@@ -97,7 +97,6 @@ ConsumerImpl::~ConsumerImpl() {
     incomingMessages_.clear();
     if (state_ == Ready) {
         LOG_WARN(getName() << "Destroyed consumer which was not properly closed");
-        closeAsync(ResultCallback());
     }
 }
 
@@ -764,6 +763,10 @@ void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callb
 void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
     ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
                                   callback, proto::CommandAck_AckType_Cumulative);
+    if (!isCumulativeAcknowledgementAllowed(config_.getConsumerType())) {
+        cb(ResultCumulativeAcknowledgementNotAllowedError);
+        return;
+    }
     if (msgId.batchIndex() != -1 &&
         !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Cumulative)) {
         MessageId messageId = batchAcknowledgementTracker_.getGreatestCumulativeAckReady(msgId);
@@ -776,6 +779,10 @@ void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCall
     } else {
         doAcknowledge(msgId, proto::CommandAck_AckType_Cumulative, cb);
     }
+}
+
+bool ConsumerImpl::isCumulativeAcknowledgementAllowed(ConsumerType consumerType) {
+    return consumerType != ConsumerKeyShared && consumerType != ConsumerShared;
 }
 
 void ConsumerImpl::doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
@@ -819,6 +826,10 @@ void ConsumerImpl::disconnectConsumer() {
 
 void ConsumerImpl::closeAsync(ResultCallback callback) {
     Lock lock(mutex_);
+
+    // Keep a reference to ensure object is kept alive
+    ConsumerImplPtr ptr = shared_from_this();
+
     if (state_ != Ready) {
         lock.unlock();
         if (callback) {
@@ -854,15 +865,16 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseConsumer(consumerId_, requestId), requestId);
     if (callback) {
+        // Pass the shared pointer "ptr" to the handler to prevent the object from being destroyed
         future.addListener(
-            std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback));
+            std::bind(&ConsumerImpl::handleClose, shared_from_this(), std::placeholders::_1, callback, ptr));
     }
 
     // fail pendingReceive callback
     failPendingReceiveCallback();
 }
 
-void ConsumerImpl::handleClose(Result result, ResultCallback callback) {
+void ConsumerImpl::handleClose(Result result, ResultCallback callback, ConsumerImplPtr consumer) {
     if (result == ResultOk) {
         Lock lock(mutex_);
         state_ = Closed;
