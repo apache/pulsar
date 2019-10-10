@@ -1630,6 +1630,7 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (AlreadyRunningException e) {
             throw new RestException(Status.CONFLICT, e.getMessage());
         } catch (Exception e) {
+            log.warn("Unexpected error triggering offload", e);
             throw new RestException(e);
         }
     }
