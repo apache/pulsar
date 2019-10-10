@@ -95,6 +95,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
 
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
+    virtual bool isCumulativeAcknowledgementAllowed(ConsumerType consumerType);
 
     virtual void redeliverMessages(const std::set<MessageId>& messageIds);
     virtual void negativeAcknowledge(const MessageId& msgId);
