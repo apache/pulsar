@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
@@ -44,7 +45,7 @@ public class SupportVersioningKeyValueSchemaTest {
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
 
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(keyValueSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
 
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
@@ -82,7 +83,7 @@ public class SupportVersioningKeyValueSchemaTest {
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
 
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(keyValueSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
 
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);

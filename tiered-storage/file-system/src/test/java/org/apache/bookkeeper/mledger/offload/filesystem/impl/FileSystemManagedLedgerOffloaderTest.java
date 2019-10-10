@@ -36,7 +36,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.net.URI;
@@ -48,6 +47,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private final PulsarMockBookKeeper bk;
@@ -100,7 +102,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, map).get();
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
-        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
         LedgerEntries toWriteEntries = toWrite.read(0,numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
@@ -109,10 +111,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
-            Assert.assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
-            Assert.assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
-            Assert.assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
-            Assert.assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
+            assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
+            assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
+            assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
+            assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
         toTestEntries = toTest.read(1, numberOfEntries - 1);
         toWriteEntries = toWrite.read(1,numberOfEntries - 1);
@@ -122,10 +124,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
-            Assert.assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
-            Assert.assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
-            Assert.assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
-            Assert.assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
+            assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
+            assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
+            assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
+            assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
     }
 
@@ -136,11 +138,11 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         offloader.offload(toWrite, uuid, map).get();
         Configuration configuration = new Configuration();
         FileSystem fileSystem = FileSystem.get(new URI(getURI()), configuration);
-        Assert.assertEquals(true, fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
-        Assert.assertEquals(true, fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
+        assertTrue(fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
+        assertTrue(fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
         offloader.deleteOffloaded(lh.getId(), uuid, map);
-        Assert.assertEquals(false, fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
-        Assert.assertEquals(false, fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
+        assertFalse(fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
+        assertFalse(fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
     }
 
     private String createStoragePath(String managedLedgerName) {

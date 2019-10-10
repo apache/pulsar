@@ -464,6 +464,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                 doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
         )
         private int percentMemoryPadding;
+
+        @FieldContext(
+                doc = "The ratio cpu request and cpu limit to be set for a function/source/sink." +
+                        "  The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio"
+        )
+        private double cpuOverCommitRatio = 1.0;
+
+        @FieldContext(
+                doc = "The ratio memory request and memory limit to be set for a function/source/sink." +
+                        "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
+        )
+        private double memoryOverCommitRatio = 1.0;
     }
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,

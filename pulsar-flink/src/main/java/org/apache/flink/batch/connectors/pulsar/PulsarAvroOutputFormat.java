@@ -36,9 +36,9 @@ public class PulsarAvroOutputFormat<T extends SpecificRecord> extends BasePulsar
         this.serializationSchema = new AvroSerializationSchema();
     }
 
-    public PulsarAvroOutputFormat(ClientConfigurationData clientConfigurationData, ProducerConfigurationData producerConfigurationData) {
+    public PulsarAvroOutputFormat(ClientConfigurationData clientConfigurationData,
+        ProducerConfigurationData producerConfigurationData) {
         super(clientConfigurationData, producerConfigurationData);
         this.serializationSchema = new AvroSerializationSchema();
     }
-
 }

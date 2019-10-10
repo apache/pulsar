@@ -39,7 +39,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
 

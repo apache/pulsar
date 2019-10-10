@@ -85,6 +85,18 @@
                   </arguments>
                 </configuration>
               </execution>
+              <execution>
+                <id>build-pulsar-cpp-client-deb</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <skip>${skipBuildCppClient}</skip>
+                  <workingDirectory>${project.basedir}/target</workingDirectory>
+                  <executable>${project.basedir}/../../pulsar-client-cpp/pkg/deb/docker-build-deb.sh</executable>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
           <plugin>
@@ -92,6 +104,7 @@
             <artifactId>maven-antrun-plugin</artifactId>
             <executions>
               <execution>
+                <id>copy-pulsar-clients-python</id>
                 <phase>compile</phase>
                 <goals>
                   <goal>run</goal>
@@ -102,6 +115,21 @@
                     <echo>copy python wheel file</echo>
                     <mkdir dir="${basedir}/target/python-client"/>
                     <copydir src="${basedir}/../../pulsar-client-cpp/python/wheelhouse" dest="${basedir}/target/python-client"/>
+                  </tasks>
+                </configuration>
+              </execution>
+              <execution>
+                <id>copy-pulsar-cpp-client</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <skip>${skipCopyCppClient}</skip>
+                  <tasks>
+                    <echo>copy cpp client deb file</echo>
+                    <mkdir dir="${basedir}/target/cpp-client"/>
+                    <copydir src="${basedir}/../../pulsar-client-cpp/pkg/deb/BUILD/DEB" dest="${basedir}/target/cpp-client"/>
                   </tasks>
                 </configuration>
               </execution>

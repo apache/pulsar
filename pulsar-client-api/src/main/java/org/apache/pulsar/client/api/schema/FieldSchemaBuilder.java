@@ -23,7 +23,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Build a field for a record.
  */
-public interface FieldSchemaBuilder<S extends FieldSchemaBuilder<S>> {
+public interface FieldSchemaBuilder<T extends FieldSchemaBuilder<T>> {
 
     /**
      * Set name-value pair properties for this field.
@@ -32,7 +32,7 @@ public interface FieldSchemaBuilder<S extends FieldSchemaBuilder<S>> {
      * @param val value of the property
      * @return field schema builder
      */
-    S property(String name, String val);
+    T property(String name, String val);
 
     /**
      * The documentation of this field.
@@ -40,7 +40,7 @@ public interface FieldSchemaBuilder<S extends FieldSchemaBuilder<S>> {
      * @param doc documentation
      * @return field schema builder
      */
-    S doc(String doc);
+    T doc(String doc);
 
     /**
      * The optional name aliases of this field.
@@ -48,7 +48,7 @@ public interface FieldSchemaBuilder<S extends FieldSchemaBuilder<S>> {
      * @param aliases the name aliases of this field
      * @return field schema builder
      */
-    S aliases(String... aliases);
+    T aliases(String... aliases);
 
     /**
      * The type of this field.
@@ -58,21 +58,21 @@ public interface FieldSchemaBuilder<S extends FieldSchemaBuilder<S>> {
      * @param type schema type of this field
      * @return field schema builder
      */
-    S type(SchemaType type);
+    T type(SchemaType type);
 
     /**
      * Make this field optional.
      *
      * @return field schema builder
      */
-    S optional();
+    T optional();
 
     /**
      * Make this field required.
      *
      * @return field schema builder
      */
-    S required();
+    T required();
 
     /**
      * Set the default value of this field.
@@ -81,6 +81,6 @@ public interface FieldSchemaBuilder<S extends FieldSchemaBuilder<S>> {
      *
      * @return value
      */
-    S defaultValue(Object value);
+    T defaultValue(Object value);
 
 }

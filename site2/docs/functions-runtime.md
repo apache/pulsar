@@ -1,15 +1,18 @@
 ---
 id: functions-runtime
 title: Configure Functions runtime
-sidebar_label: Admin: Configure Functions runtime
+sidebar_label: Setup: Configure Functions runtime
 ---
-This guide is used for administrator. 
 
 Pulsar Functions support the following methods to run functions.
 
 - *Thread*: Invoke functions in threads in Functions Worker.
 - *Process*: Invoke functions in processes forked by Functions Worker.
 - *Kubernetes*: Submit functions as Kubernetes StatefulSets by Functions Worker.
+
+The differences of the thread and process modes are:   
+- Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with Functions worker.   
+- Process mode: when a function runs in process mode, it runs on the same machine that Functions worker runs.
 
 ## Configure thread runtime
 It is easy to configure *Thread* runtime. In most cases, you do not need to configure anything. You can customize the thread group name with the following settings:

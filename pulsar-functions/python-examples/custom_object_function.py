@@ -31,10 +31,10 @@ class CustomSerDe(SerDe):
     pass
 
   def serialize(self, object):
-    return "%d,%d" % (object.a, object.b)
+    return ("%d,%d" % (object.a, object.b)).encode('utf-8')
 
   def deserialize(self, input_bytes):
-    split = str(input_bytes).split(',')
+    split = str(input_bytes.decode()).split(',')
     retval = MyObject()
     retval.a = int(split[0])
     retval.b = int(split[1])

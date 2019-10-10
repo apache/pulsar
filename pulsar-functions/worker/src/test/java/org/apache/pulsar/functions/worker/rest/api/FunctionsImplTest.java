@@ -48,7 +48,6 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.Assert;
 import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
@@ -70,6 +69,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 @PrepareForTest({WorkerUtils.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
@@ -193,7 +195,7 @@ public class FunctionsImplTest {
 
     @Test
     public void testStatusEmpty() {
-        Assert.assertTrue(this.resource.getFunctionInstanceStatus(tenant, namespace, function, "0", null, null, null) !=null);
+        assertNotNull(this.resource.getFunctionInstanceStatus(tenant, namespace, function, "0", null, null, null));
     }
 
     @Test
@@ -224,7 +226,7 @@ public class FunctionsImplTest {
         functionStats.addInstance(instanceStats1);
         functionStats.addInstance(instanceStats2);
 
-        Assert.assertTrue(functionStats.calculateOverall() != null);
+        assertNotNull(functionStats.calculateOverall());
     }
 
     @Test
@@ -239,7 +241,7 @@ public class FunctionsImplTest {
 
         // test super user
         AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
-        Assert.assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", superUser, authenticationDataSource));
+        assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", superUser, authenticationDataSource));
 
         // test normal user
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
@@ -249,7 +251,7 @@ public class FunctionsImplTest {
         PulsarAdmin admin = mock(PulsarAdmin.class);
         when(admin.tenants()).thenReturn(tenants);
         when(this.mockedWorkerService.getBrokerAdmin()).thenReturn(admin);
-        Assert.assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
+        assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
 
         // if user is tenant admin
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
@@ -262,7 +264,7 @@ public class FunctionsImplTest {
         admin = mock(PulsarAdmin.class);
         when(admin.tenants()).thenReturn(tenants);
         when(this.mockedWorkerService.getBrokerAdmin()).thenReturn(admin);
-        Assert.assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
+        assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
 
         // test user allow function action
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
@@ -273,7 +275,7 @@ public class FunctionsImplTest {
         admin = mock(PulsarAdmin.class);
         when(admin.tenants()).thenReturn(tenants);
         when(this.mockedWorkerService.getBrokerAdmin()).thenReturn(admin);
-        Assert.assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
+        assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
 
         // test role is null
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
@@ -284,7 +286,7 @@ public class FunctionsImplTest {
         admin = mock(PulsarAdmin.class);
         when(admin.tenants()).thenReturn(tenants);
         when(this.mockedWorkerService.getBrokerAdmin()).thenReturn(admin);
-        Assert.assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns", null, authenticationDataSource));
+        assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns", null, authenticationDataSource));
     }
 
     @Test
@@ -297,10 +299,10 @@ public class FunctionsImplTest {
         doReturn(workerConfig).when(mockedWorkerService).getWorkerConfig();
 
         AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
-        Assert.assertTrue(functionImpl.isSuperUser(superUser));
+        assertTrue(functionImpl.isSuperUser(superUser));
 
-        Assert.assertFalse(functionImpl.isSuperUser("normal-user"));
-        Assert.assertFalse(functionImpl.isSuperUser( null));
+        assertFalse(functionImpl.isSuperUser("normal-user"));
+        assertFalse(functionImpl.isSuperUser( null));
 
         // test super roles is null
 
@@ -309,7 +311,7 @@ public class FunctionsImplTest {
         workerConfig.setAuthorizationEnabled(true);
         doReturn(workerConfig).when(mockedWorkerService).getWorkerConfig();
 
-        Assert.assertFalse(functionImpl.isSuperUser(superUser));
+        assertFalse(functionImpl.isSuperUser(superUser));
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {

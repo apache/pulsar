@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
@@ -339,40 +340,41 @@ public class ServerCnx extends PulsarHandler {
             }
             String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
-                    if (isProxyAuthorized) {
+                if (isProxyAuthorized) {
                     getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                                                authRole, finalOriginalPrincipal, authenticationData,
+                            authRole, finalOriginalPrincipal, authenticationData,
                             topicName).handle((metadata, ex) -> {
-                                    if (ex == null) {
-                                        int partitions = metadata.partitions;
-                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
+                                if (ex == null) {
+                                    int partitions = metadata.partitions;
+                                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
+                                } else {
+                                    if (ex instanceof PulsarClientException) {
+                                        log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
+                                                remoteAddress, topicName, ex.getMessage());
+                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
+                                                ServerError.AuthorizationError, ex.getMessage(), requestId));
                                     } else {
-                                        if (ex instanceof PulsarClientException) {
-                                            log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
-                                                    remoteAddress, topicName, ex.getMessage());
-                                            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
-                                                    ServerError.AuthorizationError, ex.getMessage(), requestId));
-                                        } else {
-                                            log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
-                                                    topicName, ex.getMessage(), ex);
-                                            ServerError error = (ex instanceof RestException)
-                                                    && ((RestException) ex).getResponse().getStatus() < 500
-                                                            ? ServerError.MetadataError : ServerError.ServiceNotReady;
-                                            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(error,
-                                                    ex.getMessage(), requestId));
-                                        }
+                                        log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
+                                                topicName, ex.getMessage(), ex);
+                                        ServerError error = (ex instanceof RestException)
+                                                && ((RestException) ex).getResponse().getStatus() < 500
+                                                        ? ServerError.MetadataError
+                                                        : ServerError.ServiceNotReady;
+                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(error,
+                                                ex.getMessage(), requestId));
                                     }
-                                    lookupSemaphore.release();
-                                    return null;
-                                });
-                    } else {
-                        final String msg = "Proxy Client is not authorized to Get Partition Metadata";
-                        log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
-                        ctx.writeAndFlush(
-                                Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
-                        lookupSemaphore.release();
-                    }
-                    return null;
+                                }
+                                lookupSemaphore.release();
+                                return null;
+                            });
+                } else {
+                    final String msg = "Proxy Client is not authorized to Get Partition Metadata";
+                    log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
+                    ctx.writeAndFlush(
+                            Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
+                    lookupSemaphore.release();
+                }
+                return null;
             }).exceptionally(ex -> {
                 final String msg = "Exception occured while trying to authorize get Partition Metadata";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
@@ -611,6 +613,7 @@ public class ServerCnx extends PulsarHandler {
         final InitialPosition initialPosition = subscribe.getInitialPosition();
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
+        final boolean forceTopicCreation = subscribe.getForceTopicCreation();
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -676,8 +679,18 @@ public class ServerCnx extends PulsarHandler {
                             }
                         }
 
-                        service.getOrCreateTopic(topicName.toString())
-                                .thenCompose(topic -> {
+                        boolean createTopicIfDoesNotExist = forceTopicCreation
+                                && service.pulsar().getConfig().isAllowAutoTopicCreation();
+
+                        service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
+                                .thenCompose(optTopic -> {
+                                    if (!optTopic.isPresent()) {
+                                        return FutureUtil
+                                                .failedFuture(new TopicNotFoundException("Topic does not exist"));
+                                    }
+
+                                    Topic topic = optTopic.get();
+
                                     if (schema != null) {
                                         return topic.addSchemaIfIdleOrCheckCompatible(schema)
                                             .thenCompose(isCompatible -> {
@@ -728,6 +741,9 @@ public class ServerCnx extends PulsarHandler {
                                                     remoteAddress, topicName, subscriptionName,
                                                     exception.getCause().getMessage());
                                         }
+                                    } else if (exception.getCause() instanceof BrokerServiceException) {
+                                        log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
+                                                subscriptionName, exception.getCause().getMessage());
                                     } else {
                                         log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
                                                 subscriptionName, exception.getCause().getMessage(), exception);
@@ -1047,8 +1063,6 @@ public class ServerCnx extends PulsarHandler {
         }
 
         startSendOperation();
-
-        // Persist the message
         producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
     }
 
@@ -1299,27 +1313,27 @@ public class ServerCnx extends PulsarHandler {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
         final String namespace = commandGetTopicsOfNamespace.getNamespace();
         final CommandGetTopicsOfNamespace.Mode mode = commandGetTopicsOfNamespace.getMode();
+        final NamespaceName namespaceName = NamespaceName.get(namespace);
 
-        try {
-            final NamespaceName namespaceName = NamespaceName.get(namespace);
+        getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
+                .thenAccept(topics -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
+                                remoteAddress, namespace, requestId, topics.size());
+                    }
 
-            final List<String> topics = getBrokerService().pulsar().getNamespaceService()
-                .getListOfTopics(namespaceName, mode);
+                    ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
+                })
+                .exceptionally(ex -> {
+                    log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
+                            remoteAddress, namespace, requestId);
+                    ctx.writeAndFlush(
+                            Commands.newError(requestId,
+                                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
+                                    ex.getMessage()));
 
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
-                    remoteAddress, namespace, requestId, topics.size());
-            }
-
-            ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
-        } catch (Exception e) {
-            log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
-                remoteAddress, namespace, requestId);
-            ctx.writeAndFlush(
-                Commands.newError(requestId,
-                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(e)),
-                    e.getMessage()));
-        }
+                    return null;
+                });
     }
 
     @Override

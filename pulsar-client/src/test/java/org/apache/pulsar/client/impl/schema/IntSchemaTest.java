@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -40,9 +42,14 @@ public class IntSchemaTest {
     public void testSchemaEncodeDecodeFidelity() {
         IntSchema schema = IntSchema.of();
         int start = 348592040;
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(4);
         for (int i = 0; i < 100; ++i) {
             byte[] encode = schema.encode(start + i);
+            byteBuf.writerIndex(0);
+            byteBuf.writeBytes(encode);
             int decoded = schema.decode(encode);
+            Assert.assertEquals(decoded, start + i);
+            decoded = schema.decode(byteBuf);
             Assert.assertEquals(decoded, start + i);
         }
     }
@@ -55,15 +62,21 @@ public class IntSchemaTest {
                24,
                42
         };
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(4);
         Integer expected = 10*65536 + 24*256 + 42;
         IntSchema schema = IntSchema.of();
+        byteBuf.writeBytes(byteData);
         Assert.assertEquals(expected, schema.decode(byteData));
+        Assert.assertEquals(expected, schema.decode(byteBuf));
     }
 
     @Test
     public void testNullEncodeDecode() {
+        ByteBuf byteBuf = null;
+        byte[] bytes = null;
         Assert.assertNull(IntSchema.of().encode(null));
-        Assert.assertNull(IntSchema.of().decode(null));
+        Assert.assertNull(IntSchema.of().decode(bytes));
+        Assert.assertNull(IntSchema.of().decode(byteBuf));
     }
 
 }

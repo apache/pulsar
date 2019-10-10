@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.windowing;
 
 import com.google.gson.Gson;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;

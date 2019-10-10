@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
@@ -131,13 +130,13 @@ public class PulsarSourceTest {
 
         try {
             pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
-            assertFalse(true);
+            fail();
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
             assertEquals(ex.getMessage(), "Input type of Pulsar Function cannot be Void");
         } catch (Exception ex) {
             log.error("Exception: {}", ex, ex);
-            assertFalse(true);
+            fail();
         }
     }
 
@@ -164,7 +163,7 @@ public class PulsarSourceTest {
             assertTrue(ex.getMessage().startsWith("Inconsistent types found between function input type and serde type:"));
         } catch (Exception ex) {
             log.error("Exception: {}", ex, ex);
-            assertTrue(false);
+            fail();
         }
     }
 

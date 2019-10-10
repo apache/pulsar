@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -375,7 +377,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         log.info("Waiting for message listener to ack all messages");
-        assertEquals(latch.await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -408,7 +410,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < receiverQueueSize * 2; i++) producer.send(("my-message-" + i).getBytes());
 
         log.info("Waiting for message listener to ack " + receiverQueueSize + " messages");
-        assertEquals(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
 
         log.info("Giving message listener an opportunity to receive messages while paused");
         Thread.sleep(2000);     // hopefully this is long enough
@@ -419,7 +421,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.resume();
 
         log.info("Waiting for message listener to ack all messages");
-        assertEquals(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.get().await(receiverQueueSize, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
 
         consumer.close();
         producer.close();
@@ -671,13 +673,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
 
@@ -712,13 +711,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         barrier.reset();
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
         barrier.await();
@@ -742,13 +738,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         barrier.reset();
         for (int i = 0; i < numConsumersThreads; i++) {
-            executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
-                    consumer.receive();
-                    return null;
-                }
+            executor.submit((Callable<Void>) () -> {
+                barrier.await();
+                consumer.receive();
+                return null;
             });
         }
         barrier.await();
@@ -969,7 +962,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         retryStrategically((test) -> entryCache.getSize() == 0, 5, 100);
 
         // Verify: EntryCache should be cleared
-        assertTrue(entryCache.getSize() == 0);
+        assertEquals(entryCache.getSize(), 0);
         subscriber1.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -2316,7 +2309,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // (1) simple consumers
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/failAsyncReceive").subscriptionName("my-subscriber-name")
+                .topic("persistent://my-property/my-ns/failAsyncReceive-1").subscriptionName("my-subscriber-name")
                 .subscribe();
         consumer.close();
         // receive messages
@@ -2329,7 +2322,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // (2) Partitioned-consumer
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/failAsyncReceive");
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/failAsyncReceive-2");
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
         Consumer<byte[]> partitionedConsumer = pulsarClient.newConsumer().topic(topicName.toString())
                 .subscriptionName("my-partitioned-subscriber").subscribe();
@@ -3124,6 +3117,84 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer3.close();
         consumer4.close();
         consumer5.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * This test verifies Producer and Consumer of PartitionedTopic with 1 partition works well.
+     *
+     * <pre>
+     * 1. create producer/consumer with both original name and PARTITIONED_TOPIC_SUFFIX.
+     * 2. verify producer/consumer could produce/consume messages from same underline persistent topic.
+     * </pre>
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testPartitionedTopicWithOnePartition() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topicName = "persistent://my-property/my-ns/one-partitioned-topic";
+        final String subscriptionName = "my-sub-";
+
+        // create partitioned topic
+        admin.topics().createPartitionedTopic(topicName, 1);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 1);
+
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+            .topic(topicName)
+            .subscriptionName(subscriptionName + 1)
+            .consumerName("aaa")
+            .subscribe();
+        log.info("Consumer1 created. topic: {}", consumer1.getTopic());
+
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+            .topic(topicName + PARTITIONED_TOPIC_SUFFIX + 0)
+            .subscriptionName(subscriptionName + 2)
+            .consumerName("bbb")
+            .subscribe();
+        log.info("Consumer2 created. topic: {}", consumer2.getTopic());
+
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .create();
+        log.info("Producer1 created. topic: {}", producer1.getTopic());
+
+        @Cleanup
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+            .topic(topicName + PARTITIONED_TOPIC_SUFFIX + 0)
+            .enableBatching(false)
+            .create();
+        log.info("Producer2 created. topic: {}", producer2.getTopic());
+
+        final int numMessages = 10;
+        for (int i = 0; i < numMessages; i++) {
+            producer1.newMessage()
+                .value(("one-partitioned-topic-value-producer1-" + i).getBytes(UTF_8))
+                .send();
+
+            producer2.newMessage()
+                .value(("one-partitioned-topic-value-producer2-" + i).getBytes(UTF_8))
+                .send();
+        }
+
+        for (int i = 0; i < numMessages * 2; i++) {
+            Message<byte[]> msg = consumer1.receive(200, TimeUnit.MILLISECONDS);
+            assertNotNull(msg);
+            log.info("Consumer1 Received message '{}'.", new String(msg.getValue(), UTF_8));
+
+            msg = consumer2.receive(200, TimeUnit.MILLISECONDS);
+            assertNotNull(msg);
+            log.info("Consumer2 Received message '{}'.", new String(msg.getValue(), UTF_8));
+        }
+
+        assertNull(consumer1.receive(200, TimeUnit.MILLISECONDS));
+        assertNull(consumer2.receive(200, TimeUnit.MILLISECONDS));
+
         log.info("-- Exiting {} test --", methodName);
     }
 }

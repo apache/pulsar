@@ -29,6 +29,13 @@
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>java-test-functions</artifactId>
     <name>Apache Pulsar :: Tests :: Docker Images :: Java Test Functions</name>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>pulsar-io-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
     <packaging>jar</packaging>
 
     <profiles>

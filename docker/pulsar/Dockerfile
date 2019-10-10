@@ -43,7 +43,7 @@ COPY --from=pulsar /pulsar /pulsar
 
 # Install some utilities
 RUN apt-get update \
-     && apt-get install -y netcat dnsutils \
+     && apt-get install -y netcat dnsutils less procps iputils-ping \
                  python2.7 python-setuptools \
                  python3-setuptools \
                  libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
@@ -62,9 +62,14 @@ RUN pip install kazoo pyyaml
 RUN python3.5 get-pip.py
 
 ADD target/python-client/ /pulsar/pulsar-client
+ADD target/cpp-client/ /pulsar/cpp-client
 RUN /pulsar/bin/install-pulsar-client-27.sh
 RUN /pulsar/bin/install-pulsar-client-35.sh
 RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
+RUN apt-get update \
+     && apt install -y /pulsar/cpp-client/*.deb \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /pulsar
 

@@ -389,7 +389,7 @@ func TestProducer_Batch(t *testing.T) {
 	}
 }
 
-func TestProducer_SendWithMsgID(t *testing.T) {
+func TestProducer_SendAndGetMsgID(t *testing.T) {
 	client, err := NewClient(ClientOptions{
 		URL: "pulsar://localhost:6650",
 	})
@@ -404,7 +404,7 @@ func TestProducer_SendWithMsgID(t *testing.T) {
 	defer producer.Close()
 
 	for i := 0; i < 10; i++ {
-		msgID, err := producer.SendWithMsgID(context.Background(), ProducerMessage{
+		msgID, err := producer.SendAndGetMsgID(context.Background(), ProducerMessage{
 			Payload: []byte(fmt.Sprintf("async-message-%d", i)),
 		})
 		if err != nil {

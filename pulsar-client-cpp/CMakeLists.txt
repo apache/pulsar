@@ -86,10 +86,12 @@ if (LINK_STATIC)
         endif (LOG4CXX_USE_DYNAMIC_LIBS)
     endif (USE_LOG4CXX)
 
-    if (NOT MSVC)
-        set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
-    else()
+    if (MSVC)
         add_definitions(-DCURL_STATICLIB)
+    endif()
+
+    if (UNIX AND NOT APPLE)
+        set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
     endif()
 
     SET(Boost_USE_STATIC_LIBS   ON)
@@ -102,7 +104,11 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-find_package(Boost REQUIRED COMPONENTS program_options regex system)
+if (MSVC)
+  find_package(Boost REQUIRED COMPONENTS program_options regex system date_time)
+else()
+  find_package(Boost REQUIRED COMPONENTS program_options regex system)
+endif()
 
 find_package(ZLIB REQUIRED)
 
@@ -195,9 +201,13 @@ MESSAGE(STATUS "HAS_SNAPPY: ${HAS_SNAPPY}")
 set(ADDITIONAL_LIBRARIES $ENV{PULSAR_ADDITIONAL_LIBRARIES})
 link_directories( $ENV{PULSAR_ADDITIONAL_LIBRARY_PATH} )
 
+set(AUTOGEN_DIR ${CMAKE_BINARY_DIR}/generated)
+file(MAKE_DIRECTORY ${AUTOGEN_DIR})
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
+  ${AUTOGEN_DIR}
   ${Boost_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
   ${ZLIB_INCLUDE_DIRS}
@@ -218,6 +228,13 @@ set(COMMON_LIBS
   ${Protobuf_LITE_LIBRARIES}
   ${ADDITIONAL_LIBRARIES}
 )
+
+if (MSVC)
+  set(COMMON_LIBS
+    ${COMMON_LIBS}
+    ${Boost_DATE_TIME_LIBRARY}
+  )
+endif()
 
 if (NOT MSVC)
     set(COMMON_LIBS

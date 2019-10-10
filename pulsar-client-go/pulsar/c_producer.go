@@ -230,7 +230,7 @@ func (p *producer) LastSequenceID() int64 {
 }
 
 func (p *producer) Send(ctx context.Context, msg ProducerMessage) error {
-	c := make(chan error)
+	c := make(chan error, 1)
 	p.SendAsync(ctx, msg, func(msg ProducerMessage, err error) { c <- err; close(c) })
 
 	select {
@@ -247,7 +247,7 @@ type msgID struct {
 	id  MessageID
 }
 
-func (p *producer) SendWithMsgID(ctx context.Context, msg ProducerMessage) (MessageID, error) {
+func (p *producer) SendAndGetMsgID(ctx context.Context, msg ProducerMessage) (MessageID, error) {
 	c := make(chan msgID, 10)
 
 	p.SendAsyncWithMsgID(ctx, msg, func(id MessageID, err error) {
@@ -350,7 +350,7 @@ func (p *producer) SendAsyncWithMsgID(ctx context.Context, msg ProducerMessage, 
 }
 
 func (p *producer) Close() error {
-	c := make(chan error)
+	c := make(chan error, 1)
 	p.CloseAsync(func(err error) { c <- err; close(c) })
 	return <-c
 }
@@ -371,7 +371,7 @@ func pulsarProducerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 }
 
 func (p *producer) Flush() error {
-	f := make(chan error)
+	f := make(chan error, 1)
 	p.FlushAsync(func(err error) {
 		f <- err
 		close(f)

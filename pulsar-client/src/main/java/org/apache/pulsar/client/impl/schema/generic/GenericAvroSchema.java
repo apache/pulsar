@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -54,22 +55,22 @@ public class GenericAvroSchema extends GenericSchemaImpl {
     }
 
     @Override
-    protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
-         SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+    protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
+         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
          if (schemaInfo != null) {
              log.info("Load schema reader for version({}), schema is : {}",
-                 SchemaUtils.getStringSchemaVersion(schemaVersion),
-                 schemaInfo.getSchemaDefinition());
+                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
+                 schemaInfo);
              Schema writerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
              Schema readerSchema = useProvidedSchemaAsReaderSchema ? schema : writerSchema;
              return new GenericAvroReader(
                      writerSchema,
                      readerSchema,
-                     schemaVersion);
+                     schemaVersion.get());
          } else {
              log.warn("No schema found for version({}), use latest schema : {}",
-                 SchemaUtils.getStringSchemaVersion(schemaVersion),
-                 this.schemaInfo.getSchemaDefinition());
+                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
+                 this.schemaInfo);
              return reader;
          }
     }

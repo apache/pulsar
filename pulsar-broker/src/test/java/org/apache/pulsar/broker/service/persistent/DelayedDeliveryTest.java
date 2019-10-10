@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.util.Set;
@@ -88,7 +89,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         // Failover consumer will receive the messages immediately while
         // the shared consumer will get them after the delay
         Message<String> msg = sharedConsumer.receive(100, TimeUnit.MILLISECONDS);
-        assertEquals(msg, null);
+        assertNull(msg);
 
         for (int i = 0; i < 10; i++) {
             msg = failoverConsumer.receive(100, TimeUnit.MILLISECONDS);
@@ -194,7 +195,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
 
         Message<String> msg = sharedConsumer.receive(100, TimeUnit.MILLISECONDS);
-        assertEquals(msg, null);
+        assertNull(msg);
 
         Set<String> receivedMsgs = new TreeSet<>();
         for (int i = 0; i < 20; i++) {

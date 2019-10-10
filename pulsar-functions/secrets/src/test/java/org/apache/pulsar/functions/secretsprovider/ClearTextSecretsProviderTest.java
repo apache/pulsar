@@ -19,19 +19,18 @@
 
 package org.apache.pulsar.functions.secretsprovider;
 
-import org.testng.Assert;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+
 import org.testng.annotations.Test;
 
-/**
- * Unit test of {@link Exceptions}.
- */
 public class ClearTextSecretsProviderTest {
 
     @Test
     public void testConfigValidation() throws Exception {
         ClearTextSecretsProvider provider = new ClearTextSecretsProvider();
-        Assert.assertEquals(provider.provideSecret("SecretName", "SecretValue"), "SecretValue");
-        Assert.assertEquals(provider.provideSecret("SecretName", ""), "");
-        Assert.assertEquals(provider.provideSecret("SecretName", null), null);
+        assertEquals(provider.provideSecret("SecretName", "SecretValue"), "SecretValue");
+        assertEquals(provider.provideSecret("SecretName", ""), "");
+        assertNull(provider.provideSecret("SecretName", null));
     }
 }

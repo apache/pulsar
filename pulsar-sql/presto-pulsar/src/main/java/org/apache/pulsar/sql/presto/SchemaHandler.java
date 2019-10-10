@@ -20,6 +20,9 @@ package org.apache.pulsar.sql.presto;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * This interface defines the methods to work with schemas.
+ */
 public interface SchemaHandler {
 
     Object deserialize(ByteBuf payload);

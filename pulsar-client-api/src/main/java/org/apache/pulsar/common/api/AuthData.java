@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.common.api;
 
-import lombok.Data;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-@Data(staticConstructor="of")
+import lombok.Data;
+
+/**
+ * Authentication data.
+ */
+@Data(staticConstructor = "of")
 public final class AuthData {
+    // CHECKSTYLE.OFF: StaticVariableName
     public static byte[] INIT_AUTH_DATA = "PulsarAuthInit".getBytes(UTF_8);
+    // CHECKSTYLE.ON: StaticVariableName
 
     private final byte[] bytes;
 

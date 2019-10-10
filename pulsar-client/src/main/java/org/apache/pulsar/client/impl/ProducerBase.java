@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.api.Message;
@@ -27,7 +29,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public abstract class ProducerBase<T> extends HandlerState implements Producer<T> {
@@ -67,6 +71,20 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     @Override
     public TypedMessageBuilder<T> newMessage() {
         return new TypedMessageBuilderImpl<>(this, schema);
+    }
+
+    // TODO: add this method to the Producer interface
+    // @Override
+    public TypedMessageBuilder<T> newMessage(Transaction txn) {
+        checkArgument(txn instanceof TransactionImpl);
+
+        // check the producer has proper settings to send transactional messages
+        if (conf.getSendTimeoutMs() > 0) {
+            throw new IllegalArgumentException("Only producers disabled sendTimeout are allowed to"
+                + " produce transactional messages");
+        }
+
+        return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
     }
 
     abstract CompletableFuture<MessageId> internalSendAsync(Message<T> message);

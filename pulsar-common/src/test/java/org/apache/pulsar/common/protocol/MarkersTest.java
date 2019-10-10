@@ -22,10 +22,12 @@ import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.ByteBuf;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
@@ -113,6 +115,43 @@ public class MarkersTest {
         assertEquals(snapshot.getClusters(1).getCluster(), "us-east");
         assertEquals(snapshot.getClusters(1).getMessageId().getLedgerId(), 10);
         assertEquals(snapshot.getClusters(1).getMessageId().getEntryId(), 11);
+    }
+
+    @Test
+    public void testTxnCommitMarker() throws IOException {
+        long sequenceId = 1L;
+        long mostBits = 1234L;
+        long leastBits = 2345L;
+
+        ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits,
+                                                 MessageIdData.newBuilder().setLedgerId(10).setEntryId(11).build());
+
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
+
+        assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_COMMIT_VALUE);
+        assertEquals(msgMetadata.getSequenceId(), sequenceId);
+        assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
+        assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
+
+        PulsarMarkers.TxnCommitMarker marker = Markers.parseCommitMarker(buf);
+        assertEquals(marker.getMessageId().getLedgerId(), 10);
+        assertEquals(marker.getMessageId().getEntryId(), 11);
+    }
+
+    @Test
+    public void testTxnAbortMarker() {
+        long sequenceId = 1L;
+        long mostBits = 1234L;
+        long leastBits = 2345L;
+
+        ByteBuf buf = Markers.newTxnAbortMarker(sequenceId, mostBits, leastBits);
+
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
+
+        assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_ABORT_VALUE);
+        assertEquals(msgMetadata.getSequenceId(), sequenceId);
+        assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
+        assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
     }
 
 }

@@ -314,14 +314,14 @@ The Apache Software License, Version 2.0
  * Jackson
      - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
      - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
-     - com.fasterxml.jackson.core-jackson-annotations-2.9.8.jar
-     - com.fasterxml.jackson.core-jackson-core-2.9.8.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.9.8.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.8.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.8.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.8.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.8.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.8.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.9.9.jar
+     - com.fasterxml.jackson.core-jackson-core-2.9.9.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.9.9.3.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.9.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.9.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.9.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.9.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.9.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar

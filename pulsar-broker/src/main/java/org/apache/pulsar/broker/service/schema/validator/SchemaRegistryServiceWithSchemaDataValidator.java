@@ -63,6 +63,16 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
+    public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
+        return this.service.trimDeletedSchemaAndGetList(schemaId);
+    }
+
+    @Override
+    public CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData) {
+        return this.service.findSchemaVersion(schemaId, schemaData);
+    }
+
+    @Override
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId,
                                                               SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
@@ -80,7 +90,17 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatible(String schemaId,
+    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+        try {
+            SchemaDataValidator.validateSchemaData(schema);
+        } catch (InvalidSchemaDataException e) {
+            return FutureUtil.failedFuture(e);
+        }
+        return service.isCompatible(schemaId, schema, strategy);
+    }
+
+    @Override
+    public CompletableFuture<Void> checkCompatible(String schemaId,
                                                    SchemaData schema,
                                                    SchemaCompatibilityStrategy strategy) {
         try {
@@ -88,7 +108,7 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
         } catch (InvalidSchemaDataException e) {
             return FutureUtil.failedFuture(e);
         }
-        return service.isCompatible(schemaId, schema, strategy);
+        return service.checkCompatible(schemaId, schema, strategy);
     }
 
     @Override

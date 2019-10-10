@@ -16,22 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <gtest/gtest.h>
-#include <pulsar/Client.h>
-#include <lib/LogUtils.h>
-#include <pulsar/MessageBuilder.h>
-#include <lib/Commands.h>
-#include <lib/TopicName.h>
-#include <sstream>
-#include "CustomRoutingPolicy.h"
-#include "lib/Future.h"
-#include "lib/Utils.h"
 #include <ctime>
+#include <functional>
+#include <gtest/gtest.h>
+#include <sstream>
 #include <thread>
-#include "LogUtils.h"
-#include "PulsarFriend.h"
+#include <unistd.h>
+
+#include <lib/Commands.h>
+#include <lib/Future.h>
+#include <lib/LogUtils.h>
+#include <lib/TopicName.h>
+#include <lib/Utils.h>
+#include <pulsar/Client.h>
+#include <pulsar/MessageBatch.h>
+#include <pulsar/MessageBuilder.h>
+
 #include "ConsumerTest.h"
+#include "CustomRoutingPolicy.h"
 #include "HttpHelper.h"
+#include "PulsarFriend.h"
+
 DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
@@ -53,6 +58,8 @@ static void sendCallBack(Result r, const MessageId& msgId) {
     ASSERT_EQ(r, ResultOk);
     globalTestBatchMessagesCounter++;
 }
+
+static void sendFailCallBack(Result r, Result expect_result) { EXPECT_EQ(r, expect_result); }
 
 static int globalPublishCountSuccess = 0;
 static int globalPublishCountQueueFull = 0;
@@ -911,4 +918,68 @@ TEST(BatchMessageTest, testPartitionedTopics) {
 
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages - globalPublishCountQueueFull);
+}
+
+TEST(BatchMessageTest, producerFailureResult) {
+    std::string testName = std::to_string(epochTime) + "testCumulativeAck";
+
+    ClientConfiguration clientConfig;
+    clientConfig.setStatsIntervalInSeconds(100);
+
+    Client client(lookupUrl, clientConfig);
+    std::string topicName = "persistent://public/default/" + testName;
+    std::string subName = "subscription-name";
+    Producer producer;
+
+    int batchSize = 100;
+    int numOfMessages = 10000;
+    ProducerConfiguration conf;
+
+    conf.setCompressionType(CompressionZLib);
+    conf.setBatchingMaxMessages(batchSize);
+    conf.setBatchingEnabled(true);
+    conf.setBatchingMaxPublishDelayMs(50000);
+    conf.setBlockIfQueueFull(false);
+    conf.setMaxPendingMessages(10);
+
+    Result res = Result::ResultBrokerMetadataError;
+
+    client.createProducer(topicName, conf, producer);
+    Message msg = MessageBuilder().setContent("test").build();
+    producer.sendAsync(msg, std::bind(&sendFailCallBack, std::placeholders::_1, res));
+    PulsarFriend::producerFailMessages(producer, res);
+}
+
+TEST(BatchMessageTest, testPraseMessageBatchEntry) {
+    struct Case {
+        std::string content;
+        std::string propKey;
+        std::string propValue;
+    };
+    std::vector<Case> cases;
+    cases.push_back(Case{"example1", "prop1", "value1"});
+    cases.push_back(Case{"example2", "prop2", "value2"});
+
+    SharedBuffer payload = SharedBuffer::allocate(128);
+    for (auto it = cases.begin(); it != cases.end(); ++it) {
+        MessageBuilder msgBuilder;
+        const Message& message =
+            msgBuilder.setContent(it->content).setProperty(it->propKey, it->propValue).build();
+        Commands::serializeSingleMessageInBatchWithPayload(message, payload, 1024);
+    }
+
+    MessageBatch messageBatch;
+    MessageId fakeId(0, 5000, 10, -1);
+    messageBatch.withMessageId(fakeId).parseFrom(payload, static_cast<uint32_t>(cases.size()));
+    const std::vector<Message>& messages = messageBatch.messages();
+
+    ASSERT_EQ(messages.size(), cases.size());
+    for (int i = 0; i < cases.size(); ++i) {
+        const Message& message = messages[i];
+        const Case& expected = cases[i];
+        ASSERT_EQ(message.getMessageId().batchIndex(), i);
+        ASSERT_EQ(message.getMessageId().ledgerId(), 5000);
+        ASSERT_EQ(message.getDataAsString(), expected.content);
+        ASSERT_EQ(message.getProperty(expected.propKey), expected.propValue);
+    }
 }

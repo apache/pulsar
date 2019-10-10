@@ -219,10 +219,14 @@ public class FunctionActioner {
         if(downloadFromHttp) {
             FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
         } else {
+            FileOutputStream tempPkgFos = new FileOutputStream(tempPkgFile);
             WorkerUtils.downloadFromBookkeeper(
                     dlogNamespace,
-                    new FileOutputStream(tempPkgFile),
+                    tempPkgFos,
                     pkgLocationPath);
+            if (tempPkgFos != null) {
+                tempPkgFos.close();
+            }
         }
 
         try {

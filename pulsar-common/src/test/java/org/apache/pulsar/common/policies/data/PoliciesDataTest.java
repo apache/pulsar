@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNotEquals;
 
 import java.io.IOException;
 import java.util.EnumSet;
@@ -49,15 +49,15 @@ public class PoliciesDataTest {
 
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.of(AuthAction.consume));
 
-        assertTrue(!policies.equals(new Policies()));
-        assertTrue(!policies.equals(new Object()));
+        assertNotEquals(new Policies(), policies);
+        assertNotEquals(new Object(), policies);
 
         policies.auth_policies.namespace_auth.clear();
         Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
         permissions.put("my-role", EnumSet.of(AuthAction.consume));
         policies.auth_policies.destination_auth.put("persistent://my-dest", permissions);
 
-        assertTrue(!policies.equals(new Policies()));
+        assertNotEquals(new Policies(), policies);
     }
 
     @Test
@@ -67,9 +67,9 @@ public class PoliciesDataTest {
         pa1.setAllowedClusters(Sets.newHashSet("use", "usw"));
 
         assertEquals(pa1, new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usw")));
-        assertTrue(!pa1.equals(new Object()));
-        assertTrue(!pa1.equals(new TenantInfo()));
-        assertTrue(!pa1.equals(new TenantInfo(Sets.newHashSet("role1", "role3"), Sets.newHashSet("usc"))));
+        assertNotEquals(new Object(), pa1);
+        assertNotEquals(new TenantInfo(), pa1);
+        assertNotEquals(new TenantInfo(Sets.newHashSet("role1", "role3"), Sets.newHashSet("usc")), pa1);
         assertEquals(pa1.getAdminRoles(), Lists.newArrayList("role1", "role2"));
     }
 

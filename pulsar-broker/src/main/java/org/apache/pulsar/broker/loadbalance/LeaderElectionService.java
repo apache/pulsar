@@ -99,14 +99,11 @@ public class LeaderElectionService {
                         log.warn("Election node {} is deleted, attempting re-election...", event.getPath());
                         if (event.getPath().equals(ELECTION_ROOT)) {
                             log.info("This should call elect again...");
-                            executor.execute(new Runnable() {
-                                @Override
-                                public void run() {
-                                    // If the node is deleted, attempt the re-election
-                                    log.info("Broker [{}] is calling re-election from the thread",
-                                            pulsar.getSafeWebServiceAddress());
-                                    elect();
-                                }
+                            executor.execute(() -> {
+                                // If the node is deleted, attempt the re-election
+                                log.info("Broker [{}] is calling re-election from the thread",
+                                        pulsar.getSafeWebServiceAddress());
+                                elect();
                             });
                         }
                         break;
@@ -148,12 +145,7 @@ public class LeaderElectionService {
                 log.warn(
                         "Got exception [{}] while creating election node because it already exists. Attempting re-election...",
                         nee.getMessage());
-                executor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        elect();
-                    }
-                });
+                executor.execute(this::elect);
             } catch (Exception e) {
                 // Kill the broker because this broker's session with zookeeper might be stale. Killing the broker will
                 // make sure that we get the fresh zookeeper session.

@@ -69,7 +69,7 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>  decodeKeyValue = keyValueSchema.decode(contentByte);
         assertEquals(decodeKeyValue.getKey(), foo);
         assertEquals(decodeKeyValue.getValue(), bar);
-        assertEquals(typedMessageBuilderImpl.hasKey(), false);
+        assertFalse(typedMessageBuilderImpl.hasKey());
     }
 
     @Test
@@ -97,7 +97,7 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> decodeKeyValue = keyValueSchema.decode(contentByte);
         assertEquals(decodeKeyValue.getKey(), foo);
         assertEquals(decodeKeyValue.getValue(), bar);
-        assertEquals(typedMessageBuilderImpl.hasKey(), false);
+        assertFalse(typedMessageBuilderImpl.hasKey());
     }
 
     @Test
@@ -122,7 +122,7 @@ public class TypedMessageBuilderImplTest {
         ByteBuffer content = typedMessageBuilder.getContent();
         byte[] contentByte = new byte[content.remaining()];
         content.get(contentByte);
-        assertEquals(typedMessageBuilderImpl.hasKey(), true);
+        assertTrue(typedMessageBuilderImpl.hasKey());
         assertEquals(typedMessageBuilderImpl.getKey(), Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         assertEquals(barSchema.decode(contentByte), bar);
     }

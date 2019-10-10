@@ -21,15 +21,17 @@ package org.apache.pulsar.client.impl.schema.generic;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -43,13 +45,21 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
     private final TopicName topicName;
     private final PulsarClientImpl pulsarClient;
 
-    private final LoadingCache<byte[], SchemaInfo> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<byte[], SchemaInfo>() {
-                @Override
-                public SchemaInfo load(byte[] schemaVersion) throws Exception {
-                    return loadSchema(schemaVersion);
-                }
-            });
+    private final LoadingCache<BytesSchemaVersion, CompletableFuture<SchemaInfo>> cache = CacheBuilder.newBuilder()
+        .maximumSize(100000)
+        .expireAfterAccess(30, TimeUnit.MINUTES)
+        .build(new CacheLoader<BytesSchemaVersion, CompletableFuture<SchemaInfo>>() {
+            @Override
+            public CompletableFuture<SchemaInfo> load(BytesSchemaVersion schemaVersion) {
+                CompletableFuture<SchemaInfo> siFuture = loadSchema(schemaVersion.get());
+                siFuture.whenComplete((si, cause) -> {
+                    if (null != cause) {
+                        cache.asMap().remove(schemaVersion, siFuture);
+                    }
+                });
+                return siFuture;
+            }
+        });
 
     public MultiVersionSchemaInfoProvider(TopicName topicName, PulsarClientImpl pulsarClient) {
         this.topicName = topicName;
@@ -57,30 +67,24 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
     }
 
     @Override
-    public SchemaInfo getSchemaByVersion(byte[] schemaVersion) {
+    public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
         try {
             if (null == schemaVersion) {
-                return null;
+                return CompletableFuture.completedFuture(null);
             }
-            return cache.get(schemaVersion);
+            return cache.get(BytesSchemaVersion.of(schemaVersion));
         } catch (ExecutionException e) {
-            LOG.error("Can't get generic schema for topic {} schema version {}",
+            LOG.error("Can't get schema for topic {} schema version {}",
                     topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
-            throw new RuntimeException("Can't get generic schema for topic " + topicName.toString());
+            return FutureUtil.failedFuture(e.getCause());
         }
     }
 
     @Override
-    public SchemaInfo getLatestSchema() {
-        try {
-            Optional<SchemaInfo> optional = pulsarClient.getLookup()
-                    .getSchema(topicName).get();
-            return optional.orElse(null);
-        } catch (ExecutionException | InterruptedException e) {
-            LOG.error("Can't get current schema for topic {}",
-                    topicName.toString(), e);
-            throw new RuntimeException("Can't get current schema for topic " + topicName.toString());
-        }
+    public CompletableFuture<SchemaInfo> getLatestSchema() {
+        return pulsarClient.getLookup()
+            .getSchema(topicName)
+            .thenApply(o -> o.orElse(null));
     }
 
     @Override
@@ -88,10 +92,10 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
         return topicName.getLocalName();
     }
 
-    private SchemaInfo loadSchema(byte[] schemaVersion) throws ExecutionException, InterruptedException {
-        Optional<SchemaInfo> optional = pulsarClient.getLookup()
-                .getSchema(topicName, schemaVersion).get();
-        return optional.orElse(null);
+    private CompletableFuture<SchemaInfo> loadSchema(byte[] schemaVersion) {
+         return pulsarClient.getLookup()
+                .getSchema(topicName, schemaVersion)
+                .thenApply(o -> o.orElse(null));
     }
 
     public PulsarClientImpl getPulsarClient() {

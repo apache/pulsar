@@ -52,7 +52,7 @@ public class MultiVersionSchemaInfoProviderTest {
     }
 
     @Test
-    public void testGetSchema() {
+    public void testGetSchema() throws Exception {
         CompletableFuture<Optional<SchemaInfo>> completableFuture = new CompletableFuture<>();
         SchemaInfo schemaInfo = AvroSchema.of(SchemaDefinition.<SchemaTestUtils>builder().withPojo(SchemaTestUtils.class).build()).getSchemaInfo();
         completableFuture.complete(Optional.of(schemaInfo));
@@ -61,7 +61,7 @@ public class MultiVersionSchemaInfoProviderTest {
                         any(TopicName.class),
                         any(byte[].class)))
                 .thenReturn(completableFuture);
-        SchemaInfo schemaInfoByVersion = schemaProvider.getSchemaByVersion(new byte[0]);
+        SchemaInfo schemaInfoByVersion = schemaProvider.getSchemaByVersion(new byte[0]).get();
         assertEquals(schemaInfoByVersion, schemaInfo);
     }
 }

@@ -32,8 +32,8 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * Finalize the creation of the {@link Reader} instance.
-     * <p>
-     * This method will block until the reader is created successfully or an exception is thrown.
+     *
+     * <p>This method will block until the reader is created successfully or an exception is thrown.
      *
      * @return the reader instance
      * @throws PulsarClientException
@@ -44,8 +44,7 @@ public interface ReaderBuilder<T> extends Cloneable {
     /**
      * Finalize the creation of the {@link Reader} instance in asynchronous mode.
      *
-     * <p>
-     * This method will return a {@link CompletableFuture} that can be used to access the instance when it's ready.
+     * <p>This method will return a {@link CompletableFuture} that can be used to access the instance when it's ready.
      *
      * @return the reader instance
      * @throws PulsarClientException
@@ -56,8 +55,7 @@ public interface ReaderBuilder<T> extends Cloneable {
     /**
      * Load the configuration from provided <tt>config</tt> map.
      *
-     * <p>
-     * Example:
+     * <p>Example:
      *
      * <pre>{@code
      * Map<String, Object> config = new HashMap<>();
@@ -78,8 +76,8 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * Create a copy of the current {@link ReaderBuilder}.
-     * <p>
-     * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
+     *
+     * <p>Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
      * example:
      *
      * <pre>{@code
@@ -97,8 +95,8 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * Specify the topic this reader will read from.
-     * <p>
-     * This argument is required when constructing the reader.
+     *
+     * <p>This argument is required when constructing the reader.
      *
      * @param topicName
      *            the name of the topic
@@ -108,7 +106,6 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * The initial reader positioning is done by specifying a message id. The options are:
-     * <p>
      * <ul>
      * <li>{@link MessageId#earliest}: Start reading from the earliest message available in the topic</li>
      * <li>{@link MessageId#latest}: Start reading from end of the topic. The first message read will be the one
@@ -117,8 +114,7 @@ public interface ReaderBuilder<T> extends Cloneable {
      * immediately <b>*after*</b> the specified message</li>
      * </ul>
      *
-     * <p>
-     * If the first message <b>*after*</b> the specified message is not the desired behaviour, use
+     * <p>If the first message <b>*after*</b> the specified message is not the desired behaviour, use
      * {@link ReaderBuilder#startMessageIdInclusive()}.
      *
      * @param startMessageId the message id where the reader will be initially positioned on
@@ -128,17 +124,17 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}
-     * <p>
-     * This configuration option also applies for any cursor reset operation like {@link Reader#seek(MessageId)}.
+     *
+     * <p>This configuration option also applies for any cursor reset operation like {@link Reader#seek(MessageId)}.
      *
      * @return the reader builder instance
      */
     ReaderBuilder<T> startMessageIdInclusive();
 
     /**
-     * Sets a {@link ReaderListener} for the reader
-     * <p>
-     * When a {@link ReaderListener} is set, application will receive messages through it. Calls to
+     * Sets a {@link ReaderListener} for the reader.
+     *
+     * <p>When a {@link ReaderListener} is set, application will receive messages through it. Calls to
      * {@link Reader#readNext()} will not be allowed.
      *
      * @param readerListener
@@ -157,7 +153,7 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
-     * Sets the {@link ConsumerCryptoFailureAction} to specify
+     * Sets the {@link ConsumerCryptoFailureAction} to specify.
      *
      * @param action
      *            The action to take when the decoding fails
@@ -167,12 +163,12 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * Sets the size of the consumer receive queue.
-     * <p>
-     * The consumer receive queue controls how many messages can be accumulated by the {@link Consumer} before the
+     *
+     * <p>The consumer receive queue controls how many messages can be accumulated by the {@link Consumer} before the
      * application calls {@link Consumer#receive()}. Using a higher value could potentially increase the consumer
      * throughput at the expense of bigger memory utilization.
-     * <p>
-     * Default value is {@code 1000} messages and should be good for most use cases.
+     *
+     * <p>Default value is {@code 1000} messages and should be good for most use cases.
      *
      * @param receiverQueueSize
      *            the new receiver queue size value
@@ -182,9 +178,9 @@ public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * Specify a reader name.
-     * <p>
-     * The reader name is purely informational and can used to track a particular reader in the reported stats. By
-     * default a randomly generated name is used.
+     *
+     * <p>The reader name is purely informational and can used to track a particular reader in the reported stats.
+     * By default a randomly generated name is used.
      *
      * @param readerName
      *            the name to use for the reader
@@ -205,9 +201,9 @@ public interface ReaderBuilder<T> extends Cloneable {
      * of the topic. This means that, if the topic has been compacted, the reader will only see the latest value for
      * each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
      * point, the messages will be sent as normal.
-     * <p>
-     * readCompacted can only be enabled when reading from a persistent topic. Attempting to enable it on non-persistent
-     * topics will lead to the reader create call throwing a {@link PulsarClientException}.
+     *
+     * <p>readCompacted can only be enabled when reading from a persistent topic. Attempting to enable it
+     * on non-persistent topics will lead to the reader create call throwing a {@link PulsarClientException}.
      *
      * @param readCompacted
      *            whether to read from the compacted topic

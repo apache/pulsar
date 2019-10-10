@@ -94,6 +94,7 @@ public class CmdSinks extends CmdBase {
         jcommander.addCommand("restart", restartSink);
         jcommander.addCommand("localrun", localSinkRunner);
         jcommander.addCommand("available-sinks", new ListBuiltInSinks());
+        jcommander.addCommand("reload", new ReloadBuiltInSinks());
     }
 
     /**
@@ -649,6 +650,15 @@ public class CmdSinks extends CmdBase {
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));
                         System.out.println("----------------------------------------");
                     });
+        }
+    }
+
+    @Parameters(commandDescription = "Reload the available built-in connectors")
+    public class ReloadBuiltInSinks extends BaseCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            admin.sinks().reloadBuiltInSinks();
         }
     }
 }

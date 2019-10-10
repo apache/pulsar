@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -67,7 +68,7 @@ public class GenericAvroSchemaTest {
         MultiVersionSchemaInfoProvider provider = mock(MultiVersionSchemaInfoProvider.class);
         readerSchema.setSchemaInfoProvider(provider);
         when(provider.getSchemaByVersion(any(byte[].class)))
-            .thenReturn(writerSchema.getSchemaInfo());
+            .thenReturn(CompletableFuture.completedFuture(writerSchema.getSchemaInfo()));
         GenericRecord dataForWriter = writerSchema.newRecordBuilder()
             .set("field1", SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING)
             .set("field3", 0)

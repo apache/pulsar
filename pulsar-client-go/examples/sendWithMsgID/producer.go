@@ -51,7 +51,7 @@ func main() {
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
-		msgID, err := producer.SendWithMsgID(ctx, pulsar.ProducerMessage{
+		msgID, err := producer.SendAndGetMsgID(ctx, pulsar.ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
 		})
 

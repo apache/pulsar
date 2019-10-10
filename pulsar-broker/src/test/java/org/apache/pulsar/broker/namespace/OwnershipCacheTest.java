@@ -119,7 +119,7 @@ public class OwnershipCacheTest {
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
 
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testBundle).get();
-        assertTrue(!data1.isDisabled());
+        assertFalse(data1.isDisabled());
         cache.disableOwnership(testBundle);
         // force the next read to get directly from ZK
         // localCache.ownerInfoCache().invalidate(ServiceUnitZkUtils.path(testNs));
@@ -136,7 +136,7 @@ public class OwnershipCacheTest {
 
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testFullBundle).get();
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
-        assertTrue(!data1.isDisabled());
+        assertFalse(data1.isDisabled());
         // case 2: the local broker owned the namespace and disabled, getOrSetOwner() should not change it
         OwnedBundle nsObj = cache.getOwnedBundle(testFullBundle);
         // this would disable the ownership
@@ -154,7 +154,7 @@ public class OwnershipCacheTest {
         data1 = cache.tryAcquiringOwnership(testFullBundle).get();
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");
         assertEquals(data1.getNativeUrlTls(), "pulsar://otherhost:8884");
-        assertTrue(!data1.isDisabled());
+        assertFalse(data1.isDisabled());
 
     }
 
@@ -174,7 +174,7 @@ public class OwnershipCacheTest {
 
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");
         assertEquals(data1.getNativeUrlTls(), "pulsar://otherhost:8884");
-        assertTrue(!data1.isDisabled());
+        assertFalse(data1.isDisabled());
         // Now do getOwner and compare w/ the returned values
         NamespaceEphemeralData readOnlyData = cache.getOwnerAsync(testBundle).get().get();
         assertEquals(data1, readOnlyData);
@@ -217,7 +217,7 @@ public class OwnershipCacheTest {
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testBundle).get();
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");
         assertEquals(data1.getNativeUrlTls(), "pulsar://otherhost:8884");
-        assertTrue(!data1.isDisabled());
+        assertFalse(data1.isDisabled());
         try {
             checkNotNull(cache.getOwnedBundle(testBundle));
             fail("Should have failed");
@@ -231,7 +231,7 @@ public class OwnershipCacheTest {
         localCache.ownerInfoCache().invalidate(ServiceUnitZkUtils.path(testBundle));
         data1 = cache.tryAcquiringOwnership(testBundle).get();
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
-        assertTrue(!data1.isDisabled());
+        assertFalse(data1.isDisabled());
         assertNotNull(cache.getOwnedBundle(testBundle));
     }
 
@@ -257,7 +257,7 @@ public class OwnershipCacheTest {
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(testBundle).get();
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");
         assertEquals(data1.getNativeUrlTls(), "pulsar://otherhost:8884");
-        assertTrue(!data1.isDisabled());
+        assertFalse(data1.isDisabled());
         assertTrue(cache.getOwnedBundles().isEmpty());
         // case 3: this broker owns the namespace
         // delete the ephemeral node by others
@@ -266,8 +266,8 @@ public class OwnershipCacheTest {
         localCache.ownerInfoCache().invalidate(ServiceUnitZkUtils.path(testBundle));
         data1 = cache.tryAcquiringOwnership(testBundle).get();
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
-        assertTrue(!data1.isDisabled());
-        assertTrue(cache.getOwnedBundles().size() == 1);
+        assertFalse(data1.isDisabled());
+        assertEquals(cache.getOwnedBundles().size(), 1);
     }
 
     @Test
@@ -284,8 +284,8 @@ public class OwnershipCacheTest {
         // case 2: this broker owns the namespace
         NamespaceEphemeralData data1 = cache.tryAcquiringOwnership(bundle).get();
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
-        assertTrue(!data1.isDisabled());
-        assertTrue(cache.getOwnedBundles().size() == 1);
+        assertFalse(data1.isDisabled());
+        assertEquals(cache.getOwnedBundles().size(), 1);
         cache.removeOwnership(bundle);
         Thread.sleep(500);
         assertTrue(cache.getOwnedBundles().isEmpty());

@@ -44,6 +44,8 @@ typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
 
 class PulsarFriend;
 
+class Producer;
+
 struct OpSendMsg {
     Message msg_;
     SendCallback sendCallback_;
@@ -111,6 +113,8 @@ class ProducerImpl : public HandlerBase,
 
     friend class PulsarFriend;
 
+    friend class Producer;
+
     friend class BatchMessageContainer;
 
     virtual void connectionOpened(const ClientConnectionPtr& connection);
@@ -135,6 +139,8 @@ class ProducerImpl : public HandlerBase,
     void refreshEncryptionKey(const boost::system::error_code& ec);
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
+
+    void cancelTimers();
 
     typedef std::unique_lock<std::mutex> Lock;
 

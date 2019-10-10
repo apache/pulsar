@@ -136,8 +136,8 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       serverProtocolVersion_(ProtocolVersion_MIN),
       maxMessageSize_(Commands::DefaultMaxMessageSize),
       executor_(executor),
-      resolver_(executor->createTcpResolver()),
-      socket_(executor->createSocket()),
+      resolver_(executor_->createTcpResolver()),
+      socket_(executor_->createSocket()),
 #if BOOST_VERSION >= 107000
       strand_(boost::asio::make_strand(executor_->io_service_.get_executor())),
 #elif BOOST_VERSION >= 106600
@@ -222,7 +222,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             }
         }
 
-        tlsSocket_ = executor->createTlsSocket(socket_, ctx);
+        tlsSocket_ = executor_->createTlsSocket(socket_, ctx);
     }
 }
 
@@ -1328,6 +1328,9 @@ void ClientConnection::handleConsumerStatsTimeout(const boost::system::error_cod
 
 void ClientConnection::close() {
     Lock lock(mutex_);
+    if (isClosed()) {
+        return;
+    }
     state_ = Disconnected;
     boost::system::error_code err;
     socket_->close(err);
@@ -1341,11 +1344,14 @@ void ClientConnection::close() {
 
     if (keepAliveTimer_) {
         keepAliveTimer_->cancel();
+        keepAliveTimer_.reset();
     }
 
     if (consumerStatsRequestTimer_) {
         consumerStatsRequestTimer_->cancel();
+        consumerStatsRequestTimer_.reset();
     }
+
     for (ProducersMap::iterator it = producers.begin(); it != producers.end(); ++it) {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
@@ -1384,6 +1390,10 @@ void ClientConnection::close() {
 
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
+    }
+
+    if (executor_) {
+        executor_.reset();
     }
 }
 

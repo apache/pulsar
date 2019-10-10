@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.cli;
 
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
@@ -80,15 +79,12 @@ public class AdminMultiHostTest {
     // Because zookeeper session timeout is 30ms and ticktime is 2ms, so we need wait more than 32ms
     private void waitBrokerDown(PulsarAdmin admin, int expectBrokers, int timeout)
         throws InterruptedException, ExecutionException, TimeoutException {
-        FutureTask<Boolean> futureTask = new FutureTask<>(new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                while (admin.brokers().getActiveBrokers(clusterName).size() != expectBrokers) {
-                    admin.brokers().healthcheck();
-                    TimeUnit.MILLISECONDS.sleep(1000);
-                }
-                return true;
+        FutureTask<Boolean> futureTask = new FutureTask<>(() -> {
+            while (admin.brokers().getActiveBrokers(clusterName).size() != expectBrokers) {
+                admin.brokers().healthcheck();
+                TimeUnit.MILLISECONDS.sleep(1000);
             }
+            return true;
         });
         new Thread(futureTask).start();
         futureTask.get(timeout, TimeUnit.SECONDS);

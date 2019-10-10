@@ -292,12 +292,10 @@ public class PerformanceConsumer {
 
         long start = System.nanoTime();
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                printAggregatedThroughput(start);
-                printAggregatedStats();
-            }
-        });
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            printAggregatedThroughput(start);
+            printAggregatedStats();
+        }));
 
 
         long oldTime = System.nanoTime();

@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import org.testng.annotations.Test;
@@ -57,7 +58,7 @@ public class TripleLongPriorityQueueTest {
     public void testCheckForEmpty() {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);
-        assertEquals(pq.isEmpty(), true);
+        assertTrue(pq.isEmpty());
 
         try {
             pq.peekN1();
@@ -94,7 +95,7 @@ public class TripleLongPriorityQueueTest {
     public void testCompareWithSamePrefix() {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);
-        assertEquals(pq.isEmpty(), true);
+        assertTrue(pq.isEmpty());
 
         pq.add(10, 20, 30);
         pq.add(20, 10, 10);
@@ -130,7 +131,7 @@ public class TripleLongPriorityQueueTest {
         pq.pop();
 
         assertEquals(pq.size(), 0);
-        assertEquals(pq.isEmpty(), true);
+        assertTrue(pq.isEmpty());
 
         pq.close();
     }

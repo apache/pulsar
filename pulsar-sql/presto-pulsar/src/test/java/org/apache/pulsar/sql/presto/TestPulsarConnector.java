@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -63,12 +64,14 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -127,6 +130,9 @@ public abstract class TestPulsarConnector {
     protected static final TopicName TOPIC_4 = TopicName.get("persistent", NAMESPACE_NAME_3, "topic-1");
     protected static final TopicName TOPIC_5 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-1");
     protected static final TopicName TOPIC_6 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-2");
+    protected static final TopicName NON_SCHEMA_TOPIC = TopicName.get(
+        "persistent", NAMESPACE_NAME_2, "non-schema-topic");
+
 
     protected static final TopicName PARTITIONED_TOPIC_1 = TopicName.get("persistent", NAMESPACE_NAME_1,
             "partitioned-topic-1");
@@ -205,6 +211,7 @@ public abstract class TestPulsarConnector {
             topicNames.add(TOPIC_4);
             topicNames.add(TOPIC_5);
             topicNames.add(TOPIC_6);
+            topicNames.add(NON_SCHEMA_TOPIC);
 
             partitionedTopicNames = new LinkedList<>();
             partitionedTopicNames.add(PARTITIONED_TOPIC_1);
@@ -213,6 +220,7 @@ public abstract class TestPulsarConnector {
             partitionedTopicNames.add(PARTITIONED_TOPIC_4);
             partitionedTopicNames.add(PARTITIONED_TOPIC_5);
             partitionedTopicNames.add(PARTITIONED_TOPIC_6);
+
 
             partitionedTopicsToPartitions = new HashMap<>();
             partitionedTopicsToPartitions.put(PARTITIONED_TOPIC_1.toString(), 2);
@@ -268,6 +276,8 @@ public abstract class TestPulsarConnector {
             topicsToNumEntries.put(TOPIC_4.getSchemaName(), 12345L);
             topicsToNumEntries.put(TOPIC_5.getSchemaName(), 8000L);
             topicsToNumEntries.put(TOPIC_6.getSchemaName(), 1L);
+
+            topicsToNumEntries.put(NON_SCHEMA_TOPIC.getSchemaName(), 8000L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_1.getSchemaName(), 1233L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_2.getSchemaName(), 8000L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_3.getSchemaName(), 100L);
@@ -544,13 +554,15 @@ public abstract class TestPulsarConnector {
             allTopics.addAll(partitionedTopicNames);
 
             for (TopicName topicName : allTopics) {
-                splits.put(topicName, new PulsarSplit(0, pulsarConnectorId.toString(),
+                if (topicsToSchemas.containsKey(topicName.getSchemaName())) {
+                    splits.put(topicName, new PulsarSplit(0, pulsarConnectorId.toString(),
                         topicName.getNamespace(), topicName.getLocalName(),
                         topicsToNumEntries.get(topicName.getSchemaName()),
                         new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()),
                         topicsToSchemas.get(topicName.getSchemaName()).getType(),
                         0, topicsToNumEntries.get(topicName.getSchemaName()),
-                        0, 0, TupleDomain.all()));
+                        0, 0, TupleDomain.all(), new HashMap<>()));
+                }
             }
 
             fooFunctions = new HashMap<>();
@@ -647,9 +659,15 @@ public abstract class TestPulsarConnector {
     }
 
     protected static List<String> getTopics(String ns) {
-        return topicNames.stream()
+        List<String> topics = new ArrayList<>(topicNames.stream()
             .filter(topicName -> topicName.getNamespace().equals(ns))
-            .map(TopicName::toString).collect(Collectors.toList());
+            .map(TopicName::toString).collect(Collectors.toList()));
+        partitionedTopicNames.stream().filter(topicName -> topicName.getNamespace().equals(ns)).forEach(topicName -> {
+            for (Integer i = 0; i < partitionedTopicsToPartitions.get(topicName.toString()); i++) {
+                topics.add(TopicName.get(topicName + "-partition-" + i).toString());
+            }
+        });
+        return topics;
     }
 
     protected static List<String> getPartitionedTopics(String ns) {
@@ -730,7 +748,11 @@ public abstract class TestPulsarConnector {
             public SchemaInfo answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Object[] args = invocationOnMock.getArguments();
                 String topic = (String) args[0];
-                return topicsToSchemas.get(topic);
+                if (topicsToSchemas.get(topic) != null) {
+                    return topicsToSchemas.get(topic);
+                } else {
+                    throw new PulsarAdminException(new ClientErrorException(Response.status(404).build()));
+                }
             }
         });
 
@@ -918,7 +940,8 @@ public abstract class TestPulsarConnector {
             }
         });
 
-        doReturn(managedLedgerFactory).when(this.pulsarSplitManager).getManagedLedgerFactory();
+        PulsarConnectorCache.instance = mock(PulsarConnectorCache.class);
+        when(PulsarConnectorCache.instance.getManagedLedgerFactory()).thenReturn(managedLedgerFactory);
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
 
@@ -933,5 +956,21 @@ public abstract class TestPulsarConnector {
     @AfterMethod
     public void cleanup() {
         completedBytes = 0L;
+    }
+
+    @DataProvider(name = "rewriteNamespaceDelimiter")
+    public static Object[][] serviceUrls() {
+        return new Object[][] {
+                { "|" }, { null }
+        };
+    }
+
+    protected void updateRewriteNamespaceDelimiterIfNeeded(String delimiter) {
+        if (StringUtils.isNotBlank(delimiter)) {
+            pulsarConnectorConfig.setNamespaceDelimiterRewriteEnable(true);
+            pulsarConnectorConfig.setRewriteNamespaceDelimiter(delimiter);
+        } else {
+            pulsarConnectorConfig.setNamespaceDelimiterRewriteEnable(false);
+        }
     }
 }

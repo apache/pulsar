@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -47,11 +48,11 @@ class GenericJsonSchema extends GenericSchemaImpl {
     }
 
     @Override
-    protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
-        SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion);
+    protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
+        SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
             log.info("Load schema reader for version({}), schema is : {}",
-                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                 schemaInfo.getSchemaDefinition());
             Schema readerSchema;
             if (useProvidedSchemaAsReaderSchema) {
@@ -59,14 +60,14 @@ class GenericJsonSchema extends GenericSchemaImpl {
             } else {
                 readerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
             }
-            return new GenericJsonReader(schemaVersion,
+            return new GenericJsonReader(schemaVersion.get(),
                     readerSchema.getFields()
                             .stream()
                             .map(f -> new Field(f.name(), f.pos()))
                             .collect(Collectors.toList()));
         } else {
             log.warn("No schema found for version({}), use latest schema : {}",
-                SchemaUtils.getStringSchemaVersion(schemaVersion),
+                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                 this.schemaInfo.getSchemaDefinition());
             return reader;
         }

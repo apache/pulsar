@@ -73,7 +73,7 @@ spec:
                 values:
                 - {{ .Values.bookkeeper.component }}
             topologyKey: "kubernetes.io/hostname"
-      terminationGracePeriodSeconds: {{ .Values.dashboard.gracePeriod }}
+      terminationGracePeriodSeconds: {{ .Values.autoRecovery.gracePeriod }}
       initContainers:
       # This init container will wait for zookeeper to be ready before
       # deploying the bookies
