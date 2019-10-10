@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.functions.instance.state;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
+import org.apache.bookkeeper.api.kv.Table;
+
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.bookkeeper.api.kv.Table;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * This class accumulates the state updates from one function.
@@ -60,11 +61,14 @@ public class StateContextImpl implements StateContext {
         return table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
                 data -> {
                     try {
-                        ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
-                        data.readBytes(result);
-                        return result;
+                        if (data != null) {
+                            ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
+                            data.readBytes(result);
+                            return result;
+                        }
+                        return null;
                     } finally {
-                        data.release();
+                        ReferenceCountUtil.safeRelease(data);
                     }
                 }
         );

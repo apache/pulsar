@@ -26,12 +26,13 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -52,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * {@link org.apache.pulsar.common.schema.SchemaType#JSON},
  * and {@link org.apache.pulsar.common.schema.SchemaType#PROTOBUF}.
  */
-public abstract class StructSchema<T> implements Schema<T> {
+public abstract class StructSchema<T> extends AbstractSchema<T> {
 
     protected static final Logger LOG = LoggerFactory.getLogger(StructSchema.class);
 
@@ -61,6 +62,7 @@ public abstract class StructSchema<T> implements Schema<T> {
     protected SchemaReader<T> reader;
     protected SchemaWriter<T> writer;
     protected SchemaInfoProvider schemaInfoProvider;
+
     private final LoadingCache<BytesSchemaVersion, SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<BytesSchemaVersion, SchemaReader<T>>() {
                 @Override
@@ -92,6 +94,22 @@ public abstract class StructSchema<T> implements Schema<T> {
     public T decode(byte[] bytes, byte[] schemaVersion) {
         try {
             return readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(bytes);
+        } catch (ExecutionException e) {
+            LOG.error("Can't get generic schema for topic {} schema version {}",
+                    schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
+            throw new RuntimeException("Can't get generic schema for topic " + schemaInfoProvider.getTopicName());
+        }
+    }
+
+    @Override
+    public T decode(ByteBuf byteBuf) {
+        return reader.read(new ByteBufInputStream(byteBuf));
+    }
+
+    @Override
+    public T decode(ByteBuf byteBuf, byte[] schemaVersion) {
+        try {
+            return readerCache.get(BytesSchemaVersion.of(schemaVersion)).read(new ByteBufInputStream(byteBuf));
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
                     schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);

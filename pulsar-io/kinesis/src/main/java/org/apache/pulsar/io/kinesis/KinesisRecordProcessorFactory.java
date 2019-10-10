@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import software.amazon.kinesis.processor.ShardRecordProcessor;
+import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
+
 import java.util.concurrent.LinkedBlockingQueue;
 
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessor;
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorFactory;
-
-public class KinesisRecordProcessorFactory implements IRecordProcessorFactory {
+public class KinesisRecordProcessorFactory implements ShardRecordProcessorFactory {
 
     private final LinkedBlockingQueue<KinesisRecord> queue;
     private final KinesisSourceConfig config;
@@ -35,8 +35,7 @@ public class KinesisRecordProcessorFactory implements IRecordProcessorFactory {
     }
 
     @Override
-    public IRecordProcessor createProcessor() {
+    public ShardRecordProcessor shardRecordProcessor() {
         return new KinesisRecordProcessor(queue, config);
     }
-
 }

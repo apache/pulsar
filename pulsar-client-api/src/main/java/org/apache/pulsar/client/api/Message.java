@@ -20,21 +20,17 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.pulsar.common.api.EncryptionContext;
-
 
 /**
  * The message abstraction used in Pulsar.
- *
- *
  */
 public interface Message<T> {
 
     /**
      * Return the properties attached to the message.
-     * <p>
-     * Properties are application defined key/value pairs that will be attached to the message
+     *
+     * <p>Properties are application defined key/value pairs that will be attached to the message.
      *
      * @return an unmodifiable view of the properties map
      */
@@ -43,26 +39,23 @@ public interface Message<T> {
     /**
      * Check whether the message has a specific property attached.
      *
-     * @param name
-     *            the name of the property to check
-     * @return true if the message has the specified property
-     * @return false if the properties is not defined
+     * @param name the name of the property to check
+     * @return true if the message has the specified property and false if the properties is not defined
      */
     boolean hasProperty(String name);
 
     /**
-     * Get the value of a specific property
+     * Get the value of a specific property.
      *
-     * @param name
-     *            the name of the property
+     * @param name the name of the property
      * @return the value of the property or null if the property was not defined
      */
     String getProperty(String name);
 
     /**
      * Get the raw payload of the message.
-     * <p>
-     * Even when using the Schema and type-safe API, an application
+     *
+     * <p>Even when using the Schema and type-safe API, an application
      * has access to the underlying raw message payload.
      *
      * @return the byte array with the message payload
@@ -79,9 +72,10 @@ public interface Message<T> {
     /**
      * Get the unique message ID associated with this message.
      *
-     * The message id can be used to univocally refer to a message without having the keep the entire payload in memory.
+     * <p>The message id can be used to univocally refer to a message without having the keep
+     * the entire payload in memory.
      *
-     * Only messages received from the consumer will have a message id assigned.
+     * <p>Only messages received from the consumer will have a message id assigned.
      *
      * @return the message id null if this message was not received by this client instance
      */
@@ -126,15 +120,15 @@ public interface Message<T> {
     String getProducerName();
 
     /**
-     * Check whether the message has a key
+     * Check whether the message has a key.
      *
-     * @return true if the key was set while creating the message
-     * @return false if the key was not set while creating the message
+     * @return true if the key was set while creating the message and false if the key was not set
+     * while creating the message
      */
     boolean hasKey();
 
     /**
-     * Get the key of the message
+     * Get the key of the message.
      *
      * @return the key of the message
      */
@@ -155,7 +149,7 @@ public interface Message<T> {
     byte[] getKeyBytes();
 
     /**
-     * Check whether the message has a ordering key
+     * Check whether the message has a ordering key.
      *
      * @return true if the ordering key was set while creating the message
      *         false if the ordering key was not set while creating the message
@@ -163,14 +157,14 @@ public interface Message<T> {
     boolean hasOrderingKey();
 
     /**
-     * Get the ordering key of the message
+     * Get the ordering key of the message.
      *
      * @return the ordering key of the message
      */
     byte[] getOrderingKey();
 
     /**
-     * Get the topic the message was published to
+     * Get the topic the message was published to.
      *
      * @return the topic the message was published to
      */
@@ -187,8 +181,8 @@ public interface Message<T> {
     /**
      * Get message redelivery count, redelivery count maintain in pulsar broker. When client acknowledge message
      * timeout, broker will dispatch message again with message redelivery count in CommandMessage defined.
-     * <p>
-     * Message redelivery increases monotonically in a broker, when topic switch ownership to a another broker
+     *
+     * <p>Message redelivery increases monotonically in a broker, when topic switch ownership to a another broker
      * redelivery count will be recalculated.
      *
      * @since 2.3.0

@@ -30,6 +30,8 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Date;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -301,5 +303,29 @@ public class AvroSchemaTest {
     NasaMission object = avroSchema.decode(bytes);
     assertEquals(object, nasaMission);
   }
+
+    @Test
+    public void testDecodeByteBuf() {
+        AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+
+        Foo foo1 = new Foo();
+        foo1.setField1("foo1");
+        foo1.setField2("bar1");
+        foo1.setField4(new Bar());
+        foo1.setFieldUnableNull("notNull");
+
+        Foo foo2 = new Foo();
+        foo2.setField1("foo2");
+        foo2.setField2("bar2");
+
+        byte[] bytes1 = avroSchema.encode(foo1);
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(bytes1.length);
+        byteBuf.writeBytes(bytes1);
+
+        Foo object1 = avroSchema.decode(byteBuf);
+        Assert.assertTrue(bytes1.length > 0);
+        assertEquals(object1, foo1);
+
+    }
 
 }

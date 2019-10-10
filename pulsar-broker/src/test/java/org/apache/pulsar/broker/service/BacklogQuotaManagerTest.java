@@ -88,6 +88,7 @@ public class BacklogQuotaManagerTest {
             config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
             config.setManagedLedgerMaxEntriesPerLedger(5);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+            config.setAllowAutoTopicCreationType("non-partitioned");
 
             pulsar = new PulsarService(config);
             pulsar.start();
@@ -154,7 +155,7 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
-        assertTrue(stats.storageSize < 10 * 1024, "Storage size is [" + stats.storageSize + "]");
+        assertTrue(stats.backlogSize < 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
     }
 
@@ -186,7 +187,7 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
-        assertTrue(stats.storageSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
+        assertTrue(stats.backlogSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
     }
 
@@ -258,7 +259,7 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
-        assertTrue(stats.storageSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
+        assertTrue(stats.backlogSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
         client2.close();
     }
@@ -432,7 +433,7 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         TopicStats stats = admin.topics().getStats(topic1);
-        assertTrue(stats.storageSize <= 15 * 1024, "Storage size is [" + stats.storageSize + "]");
+        assertTrue(stats.backlogSize <= 15 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
         client2.close();
         client3.close();

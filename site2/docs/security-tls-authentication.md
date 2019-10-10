@@ -64,6 +64,15 @@ To configure brokers to authenticate clients, add the following parameters to `b
 # Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+
+# operations and publish/consume from all topics
+superUserRoles=admin
+
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+brokerClientTlsEnabled=true
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
+brokerClientAuthenticationParameters=tlsCertFile:/path/my-ca/admin.cert.pem,tlsKeyFile:/path/my-ca/admin.key-pk8.pem
+brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 ```
 
 ## Enable TLS authentication on proxies
@@ -143,4 +152,23 @@ pulsar::AuthenticationPtr auth = pulsar::AuthTls::create("/path/to/my-role.cert.
 config.setAuth(auth);
 
 pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
+```
+
+### Node.js client
+
+```JavaScript
+const Pulsar = require('pulsar-client');
+
+(async () => {
+  const auth = new Pulsar.AuthenticationTls({
+    certificatePath: '/path/to/my-role.cert.pem',
+    privateKeyPath: '/path/to/my-role.key-pk8.pem',
+  });
+
+  const client = new Pulsar.Client({
+    serviceUrl: 'pulsar+ssl://broker.example.com:6651/',
+    authentication: auth,
+    tlsTrustCertsFilePath: '/path/to/ca.cert.pem',
+  });
+})();
 ```

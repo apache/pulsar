@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageId;
@@ -95,7 +96,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     @Override
     public ReaderBuilder<T> topic(String topicName) {
-        conf.setTopicName(topicName);
+        conf.setTopicName(StringUtils.trim(topicName));
         return this;
     }
 

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -26,7 +26,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for 'Byte'.
  */
-public class ByteSchema implements Schema<Byte> {
+public class ByteSchema extends AbstractSchema<Byte> {
 
     public static ByteSchema of() {
         return INSTANCE;
@@ -41,6 +41,13 @@ public class ByteSchema implements Schema<Byte> {
     @Override
     public void validate(byte[] message) {
         if (message.length != 1) {
+            throw new SchemaSerializationException("Size of data received by ByteSchema is not 1");
+        }
+    }
+
+    @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 1) {
             throw new SchemaSerializationException("Size of data received by ByteSchema is not 1");
         }
     }
@@ -61,6 +68,15 @@ public class ByteSchema implements Schema<Byte> {
         }
         validate(bytes);
         return bytes[0];
+    }
+
+    @Override
+    public Byte decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        return byteBuf.getByte(0);
     }
 
     @Override
