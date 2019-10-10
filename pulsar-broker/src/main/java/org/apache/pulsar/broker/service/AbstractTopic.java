@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -28,6 +29,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -170,9 +172,13 @@ public abstract class AbstractTopic implements Topic {
 
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-                .getSchemaRegistryService()
-                .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy, isAllowAutoUpdateSchema);
+        if (isAllowAutoUpdateSchema) {
+            return brokerService.pulsar()
+                    .getSchemaRegistryService()
+                    .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+        } else {
+            return FutureUtil.failedFuture(new IncompatibleSchemaException("Don't allow auto update schema."));
+        }
     }
 
     @Override
@@ -191,7 +197,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Void> isSchemaCompatible(SchemaData schema) {
+    public CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema) {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()

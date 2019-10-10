@@ -927,7 +927,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         return hasSchema()
                 .thenCompose((hasSchema) -> {
                     if (hasSchema || isActive() || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
-                        return isSchemaCompatible(schema);
+                        return checkSchemaCompatibleForConsumer(schema);
                     } else {
                         return addSchema(schema).thenCompose(schemaVersion->
                                 CompletableFuture.completedFuture(null));

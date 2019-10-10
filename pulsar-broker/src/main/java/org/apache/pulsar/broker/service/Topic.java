@@ -164,7 +164,7 @@ public interface Topic {
     /**
      * Check if schema is compatible with current topic schema.
      */
-    CompletableFuture<Void> isSchemaCompatible(SchemaData schema);
+    CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema);
 
     /**
      * If the topic is idle (no producers, no entries, no subscribers and no existing schema),

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.Collections;
@@ -47,6 +48,7 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
     @Override
     public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
         LinkedList<Schema> fromList = new LinkedList<>();
+        checkArgument(from != null, "check compatibility list is null");
         try {
             for (SchemaData schemaData : from) {
                 Schema.Parser parser = new Schema.Parser();

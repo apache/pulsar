@@ -693,7 +693,7 @@ public class ServerCnx extends PulsarHandler {
 
                                     if (schema != null) {
                                         return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                            .thenCompose(isCompatible -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                            .thenCompose(v -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                     subType, priorityLevel, consumerName, isDurable,
                                                     startMessageId, metadata,
                                                     readCompacted, initialPosition, isReplicated));

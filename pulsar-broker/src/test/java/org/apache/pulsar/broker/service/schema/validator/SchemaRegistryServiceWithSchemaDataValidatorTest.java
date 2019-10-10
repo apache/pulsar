@@ -128,15 +128,15 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
         CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
-        when(underlyingService.putSchemaIfAbsent(eq(schemaId), any(SchemaData.class), eq(strategy), eq(true)))
+        when(underlyingService.putSchemaIfAbsent(eq(schemaId), any(SchemaData.class), eq(strategy)))
             .thenReturn(future);
         SchemaData schemaData = SchemaData.builder()
             .type(SchemaType.BOOLEAN)
             .data(new byte[0])
             .build();
-        assertSame(future, service.putSchemaIfAbsent(schemaId, schemaData, strategy, true));
+        assertSame(future, service.putSchemaIfAbsent(schemaId, schemaData, strategy));
         verify(underlyingService, times(1))
-            .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy), eq(true));
+            .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
     }
 
     @Test
@@ -144,20 +144,20 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
         CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
-        when(underlyingService.putSchemaIfAbsent(eq(schemaId), any(SchemaData.class), eq(strategy), eq(true)))
+        when(underlyingService.putSchemaIfAbsent(eq(schemaId), any(SchemaData.class), eq(strategy)))
             .thenReturn(future);
         SchemaData schemaData = SchemaData.builder()
             .type(SchemaType.BOOLEAN)
             .data(new byte[10])
             .build();
         try {
-            service.putSchemaIfAbsent(schemaId, schemaData, strategy, true).get();
+            service.putSchemaIfAbsent(schemaId, schemaData, strategy).get();
             fail("Should fail putSchemaIfAbsent");
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof InvalidSchemaDataException);
         }
         verify(underlyingService, times(0))
-            .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy), eq(true));
+            .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
     }
 
 }

@@ -330,15 +330,14 @@ public class SchemasResource extends AdminResource {
             pulsar().getSchemaRegistryService().putSchemaIfAbsent(
                 buildSchemaId(tenant, namespace, topic),
                 SchemaData.builder()
-                .data(data)
-                .isDeleted(false)
-                .timestamp(clock.millis())
-                .type(SchemaType.valueOf(payload.getType()))
-                .user(defaultIfEmpty(clientAppId(), ""))
-                .props(payload.getProperties())
-                .build(),
-                schemaCompatibilityStrategy,
-                true
+                    .data(data)
+                    .isDeleted(false)
+                    .timestamp(clock.millis())
+                    .type(SchemaType.valueOf(payload.getType()))
+                    .user(defaultIfEmpty(clientAppId(), ""))
+                    .props(payload.getProperties())
+                    .build(),
+                schemaCompatibilityStrategy
             ).thenAccept(version ->
                     response.resume(
                             Response.accepted().entity(

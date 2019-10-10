@@ -254,26 +254,14 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testSchemaAutoUpdate() throws Exception {
-        putSchema(schemaId1, schema1, version(0));
-        try {
-            schemaRegistryService.putSchemaIfAbsent(schemaId1, schema2, SchemaCompatibilityStrategy.FULL, false).get();
-        } catch (Exception e) {
-            assertEquals("Don't allow auto update schema.", e.getCause().getMessage());
-        }
-
-    }
-
-
-    @Test
     public void trimDeletedSchemaAndGetListTest() throws Exception {
         List<SchemaAndMetadata> list = new ArrayList<>();
         CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
-                schemaId1, schema1, SchemaCompatibilityStrategy.FULL, true);
+                schemaId1, schema1, SchemaCompatibilityStrategy.FULL);
         SchemaVersion newVersion = put.get();
         list.add(new SchemaAndMetadata(schemaId1, schema1, newVersion));
         put = schemaRegistryService.putSchemaIfAbsent(
-                schemaId1, schema2, SchemaCompatibilityStrategy.FULL, true);
+                schemaId1, schema2, SchemaCompatibilityStrategy.FULL);
         newVersion = put.get();
         list.add(new SchemaAndMetadata(schemaId1, schema2, newVersion));
         List<SchemaAndMetadata> list1 = schemaRegistryService.trimDeletedSchemaAndGetList(schemaId1).get();
@@ -337,7 +325,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion,
                            SchemaCompatibilityStrategy strategy) throws ExecutionException, InterruptedException {
         CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
-                schemaId, schema, strategy, true);
+                schemaId, schema, strategy);
         SchemaVersion newVersion = put.get();
         assertEquals(expectedVersion, newVersion);
     }

@@ -37,7 +37,7 @@ public interface SchemaRegistry extends AutoCloseable {
     CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId);
 
     CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
-                                                       SchemaCompatibilityStrategy strategy, boolean isAllowAutoUpdateSchema);
+                                                       SchemaCompatibilityStrategy strategy);
 
     CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user);
 

@@ -122,18 +122,7 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -1935,7 +1924,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return hasSchema()
             .thenCompose((hasSchema) -> {
                     if (hasSchema || isActive() || ledger.getTotalSize() != 0) {
-                        return isSchemaCompatible(schema);
+                        return checkSchemaCompatibleForConsumer(schema);
                     } else {
                         return addSchema(schema).thenCompose(schemaVersion ->
                                 CompletableFuture.completedFuture(null));
