@@ -763,6 +763,10 @@ void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callb
 void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
     ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
                                   callback, proto::CommandAck_AckType_Cumulative);
+    if (!isCumulativeAcknowledgementAllowed(config_.getConsumerType())) {
+        cb(ResultCumulativeAcknowledgementNotAllowedError);
+        return;
+    }
     if (msgId.batchIndex() != -1 &&
         !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Cumulative)) {
         MessageId messageId = batchAcknowledgementTracker_.getGreatestCumulativeAckReady(msgId);
@@ -775,6 +779,10 @@ void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCall
     } else {
         doAcknowledge(msgId, proto::CommandAck_AckType_Cumulative, cb);
     }
+}
+
+bool ConsumerImpl::isCumulativeAcknowledgementAllowed(ConsumerType consumerType) {
+    return consumerType != ConsumerKeyShared && consumerType != ConsumerShared;
 }
 
 void ConsumerImpl::doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
