@@ -46,7 +46,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 - [HBase sink connector](io-hbase.md)
 
-- [HDFS2 sink connector](io-hdfs.md)
+- [HDFS2 sink connector](io-hdfs2-sink.md)
 
 - [HDFS3 sink connector](io-hdfs3-sink.md)
 
