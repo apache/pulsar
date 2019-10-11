@@ -1443,6 +1443,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     public boolean hasMessageAvailable() throws PulsarClientException {
+        // we need to seek to the last position then the last message can be received when the resetIncludeHead
+        // specified.
+        if (lastDequeuedMessage == MessageId.latest && resetIncludeHead) {
+            lastDequeuedMessage = getLastMessageId();
+            seek(lastDequeuedMessage);
+        }
         try {
             if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessage)) {
                 return true;
