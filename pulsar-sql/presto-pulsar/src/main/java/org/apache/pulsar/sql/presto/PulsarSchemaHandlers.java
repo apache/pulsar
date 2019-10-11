@@ -24,13 +24,15 @@ import com.facebook.presto.spi.PrestoException;
 import java.util.List;
 
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 class PulsarSchemaHandlers {
 
-    static SchemaHandler newPulsarSchemaHandler(TopicName topicName, PulsarConnectorConfig pulsarConnectorConfig, SchemaInfo schemaInfo,
+    static SchemaHandler newPulsarSchemaHandler(TopicName topicName,
+                                                PulsarConnectorConfig pulsarConnectorConfig,
+                                                SchemaInfo schemaInfo,
                                                 List<PulsarColumnHandle> columnHandles) throws RuntimeException{
         if (schemaInfo.getType().isPrimitive()) {
             return new PulsarPrimitiveSchemaHandler(schemaInfo);
@@ -46,7 +48,9 @@ class PulsarSchemaHandlers {
                         throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaInfo.getType());
                 }
             } catch (PulsarClientException e) {
-                throw new RuntimeException(new Throwable("PulsarAdmin gets version schema fail, topicName : " + topicName.toString(), e));
+                throw new RuntimeException(
+                        new Throwable("PulsarAdmin gets version schema fail, topicName : "
+                                + topicName.toString(), e));
             }
         } else {
             throw new PrestoException(

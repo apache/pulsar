@@ -19,8 +19,11 @@
 package org.apache.pulsar.sql.presto;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
+
+import java.util.List;
 
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
@@ -29,7 +32,6 @@ import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
-import java.util.List;
 
 /**
  * Schema handler for payload in the Avro format.
@@ -44,16 +46,20 @@ public class AvroSchemaHandler implements SchemaHandler {
 
     private static final Logger log = Logger.get(AvroSchemaHandler.class);
 
-    public AvroSchemaHandler(TopicName topicName, PulsarConnectorConfig pulsarConnectorConfig,
-                             SchemaInfo schemaInfo, List<PulsarColumnHandle> columnHandles) throws PulsarClientException {
+    public AvroSchemaHandler(TopicName topicName,
+                             PulsarConnectorConfig pulsarConnectorConfig,
+                             SchemaInfo schemaInfo,
+                             List<PulsarColumnHandle> columnHandles) throws PulsarClientException {
         this.schemaInfo = schemaInfo;
         this.genericAvroSchema = new GenericAvroSchema(schemaInfo);
         this.genericAvroSchema
-                .setSchemaInfoProvider(new PulsarSqlSchemaInfoProvider(topicName, pulsarConnectorConfig.getPulsarAdmin()));
+                .setSchemaInfoProvider(
+                        new PulsarSqlSchemaInfoProvider(topicName, pulsarConnectorConfig.getPulsarAdmin()));
         this.columnHandles = columnHandles;
     }
 
-    AvroSchemaHandler(PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider, SchemaInfo schemaInfo, List<PulsarColumnHandle> columnHandles) {
+    AvroSchemaHandler(PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider,
+                      SchemaInfo schemaInfo, List<PulsarColumnHandle> columnHandles) {
         this.schemaInfo = schemaInfo;
         this.genericAvroSchema = new GenericAvroSchema(schemaInfo);
         this.genericAvroSchema.setSchemaInfoProvider(pulsarSqlSchemaInfoProvider);
@@ -80,7 +86,7 @@ public class AvroSchemaHandler implements SchemaHandler {
             if (names.length == 1) {
                 return record.getField(pulsarColumnHandle.getName());
             } else {
-                for (int i = 0 ; i < names.length - 1; i++) {
+                for (int i = 0; i < names.length - 1; i++) {
                     record = (GenericAvroRecord) record.getField(names[i]);
                 }
                 return record.getField(names[names.length - 1]);
