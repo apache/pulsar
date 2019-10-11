@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.admin.cli.utils;
 
-import java.util.Map;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.Map;
 
 public class NameValueParameterSplitterTest {
     @Test(description = "Basic Test")

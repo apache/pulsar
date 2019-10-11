@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.client.cli;
 
+import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
 import java.net.MalformedURLException;
 import java.util.List;
 import java.util.Properties;
@@ -25,15 +33,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.cli.PulsarClientTool;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 @Test
 public class PulsarClientToolTest extends BrokerTestBase {
