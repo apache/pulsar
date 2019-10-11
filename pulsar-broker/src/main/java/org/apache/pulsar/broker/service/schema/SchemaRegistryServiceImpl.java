@@ -50,6 +50,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private static HashFunction hashFunction = Hashing.sha256();
@@ -249,7 +250,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         return checkCompatibilityWithAll(schemaId, schemaData, strategy);
                     }
             } else {
-                return CompletableFuture.completedFuture(null);
+                return FutureUtil.failedFuture(new IncompatibleSchemaException("Topic does not have schema to check"));
             }
         });
     }
