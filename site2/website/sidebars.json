@@ -50,7 +50,8 @@
     "Pulsar SQL": [
       "sql-overview",
       "sql-getting-started",
-      "sql-deployment-configurations"
+      "sql-deployment-configurations",
+      "sql-rest-api"
     ],
     "Deployment": [
       "deploy-aws",
