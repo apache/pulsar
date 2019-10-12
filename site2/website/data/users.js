@@ -121,7 +121,8 @@ module.exports = [
     {
         name: 'One Click Retail',
         url: 'https://oneclickretail.com/',
-        logo: 'https://www.ascentialedge.com/themes/contrib/custom/images/edge-by-ascential.svg'
+        logo: 'https://www.ascentialedge.com/themes/contrib/custom/images/edge-by-ascential.svg',
+        logo_white: true
     },
     {
         name: 'Tuya',
@@ -214,8 +215,7 @@ module.exports = [
     {
         name: 'HSL Developer Community of Helsinki Regional Transport Authority',
         url: 'https://dev.hsl.fi/',
-        logo: 'https://pbs.twimg.com/profile_images/2507371771/9toyr6r5ngcozfwg42zv_400x400.png',
-        logo_white: true
+        logo: 'https://pbs.twimg.com/profile_images/2507371771/9toyr6r5ngcozfwg42zv_400x400.png'
     },
     {
         name: 'Ottoo',
