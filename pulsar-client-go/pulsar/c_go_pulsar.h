@@ -67,7 +67,7 @@ void pulsarProducerSendCallbackProxyWithMsgID(pulsar_result result, pulsar_messa
 
 static inline void _pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *message,
                                                void *ctx) {
-    pulsar_producer_send_async(producer, message, pulsarProducerSendCallbackProxyWithMsgID, ctx);
+    pulsar_producer_send_async(producer, message, pulsarProducerSendCallbackProxy, ctx);
 }
 
 static inline void _pulsar_producer_send_async_msg_id(pulsar_producer_t *producer, pulsar_message_t *message,
