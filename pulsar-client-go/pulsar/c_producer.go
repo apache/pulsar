@@ -250,7 +250,7 @@ type msgID struct {
 func (p *producer) SendAndGetMsgID(ctx context.Context, msg ProducerMessage) (MessageID, error) {
 	c := make(chan msgID, 10)
 
-	p.SendAsyncWithMsgID(ctx, msg, func(id MessageID, err error) {
+	p.SendAndGetMsgIDAsync(ctx, msg, func(id MessageID, err error) {
 		tmpMsgID := msgID{
 			err: err,
 			id:  id,
@@ -325,7 +325,7 @@ func (p *producer) SendAsync(ctx context.Context, msg ProducerMessage, callback 
 	C._pulsar_producer_send_async(p.ptr, cMsg, savePointer(sendCallback{message: msg, callback: callback}))
 }
 
-func (p *producer) SendAsyncWithMsgID(ctx context.Context, msg ProducerMessage, callback func(MessageID, error)) {
+func (p *producer) SendAndGetMsgIDAsync(ctx context.Context, msg ProducerMessage, callback func(MessageID, error)) {
 	if p.schema != nil {
 		if msg.Value == nil {
 			callback(nil, errors.New("message value is nil, please check"))

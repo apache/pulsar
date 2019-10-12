@@ -184,7 +184,7 @@ type Producer interface {
 	// Send a message in asynchronous mode
 	// The callback will report back the message being published and
 	// the eventual error in publishing
-	SendAsyncWithMsgID(context.Context, ProducerMessage, func(MessageID, error))
+	SendAndGetMsgIDAsync(context.Context, ProducerMessage, func(MessageID, error))
 
 	// Get the last sequence id that was published by this producer.
 	// This represent either the automatically assigned or custom sequence id (set on the ProducerMessage) that
