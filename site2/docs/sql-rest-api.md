@@ -6,29 +6,31 @@ sidebar_label: REST APIs
 
 ## Presto HTTP API
 
-Presto configuration in Pulsar is: conf/presto/config.properties
+The Presto configuration in Pulsar is `conf/presto/config.properties`.
 
-Get cluster status (HTTP method: GET)
+You can get cluster status with HTTP method `GET`
 
-```
-localhost:8081/v1/cluster
+```http
+http://localhost:8081/v1/cluster
 ```
 
 You can input your SQL as an HTTP request body, and send it to `localhost:8081/v1/statement`.
 
 For example:
 
-```
+```properties
 HTTP request URL : `localhost:8081/v1/statement`
 HTTP header:  X-Presto-User: username
 HTTP body: `show catalogs`
 ```
 
+> #### Note
+>
 > For more HTTP header, refer to https://github.com/prestosql/presto/blob/master/presto-client/src/main/java/io/prestosql/client/PrestoHeaders.java ）
 
 
 You will receive information like this:
-```
+```json
 {
     "id": "20190522_083232_00012_tk5nc",
     "infoUri": "http://localhost:8081/ui/query.html?20190522_083232_00012_tk5nc",
@@ -54,8 +56,8 @@ You will receive information like this:
 }
 ```
 
-Then you need to request the `nextUri` using the GET method, and you will receive information like this:
-```
+You need to request `nextUri` using the GET method, and receive information like this:
+```json
 {
     "id": "20190522_083232_00012_tk5nc",
     "infoUri": "http://localhost:8081/ui/query.html?20190522_083232_00012_tk5nc",
@@ -81,7 +83,7 @@ Then you need to request the `nextUri` using the GET method, and you will receiv
 }
 ```
 Then send the `nextUri` request again, and you will receive the target data.
-```
+```json
 {
     "id": "20190522_083232_00012_tk5nc",
     "infoUri": "http://localhost:8081/ui/query.html?20190522_083232_00012_tk5nc",
