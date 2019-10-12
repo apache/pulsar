@@ -971,17 +971,22 @@ public class PersistentSubscription implements Subscription {
                     (PositionImpl) this.pendingCumulativeAckMessage;
 
             positions.forEach(position -> {
-                if ((pendingAckMessages == null || (pendingAckMessages != null &&
-                        !this.pendingAckMessages.contains(position))) &&
-                        (null == cumulativeAckPosition ||
-                                (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0))) {
+                if ((pendingAckMessages == null || !this.pendingAckMessages.contains(position))
+                        && (null == cumulativeAckPosition || position.compareTo(cumulativeAckPosition) > 0)) {
                     pendingPositions.add(position);
                 }
             });
-            dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
+            dispatcher.redeliverUnacknowledgedMessages(consumer, trimByMarkDeletePosition(pendingPositions));
         } else {
-            dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
+            dispatcher.redeliverUnacknowledgedMessages(consumer, trimByMarkDeletePosition(positions));
         }
+    }
+
+    private List<PositionImpl> trimByMarkDeletePosition(List<PositionImpl> positions) {
+        return positions.stream()
+                .filter(position -> cursor.getMarkDeletedPosition() == null
+                        || position.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0)
+                .collect(Collectors.toList());
     }
 
     @Override
