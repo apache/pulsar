@@ -34,7 +34,6 @@ import org.bson.BSONException;
 import org.bson.Document;
 import org.bson.json.JsonParseException;
 
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
