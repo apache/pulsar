@@ -6729,6 +6729,55 @@
         }
       }
     },
+    "/persistent/{tenant}/{namespace}/topics/stats" : {
+      "get" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Get the stats for all the topic.",
+        "description" : "",
+        "operationId" : "getallTopicStats",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "Specify the tenant",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "Specify the namespace",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "description" : "Is authentication required to perform this operation",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/TopicStats"
+            }
+          },
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
+          }
+        }
+      }
+    },
     "/persistent/{tenant}/{namespace}/{topic}/subscription/{subName}" : {
       "delete" : {
         "tags" : [ "persistent topic" ],
