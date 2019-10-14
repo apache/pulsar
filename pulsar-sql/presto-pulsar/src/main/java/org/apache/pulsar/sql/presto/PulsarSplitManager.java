@@ -87,9 +87,10 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     }
 
     @Override
-    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session,
+    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle,
+                                          ConnectorSession session,
                                           ConnectorTableLayoutHandle layout,
-                                          SplitSchedulingStrategy splitSchedulingStrategy) {
+                                          SplitSchedulingContext splitSchedulingContext) {
 
         int numSplits = this.pulsarConnectorConfig.getTargetNumSplits();
 
@@ -193,10 +194,10 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         Integer low = 0;
                         Integer high = numPartitions;
                         if (!range.getLow().isLowerUnbounded() && range.getLow().getValueBlock().isPresent()) {
-                            low = range.getLow().getValueBlock().get().getInt(0, 0);
+                            low = range.getLow().getValueBlock().get().getInt(0);
                         }
                         if (!range.getHigh().isLowerUnbounded() && range.getHigh().getValueBlock().isPresent()) {
-                            high = range.getHigh().getValueBlock().get().getInt(0, 0);
+                            high = range.getHigh().getValueBlock().get().getInt(0);
                         }
                         for (int i = low; i <= high; i++) {
                             predicatePartitions.add(i);

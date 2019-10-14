@@ -45,6 +45,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.StandardErrorCode.NOT_FOUND;
@@ -258,7 +259,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter")
     public void testListTable(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        assertTrue(this.pulsarMetadata.listTables(mock(ConnectorSession.class), null).isEmpty());
+        assertTrue(this.pulsarMetadata.listTables(mock(ConnectorSession.class), Optional.empty()).isEmpty());
         assertTrue(this.pulsarMetadata.listTables(mock(ConnectorSession.class), "wrong-tenant/wrong-ns")
                 .isEmpty());
 
