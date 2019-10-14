@@ -976,17 +976,17 @@ public class PersistentSubscription implements Subscription {
                     pendingPositions.add(position);
                 }
             });
-            dispatcher.redeliverUnacknowledgedMessages(consumer, trimByMarkDeletePosition(pendingPositions));
+            trimByMarkDeletePosition(pendingPositions);
+            dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
         } else {
-            dispatcher.redeliverUnacknowledgedMessages(consumer, trimByMarkDeletePosition(positions));
+            trimByMarkDeletePosition(positions);
+            dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
         }
     }
 
-    private List<PositionImpl> trimByMarkDeletePosition(List<PositionImpl> positions) {
-        return positions.stream()
-                .filter(position -> cursor.getMarkDeletedPosition() == null
-                        || position.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0)
-                .collect(Collectors.toList());
+    private void trimByMarkDeletePosition(List<PositionImpl> positions) {
+        positions.removeIf(position -> cursor.getMarkDeletedPosition() != null
+                && position.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) <= 0);
     }
 
     @Override
