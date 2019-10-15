@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A schema for bytes array.
  */
-public class BytesSchema implements Schema<byte[]> {
+public class BytesSchema extends AbstractSchema<byte[]> {
 
     public static BytesSchema of() {
         return INSTANCE;
@@ -44,6 +44,18 @@ public class BytesSchema implements Schema<byte[]> {
 
     @Override
     public byte[] decode(byte[] bytes) {
+        return bytes;
+    }
+
+    @Override
+    public byte[] decode(ByteBuf byteBuf) {
+        if (byteBuf == null) {
+            return null;
+        }
+        int size = byteBuf.readableBytes();
+        byte[] bytes = new byte[size];
+
+        byteBuf.readBytes(bytes, 0, size);
         return bytes;
     }
 

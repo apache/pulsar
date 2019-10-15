@@ -306,7 +306,7 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
 
-            workerConfig.setUseTls(config.isTlsEnabled());
+            workerConfig.setUseTls(useTls);
             workerConfig.setTlsHostnameVerificationEnable(false);
 
             workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());

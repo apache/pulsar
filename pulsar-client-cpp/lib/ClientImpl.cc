@@ -561,6 +561,7 @@ void ClientImpl::shutdown() {
         }
     }
 
+    pool_.close();
     ioExecutorProvider_->close();
     listenerExecutorProvider_->close();
     partitionListenerExecutorProvider_->close();

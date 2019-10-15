@@ -131,13 +131,15 @@ class ProducerImpl : public HandlerBase,
 
     void statsCallBackHandler(Result, const Message&, SendCallback, boost::posix_time::ptime);
 
-    void handleClose(Result result, ResultCallback callback);
+    void handleClose(Result result, ResultCallback callback, ProducerImplPtr producer);
 
     void resendMessages(ClientConnectionPtr cnx);
 
     void refreshEncryptionKey(const boost::system::error_code& ec);
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
+
+    void cancelTimers();
 
     typedef std::unique_lock<std::mutex> Lock;
 

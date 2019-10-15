@@ -1,6 +1,6 @@
 ---
 id: security-overview
-title: Pulsar Security Overview
+title: Pulsar security overview
 sidebar_label: Overview
 ---
 
@@ -10,28 +10,21 @@ By default, Pulsar configures no encryption, authentication, or authorization. A
 
 Pulsar supports a pluggable authentication mechanism. And Pulsar clients use this mechanism to authenticate with brokers and proxies. You can also configure Pulsar to support multiple authentication sources.
 
-You'd better secure the service components in your Apache Pulsar deployment.
+You had better secure the service components in your Apache Pulsar deployment.
 
-## Role Tokens
+## Role tokens
 
-In Pulsar, a *role* is a string, like `admin` or `app1`, which can represent one or more clients. You can use roles to control permission for clients to produce or consume from certain topics, administer the configuration for tenants, and so on.
+In Pulsar, a *role* is a string, like `admin` or `app1`, which can represent a single client or multiple clients. You can use roles to control permission for clients to produce or consume from certain topics, administer the configuration for tenants, and so on.
 
-Apache Pulsar uses the [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign a *role token* to that client. This role token is then used for [Authorization and ACLs](security-authorization.md) to determine what the client is authorized to do.
+Apache Pulsar uses a [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign a *role token* to that client. This role token is then used for [Authorization and ACLs](security-authorization.md) to determine what the client is authorized to do.
 
-## Authentication Providers
+## Authentication providers
 
 Currently Pulsar supports the following authentication providers:
 
 - [TLS Authentication](security-tls-authentication.md)
 - [Athenz](security-athenz.md)
 - [Kerberos](security-kerberos.md)
-- JSON Web Token Authentication
+- [JSON Web Token Authentication](security-jwt.md)
 
-## Contents
-
-- [Encryption](security-tls-transport.md) and [Authentication](security-tls-authentication.md) using TLS
-- [Authentication using Athenz](security-athenz.md)
-- [Authentication using Kerberos](security-kerberos.md)
-- [Authorization and ACLs](security-authorization.md)
-- [End-to-End Encryption](security-encryption.md)
 

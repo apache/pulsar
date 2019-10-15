@@ -17,5 +17,6 @@
 # under the License.
 #
 name: mongo
-description: Writes data into MongoDB
+description: MongoDB source and sink connector
 sinkClass: org.apache.pulsar.io.mongodb.MongoSink
+sourceClass: org.apache.pulsar.io.mongodb.MongoSource

@@ -69,6 +69,7 @@ import java.util.function.Predicate;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
@@ -77,6 +78,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -84,8 +86,10 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -98,10 +102,13 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -116,6 +123,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -136,6 +144,7 @@ import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -152,6 +161,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics;
 
     private final ConcurrentOpenHashMap<String, PulsarClient> replicationClients;
+    private final ConcurrentOpenHashMap<String, PulsarAdmin> clusterAdmins;
 
     // Multi-layer topics map:
     // Namespace --> Bundle --> topicName --> topic
@@ -208,6 +218,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics = new ConcurrentOpenHashMap<>();
         this.replicationClients = new ConcurrentOpenHashMap<>();
+        this.clusterAdmins = new ConcurrentOpenHashMap<>();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
         this.configRegisteredListeners = new ConcurrentOpenHashMap<>();
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
@@ -448,6 +459,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         });
 
+        // close replication admins
+        clusterAdmins.forEach((cluster, admin) -> {
+            try {
+                admin.close();
+            } catch (Exception e) {
+                log.warn("Error shutting down repl admin for cluster {}", cluster, e);
+            }
+        });
+
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         statsUpdater.shutdown();
@@ -622,6 +642,44 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 // Share all the IO threads across broker and client connections
                 ClientConfigurationData conf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
                 return new PulsarClientImpl(conf, workerGroup);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    public PulsarAdmin getClusterPulsarAdmin(String cluster) {
+        PulsarAdmin admin = clusterAdmins.get(cluster);
+        if (admin != null) {
+            return admin;
+        }
+        return clusterAdmins.computeIfAbsent(cluster, key -> {
+            try {
+                String path = PulsarWebResource.path("clusters", cluster);
+                ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
+                        .orElseThrow(() -> new KeeperException.NoNodeException(path));
+
+                ServiceConfiguration conf = pulsar.getConfig();
+
+                boolean isTlsUrl = conf.isBrokerClientTlsEnabled() && isNotBlank(data.getServiceUrlTls());
+                String adminApiUrl = isTlsUrl ? data.getServiceUrlTls() : data.getServiceUrl();
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
+                        .authentication( //
+                                conf.getBrokerClientAuthenticationPlugin(), //
+                                conf.getBrokerClientAuthenticationParameters());
+
+                if (isTlsUrl) {
+                    builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
+                }
+
+                // most of the admin request requires to make zk-call so, keep the max read-timeout based on
+                // zk-operation timeout
+                builder.readTimeout(conf.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+
+                PulsarAdmin adminClient = builder.build();
+                log.info("created admin with url {} ", adminApiUrl);
+                return adminClient;
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -911,6 +969,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public void updateRates() {
         synchronized (pulsarStats) {
             pulsarStats.updateStats(multiLayerTopicsMap);
+
+            Summary.rotateLatencyCollection();
         }
     }
 
@@ -1555,6 +1615,74 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
         }
 
+    }
+
+    public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName topicName) {
+        return pulsar.getNamespaceService().checkTopicExists(topicName)
+                .thenCompose(topicExists -> {
+                    return fetchPartitionedTopicMetadataAsync(topicName)
+                            .thenCompose(metadata -> {
+                                // If topic is already exist, creating partitioned topic is not allowed.
+                                if (metadata.partitions == 0
+                                        && !topicExists
+                                        && pulsar.getConfiguration().isAllowAutoTopicCreation()
+                                        && pulsar.getConfiguration().isDefaultTopicTypePartitioned()) {
+                                    return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
+                                } else {
+                                    return CompletableFuture.completedFuture(metadata);
+                                }
+                            });
+                });
+    }
+
+    @SuppressWarnings("deprecation")
+    private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName) {
+        int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
+        checkArgument(defaultNumPartitions > 0, "Default number of partitions should be more than 0");
+
+        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
+        CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = new CompletableFuture<>();
+
+        try {
+            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMetadata);
+
+            ZkUtils.asyncCreateFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(),
+                    partitionedTopicPath(topicName), content,
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
+                        if (rc == KeeperException.Code.OK.intValue()) {
+                            // we wait for the data to be synced in all quorums and the observers
+                            executor().schedule(
+                                    SafeRunnable.safeRun(() -> partitionedTopicFuture.complete(configMetadata)),
+                                    PersistentTopicsBase.PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS, TimeUnit.MILLISECONDS);
+                        } else {
+                            partitionedTopicFuture.completeExceptionally(KeeperException.create(rc));
+                        }
+                    }, null);
+
+        } catch (Exception e) {
+            log.error("Failed to create default partitioned topic.", e);
+            return FutureUtil.failedFuture(e);
+        }
+
+        return partitionedTopicFuture;
+    }
+
+    public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
+        // gets the number of partitions from the zk cache
+        return pulsar.getGlobalZkCache().getDataAsync(partitionedTopicPath(topicName), (key, content) -> {
+            return ObjectMapperFactory.getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
+        }).thenApply(metadata -> {
+            // if the partitioned topic is not found in zk, then the topic is not partitioned
+            return metadata.orElseGet(() -> new PartitionedTopicMetadata());
+        });
+    }
+
+    private static String partitionedTopicPath(TopicName topicName) {
+        return String.format("%s/%s/%s/%s",
+                ConfigurationCacheService.PARTITIONED_TOPICS_ROOT,
+                topicName.getNamespace(),
+                topicName.getDomain(),
+                topicName.getEncodedLocalName());
     }
 
     public OrderedExecutor getTopicOrderedExecutor() {

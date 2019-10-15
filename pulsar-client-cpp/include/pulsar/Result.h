@@ -78,6 +78,8 @@ enum Result
     ResultIncompatibleSchema,   /// Specified schema is incompatible with the topic's schema
     ResultConsumerAssignError,  /// Error when a new consumer connected but can't assign messages to this
                                 /// consumer
+    ResultCumulativeAcknowledgementNotAllowedError,  /// Not allowed to call cumulativeAcknowledgement in
+                                                     /// Shared and Key_Shared subscription mode
 };
 
 // Return string representation of result code

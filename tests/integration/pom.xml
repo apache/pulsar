@@ -67,7 +67,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>managed-ledger-original</artifactId>
+      <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>

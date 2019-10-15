@@ -21,14 +21,13 @@ package org.apache.pulsar.client.impl.schema;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A variant `Bytes` schema that takes {@link io.netty.buffer.ByteBuf}.
  */
-public class ByteBufSchema implements Schema<ByteBuf> {
+public class ByteBufSchema extends AbstractSchema<ByteBuf> {
 
     public static ByteBufSchema of() {
         return INSTANCE;
@@ -55,6 +54,15 @@ public class ByteBufSchema implements Schema<ByteBuf> {
             return null;
         } else {
             return Unpooled.wrappedBuffer(bytes);
+        }
+    }
+
+    @Override
+    public ByteBuf decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        } else {
+            return byteBuf;
         }
     }
 

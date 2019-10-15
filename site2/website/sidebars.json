@@ -73,8 +73,7 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
-      "security-token-client",
-      "security-token-admin",
+      "security-jwt",
       "security-athenz",
       "security-kerberos",
       "security-authorization",
@@ -86,6 +85,7 @@
       "client-libraries-go",
       "client-libraries-python",
       "client-libraries-cpp",
+      "client-libraries-node",
       "client-libraries-websocket"
     ],
     "Admin API": [

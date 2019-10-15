@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kinesis;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
@@ -38,7 +39,7 @@ public abstract class AbstractKinesisConnector {
     public static final String ACCESS_KEY_NAME = "accessKey";
     public static final String SECRET_KEY_NAME = "secretKey";
 
-    protected AWSCredentialsProvider createCredentialProvider(String awsCredentialPluginName,
+    protected AwsCredentialProviderPlugin createCredentialProvider(String awsCredentialPluginName,
             String awsCredentialPluginParam) {
         if (isNotBlank(awsCredentialPluginName)) {
             return createCredentialProviderWithPlugin(awsCredentialPluginName, awsCredentialPluginParam);
@@ -56,14 +57,14 @@ public abstract class AbstractKinesisConnector {
      * @return
      * @throws IllegalArgumentException
      */
-    public static AWSCredentialsProvider createCredentialProviderWithPlugin(String pluginFQClassName, String param)
+    public static AwsCredentialProviderPlugin createCredentialProviderWithPlugin(String pluginFQClassName, String param)
             throws IllegalArgumentException {
         try {
             Class<?> clazz = Class.forName(pluginFQClassName);
             Constructor<?> ctor = clazz.getConstructor();
             final AwsCredentialProviderPlugin plugin = (AwsCredentialProviderPlugin) ctor.newInstance(new Object[] {});
             plugin.init(param);
-            return plugin.getCredentialProvider();
+            return plugin;
         } catch (Exception e) {
             log.error("Failed to initialize AwsCredentialProviderPlugin {}", pluginFQClassName, e);
             throw new IllegalArgumentException(
@@ -78,7 +79,7 @@ public abstract class AbstractKinesisConnector {
      * @param awsCredentialPluginParam
      * @return
      */
-    protected AWSCredentialsProvider defaultCredentialProvider(String awsCredentialPluginParam) {
+    protected AwsCredentialProviderPlugin defaultCredentialProvider(String awsCredentialPluginParam) {
         Map<String, String> credentialMap = new Gson().fromJson(awsCredentialPluginParam,
                 new TypeToken<Map<String, String>>() {
                 }.getType());
@@ -88,7 +89,23 @@ public abstract class AbstractKinesisConnector {
                 String.format(
                         "Default %s and %s must be present into json-map if AwsCredentialProviderPlugin not provided",
                         ACCESS_KEY_NAME, SECRET_KEY_NAME));
-        return defaultCredentialProvider(accessKey, secretKey);
+        return new AwsCredentialProviderPlugin() {
+            @Override
+            public void init(String param) {
+                // noop
+
+            }
+
+            @Override
+            public AWSCredentialsProvider getCredentialProvider() {
+                return defaultCredentialProvider(accessKey, secretKey);
+            }
+
+            @Override
+            public void close() throws IOException {
+
+            }
+        };
     }
     
     private AWSCredentialsProvider defaultCredentialProvider(String accessKey, String secretKey) {
