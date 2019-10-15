@@ -515,7 +515,8 @@ public class Commands {
                     PulsarApi.KeySharedMeta.Builder builder = PulsarApi.KeySharedMeta.newBuilder()
                             .setKeySharedMode(PulsarApi.KeySharedMode.exclusiveHashRange)
                             .setTotalHashRange(keySharedPolicy.getHashRangeTotal());
-                    List<Range> ranges = ((KeySharedPolicy.KeySharedPolicyExclusiveHashRange) keySharedPolicy).getRanges();
+                    List<Range> ranges = ((KeySharedPolicy.KeySharedPolicyExclusiveHashRange) keySharedPolicy)
+                            .getRanges();
                     for (Range range : ranges) {
                         builder.addHashRanges(PulsarApi.IntRange.newBuilder()
                                 .setStart(range.getStart())
