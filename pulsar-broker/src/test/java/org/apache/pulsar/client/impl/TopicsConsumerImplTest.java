@@ -685,6 +685,80 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         consumer.close();
     }
 
+    /**
+     * Test topic partitions auto subscribed.
+     *
+     * Steps:
+     * 1. Create a consumer with 2 topics, and each topic has 2 partitions: xx-partition-0, xx-partition-1.
+     * 2. update topics to have 3 partitions.
+     * 3. trigger partitionsAutoUpdate. this should be done automatically, this is to save time to manually trigger.
+     * 4. produce message to xx-partition-2 again,  and verify consumer could receive message.
+     *
+     */
+    @Test(timeOut = 30000)
+    public void testTopicAutoUpdatePartitions() throws Exception {
+        String key = "TestTopicAutoUpdatePartitions";
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final String messagePredicate = "my-message-" + key + "-";
+        final int totalMessages = 6;
+
+        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
+        List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
+
+        admin.tenants().createTenant("prop", new TenantInfo());
+        admin.topics().createPartitionedTopic(topicName1, 2);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+
+        // 1. Create a  consumer
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topics(topicNames)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(4)
+                .autoUpdatePartitions(true)
+                .subscribe();
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+
+        MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
+
+        // 2. update to 3 partitions
+        admin.topics().updatePartitionedTopic(topicName1, 3);
+        admin.topics().updatePartitionedTopic(topicName2, 3);
+
+        // 3. trigger partitionsAutoUpdate. this should be done automatically in 1 minutes,
+        // this is to save time to manually trigger.
+        log.info("trigger partitionsAutoUpdateTimerTask");
+        Timeout timeout = topicsConsumer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Thread.sleep(200);
+
+        // 4. produce message to xx-partition-2,  and verify consumer could receive message.
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1 + "-partition-2")
+                .enableBatching(false)
+                .create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2 + "-partition-2")
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.send((messagePredicate + "topic1-partition-2 index:" + i).getBytes());
+            producer2.send((messagePredicate + "topic2-partition-2 index:" + i).getBytes());
+            log.info("produce message to partition-2 again. messageindex: {}", i);
+        }
+        int messageSet = 0;
+        Message<byte[]> message = consumer.receive();
+        do {
+            messageSet ++;
+            consumer.acknowledge(message);
+            log.info("4 Consumer acknowledged : " + new String(message.getData()));
+            message = consumer.receive(200, TimeUnit.MILLISECONDS);
+        } while (message != null);
+        assertEquals(messageSet, 2 * totalMessages);
+
+        consumer.close();
+    }
+
     @Test(timeOut = testTimeout)
     public void testDefaultBacklogTTL() throws Exception {
 
