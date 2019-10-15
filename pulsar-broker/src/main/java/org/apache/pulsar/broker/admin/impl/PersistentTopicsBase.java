@@ -440,8 +440,10 @@ public class PersistentTopicsBase extends AdminResource {
      */
     protected void internalUpdatePartitionedTopic(int numPartitions, boolean updateLocalTopicOnly) {
         validateAdminAccessForTenant(topicName.getTenant());
-
-        validatePartitionTopicUpdate(topicName.getLocalName(), numPartitions);
+        // Only do the validation if it's the first hop.
+        if (!updateLocalTopicOnly) {
+            validatePartitionTopicUpdate(topicName.getLocalName(), numPartitions);
+        }
 
         if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
             Set<String> clusters = getNamespaceReplicatedClusters(topicName.getNamespaceObject());
@@ -1915,25 +1917,25 @@ public class PersistentTopicsBase extends AdminResource {
      * @param topicName
      */
     private void validatePartitionTopicUpdate(String topicName, int numberOfPartition) {
-        List<String> nonPartitionTopicList = internalGetList();
+        List<String> existingTopicList = internalGetList();
         TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
         int oldPartition = metadata.partitions;
         String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
-        for (String nonPartitionTopic : nonPartitionTopicList) {
-            if (nonPartitionTopic.contains(prefix)) {
+        for (String exsitingTopicName : existingTopicList) {
+            if (exsitingTopicName.contains(prefix)) {
                 try {
-                    long suffix = Long.parseLong(nonPartitionTopic.substring(
-                            nonPartitionTopic.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                    long suffix = Long.parseLong(exsitingTopicName.substring(
+                            exsitingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
                                     + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
                     // Skip partition of partitioned topic by making sure the numeric suffix greater than old partition number.
                     if (suffix >= oldPartition && suffix <= (long) numberOfPartition) {
                         log.warn("[{}] Already have non partition topic {} which contains partition " +
                                 "suffix '-partition-' and end with numeric value smaller than the new number of partition. " +
-                                "Update of partitioned topic {} could cause conflict.", clientAppId(), nonPartitionTopic, topicName);
+                                "Update of partitioned topic {} could cause conflict.", clientAppId(), exsitingTopicName, topicName);
                         throw new RestException(Status.PRECONDITION_FAILED,
-                                "Already have non partition topic" + nonPartitionTopic + " which contains partition suffix '-partition-' " +
-                                        "and end with numeric valueand end with numeric value smaller than the new " +
+                                "Already have non partition topic" + exsitingTopicName + " which contains partition suffix '-partition-' " +
+                                        "and end with numeric value and end with numeric value smaller than the new " +
                                         "number of partition. Update of partitioned topic " + topicName + " could cause conflict.");
                     }
                 } catch (NumberFormatException e) {
@@ -1955,19 +1957,19 @@ public class PersistentTopicsBase extends AdminResource {
      * @param topicName
      */
     private void validatePartitionTopicName(String topicName) {
-        List<String> nonPartitionTopicList = internalGetList();
+        List<String> existingTopicList = internalGetList();
         String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
-        for (String nonPartitionTopic : nonPartitionTopicList) {
-            if (nonPartitionTopic.contains(prefix)) {
+        for (String existingTopicName : existingTopicList) {
+            if (existingTopicName.contains(prefix)) {
                 try {
-                    Long.parseLong(nonPartitionTopic.substring(
-                            nonPartitionTopic.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                    Long.parseLong(existingTopicName.substring(
+                            existingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
                                     + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
                     log.warn("[{}] Already have topic {} which contains partition " +
                             "suffix '-partition-' and end with numeric value. Creation of partitioned topic {}"
-                            + "could cause conflict.", clientAppId(), nonPartitionTopic, topicName);
+                            + "could cause conflict.", clientAppId(), existingTopicName, topicName);
                     throw new RestException(Status.PRECONDITION_FAILED,
-                            "Already have topic " + nonPartitionTopic + " which contains partition suffix '-partition-' " +
+                            "Already have topic " + existingTopicName + " which contains partition suffix '-partition-' " +
                                     "and end with numeric value, Creation of partitioned topic " + topicName +
                                     " could cause conflict.");
                 } catch (NumberFormatException e) {

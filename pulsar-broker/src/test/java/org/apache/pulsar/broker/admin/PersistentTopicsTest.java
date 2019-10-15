@@ -276,7 +276,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }).when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
         doNothing().when(persistentTopics).validateAdminAccessForTenant(anyString());
         persistentTopics.createPartitionedTopic(testTenant, testNamespace, partitionedTopicName, 5);
-        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, 10);
+        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, 10);
     }
 
     @Test
