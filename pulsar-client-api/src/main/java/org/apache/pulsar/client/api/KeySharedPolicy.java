@@ -22,6 +22,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * KeyShared policy for KeyShared subscription.
+ */
 public abstract class KeySharedPolicy {
 
     protected KeySharedMode keySharedMode;
@@ -52,6 +55,9 @@ public abstract class KeySharedPolicy {
         return this.keySharedMode;
     }
 
+    /**
+     * Exclusive hash range key shared policy.
+     */
     public static class KeySharedPolicyExclusiveHashRange extends KeySharedPolicy {
 
         protected List<Range> ranges;
@@ -93,6 +99,9 @@ public abstract class KeySharedPolicy {
         }
     }
 
+    /**
+     * Auto split hash range key shared policy.
+     */
     public static class KeySharedPolicyAutoSplit extends KeySharedPolicy {
 
         KeySharedPolicyAutoSplit() {

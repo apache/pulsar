@@ -18,9 +18,20 @@
  */
 package org.apache.pulsar.client.api;
 
+/**
+ * KeyShared mode of KeyShared subscription.
+ */
 public enum KeySharedMode {
 
+    /**
+     * Auto split while new consumer connected.
+     */
     AUTO_SPLIT,
 
+    /**
+     * New consumer with fixed hash range and each hash range is exclusive,
+     * If new consumer use conflict hash range with exits consumers, new consumer
+     * will be rejected.
+     */
     EXCLUSIVE_HASH_RANGE
 }

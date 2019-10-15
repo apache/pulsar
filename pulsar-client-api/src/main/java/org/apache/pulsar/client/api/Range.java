@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+/**
+ * Int range.
+ */
 public class Range {
 
     private final int start;

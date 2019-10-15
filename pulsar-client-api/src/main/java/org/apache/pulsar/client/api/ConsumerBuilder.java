@@ -522,9 +522,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *          .keySharedPolicy(KeySharedPolicy.exclusiveHashRange().hashRangeTotal(10).ranges(Range.of(0, 10)))
      *          .subscribe();
      * </pre>
-     *
      * Or
-     *
      * <pre>
      * client.newConsumer()
      *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().hashRangeTotal(100))
