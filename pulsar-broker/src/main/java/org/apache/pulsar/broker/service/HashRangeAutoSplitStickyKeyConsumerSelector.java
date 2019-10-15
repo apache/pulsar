@@ -53,7 +53,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * Select consumer will return the ceiling key of message key hashcode % range size.
  *
  */
-public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
+public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
 
     public static final int DEFAULT_RANGE_SIZE =  2 << 15;
 
@@ -62,11 +62,11 @@ public class HashRangeStickyKeyConsumerSelector implements StickyKeyConsumerSele
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
     private final Map<Consumer, Integer> consumerRange;
 
-    public HashRangeStickyKeyConsumerSelector() {
+    public HashRangeAutoSplitStickyKeyConsumerSelector() {
         this(DEFAULT_RANGE_SIZE);
     }
 
-    public HashRangeStickyKeyConsumerSelector(int rangeSize) {
+    public HashRangeAutoSplitStickyKeyConsumerSelector(int rangeSize) {
         if (rangeSize < 2) {
             throw new IllegalArgumentException("range size must greater than 2");
         }

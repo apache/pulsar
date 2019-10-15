@@ -54,6 +54,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -209,7 +211,25 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this);
+                    if (consumer.getKeySharedMeta() != null) {
+                        switch (consumer.getKeySharedMeta().getKeySharedMode()) {
+                            case exclusiveHashRange:
+                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                        new HashRangeExclusiveStickyKeyConsumerSelector(consumer.getKeySharedMeta().getTotalHashRange()));
+                                break;
+                            case autoSplit:
+                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector(consumer.getKeySharedMeta().getTotalHashRange()));
+                                break;
+                            default:
+                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
+                                break;
+                        }
+                    } else {
+                        dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                new HashRangeAutoSplitStickyKeyConsumerSelector());
+                    }
                 }
                 break;
             default:

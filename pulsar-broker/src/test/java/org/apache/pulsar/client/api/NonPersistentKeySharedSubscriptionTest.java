@@ -20,7 +20,7 @@ package org.apache.pulsar.client.api;
 
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
@@ -61,7 +61,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
     }
 
     @Test
-    public void testSendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+    public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared";
 
@@ -77,7 +77,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         @Cleanup
         Producer<Integer> producer = createProducer(topic);
 
-        int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+        int consumer1Slot = HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
         int consumer3Slot = consumer2Slot >> 1;
 
@@ -88,7 +88,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         for (int i = 0; i < 10; i++) {
             for (String key : keys) {
                 int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
-                        % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+                        % HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
                 if (slot < consumer3Slot) {
                     consumer3ExpectMessages++;
                 } else if (slot < consumer2Slot) {
@@ -112,7 +112,63 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
     }
 
     @Test
-    public void testConsumerCrashSendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException, InterruptedException {
+    public void testSendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "non-persistent://public/default/key_shared_exclusive";
+
+        final int hashRangeTotal = 9;
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(0, 2)));
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(3, 5)));
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(6, 8)));
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic);
+
+        int consumer1ExpectMessages = 0;
+        int consumer2ExpectMessages = 0;
+        int consumer3ExpectMessages = 0;
+
+        for (int i = 0; i < 10; i++) {
+            for (String key : keys) {
+                int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
+                        % 9;
+                if (slot <= 2) {
+                    consumer1ExpectMessages++;
+                } else if (slot <= 5) {
+                    consumer2ExpectMessages++;
+                } else {
+                    consumer3ExpectMessages++;
+                }
+                producer.newMessage()
+                        .key(key)
+                        .value(i)
+                        .send();
+            }
+        }
+
+        List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
+        checkList.add(new KeyValue<>(consumer1, consumer1ExpectMessages));
+        checkList.add(new KeyValue<>(consumer2, consumer2ExpectMessages));
+        checkList.add(new KeyValue<>(consumer3, consumer3ExpectMessages));
+
+        receiveAndCheck(checkList);
+
+    }
+
+    @Test
+    public void testConsumerCrashSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector() throws PulsarClientException, InterruptedException {
 
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared_consumer_crash";
@@ -129,7 +185,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         @Cleanup
         Producer<Integer> producer = createProducer(topic);
 
-        int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+        int consumer1Slot = HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
         int consumer3Slot = consumer2Slot >> 1;
 
@@ -140,7 +196,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         for (int i = 0; i < 10; i++) {
             for (String key : keys) {
                 int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
-                        % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+                        % HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
                 if (slot < consumer3Slot) {
                     consumer3ExpectMessages++;
                 } else if (slot < consumer2Slot) {
@@ -183,7 +239,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
     }
 
     @Test
-    public void testNonKeySendAndReceiveWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+    public void testNonKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared_none_key";
 
@@ -199,7 +255,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         @Cleanup
         Producer<Integer> producer = createProducer(topic);
 
-        int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+        int consumer1Slot = HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
         int consumer3Slot = consumer2Slot >> 1;
 
@@ -209,7 +265,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
                     .send();
         }
         int slot = Murmur3_32Hash.getInstance().makeHash(PersistentStickyKeyDispatcherMultipleConsumers.NONE_KEY.getBytes())
-                % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+                % HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
         if (slot < consumer3Slot) {
             checkList.add(new KeyValue<>(consumer3, 100));
@@ -222,7 +278,50 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
     }
 
     @Test
-    public void testOrderingKeyWithHashRangeStickyKeyConsumerSelector() throws PulsarClientException {
+    public void testNonKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "non-persistent://public/default/key_shared_exclusive_non_key";
+
+        final int hashRangeTotal = 9;
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(0, 2)));
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(3, 5)));
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(6, 8)));
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic);
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value(i)
+                    .send();
+        }
+        int slot = Murmur3_32Hash.getInstance().makeHash(PersistentStickyKeyDispatcherMultipleConsumers.NONE_KEY.getBytes())
+                % 9;
+        List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
+        if (slot <= 2) {
+            checkList.add(new KeyValue<>(consumer1, 100));
+        } else if (slot <= 5) {
+            checkList.add(new KeyValue<>(consumer2, 100));
+        } else {
+            checkList.add(new KeyValue<>(consumer3, 100));
+        }
+        receiveAndCheck(checkList);
+    }
+
+    @Test
+    public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared_ordering_key";
 
@@ -238,7 +337,7 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         @Cleanup
         Producer<Integer> producer = createProducer(topic);
 
-        int consumer1Slot = HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+        int consumer1Slot = HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
         int consumer2Slot = consumer1Slot >> 1;
         int consumer3Slot = consumer2Slot >> 1;
 
@@ -249,13 +348,69 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         for (int i = 0; i < 10; i++) {
             for (String key : keys) {
                 int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
-                        % HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+                        % HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
                 if (slot < consumer3Slot) {
                     consumer3ExpectMessages++;
                 } else if (slot < consumer2Slot) {
                     consumer2ExpectMessages++;
                 } else {
                     consumer1ExpectMessages++;
+                }
+                producer.newMessage()
+                        .key("any key")
+                        .orderingKey(key.getBytes())
+                        .value(i)
+                        .send();
+            }
+        }
+
+        List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
+        checkList.add(new KeyValue<>(consumer1, consumer1ExpectMessages));
+        checkList.add(new KeyValue<>(consumer2, consumer2ExpectMessages));
+        checkList.add(new KeyValue<>(consumer3, consumer3ExpectMessages));
+
+        receiveAndCheck(checkList);
+    }
+
+    @Test
+    public void testOrderingKeyWithHashRangeExclusiveStickyKeyConsumerSelector() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "non-persistent://public/default/key_shared_exclusive_ordering_key";
+
+        final int hashRangeTotal = 9;
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(0, 2)));
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(3, 5)));
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
+                .hashRangeTotal(hashRangeTotal)
+                .ranges(Range.of(6, 8)));
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic);
+
+        int consumer1ExpectMessages = 0;
+        int consumer2ExpectMessages = 0;
+        int consumer3ExpectMessages = 0;
+
+        for (int i = 0; i < 10; i++) {
+            for (String key : keys) {
+                int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
+                        % 9;
+                if (slot <= 2) {
+                    consumer1ExpectMessages++;
+                } else if (slot <= 5) {
+                    consumer2ExpectMessages++;
+                } else {
+                    consumer3ExpectMessages++;
                 }
                 producer.newMessage()
                         .key("any key")
@@ -293,12 +448,19 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
     }
 
     private Consumer<Integer> createConsumer(String topic) throws PulsarClientException {
-        return pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
+        return createConsumer(topic, null);
+    }
+
+    private Consumer<Integer> createConsumer(String topic, KeySharedPolicy keySharedPolicy) throws PulsarClientException {
+        ConsumerBuilder<Integer> builder = pulsarClient.newConsumer(Schema.INT32);
+        builder.topic(topic)
                 .subscriptionName("key_shared")
                 .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
+                .ackTimeout(3, TimeUnit.SECONDS);
+        if (keySharedPolicy != null) {
+            builder.keySharedPolicy(keySharedPolicy);
+        }
+        return builder.subscribe();
     }
 
     private void receiveAndCheck(List<KeyValue<Consumer<Integer>, Integer>> checkList) throws PulsarClientException {

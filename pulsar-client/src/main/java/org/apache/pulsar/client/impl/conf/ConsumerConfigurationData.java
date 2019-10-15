@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -102,6 +103,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean replicateSubscriptionState = false;
 
     private boolean resetIncludeHead = false;
+
+    private KeySharedPolicy keySharedPolicy;
 
     @JsonIgnore
     public String getSingleTopic() {

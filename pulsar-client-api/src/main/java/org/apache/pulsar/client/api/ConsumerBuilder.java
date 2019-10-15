@@ -473,7 +473,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
 
     /**
-     * Set dead letter policy for consumer
+     * Set dead letter policy for consumer.
      *
      * <p>By default some message will redelivery so many times possible, even to the extent that it can be never stop.
      * By using dead letter mechanism messages will has the max redelivery count, when message exceeding the maximum
@@ -510,4 +510,28 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            whether to auto update partition increasement
      */
     ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
+
+    /**
+     * Set KeyShared subscription policy for consumer.
+     *
+     * <p>By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to
+     * set a different KeyShared policy, you can set by following example:
+     *
+     * <pre>
+     * client.newConsumer()
+     *          .keySharedPolicy(KeySharedPolicy.exclusiveHashRange().hashRangeTotal(10).ranges(Range.of(0, 10)))
+     *          .subscribe();
+     * </pre>
+     *
+     * Or
+     *
+     * <pre>
+     * client.newConsumer()
+     *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().hashRangeTotal(100))
+     *          .subscribe();
+     * </pre>
+     *
+     * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
+     */
+    ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
 }

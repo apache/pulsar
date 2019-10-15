@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
+import static org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector.DEFAULT_RANGE_SIZE;
 import static org.mockito.Mockito.mock;
 
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
@@ -28,12 +28,12 @@ import org.testng.annotations.Test;
 
 import java.util.UUID;
 
-public class HashRangeStickyKeyConsumerSelectorTest {
+public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
     public void testConsumerSelect() throws ConsumerAssignException {
 
-        HashRangeStickyKeyConsumerSelector selector = new HashRangeStickyKeyConsumerSelector();
+        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
         String key1 = "anyKey";
         Assert.assertNull(selector.select(key1.getBytes()));
 
@@ -137,7 +137,7 @@ public class HashRangeStickyKeyConsumerSelectorTest {
 
     @Test(expectedExceptions = ConsumerAssignException.class)
     public void testSplitExceed() throws ConsumerAssignException {
-        StickyKeyConsumerSelector selector = new HashRangeStickyKeyConsumerSelector(16);
+        StickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(16);
         for (int i = 0; i <= 16; i++) {
             selector.addConsumer(mock(Consumer.class));
         }
@@ -145,11 +145,11 @@ public class HashRangeStickyKeyConsumerSelectorTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testRangeSizeLessThan2() {
-        new HashRangeStickyKeyConsumerSelector(1);
+        new HashRangeAutoSplitStickyKeyConsumerSelector(1);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testRangeSizePower2() {
-        new HashRangeStickyKeyConsumerSelector(6);
+        new HashRangeAutoSplitStickyKeyConsumerSelector(6);
     }
 }

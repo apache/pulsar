@@ -16,36 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+public enum KeySharedMode {
 
-public interface StickyKeyConsumerSelector {
+    AUTO_SPLIT,
 
-    /**
-     * Add a new consumer
-     * @param consumer new consumer
-     */
-    void addConsumer(Consumer consumer) throws ConsumerAssignException;
-
-    /**
-     * Remove the consumer
-     * @param consumer consumer to be removed
-     */
-    void removeConsumer(Consumer consumer);
-
-    /**
-     * Select a consumer by sticky key
-     *
-     * @param stickyKey sticky key
-     * @return consumer
-     */
-    Consumer select(byte[] stickyKey);
-
-    /**
-     * Select a consumer by hash of the sticky they
-     * @param keyHash hash of sticky key
-     * @return
-     */
-    Consumer select(int keyHash);
+    EXCLUSIVE_HASH_RANGE
 }
