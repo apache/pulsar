@@ -722,23 +722,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
     }
 
-    /**
-     * Returns whether we have any message that could be immediately replayed.
-     * This could be a message that was requested to be re-delivered or a delayed
-     * delivery.
-     */
-    private boolean hasMessagesToReplay() {
-        if (!messagesToRedeliver.isEmpty()) {
-            return true;
-        }
-
-        if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
-            return true;
-        }
-
-        return false;
-    }
-
     private synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
         if (!messagesToRedeliver.isEmpty()) {
             return messagesToRedeliver.items(maxMessagesToRead,
