@@ -24,6 +24,7 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAG
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -292,13 +293,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             }
 
-            if (hasMessagesToReplay()) {
+            Set<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
+
+            if (!messagesToReplayNow.isEmpty()) {
                 if (havePendingReplayRead) {
                     log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
                     return;
                 }
-
-                Set<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
@@ -742,8 +743,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (!messagesToRedeliver.isEmpty()) {
             return messagesToRedeliver.items(maxMessagesToRead,
                     (ledgerId, entryId) -> new PositionImpl(ledgerId, entryId));
-        } else {
+        } else if (delayedDeliveryTracker.isPresent()) {
             return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
+        } else {
+            return Collections.emptySet();
         }
     }
 
