@@ -269,8 +269,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             // dispatch rate limiter for each subscription
-            subscriptions.forEach((name, subscription) ->
-                subscription.getDispatcher().initializeDispatchRateLimiterIfNeeded(policies));
+            subscriptions.forEach((name, subscription) -> {
+                if (subscription.getDispatcher() != null) {
+                    subscription.getDispatcher().initializeDispatchRateLimiterIfNeeded(policies);
+                }
+            });
 
             // dispatch rate limiter for each replicator
             replicators.forEach((name, replicator) ->
@@ -1673,7 +1676,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
-            if (sub.getDispatcher().getRateLimiter().isPresent()) {
+            if (sub.getDispatcher() != null && sub.getDispatcher().getRateLimiter().isPresent()) {
                 sub.getDispatcher().getRateLimiter().get().onPoliciesUpdate(data);
             }
         });

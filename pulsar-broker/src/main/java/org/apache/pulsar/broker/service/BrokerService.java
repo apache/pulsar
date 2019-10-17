@@ -1372,7 +1372,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             forEachTopic(topic -> {
                 topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
                     Dispatcher dispatcher = persistentSubscription.getDispatcher();
-                    if (dispatcher.getRateLimiter().isPresent()) {
+                    if (dispatcher != null && dispatcher.getRateLimiter().isPresent()) {
                         dispatcher.getRateLimiter().get().updateDispatchRate();
                     }
                 });
