@@ -371,7 +371,6 @@ public class SinksImpl extends ComponentImpl {
                     .setFunctionDetails(functionDetails);
 
             // update auth data if need
-            // update auth data if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
