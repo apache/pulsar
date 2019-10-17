@@ -173,9 +173,6 @@ tlsAllowInsecureConnection: false
 # Tls cert refresh duration in seconds (set 0 to check on every new connection) 
 tlsCertRefreshCheckDurationSec: 300
 
-## The class name of the Function Authentication Provider to use.
-## The Function Authentication Provider is responsible to distributing the necessary authentication information to individual functions e.g. user tokens"
-#FunctionAuthProviderClassName: org.apache.pulsar.functions.auth.ClearTextFunctionTokenAuthProvider
 ########################
 # State Management
 ########################

@@ -506,7 +506,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     "  The Function Authentication Provider is responsible to distributing the necessary" +
                     " authentication information to individual functions e.g. user tokens"
     )
-    private String FunctionAuthProviderClassName;
+    private String functionAuthProviderClassName;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
