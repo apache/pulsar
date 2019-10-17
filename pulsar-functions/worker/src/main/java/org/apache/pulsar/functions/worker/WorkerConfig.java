@@ -547,4 +547,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     public void setProperties(Properties properties) {
         this.properties = properties;
     }
+
+    private String FunctionAuthProviderClassName;
+
 }
