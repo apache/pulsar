@@ -2,7 +2,6 @@ const CWD = process.cwd();
 
 const path = require('path');
 const fs = require('fs');
-const glob = require('glob');
 
 const docsDir = path.join(CWD, '../', 'docs');
 
