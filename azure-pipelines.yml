@@ -27,6 +27,7 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - script: |
+      export MAVEN_OPTS="-Xmx4096m"
       mvn install
 
   - task: PublishTestResults@2
