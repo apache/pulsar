@@ -57,8 +57,8 @@ RUN python3.7 get-pip.py
 
 ADD target/python-client/ /pulsar/pulsar-client
 ADD target/cpp-client/ /pulsar/cpp-client
-RUN /pulsar/bin/install-pulsar-client-27.sh
-RUN /pulsar/bin/install-pulsar-client-37.sh
+#RUN /pulsar/bin/install-pulsar-client-27.sh
+#RUN /pulsar/bin/install-pulsar-client-37.sh
 RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
 RUN apt-get update \
      && apt install -y /pulsar/cpp-client/*.deb \
