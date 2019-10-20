@@ -19,10 +19,9 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.matches;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -243,7 +242,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(mlFactoryMock)
-          .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), anyObject());
+          .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), any());
 
         // call openLedgerFailed on ML factory asyncOpen
         doAnswer(new Answer<Object>() {
@@ -254,7 +253,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(mlFactoryMock)
-          .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), anyObject());
+          .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), any());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer(new Answer<Object>() {
@@ -264,7 +263,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                     .addComplete(new PositionImpl(1, 1), invocationOnMock.getArguments()[2]);
                 return null;
             }
-        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), anyObject());
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
 
         // call openCursorComplete on cursor asyncOpen
         doAnswer(new Answer<Object>() {
@@ -274,7 +273,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(ledgerMock)
-          .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), anyObject());
+          .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -283,7 +282,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
-                                            any(OpenCursorCallback.class), anyObject());
+                                            any(OpenCursorCallback.class), any());
 
         // call deleteLedgerComplete on ledger asyncDelete
         doAnswer(new Answer<Object>() {
@@ -292,7 +291,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 ((DeleteLedgerCallback) invocationOnMock.getArguments()[0]).deleteLedgerComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), anyObject());
+        }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -300,13 +299,13 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
 
         doAnswer((invokactionOnMock) -> {
             ((MarkDeleteCallback) invokactionOnMock.getArguments()[2])
                 .markDeleteComplete(invokactionOnMock.getArguments()[3]);
             return null;
-        }).when(cursorMock).asyncMarkDelete(anyObject(), anyObject(), any(MarkDeleteCallback.class), anyObject());
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(MarkDeleteCallback.class), any());
 
         this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService);
     }
@@ -511,7 +510,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(txnId3, meta3.id());
         assertEquals(TxnStatus.COMMITTED, meta3.status());
 
-        buffer.purgeTxns(Lists.newArrayList(Long.valueOf(22L))).get();
+        buffer.purgeTxns(Lists.newArrayList(22L)).get();
 
         verifyTxnNotExist(txnId2);
 
@@ -525,7 +524,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
         // purge a non exist ledger.
         try {
-            buffer.purgeTxns(Lists.newArrayList(Long.valueOf(1L))).get();
+            buffer.purgeTxns(Lists.newArrayList(1L)).get();
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof NoTxnsCommittedAtLedgerException);
         }
