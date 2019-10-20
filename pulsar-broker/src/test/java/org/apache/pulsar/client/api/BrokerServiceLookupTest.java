@@ -135,7 +135,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testMultipleBrokerLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -211,7 +211,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testMultipleBrokerDifferentClusterLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -296,7 +296,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionTopicLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -371,7 +371,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testWebserviceServiceTls() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
@@ -471,7 +471,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testDiscoveryLookup() throws Exception {
 
         // (1) start discovery service
@@ -518,7 +518,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @SuppressWarnings("deprecation")
-    @Test
+    @Test(timeOut = 10000)
     public void testDiscoveryLookupTls() throws Exception {
 
         final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
@@ -584,7 +584,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDiscoveryLookupAuthAndAuthSuccess() throws Exception {
 
         // (1) start discovery service
@@ -657,7 +657,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDiscoveryLookupAuthenticationFailure() throws Exception {
 
         // (1) start discovery service
@@ -716,7 +716,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDiscoveryLookupAuthorizationFailure() throws Exception {
 
         // (1) start discovery service

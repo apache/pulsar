@@ -125,14 +125,14 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+    @Test(invocationCount = 50)
     public void testOffloadV2() throws Exception {
         String topicName = "persistent://prop-xyz/ns1/topic1";
         String mlName = "prop-xyz/ns1/persistent/topic1";
         testOffload(topicName, mlName);
     }
 
-    @Test
+    @Test(invocationCount = 50)
     public void testOffloadV1() throws Exception {
         String topicName = "persistent://prop-xyz/test/ns1/topic2";
         String mlName = "prop-xyz/test/ns1/persistent/topic2";
