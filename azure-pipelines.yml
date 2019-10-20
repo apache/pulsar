@@ -28,7 +28,7 @@ jobs:
   steps:
   - script: |
       export MAVEN_OPTS="-Xmx4096m"
-      mvn install
+      ./mvnw install
 
   - task: PublishTestResults@2
     inputs:
@@ -42,9 +42,8 @@ jobs:
   steps:
   - script: |
       ./tests/scripts/pre-integ-tests.sh
-      mvn --version
-      mvn -B install -Pdocker -DskipTests
-      mvn -B -f tests/pom.xml test -DintegrationTests
+      ./mvnw -B install -Pdocker -DskipTests
+      ./mvnw -B -f tests/pom.xml test -DintegrationTests
       ./tests/scripts/post-integ-tests.sh
 
   - task: PublishTestResults@2
@@ -58,8 +57,7 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - script: |
-      mvn --version
-      mvn -B clean package -DskipTests
+      ./mvnw -B clean package -DskipTests
       echo "Build C++ client library"
       export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
       pulsar-client-cpp/docker-build.sh

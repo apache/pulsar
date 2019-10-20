@@ -1455,6 +1455,7 @@ flexible messaging model and an intuitive client API.</description>
         </plugin>
       </plugins>
     </pluginManagement>
+    
     <extensions>
       <extension>
         <groupId>org.apache.maven.wagon</groupId>
@@ -1465,6 +1466,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>kr.motd.maven</groupId>
         <artifactId>os-maven-plugin</artifactId>
         <version>1.4.1.Final</version>
+      </extension>
+      <extension>
+        <groupId>org.deflaker</groupId>
+        <artifactId>deflaker-maven-extension</artifactId>
+        <version>1.4</version>
       </extension>
     </extensions>
   </build>
