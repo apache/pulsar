@@ -28,7 +28,7 @@ jobs:
   steps:
   - script: |
       export MAVEN_OPTS="-Xmx4096m"
-      ./mvnw -Ddeflaker.rerunFlakies=1 install
+      ./mvnw -Ddeflaker.rerunFlakies=2 install
 
   - task: PublishTestResults@2
     inputs:
