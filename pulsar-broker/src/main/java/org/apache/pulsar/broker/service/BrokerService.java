@@ -1321,7 +1321,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 newLoadManager.start();
                 pulsar.getLoadManager().set(newLoadManager);
             } catch (Exception ex) {
-                log.warn("Failed to change load manager due to {}", ex);
+                log.warn("Failed to change load manager", ex);
             }
         });
         // add listener to update message-dispatch-rate in msg for topic

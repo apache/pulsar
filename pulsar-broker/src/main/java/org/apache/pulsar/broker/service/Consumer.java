@@ -328,7 +328,7 @@ public class Consumer {
 
         if (ack.getAckType() == AckType.Cumulative) {
             if (ack.getMessageIdCount() != 1) {
-                log.warn("[{}] [{}] Received multi-message ack at {} - Reason: {}", subscription, consumerId);
+                log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
                 return;
             }
 
@@ -541,7 +541,7 @@ public class Consumer {
 
     public void redeliverUnacknowledgedMessages() {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
-        clearUnAckedMsgs(this);
+        clearUnAckedMsgs();
         blockedConsumerOnUnackedMsgs = false;
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received redelivery", topicName, subscription, consumerId);
@@ -610,7 +610,7 @@ public class Consumer {
         return UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
     }
 
-    private void clearUnAckedMsgs(Consumer consumer) {
+    private void clearUnAckedMsgs() {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
     }
