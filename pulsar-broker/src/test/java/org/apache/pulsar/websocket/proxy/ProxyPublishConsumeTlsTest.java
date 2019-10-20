@@ -75,7 +75,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         config.setConfigurationStoreServers("dummy-zk-servers");
         config.setBrokerClientAuthenticationParameters("tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT_TLS).toString();
+        config.setNumHttpServerThreads(6);
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);
