@@ -8,3 +8,13 @@ contains:
 
  * META-INF/DEPEDENCIES file with licensing information for all transitive
    dependencies
+
+The  offloaders  are avaliable for the below system  with the permission readable and writeable by the owner of the file and readable by users in the group owner of that file and readable by everyone else  
+
+```
+
+*  Clouds support to offload it to Amazon S3 or Google Cloud Storage  
+
+*  Normal File System  
+
+```
