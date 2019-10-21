@@ -101,20 +101,20 @@ import org.testng.annotations.Test;
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 10000, alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(timeOut = 10000, alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test
+    @Test(timeOut = 3000)
     public void testPublishTimestampBatchDisabled() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -180,7 +180,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 3000)
     public void testPublishTimestampBatchEnabled() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -253,7 +253,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         return new Object[][] { { 0 }, { 1000 } };
     }
 
-    @Test(dataProvider = "batch")
+    @Test(dataProvider = "batch", timeOut = 3000)
     public void testSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -290,7 +290,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(dataProvider = "batch", timeOut = 3000)
     public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic2")
@@ -337,7 +337,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch", timeOut = 100000)
+    @Test(dataProvider = "batch", timeOut = 10000)
     public void testMessageListener(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -382,7 +382,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 100000)
+    @Test(timeOut = 10000)
     public void testPauseAndResume() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -428,7 +428,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(dataProvider = "batch", timeOut = 10000)
     public void testBackoffAndReconnect(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         // Create consumer and producer
@@ -481,7 +481,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    @Test(dataProvider = "batch", timeOut = 10000)
     public void testSendTimeout(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -519,7 +519,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -582,7 +582,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSillyUser() {
         try {
             PulsarClient.builder().serviceUrl("invalid://url").build();
@@ -660,7 +660,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     // This is to test that the flow control counter doesn't get corrupted while concurrent receives during
     // reconnections
-    @Test(dataProvider = "batch")
+    @Test(dataProvider = "batch", timeOut = 10000)
     public void testConcurrentConsumerReceiveWhileReconnect(int batchMessageDelayMs) throws Exception {
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
@@ -757,7 +757,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSendBigMessageSize() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -791,7 +791,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testSendBigMessageSizeButCompressed() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -870,7 +870,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testActiveAndInActiveConsumerEntryCacheBehavior() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -967,7 +967,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDeactivatingBacklogConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1120,7 +1120,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testSendCallBack() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1249,7 +1249,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testConsumerBlockingWithUnAckedMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1328,7 +1328,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testConsumerBlockingWithUnAckedMessagesMultipleIteration() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1403,7 +1403,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * @param batchMessageDelayMs
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testMutlipleSharedConsumerBlockingWithUnAckedMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1500,7 +1500,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testShouldNotBlockConsumerIfRedeliverBeforeReceive() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1558,7 +1558,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testUnackBlockRedeliverMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1625,7 +1625,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batch")
+    @Test(dataProvider = "batch", timeOut = 10000)
     public void testUnackedBlockAtBatch(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1720,7 +1720,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * @param batchMessageDelayMs
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testBlockUnackConsumerAckByDifferentConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1808,7 +1808,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testEnabledChecksumClient() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1853,7 +1853,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testBlockUnackedConsumerRedeliverySpecificMessagesProduceWithPause() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1935,7 +1935,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testBlockUnackedConsumerRedeliverySpecificMessagesCloseConsumerWhileProduce() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2015,7 +2015,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testPriorityConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
@@ -2223,7 +2223,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testRedeliveryFailOverConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2410,7 +2410,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test(groups = "encryption", timeOut = 10000)
     public void testRSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2489,7 +2489,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test(groups = "encryption", timeOut = 20000)
     public void testRedeliveryOfFailedMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2626,7 +2626,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test(groups = "encryption", timeOut = 20000)
     public void testEncryptionFailure() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2753,7 +2753,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test(groups = "encryption", timeOut = 10000)
     public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2876,7 +2876,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         return new String(data);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testConsumerSubscriptionInitialize() throws Exception {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/my-ns/test-subscription-initialize-topic";
@@ -2919,7 +2919,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFlushBatchEnabled() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2956,7 +2956,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testFlushBatchDisabled() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2993,7 +2993,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     // Issue 1452: https://github.com/apache/pulsar/issues/1452
     // reachedEndOfTopic should be called only once if a topic has been terminated before subscription
-    @Test
+    @Test(timeOut = 10000)
     public void testReachedEndOfTopic() throws Exception
     {
         String topicName = "persistent://my-property/my-ns/testReachedEndOfTopic";
@@ -3044,7 +3044,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testFailOverConsumerPriority() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -3130,7 +3130,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testPartitionedTopicWithOnePartition() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

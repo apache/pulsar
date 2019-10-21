@@ -27,8 +27,9 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - script: |
+      export JAVA_OPTS="-Xmx409m"
       export MAVEN_OPTS="-Xmx4096m"
-      ./mvnw -Ddeflaker.rerunFlakies=2 install
+      ./mvnw -DredirectTestOutputToFile=false -Ddeflaker.rerunFlakies=2 install
 
   - task: PublishTestResults@2
     inputs:
