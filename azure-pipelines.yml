@@ -27,7 +27,7 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - script: |
-      export JAVA_OPTS="-Xmx409m"
+      export JAVA_OPTS="-Xmx4096m"
       export MAVEN_OPTS="-Xmx4096m"
       ./mvnw -DredirectTestOutputToFile=false -Ddeflaker.rerunFlakies=2 install
 
@@ -42,6 +42,8 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - script: |
+      export JAVA_OPTS="-Xmx4096m"
+      export MAVEN_OPTS="-Xmx4096m"
       ./tests/scripts/pre-integ-tests.sh
       ./mvnw -B install -Pdocker -DskipTests
       ./mvnw -B -f tests/pom.xml test -DintegrationTests
@@ -58,6 +60,8 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - script: |
+      export JAVA_OPTS="-Xmx4096m"
+      export MAVEN_OPTS="-Xmx4096m"
       ./mvnw -B clean package -DskipTests
       echo "Build C++ client library"
       export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
