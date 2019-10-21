@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
@@ -114,7 +115,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 "Passed in topicNames should not be null or empty.");
         Arrays.stream(topicNames).forEach(topicName ->
                 checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(Lists.newArrayList(topicNames));
+        conf.getTopicNames().addAll(Lists.newArrayList(Arrays.stream(topicNames).map(StringUtils::trim)
+                .collect(Collectors.toList())));
         return this;
     }
 
@@ -124,7 +126,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 "Passed in topicNames list should not be null or empty.");
         topicNames.stream().forEach(topicName ->
                 checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(topicNames);
+        conf.getTopicNames().addAll(topicNames.stream().map(StringUtils::trim).collect(Collectors.toList()));
         return this;
     }
 

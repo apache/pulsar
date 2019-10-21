@@ -23,6 +23,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Response defining if a schema is compatible with existing topic's schema.
+ */
 @Data
 @Builder
 @AllArgsConstructor

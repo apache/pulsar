@@ -20,6 +20,9 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.base.Objects;
 
+/**
+ * Description of a BookKeeper's affinity group.
+ */
 public class BookieAffinityGroupData {
 
     public String bookkeeperAffinityGroupPrimary;

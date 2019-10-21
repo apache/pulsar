@@ -156,6 +156,26 @@
         </execution>
       </executions>
     </plugin>
+
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-checkstyle-plugin</artifactId>
+      <executions>
+        <execution>
+          <id>check-style</id>
+          <phase>verify</phase>
+          <configuration>
+            <configLocation>../buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+            <suppressionsLocation>../buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+            <encoding>UTF-8</encoding>
+            <excludes>**/proto/*</excludes>
+          </configuration>
+          <goals>
+            <goal>check</goal>
+          </goals>
+        </execution>
+      </executions>
+    </plugin>
   </plugins>
   </build>
 </project>

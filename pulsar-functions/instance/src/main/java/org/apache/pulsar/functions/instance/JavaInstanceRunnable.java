@@ -186,9 +186,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start the function thread
         functionClassLoader = loadJars();
 
-        Object object = Reflections.createInstance(
-                instanceConfig.getFunctionDetails().getClassName(),
-                functionClassLoader);
+        Object object;
+        if (instanceConfig.getFunctionDetails().getClassName().equals(org.apache.pulsar.functions.windowing.WindowFunctionExecutor.class.getName())) {
+            object = Reflections.createInstance(
+                    instanceConfig.getFunctionDetails().getClassName(),
+                    instanceClassLoader);
+        } else {
+            object = Reflections.createInstance(
+                    instanceConfig.getFunctionDetails().getClassName(),
+                    functionClassLoader);
+        }
+
 
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");

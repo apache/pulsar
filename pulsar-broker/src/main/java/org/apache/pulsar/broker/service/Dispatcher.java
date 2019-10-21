@@ -53,12 +53,16 @@ public interface Dispatcher {
      */
     CompletableFuture<Void> close();
 
+    boolean isClosed();
+
     /**
      * disconnect all consumers
      *
      * @return
      */
     CompletableFuture<Void> disconnectAllConsumers();
+
+    void resetCloseFuture();
 
     /**
      * mark dispatcher open to serve new incoming requests
@@ -93,5 +97,9 @@ public interface Dispatcher {
 
     default long getNumberOfDelayedMessages() {
         return 0;
+    }
+
+    default void cursorIsReset() {
+        //No-op
     }
 }

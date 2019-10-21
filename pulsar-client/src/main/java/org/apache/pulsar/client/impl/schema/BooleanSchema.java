@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -26,7 +26,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for `Boolean`.
  */
-public class BooleanSchema implements Schema<Boolean> {
+public class BooleanSchema extends AbstractSchema<Boolean> {
 
     public static BooleanSchema of() {
         return INSTANCE;
@@ -61,6 +61,14 @@ public class BooleanSchema implements Schema<Boolean> {
         }
         validate(bytes);
         return bytes[0] != 0;
+    }
+
+    @Override
+    public Boolean decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        return byteBuf.getBoolean(0);
     }
 
     @Override

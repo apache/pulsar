@@ -118,7 +118,7 @@ public class PulsarFunctionE2ETest {
     BrokerStats brokerStatsClient;
     WorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
-    String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
+    String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
     String workerId;
 
@@ -194,6 +194,7 @@ public class PulsarFunctionE2ETest {
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         config.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         config.setBrokerClientTlsEnabled(true);
+        config.setAllowAutoTopicCreationType("non-partitioned");
 
 
 

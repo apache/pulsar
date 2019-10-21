@@ -17,12 +17,14 @@ module.exports = [
     {
         name: 'Verizon Media',
         url: 'https://www.verizonmedia.com/',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Verizon_Media_2019_logo.svg/1200px-Verizon_Media_2019_logo.svg.png'
+        logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Verizon_Media_2019_logo.svg/1200px-Verizon_Media_2019_logo.svg.png',
+        featured: 1
     },
     {
         name: 'Yahoo! JAPAN',
         url: 'https://www.yahoo.co.jp/',
-        logo: 'https://s.yimg.jp/images/top/sp2/cmn/logo-170307.png'
+        logo: 'https://s.yimg.jp/images/top/sp2/cmn/logo-170307.png',
+        featured: 2
     },
     {
         name: 'Zhaopin',
@@ -47,12 +49,18 @@ module.exports = [
     {
         name: 'Nutanix',
         url: 'https://www.nutanix.com/',
-        logo: 'https://www.zuora.com/wp-content/uploads/2017/05/nutanix.png'
+        logo: 'https://www.zuora.com/wp-content/uploads/2017/05/nutanix.png',
+        featured: 4
     },
     {
         name: 'The Hut Group',
         url: 'https://www.thg.com',
         logo: 'https://s3-eu-west-1.amazonaws.com/thehutgroup-uploads-test/app/uploads/2016/10/THG.jpg'
+    },
+    {
+        name: 'Turtlequeue',
+        url: 'https://turtlequeue.com',
+        logo: 'https://turtlequeue.com/logo_black.png'
     },
     {
         name: 'ProxyClick',
@@ -87,7 +95,8 @@ module.exports = [
     {
         name: 'Tencent',
         url: 'https://www.tencent.com',
-        logo: 'http://pluspng.com/img-png/tencent-png-tencent-logo-logotype-emblem-2-7537.png'
+        logo: 'http://pluspng.com/img-png/tencent-png-tencent-logo-logotype-emblem-2-7537.png',
+        featured: 3
     },
     {
         name: 'Comcast',
@@ -182,4 +191,40 @@ module.exports = [
         url: 'https://shihong.net.cn',
         logo: 'https://shihong.net.cn/website/static/src/img/shihong1.png'
     },
+    {
+        name: 'CleverCloud',
+        url: 'https://www.clever-cloud.com/en/',
+        logo: 'https://www.clever-cloud.com/images/brand-assets/logos/v2/logo_on_white.svg'
+    },
+    {
+        name: 'OVHcloud',
+        url: 'https://www.ovhcloud.com/',
+        logo: 'https://eu.ovhcloud.com/themes/contrib/ovh_theme_base/logo.svg'
+    },
+    {
+        name: 'BrandsEye',
+        url: 'https://www.brandseye.com/',
+        logo: 'https://www.brandseye.com/theme-images/brandseye-logo-v2.png'
+    },
+    {
+        name: 'Max Kelsen',
+        url: 'https://maxkelsen.com/',
+        logo: 'https://maxkelsen.com/imgs/logo/Max-Kelsen-logo-black.png'
+    },
+    {
+        name: 'HSL Developer Community of Helsinki Regional Transport Authority',
+        url: 'https://dev.hsl.fi/',
+        logo: 'https://dev.hsl.fi/logo.png',
+        logo_white: true
+    },
+    {
+        name: 'Ottoo',
+        url: 'https://ottoo.com',
+        logo: 'https://ottoo.com/assets/images/ottoo-logo.svg'
+    },
+    {
+        name: 'MercadoLibre',
+        url: 'https://www.mercadolibre.com/',
+        logo: 'https://d1.awsstatic.com/case-studies/LATAM/mercadolibre.1d9d3766bb06e60948f1c5ce8851ce0eac63b349.png'
+    }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

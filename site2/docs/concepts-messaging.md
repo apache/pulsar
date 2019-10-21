@@ -14,7 +14,7 @@ Messages are the basic "unit" of Pulsar. They're what producers publish to topic
 
 Component | Purpose
 :---------|:-------
-Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](concepts-schema-registry.md)
+Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](schema-get-started.md)
 Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](concepts-topic-compaction.md)
 Properties | An optional key/value map of user-defined properties
 Producer name | The name of the producer that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
@@ -334,7 +334,7 @@ By default, non-persistent topics are enabled on Pulsar brokers. You can disable
 
 ### Performance
 
-Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is deliver to all connected subscribers. Producers thus see comparatively low publish latency with non-persistent topic.
+Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is delivered to connected brokers. Producers thus see comparatively low publish latency with non-persistent topic.
 
 ### Client API
 

@@ -23,6 +23,10 @@ import java.net.URLStreamHandlerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * This class defines a factory for {@code URL} stream
+ * protocol handlers.
+ */
 public class PulsarURLStreamHandlerFactory implements URLStreamHandlerFactory {
     private static final Map<String, Class<? extends URLStreamHandler>> handlers;
     static {

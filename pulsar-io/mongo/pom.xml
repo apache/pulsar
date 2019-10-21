@@ -33,7 +33,7 @@
   <name>Pulsar IO :: MongoDB</name>
 
   <properties>
-    <mongo-driver.version>3.8.2</mongo-driver.version>
+    <mongo-reactivestreams.version>1.12.0</mongo-reactivestreams.version>
   </properties>
 
   <dependencies>
@@ -44,8 +44,8 @@
     </dependency>
     <dependency>
       <groupId>org.mongodb</groupId>
-      <artifactId>mongodb-driver-async</artifactId>
-      <version>${mongo-driver.version}</version>
+      <artifactId>mongodb-driver-reactivestreams</artifactId>
+      <version>${mongo-reactivestreams.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>

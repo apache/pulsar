@@ -187,7 +187,7 @@ public class PulsarBrokerStarter {
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
-                workerConfig.setUseTls(brokerConfig.isTlsEnabled());
+                workerConfig.setUseTls(useTls);
                 workerConfig.setTlsHostnameVerificationEnable(false);
 
                 workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());

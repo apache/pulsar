@@ -25,6 +25,9 @@ import io.swagger.annotations.ApiModelProperty;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * The data of a failure domain configuration in a cluster.
+ */
 @ApiModel(
     value = "FailureDomain",
     description = "The data of a failure domain configuration in a cluster"

@@ -263,10 +263,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
             @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
             int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions);
+        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly);
     }
 
     @GET
@@ -288,9 +289,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Is check configuration required to automatically create topic")
+            @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetPartitionedMetadata(authoritative);
+        return internalGetPartitionedMetadata(authoritative, checkAllowAutoCreation);
     }
 
     @DELETE

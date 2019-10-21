@@ -117,7 +117,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> topic(String topicName) {
         checkArgument(StringUtils.isNotBlank(topicName), "topicName cannot be blank");
-        conf.setTopicName(topicName);
+        conf.setTopicName(StringUtils.trim(topicName));
         return this;
     }
 

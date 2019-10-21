@@ -52,6 +52,7 @@ import io.kubernetes.client.models.V1StatefulSetSpec;
 import io.kubernetes.client.models.V1Toleration;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -1015,14 +1016,26 @@ public class KubernetesRuntime implements Runtime {
         return ports;
     }
 
-    private static String createJobName(Function.FunctionDetails functionDetails) {
+    public static String createJobName(Function.FunctionDetails functionDetails) {
         return createJobName(functionDetails.getTenant(),
                 functionDetails.getNamespace(),
                 functionDetails.getName());
     }
 
+    private static String toValidPodName(String ori) {
+        return ori.toLowerCase().replaceAll("[^a-z0-9-\\.]", "-");
+    }
+
     private static String createJobName(String tenant, String namespace, String functionName) {
-        return "pf-" + tenant + "-" + namespace + "-" + functionName;
+        final String jobNameContent = String.format("%s-%s-%s", tenant, namespace,functionName);
+        final String jobName = "pf-" + jobNameContent;
+        final String convertedJobName = toValidPodName(jobName);
+        if (jobName.equals(convertedJobName)) {
+            return jobName;
+        }
+        // toValidPodName may cause naming collisions, add a short hash here to avoid it
+        final String shortHash = DigestUtils.sha1Hex(jobNameContent).toLowerCase().substring(0, 8);
+        return convertedJobName + "-" + shortHash;
     }
 
     private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {

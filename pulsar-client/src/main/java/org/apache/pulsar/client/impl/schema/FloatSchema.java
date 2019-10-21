@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -26,7 +26,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for `Float`.
  */
-public class FloatSchema implements Schema<Float> {
+public class FloatSchema extends AbstractSchema<Float> {
 
     public static FloatSchema of() {
         return INSTANCE;
@@ -41,6 +41,13 @@ public class FloatSchema implements Schema<Float> {
     @Override
     public void validate(byte[] message) {
         if (message.length != 4) {
+            throw new SchemaSerializationException("Size of data received by FloatSchema is not 4");
+        }
+    }
+
+    @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 4) {
             throw new SchemaSerializationException("Size of data received by FloatSchema is not 4");
         }
     }
@@ -71,6 +78,21 @@ public class FloatSchema implements Schema<Float> {
             value <<= 8;
             value |= b & 0xFF;
         }
+        return Float.intBitsToFloat(value);
+    }
+
+    @Override
+    public Float decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        int value = 0;
+        for (int i = 0; i < 4; i++) {
+            value <<= 8;
+            value |= byteBuf.getByte(i) & 0xFF;
+        }
+
         return Float.intBitsToFloat(value);
     }
 
