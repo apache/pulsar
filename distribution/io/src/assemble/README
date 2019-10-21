@@ -8,3 +8,42 @@ contains:
 
  * META-INF/DEPEDENCIES file with licensing information for all transitive
    dependencies
+   
+
+The  source/sink connectors are avaliable for below external interfaces   
+
+```
+
+*  cassandra DB 
+
+*  twitter  
+
+*  kafka 
+
+*  kinesis 
+
+*  rabbitmq 
+
+*  aerospike 
+
+*  elastic-search
+
+*  hbase
+
+*  Hadoop/hdfs 2 and 3 versions 
+
+*  File IO 
+
+*  influxdb
+
+*  flume 
+
+*  Redis 
+
+*  Solr 
+
+*  Mysql
+
+*  Postgres SQL   
+
+```
