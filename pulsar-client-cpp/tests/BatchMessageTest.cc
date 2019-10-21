@@ -51,10 +51,9 @@ static void messageListenerFunction(Consumer consumer, const Message& msg) {
     consumer.acknowledge(msg);
 }
 
-static void sendCallBack(Result r, const Message& msg) {
+static void sendCallBack(Result r, const MessageId& msgId) {
     ASSERT_EQ(r, ResultOk);
     globalTestBatchMessagesCounter++;
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
 }
 
 static void sendFailCallBack(Result r, Result expect_result) { EXPECT_EQ(r, expect_result); }
@@ -62,8 +61,7 @@ static void sendFailCallBack(Result r, Result expect_result) { EXPECT_EQ(r, expe
 static int globalPublishCountSuccess = 0;
 static int globalPublishCountQueueFull = 0;
 
-static void sendCallBackExpectingErrors(Result r, const Message& msg) {
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString() << ", Result = " << r);
+static void sendCallBackExpectingErrors(Result r, const MessageId& msgId) {
     if (r == ResultProducerQueueIsFull) {
         globalPublishCountQueueFull++;
     } else if (r == ResultOk) {
@@ -140,10 +138,10 @@ TEST(BatchMessageTest, testProducerTimeout) {
         /* Start the timer */
         start = time(NULL);
         LOG_DEBUG("start = " << start);
-        Promise<Result, Message> promise;
-        producer.sendAsync(msg, WaitForCallbackValue<Message>(promise));
-        Message m;
-        promise.getFuture().get(m);
+        Promise<Result, MessageId> promise;
+        producer.sendAsync(msg, WaitForCallbackValue<MessageId>(promise));
+        MessageId mi;
+        promise.getFuture().get(mi);
         /* End the timer */
         end = time(NULL);
         LOG_DEBUG("end = " << end);
