@@ -22,6 +22,7 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
@@ -82,6 +83,15 @@ public class PulsarJsonTableSinkTest {
         sink.emitDataStream(mockedDataStream);
 
         Mockito.verify(mockedDataStream).addSink(Mockito.any(FlinkPulsarProducer.class));
+    }
+
+    @Test
+    public void testConsumeDataStream() throws Exception {
+        DataStream mockedDataStream = Mockito.mock(DataStream.class);
+        PulsarJsonTableSink sink = spySink();
+        DataStreamSink<Row> newSink = sink.consumeDataStream(mockedDataStream);
+        Mockito.verify(mockedDataStream).addSink(Mockito.any(FlinkPulsarProducer.class));
+        Assert.assertNotNull(newSink);
     }
 
     private PulsarJsonTableSink spySink() throws Exception {
