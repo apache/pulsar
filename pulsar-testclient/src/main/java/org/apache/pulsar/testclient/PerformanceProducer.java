@@ -156,6 +156,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
+        
+        @Parameter(names = { "-bn",
+                "--batch-msgs" }, description = "Batch messages")
+        public int batchMsgs = 100;
 
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
@@ -406,6 +410,7 @@ public class PerformanceProducer {
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
                 producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS)
+                .batchingMaxMessages(arguments.batchMsgs)
                         .enableBatching(true);
             }
 
@@ -497,7 +502,7 @@ public class PerformanceProducer {
                         }
                     }).exceptionally(ex -> {
                         log.warn("Write error on message", ex);
-                        System.exit(-1);
+                        //System.exit(-1);
                         return null;
                     });
                 }

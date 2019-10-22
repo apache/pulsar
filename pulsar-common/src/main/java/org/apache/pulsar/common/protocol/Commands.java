@@ -1451,6 +1451,9 @@ public class Commands {
         return builder.getSequenceId();
     }
 
+    static int count = 0;
+    static int total = 0;
+    public static boolean fail = true;
     public static ByteBuf serializeSingleMessageInBatchWithPayload(
             SingleMessageMetadata.Builder singleMessageMetadataBuilder,
             ByteBuf payload, ByteBuf batchBuffer) {
@@ -1467,6 +1470,10 @@ public class Commands {
             outStream.recycle();
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+        if (count++ % 2 == 0 && fail || (total++ < 3)) {
+            batchBuffer.writeBytes(payload);
+            throw new IllegalArgumentException("OOM");
         }
         return batchBuffer.writeBytes(payload);
     }
