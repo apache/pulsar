@@ -299,7 +299,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic2");
 
-        batchMessageDelayMs = 1000;
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true);
             producerBuilder.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
@@ -316,10 +315,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         log.info("Waiting for async publish to complete");
-        int count =0;
         for (Future<MessageId> future : futures) {
             future.get();
-            log.info("completed future {}",count++);
         }
 
         Message<byte[]> msg = null;

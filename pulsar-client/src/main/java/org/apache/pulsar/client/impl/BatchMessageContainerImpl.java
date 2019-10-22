@@ -78,59 +78,37 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
         previousCallback = callback;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
-        log.info("[{}] adding mgessage with capacity {}",messages.size(), msg.getDataBuffer().capacity());//TODO: remove first
         messages.add(msg);
     }
 
     private ByteBuf getCompressedBatchMetadataAndPayload() {
         batchedMessageMetadataAndPayload.markWriterIndex();
         batchedMessageMetadataAndPayload.markReaderIndex();
-        int lastFailedMessageIndex = 0;
-        log.info("trying to send messages {}", messages.size());
-        //TODO:debug: remove immediately
-        for(int i =0;i<messages.size();i++) {
-            log.info("debug: {} capcity {}",i,messages.get(i).getDataBuffer().capacity());
-        }
+        int lastSerializedMessageIndex = 0;
         
         for(MessageImpl<?> msg : messages) {
             PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
-            long msgRead = msg.getDataBuffer().readerIndex();
-            long msgWrite = msg.getDataBuffer().writerIndex();
-            long bufferRead = batchedMessageMetadataAndPayload.readerIndex();
-            long bufferWrite = batchedMessageMetadataAndPayload.writerIndex();
-            
             msg.getDataBuffer().markReaderIndex();
-            msg.getDataBuffer().markWriterIndex();
             try {
-                log.info("trying to serialize index for {}, reader = {}, writer = {}, capacity = {}", lastFailedMessageIndex,
-                        msg.getDataBuffer().readerIndex(), msg.getDataBuffer().writerIndex(), msg.getDataBuffer().capacity());
                 batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
                         msg.getDataBuffer(), batchedMessageMetadataAndPayload);
             } catch (Throwable th) {
                 // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
-                // next iteration can doesn't send corrupt message to broker.
-                log.info("Failed for index {}",lastFailedMessageIndex);
-                log.info("EX-MSG: Before read= {}, write={}, After read={}, write={}", msgRead, msgWrite, msg.getDataBuffer().readerIndex(), msg.getDataBuffer().writerIndex());
-                log.info("EX-batch: Before read= {}, write={}, After read={}, write={}", bufferRead, bufferWrite, batchedMessageMetadataAndPayload.readerIndex(), batchedMessageMetadataAndPayload.writerIndex());
-                for (int j = 0; j <= lastFailedMessageIndex; j++) {
+                // next iteration doesn't send corrupt message to broker.
+                for (int j = 0; j <= lastSerializedMessageIndex; j++) {
                     MessageImpl<?> previousMsg = messages.get(j);
-                    log.info("reseting index for {}, reader = {}, writer = {}",j,previousMsg.getDataBuffer().readerIndex(),previousMsg.getDataBuffer().writerIndex());
                     previousMsg.getDataBuffer().resetReaderIndex();
                 }
                 batchedMessageMetadataAndPayload.resetWriterIndex();
                 batchedMessageMetadataAndPayload.resetReaderIndex();
-                Commands.fail = false;
                 throw new RuntimeException(th);
             }
-            lastFailedMessageIndex++;
-            log.info("SUCC-MSG: Before read= {}, write={}, After read={}, write={}", msgRead, msgWrite, msg.getDataBuffer().readerIndex(), msg.getDataBuffer().writerIndex());
-            log.info("SUCC-batch: Before read= {}, write={}, After read={}, write={}", bufferRead, bufferWrite, batchedMessageMetadataAndPayload.readerIndex(), batchedMessageMetadataAndPayload.writerIndex());
-        
+            lastSerializedMessageIndex++;
         }
+        // Recycle messages only once they serialized successfully in batch 
         for (MessageImpl<?> msg : messages) {
             msg.getMessageBuilder().recycle();
         }
-        log.info("Successfully completed batch message");
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
         batchedMessageMetadataAndPayload.release();

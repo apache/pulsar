@@ -247,7 +247,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     if (e != null) {
                         stats.incrementSendFailed();
                         onSendAcknowledgement(interceptorMessage, null, e);
-                        log.error("Failing message ",e); //TODO: remove
                         future.completeExceptionally(e);
                     } else {
                         onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
@@ -373,7 +372,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         payload.release();
                         if (batchMessageContainer.getNumMessagesInBatch() == maxNumMessagesInBatch
                                 || batchMessageContainer.getCurrentBatchSize() >= BatchMessageContainerImpl.MAX_MESSAGE_BATCH_SIZE_BYTES) {
-                            batchMessageAndSendSafe();
+                            batchMessageAndSend();
                         }
                     } else {
                         doBatchSendAndAdd(msg, callback, payload);
@@ -424,7 +423,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             semaphore.release();
             callback.sendComplete(e);
         } catch (Throwable t) {
-            log.error("Failed to publish async msg"); //TODO: remove
             semaphore.release();
             callback.sendComplete(new PulsarClientException(t));
         }
@@ -465,19 +463,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
     }
 
-    private void doBatchSendAndAdd(MessageImpl<T> msg, SendCallback callback, ByteBuf payload) throws IOException {
+    private void doBatchSendAndAdd(MessageImpl<T> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
                     msg.getDataBuffer().readableBytes());
         }
-        try {
-            //batchMessageAndSend();
-            batchMessageAndSendSafe();
-            batchMessageContainer.add(msg, callback);
-            lastSendFuture = callback.getFuture();
-        } finally {
-            payload.release();
-        }
+        batchMessageAndSend();
+        batchMessageContainer.add(msg, callback);
+        lastSendFuture = callback.getFuture();
+        payload.release();
     }
 
     private boolean isValidProducerState(SendCallback callback) {
@@ -1256,7 +1250,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     return;
                 }
 
-                batchMessageAndSendSafe();
+                batchMessageAndSend();
                 // schedule the next batch message task
                 batchMessageAndSendTimeout = client.timer()
                     .newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
@@ -1269,7 +1263,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         CompletableFuture<MessageId> lastSendFuture;
         synchronized (ProducerImpl.this) {
             if (isBatchMessagingEnabled()) {
-                batchMessageAndSendSafe();
+                batchMessageAndSend();
             }
             lastSendFuture = this.lastSendFuture;
         }
@@ -1280,40 +1274,36 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected void triggerFlush() {
         if (isBatchMessagingEnabled()) {
             synchronized (ProducerImpl.this) {
-                batchMessageAndSendSafe();
+                batchMessageAndSend();
             }
         }
     }
 
     // must acquire semaphore before enqueuing
-    private void batchMessageAndSendSafe() {
-        try {
-            batchMessageAndSend();
-        } catch (PulsarClientException e) {
-            Thread.currentThread().interrupt();
-            semaphore.release(batchMessageContainer.getNumMessagesInBatch());
-        } catch (Throwable t) {
-            semaphore.release(batchMessageContainer.getNumMessagesInBatch());
-            log.warn("[{}] [{}] error while create opSendMsg by batch message container --", topic, producerName, t);
-        }
-    }
-
-    private void batchMessageAndSend() throws IOException {
+    private void batchMessageAndSend() {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
-                batchMessageContainer.getNumMessagesInBatch());
+                    batchMessageContainer.getNumMessagesInBatch());
         }
         if (!batchMessageContainer.isEmpty()) {
-            if (batchMessageContainer.isMultiBatches()) {
-                List<OpSendMsg> opSendMsgs = batchMessageContainer.createOpSendMsgs();
-                for (OpSendMsg opSendMsg : opSendMsgs) {
-                    processOpSendMsg(opSendMsg);
+            try {
+                if (batchMessageContainer.isMultiBatches()) {
+                    List<OpSendMsg> opSendMsgs = batchMessageContainer.createOpSendMsgs();
+                    for (OpSendMsg opSendMsg : opSendMsgs) {
+                        processOpSendMsg(opSendMsg);
+                    }
+                } else {
+                    OpSendMsg opSendMsg = batchMessageContainer.createOpSendMsg();
+                    if (opSendMsg != null) {
+                        processOpSendMsg(opSendMsg);
+                    }
                 }
-            } else {
-                OpSendMsg opSendMsg = batchMessageContainer.createOpSendMsg();
-                if (opSendMsg != null) {
-                    processOpSendMsg(opSendMsg);
-                }
+            } catch (PulsarClientException e) {
+                Thread.currentThread().interrupt();
+                semaphore.release(batchMessageContainer.getNumMessagesInBatch());
+            } catch (Throwable t) {
+                semaphore.release(batchMessageContainer.getNumMessagesInBatch());
+                log.warn("[{}] [{}] error while create opSendMsg by batch message container -- {}", topic, producerName, t);
             }
         }
     }
