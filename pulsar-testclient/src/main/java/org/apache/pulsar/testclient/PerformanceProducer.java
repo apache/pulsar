@@ -156,6 +156,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
+        
+        @Parameter(names = { "-bn",
+                "--batch-max-msgs" }, description = "Number of max messages in batch. (Default: 0 (disable))")
+        public int batchMaxMsgs = 0;
 
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
@@ -401,12 +405,14 @@ public class PerformanceProducer {
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-            if (arguments.batchTimeMillis == 0.0) {
+            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMsgs == 0) {
                 producerBuilder.enableBatching(false);
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
-                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS)
-                        .enableBatching(true);
+                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS).enableBatching(true);
+            }
+            if (arguments.batchMaxMsgs > 0) {
+                producerBuilder.batchingMaxMessages(arguments.batchMaxMsgs);
             }
 
             // Block if queue is full else we will start seeing errors in sendAsync
