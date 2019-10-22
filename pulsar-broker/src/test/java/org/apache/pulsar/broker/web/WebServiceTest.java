@@ -42,6 +42,7 @@ import javax.net.ssl.TrustManager;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -233,6 +234,8 @@ public class WebServiceTest {
         }
     }
 
+    MockedZooKeeperClientFactoryImpl zkFactory = new MockedZooKeeperClientFactoryImpl();
+
     private void setupEnv(boolean enableFilter, String minApiVersion, boolean allowUnversionedClients,
             boolean enableTls, boolean enableAuth, boolean allowInsecure) throws Exception {
         Set<String> providers = new HashSet<>();
@@ -260,7 +263,8 @@ public class WebServiceTest {
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         config.setZookeeperServers("localhost:2181");
         pulsar = spy(new PulsarService(config));
-        doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
+        pulsar.setShutdownService(new NoOpShutdownService());
+        doReturn(zkFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
         pulsar.start();
 

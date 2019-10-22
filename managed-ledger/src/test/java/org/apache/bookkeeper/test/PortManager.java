@@ -21,15 +21,18 @@ package org.apache.bookkeeper.test;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.InetAddress;
+import java.net.ConnectException;
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+
+import lombok.Cleanup;
 
 /**
  * Port manager allows a base port to be specified on the commandline. Tests will then use ports, counting up from this
@@ -52,11 +55,12 @@ public class PortManager {
         Path path = Paths.get(lockFilename);
 
         try {
+            @Cleanup
             FileChannel fileChannel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             FileLock lock = fileChannel.lock();
 
             try {
-
+                @Cleanup
                 FileReader reader = new FileReader(lockFilename);
                 CharBuffer buffer = CharBuffer.allocate(16);
                 int len = reader.read(buffer);
@@ -70,17 +74,13 @@ public class PortManager {
 
                 int freePort = probeFreePort(lastUsedPort + 1);
 
+                @Cleanup
                 FileWriter writer = new FileWriter(lockFilename);
                 writer.write(Integer.toString(freePort));
 
-                reader.close();
-                writer.close();
-
                 return freePort;
-
             } finally {
                 lock.release();
-                fileChannel.close();
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -97,20 +97,21 @@ public class PortManager {
                 port = basePort;
             }
 
-            try (ServerSocket ss = new ServerSocket()) {
-                ss.setReuseAddress(false);
-                ss.bind(new InetSocketAddress(InetAddress.getByName("localhost"), port), 1);
-                ss.close();
-                // Give it some time to truly close the connection
-                Thread.sleep(100);
-                return port;
+            try (Socket s = new Socket()) {
+                s.connect(new InetSocketAddress(Inet4Address.getLoopbackAddress(), port), 100);
 
+                // If we succeed to connect it means the port is being used
+
+            } catch (ConnectException e) {
+                return port;
             } catch (Exception e) {
-                port++;
-                exceptionCount++;
-                if (exceptionCount > MAX_PORT_CONFLICTS) {
-                    throw new RuntimeException(e);
-                }
+                e.printStackTrace();
+            }
+
+            port++;
+            exceptionCount++;
+            if (exceptionCount > MAX_PORT_CONFLICTS) {
+                throw new RuntimeException("Failed to find an open port");
             }
         }
     }
