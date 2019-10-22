@@ -78,6 +78,7 @@ public class PerformanceProducer {
             .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
 
     private static final LongAdder messagesSent = new LongAdder();
+    private static final LongAdder messagesFailed = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
 
     private static final LongAdder totalMessagesSent = new LongAdder();
@@ -346,13 +347,15 @@ public class PerformanceProducer {
             double elapsed = (now - oldTime) / 1e9;
 
             double rate = messagesSent.sumThenReset() / elapsed;
+            double failureRate = messagesFailed.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
-                    "Throughput produced: {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    "Throughput produced: {}  msg/s --- {} Mbit/s --- failure {} msg/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     throughputFormat.format(rate), throughputFormat.format(throughput),
+                    throughputFormat.format(failureRate),
                     dec.format(reportHistogram.getMean() / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
@@ -497,7 +500,7 @@ public class PerformanceProducer {
                         }
                     }).exceptionally(ex -> {
                         log.warn("Write error on message", ex);
-                        System.exit(-1);
+                        messagesFailed.increment();
                         return null;
                     });
                 }
