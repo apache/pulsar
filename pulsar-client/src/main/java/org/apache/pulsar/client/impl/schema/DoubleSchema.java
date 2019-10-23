@@ -32,11 +32,17 @@ public class DoubleSchema extends AbstractSchema<Double> {
         return INSTANCE;
     }
 
-    private static final DoubleSchema INSTANCE = new DoubleSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("Double")
-        .setType(SchemaType.DOUBLE)
-        .setSchema(new byte[0]);
+    private static final DoubleSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("Double")
+            .setType(SchemaType.DOUBLE)
+            .setSchema(new byte[0]);
+        INSTANCE = new DoubleSchema();
+    }
+
 
     @Override
     public void validate(byte[] message) {
