@@ -171,6 +171,21 @@ Usage
 $ pulsar-admin brokers list-dynamic-config
 ```
 
+### `delete-dynamic-config`
+Delete dynamic-serviceConfiguration of broker
+
+Usage
+```bash
+$ pulsar-admin brokers delete-dynamic-config options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--config`|Service configuration parameter name||
+
+
 ### `get-all-dynamic-config`
 Get all overridden dynamic-configuration values
 
