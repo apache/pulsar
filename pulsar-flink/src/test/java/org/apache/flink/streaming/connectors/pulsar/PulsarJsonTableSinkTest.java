@@ -40,7 +40,7 @@ import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 /**
  * Unit test of {@link PulsarJsonTableSink}.
  */
-public class PulsarJsonTableSinkTest {
+public class  PulsarJsonTableSinkTest {
 
     private static final String SERVICE_URL = "pulsar://localhost:6650";
     private static final String TOPIC_NAME = "test_topic";
@@ -88,10 +88,12 @@ public class PulsarJsonTableSinkTest {
     @Test
     public void testConsumeDataStream() throws Exception {
         DataStream mockedDataStream = Mockito.mock(DataStream.class);
+        DataStreamSink mockedSink = Mockito.mock(DataStreamSink.class);
+        Mockito.when(mockedDataStream.addSink(Mockito.any(FlinkPulsarProducer.class))).thenReturn(mockedSink);
         PulsarJsonTableSink sink = spySink();
         DataStreamSink<Row> newSink = sink.consumeDataStream(mockedDataStream);
         Mockito.verify(mockedDataStream).addSink(Mockito.any(FlinkPulsarProducer.class));
-        Assert.assertNotNull(newSink);
+        Assert.assertSame(newSink, mockedSink);
     }
 
     private PulsarJsonTableSink spySink() throws Exception {
