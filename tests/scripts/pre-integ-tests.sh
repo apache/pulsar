@@ -32,3 +32,7 @@ docker pull cassandra:3
 docker pull confluentinc/cp-kafka:4.0.0
 docker pull debezium/example-mysql:0.8
 docker pull mysql:5.7.22
+docker version
+docker info
+docker system info
+docker images -a
