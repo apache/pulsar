@@ -30,6 +30,7 @@
 #include "MessageCrypto.h"
 #include "stats/ProducerStatsDisabled.h"
 #include "stats/ProducerStatsImpl.h"
+#include "PulsarApi.pb.h"
 
 using namespace pulsar;
 
@@ -77,7 +78,7 @@ class ProducerImpl : public HandlerBase,
 
     bool removeCorruptMessage(uint64_t sequenceId);
 
-    bool ackReceived(uint64_t sequenceId);
+    bool ackReceived(uint64_t sequenceId, MessageId& messageId);
 
     virtual void disconnectProducer();
 
@@ -129,7 +130,7 @@ class ProducerImpl : public HandlerBase,
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                               const ResponseData& responseData);
 
-    void statsCallBackHandler(Result, const Message&, SendCallback, boost::posix_time::ptime);
+    void statsCallBackHandler(Result, const MessageId&, SendCallback, boost::posix_time::ptime);
 
     void handleClose(Result result, ResultCallback callback, ProducerImplPtr producer);
 

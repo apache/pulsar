@@ -1,15 +1,14 @@
 ---
 id: io-debezium-source
-title: Debezium source connector
+title: Debezium source onnector
 sidebar_label: Debezium source connector
 ---
 
-The Debezium source connector pulls messages from MySQL or PostgreSQL 
-and persists the messages to Pulsar topics.
+The Debezium source connector pulls messages from MySQL or PostgreSQL to Pulsar topics.
 
 ## Configuration 
 
-The configuration of Debezium source connector has the following properties.
+The configuration of the Debezium source connector has the following properties.
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
