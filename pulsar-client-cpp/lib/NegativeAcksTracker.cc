@@ -24,16 +24,21 @@
 #include <set>
 #include <functional>
 
+#include "LogUtils.h"
+DECLARE_LOG_OBJECT()
+
 namespace pulsar {
-const std::chrono::milliseconds NegativeAcksTracker::MIN_NACK_DELAY_NANOS = std::chrono::milliseconds(100);
+const std::chrono::milliseconds NegativeAcksTracker::MIN_NACK_DELAY = std::chrono::milliseconds(100);
 
 NegativeAcksTracker::NegativeAcksTracker(ClientImplPtr client, ConsumerImpl &consumer,
                                          const ConsumerConfiguration &conf)
-    : consumer_(consumer),
-      nackDelay_(
-          std::max(std::chrono::milliseconds(conf.getNegativeAckRedeliveryDelayMs()), MIN_NACK_DELAY_NANOS)),
-      timerInterval_((long)(nackDelay_.count() / 3)),
-      executor_(client->getIOExecutorProvider()->get()) {}
+        : consumer_(consumer),
+          timerInterval_(0),
+          executor_(client->getIOExecutorProvider()->get()) {
+    nackDelay_ = std::max(std::chrono::milliseconds(conf.getNegativeAckRedeliveryDelayMs()), MIN_NACK_DELAY);
+    timerInterval_ = boost::posix_time::milliseconds((long) (nackDelay_.count() / 3));
+    LOG_INFO("Created negative ack tracker with delay: " << nackDelay_.count() << " ms - Timer interval: " << timerInterval_);
+}
 
 void NegativeAcksTracker::scheduleTimer() {
     timer_ = executor_->createDeadlineTimer();

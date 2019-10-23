@@ -2887,6 +2887,7 @@ void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
         Message msg;
         consumer.receive(msg);
 
+        LOG_INFO("Received message " << msg.getDataAsString());
         ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
         consumer.negativeAcknowledge(msg);
     }
@@ -2894,6 +2895,7 @@ void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
     for (int i = 0; i < 10; i++) {
         Message msg;
         consumer.receive(msg);
+        LOG_INFO("-- Redelivery -- Received message " << msg.getDataAsString());
 
         ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
 
