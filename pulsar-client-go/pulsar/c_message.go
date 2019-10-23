@@ -172,6 +172,12 @@ func newMessageId(msg *C.pulsar_message_t) MessageID {
 	return msgId
 }
 
+func getMessageId(messageId *C.pulsar_message_id_t) MessageID {
+	msgId := &messageID{ptr: messageId}
+	runtime.SetFinalizer(msgId, messageIdFinalizer)
+	return msgId
+}
+
 func messageIdFinalizer(msgID *messageID) {
 	C.pulsar_message_id_free(msgID.ptr)
 }
