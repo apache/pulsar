@@ -1146,7 +1146,7 @@ flexible messaging model and an intuitive client API.</description>
             -Dlog4j.configurationFile=log4j2.xml
           </argLine>
           <reuseForks>true</reuseForks>
-          <forkCount>1C</forkCount>
+          <forkCount>4</forkCount>
           <shutdown>kill</shutdown>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
