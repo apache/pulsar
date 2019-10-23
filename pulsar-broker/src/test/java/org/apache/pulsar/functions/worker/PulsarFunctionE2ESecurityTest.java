@@ -515,7 +515,7 @@ public class PulsarFunctionE2ESecurityTest {
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150);
+                }, 100, 150);
 
                 // make sure subscriptions are cleanup
                 assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 0);
