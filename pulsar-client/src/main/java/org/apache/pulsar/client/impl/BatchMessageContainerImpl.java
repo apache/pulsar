@@ -82,11 +82,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     }
 
     private ByteBuf getCompressedBatchMetadataAndPayload() {
-        batchedMessageMetadataAndPayload.markWriterIndex();
-        batchedMessageMetadataAndPayload.markReaderIndex();
-        int lastSerializedMessageIndex = 0;
-        
-        for(MessageImpl<?> msg : messages) {
+        int batchWriteIndex = batchedMessageMetadataAndPayload.writerIndex();
+        int batchReadIndex = batchedMessageMetadataAndPayload.readerIndex();
+
+        for (int i = 0, n = messages.size(); i < n; i++) {
+            MessageImpl<?> msg = messages.get(i);
             PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
             msg.getDataBuffer().markReaderIndex();
             try {
@@ -95,17 +95,16 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             } catch (Throwable th) {
                 // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
                 // next iteration doesn't send corrupt message to broker.
-                for (int j = 0; j <= lastSerializedMessageIndex; j++) {
+                for (int j = 0; j <= i; j++) {
                     MessageImpl<?> previousMsg = messages.get(j);
                     previousMsg.getDataBuffer().resetReaderIndex();
                 }
-                batchedMessageMetadataAndPayload.resetWriterIndex();
-                batchedMessageMetadataAndPayload.resetReaderIndex();
+                batchedMessageMetadataAndPayload.writerIndex(batchWriteIndex);
+                batchedMessageMetadataAndPayload.readerIndex(batchReadIndex);
                 throw new RuntimeException(th);
             }
-            lastSerializedMessageIndex++;
         }
-        // Recycle messages only once they serialized successfully in batch 
+        // Recycle messages only once they serialized successfully in batch
         for (MessageImpl<?> msg : messages) {
             msg.getMessageBuilder().recycle();
         }
