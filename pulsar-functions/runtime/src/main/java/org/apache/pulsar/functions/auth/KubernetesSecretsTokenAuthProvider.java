@@ -56,11 +56,11 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     private static final String DEFAULT_SECRET_MOUNT_DIR = "/etc/auth";
     private static final String FUNCTION_AUTH_TOKEN = "token";
 
+    private CoreV1Api coreClient;
+    private String kubeNamespace;
 
-    private final CoreV1Api coreClient;
-    private final String kubeNamespace;
-
-    public KubernetesSecretsTokenAuthProvider(CoreV1Api coreClient, String kubeNamespace) {
+    @Override
+    public void initialize(CoreV1Api coreClient, String kubeNamespace) {
         this.coreClient = coreClient;
         this.kubeNamespace = kubeNamespace;
     }
