@@ -32,6 +32,8 @@ import com.google.common.collect.Sets;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,7 +44,10 @@ import java.util.Set;
 
 import javax.ws.rs.core.Response;
 
+import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.commons.configuration.CompositeConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -110,6 +115,8 @@ public class PulsarFunctionStateTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionStateTest.class);
 
+    private Path rangeStoreDirs;
+
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
@@ -136,7 +143,12 @@ public class PulsarFunctionStateTest {
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
-        bkEnsemble.start(true);
+        bkEnsemble.start(false);
+
+        rangeStoreDirs = Files.createTempDirectory("pulsar-function-state-tests");
+        CompositeConfiguration streamStoreConf = new ServerConfiguration();
+        streamStoreConf.setProperty("range.store.dirs", rangeStoreDirs.toString());
+        bkEnsemble.runStreamStorage(streamStoreConf);
 
         String brokerServiceUrl = "https://127.0.0.1:" + brokerWebServiceTlsPort;
 
@@ -226,6 +238,8 @@ public class PulsarFunctionStateTest {
         functionsWorkerService.stop();
         pulsar.close();
         bkEnsemble.stop();
+
+        FileUtils.deleteDirectory(rangeStoreDirs.toFile());
     }
 
     private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
@@ -236,7 +250,7 @@ public class PulsarFunctionStateTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("use"));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get());
+        workerConfig.setPulsarServiceUrl("pulsar+ssl://127.0.0.1:" + config.getBrokerServicePortTls().get());
         workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls().get());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);

@@ -290,7 +290,7 @@ public class LocalBookkeeperEnsemble {
         }
     }
 
-    private void runStreamStorage(CompositeConfiguration conf) throws Exception {
+    public void runStreamStorage(CompositeConfiguration conf) throws Exception {
         String zkServers = "127.0.0.1:" + ZooKeeperDefaultPort;
         String metadataServiceUriStr = "zk://" + zkServers + "/ledgers";
         URI metadataServiceUri = URI.create(metadataServiceUriStr);
