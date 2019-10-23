@@ -492,6 +492,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
 
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
+        state_ = Closed;
         lock.unlock();
         if (callback) {
             callback(ResultOk);
@@ -502,16 +503,19 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     // Detach the producer from the connection to avoid sending any other
     // message from the producer
     connection_.reset();
-    lock.unlock();
 
     ClientImplPtr client = client_.lock();
     if (!client) {
+        state_ = Closed;
+        lock.unlock();
         // Client was already destroyed
         if (callback) {
             callback(ResultOk);
         }
         return;
     }
+
+    lock.unlock();
     int requestId = client->newRequestId();
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseProducer(producerId_, requestId), requestId);
