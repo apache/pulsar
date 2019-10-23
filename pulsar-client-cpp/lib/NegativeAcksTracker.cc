@@ -32,12 +32,11 @@ const std::chrono::milliseconds NegativeAcksTracker::MIN_NACK_DELAY = std::chron
 
 NegativeAcksTracker::NegativeAcksTracker(ClientImplPtr client, ConsumerImpl &consumer,
                                          const ConsumerConfiguration &conf)
-        : consumer_(consumer),
-          timerInterval_(0),
-          executor_(client->getIOExecutorProvider()->get()) {
+    : consumer_(consumer), timerInterval_(0), executor_(client->getIOExecutorProvider()->get()) {
     nackDelay_ = std::max(std::chrono::milliseconds(conf.getNegativeAckRedeliveryDelayMs()), MIN_NACK_DELAY);
-    timerInterval_ = boost::posix_time::milliseconds((long) (nackDelay_.count() / 3));
-    LOG_INFO("Created negative ack tracker with delay: " << nackDelay_.count() << " ms - Timer interval: " << timerInterval_);
+    timerInterval_ = boost::posix_time::milliseconds((long)(nackDelay_.count() / 3));
+    LOG_DEBUG("Created negative ack tracker with delay: " << nackDelay_.count()
+                                                          << " ms - Timer interval: " << timerInterval_);
 }
 
 void NegativeAcksTracker::scheduleTimer() {
