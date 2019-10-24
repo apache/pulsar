@@ -8808,6 +8808,10 @@ public final class PulsarApi {
     // optional bool force_topic_creation = 15 [default = true];
     boolean hasForceTopicCreation();
     boolean getForceTopicCreation();
+    
+    // optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
+    boolean hasStartMessageRollbackDurationSec();
+    long getStartMessageRollbackDurationSec();
   }
   public static final class CommandSubscribe extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -9159,6 +9163,16 @@ public final class PulsarApi {
       return forceTopicCreation_;
     }
     
+    // optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
+    public static final int START_MESSAGE_ROLLBACK_DURATION_SEC_FIELD_NUMBER = 16;
+    private long startMessageRollbackDurationSec_;
+    public boolean hasStartMessageRollbackDurationSec() {
+      return ((bitField0_ & 0x00004000) == 0x00004000);
+    }
+    public long getStartMessageRollbackDurationSec() {
+      return startMessageRollbackDurationSec_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -9175,6 +9189,7 @@ public final class PulsarApi {
       initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
       replicateSubscriptionState_ = false;
       forceTopicCreation_ = true;
+      startMessageRollbackDurationSec_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -9276,6 +9291,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
         output.writeBool(15, forceTopicCreation_);
       }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        output.writeUInt64(16, startMessageRollbackDurationSec_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -9343,6 +9361,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(15, forceTopicCreation_);
+      }
+      if (((bitField0_ & 0x00004000) == 0x00004000)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(16, startMessageRollbackDurationSec_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -9487,6 +9509,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00002000);
         forceTopicCreation_ = true;
         bitField0_ = (bitField0_ & ~0x00004000);
+        startMessageRollbackDurationSec_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00008000);
         return this;
       }
       
@@ -9581,6 +9605,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00002000;
         }
         result.forceTopicCreation_ = forceTopicCreation_;
+        if (((from_bitField0_ & 0x00008000) == 0x00008000)) {
+          to_bitField0_ |= 0x00004000;
+        }
+        result.startMessageRollbackDurationSec_ = startMessageRollbackDurationSec_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -9638,6 +9666,9 @@ public final class PulsarApi {
         }
         if (other.hasForceTopicCreation()) {
           setForceTopicCreation(other.getForceTopicCreation());
+        }
+        if (other.hasStartMessageRollbackDurationSec()) {
+          setStartMessageRollbackDurationSec(other.getStartMessageRollbackDurationSec());
         }
         return this;
       }
@@ -9798,6 +9829,11 @@ public final class PulsarApi {
             case 120: {
               bitField0_ |= 0x00004000;
               forceTopicCreation_ = input.readBool();
+              break;
+            }
+            case 128: {
+              bitField0_ |= 0x00008000;
+              startMessageRollbackDurationSec_ = input.readUInt64();
               break;
             }
           }
@@ -10280,6 +10316,27 @@ public final class PulsarApi {
       public Builder clearForceTopicCreation() {
         bitField0_ = (bitField0_ & ~0x00004000);
         forceTopicCreation_ = true;
+        
+        return this;
+      }
+      
+      // optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
+      private long startMessageRollbackDurationSec_ ;
+      public boolean hasStartMessageRollbackDurationSec() {
+        return ((bitField0_ & 0x00008000) == 0x00008000);
+      }
+      public long getStartMessageRollbackDurationSec() {
+        return startMessageRollbackDurationSec_;
+      }
+      public Builder setStartMessageRollbackDurationSec(long value) {
+        bitField0_ |= 0x00008000;
+        startMessageRollbackDurationSec_ = value;
+        
+        return this;
+      }
+      public Builder clearStartMessageRollbackDurationSec() {
+        bitField0_ = (bitField0_ & ~0x00008000);
+        startMessageRollbackDurationSec_ = 0L;
         
         return this;
       }
