@@ -27,7 +27,6 @@ import java.net.URISyntaxException;
 import java.util.Optional;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
@@ -37,7 +36,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetad
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,6 +170,11 @@ public class LookupProxyHandler {
                     // client
                     // to use the appropriate target broker (and port) when it
                     // will connect back.
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "Successfully perform lookup '{}' for topic '{}' with clientReq Id '{}' and lookup-broker {}",
+                                addr, topic, clientRequestId, brokerUrl);
+                    }
                     proxyConnection.ctx().writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
                             LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
                 }

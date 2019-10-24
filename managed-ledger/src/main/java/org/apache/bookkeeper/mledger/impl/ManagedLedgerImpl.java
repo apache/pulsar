@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.FALSE;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import com.google.common.collect.BoundType;
@@ -60,7 +59,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -187,9 +185,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final Random random = new Random(System.currentTimeMillis());
     private long maximumRolloverTimeMs;
 
-    // Time period in which new write requests will not be accepted, after we fail in creating a new ledger.
-    final static long WaitTimeAfterLedgerCreationFailureMs = 10000;
-
     volatile PositionImpl lastConfirmedEntry;
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
@@ -209,6 +204,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // the new instance will take over
         Terminated, // Managed ledger was terminated and no more entries
                     // are allowed to be added. Reads are allowed
+        WriteFailed // The state that is transitioned to when a BK write failure happens
+                    // After handling the BK write failure, managed ledger will get signalled to create a new ledger
     }
 
     // define boundaries for position based seeks and searches
@@ -571,6 +568,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else if (state == State.Closed) {
             addOperation.failed(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
             return;
+        } else if (state == State.WriteFailed) {
+            pendingAddEntries.remove(addOperation);
+            addOperation.failed(new ManagedLedgerAlreadyClosedException("Waiting to recover from failure"));
+            return;
         }
 
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
@@ -580,14 +581,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Queue addEntry request", name);
             }
         } else if (state == State.ClosedLedger) {
-            long now = clock.millis();
-            if (now < lastLedgerCreationFailureTimestamp + WaitTimeAfterLedgerCreationFailureMs) {
-                // Deny the write request, since we haven't waited enough time since last attempt to create a new ledger
-                pendingAddEntries.remove(addOperation);
-                addOperation.failed(new ManagedLedgerException("Waiting for new ledger creation to complete"));
-                return;
-            }
-
             // No ledger and no pending operations. Create a new ledger
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Creating a new ledger", name);
@@ -622,6 +615,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             addOperation.initiate();
         }
+    }
+
+    @Override
+    public void readyToCreateNewLedger() {
+       // only set transition state to ClosedLedger if current state is WriteFailed
+       if (STATE_UPDATER.compareAndSet(this, State.WriteFailed, State.ClosedLedger)){
+           log.info("[{}] Managed ledger is now ready to accept writes again", name);
+       }
     }
 
     @Override
@@ -1197,10 +1198,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.error("[{}] Error creating ledger rc={} {}", name, rc, BKException.getMessage(rc));
             ManagedLedgerException status = createManagedLedgerException(rc);
 
+            // no pending entries means that creating this new ledger is NOT caused by write failure
+            if (pendingAddEntries.isEmpty()) {
+                STATE_UPDATER.set(this, State.ClosedLedger);
+            } else {
+                STATE_UPDATER.set(this, State.WriteFailed);
+            }
+
             // Empty the list of pending requests and make all of them fail
             clearPendingAddEntries(status);
             lastLedgerCreationFailureTimestamp = clock.millis();
-            STATE_UPDATER.set(this, State.ClosedLedger);
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
             ledgers.put(lh.getId(), LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build());
@@ -1228,10 +1235,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (e instanceof BadVersionException) {
                         synchronized (ManagedLedgerImpl.this) {
                             log.error(
-                                    "[{}] Failed to udpate ledger list. z-node version mismatch. Closing managed ledger",
+                                    "[{}] Failed to update ledger list. z-node version mismatch. Closing managed ledger",
                                     name);
                             STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
-                            clearPendingAddEntries(e);
+                            // Return ManagedLedgerFencedException to addFailed callback
+                            // to indicate that the ledger is now fenced and topic needs to be closed
+                            clearPendingAddEntries(new ManagedLedgerFencedException(e));
+                            // Do not need to unlock ledgersListMutex here because we are going to close to topic anyways
                             return;
                         }
                     }

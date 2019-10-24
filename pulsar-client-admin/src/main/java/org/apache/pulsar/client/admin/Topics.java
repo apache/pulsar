@@ -264,6 +264,24 @@ public interface Topics {
      * @return a future that can be used to track when the partitioned topic is updated
      */
     CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions);
+    
+    /**
+     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * <p>
+     * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
+     * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
+     * <p>
+     *
+     * @param topic
+     *            Topic name
+     * @param numPartitions
+     *            Number of new partitions of already exist partitioned-topic
+     * @param updateLocalTopicOnly
+     *            Used by broker for global topic with multiple replicated clusters
+     *
+     * @return a future that can be used to track when the partitioned topic is updated
+     */
+    CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions, boolean updateLocalTopicOnly);
 
     /**
      * Get metadata of a partitioned topic.

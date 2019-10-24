@@ -16,6 +16,7 @@ Commands
 * `brokers`
 * `clusters`
 * `functions`
+* `functions-worker`
 * `namespaces`
 * `ns-isolation-policy`
 * `sources`
@@ -170,6 +171,21 @@ Usage
 ```bash
 $ pulsar-admin brokers list-dynamic-config
 ```
+
+### `delete-dynamic-config`
+Delete dynamic-serviceConfiguration of broker
+
+Usage
+```bash
+$ pulsar-admin brokers delete-dynamic-config options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--config`|Service configuration parameter name||
+
 
 ### `get-all-dynamic-config`
 Get all overridden dynamic-configuration values
@@ -391,6 +407,7 @@ Subcommands
 * `stats`
 * `list`
 * `querystate`
+* `putstate`
 * `trigger`
 
 
@@ -696,6 +713,23 @@ Options
 |`--tenant`|The function's tenant||
 |`-w`, `--watch`|Watch for changes in the value associated with a key for a Pulsar Function|false|
 
+### `putstate`
+Put a key/value pair to the state associated with a Pulsar Function
+
+Usage
+```bash
+$ pulsar-admin functions putstate options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the Pulsar Function||
+|`--name`|The name of a Pulsar Function||
+|`--namespace`|The namespace of a Pulsar Function||
+|`--tenant`|The tenant of a Pulsar Function||
+|`-s`, `--state`|The FunctionState that needs to be put||
 
 ### `trigger`
 Triggers the specified Pulsar Function with a supplied value
@@ -716,6 +750,66 @@ Options
 |`--trigger-file`|The path to the file that contains the data with which you'd like to trigger the function||
 |`--trigger-value`|The value with which you want to trigger the function||
 
+
+## `functions-worker`
+Operations to collect function-worker statistics
+
+```bash
+$ pulsar-admin functions-worker subcommand
+```
+
+Subcommands
+
+* `function-stats`
+* `get-cluster`
+* `get-cluster-leader`
+* `get-function-assignments`
+* `monitoring-metrics`
+
+### `function-stats`
+
+Dump all functions stats running on this broker
+
+Usage
+```bash
+$ pulsar-admin functions-worker function-stats
+```
+
+### `get-cluster`
+
+Get all workers belonging to this cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-cluster
+```
+
+### `get-cluster-leader`
+
+Get the leader of the worker cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-cluster-leader
+```
+
+### `get-function-assignments`
+
+Get the assignments of the functions across the worker cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-function-assignments
+```
+
+### `monitoring-metrics`
+
+Dump metrics for Monitoring
+
+Usage
+```bash
+$ pulsar-admin functions-worker monitoring-metrics
+```
 
 ## `namespaces`
 
@@ -757,6 +851,8 @@ Subcommands
 * `split-bundle`
 * `set-dispatch-rate`
 * `get-dispatch-rate`
+* `set-replicator-dispatch-rate`
+* `get-replicator-dispatch-rate`
 * `set-subscribe-rate`
 * `get-subscribe-rate`
 * `set-subscription-dispatch-rate`
@@ -1128,6 +1224,29 @@ Get configured message-dispatch-rate for all topics of the namespace (Disabled i
 Usage
 ```bash
 $ pulsar-admin namespaces get-dispatch-rate tenant/namespace
+```
+
+### set-replicator-dispatch-rate
+Set replicator message-dispatch-rate for all topics of the namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-replicator-dispatch-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
+|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
+|`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
+
+### get-replicator-dispatch-rate
+Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
+
+Usage
+```bash
+$ pulsar-admin namespaces get-replicator-dispatch-rate tenant/namespace
 ```
 
 ### `set-subscribe-rate`
