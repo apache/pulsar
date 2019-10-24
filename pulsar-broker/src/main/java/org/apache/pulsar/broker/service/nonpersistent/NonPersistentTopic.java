@@ -245,7 +245,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            boolean replicateSubscriptionState) {
+            long resetStartMessageBackInSec, boolean replicateSubscriptionState) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 

@@ -611,6 +611,9 @@ public class ServerCnx extends PulsarHandler {
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
+        final long startMessageRollbackDurationSec = subscribe.hasStartMessageRollbackDurationSec()
+                ? subscribe.getStartMessageRollbackDurationSec()
+                : -1;
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
         final boolean forceTopicCreation = subscribe.getForceTopicCreation();
@@ -698,7 +701,7 @@ public class ServerCnx extends PulsarHandler {
                                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                                 subType, priorityLevel, consumerName, isDurable,
                                                                 startMessageId, metadata,
-                                                                readCompacted, initialPosition, isReplicated);
+                                                                readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated);
                                                     } else {
                                                         return FutureUtil.failedFuture(
                                                                 new IncompatibleSchemaException(
@@ -710,7 +713,7 @@ public class ServerCnx extends PulsarHandler {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
                                             startMessageId, metadata, readCompacted, initialPosition,
-                                            isReplicated);
+                                            startMessageRollbackDurationSec, isReplicated);
                                     }
                                 })
                                 .thenAccept(consumer -> {
