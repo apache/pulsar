@@ -51,6 +51,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -345,7 +346,7 @@ public class LocalRunner {
                 null, /* python instance file */
                 null, /* log directory */
                 null, /* extra dependencies dir */
-                new DefaultSecretsProviderConfigurator(), false)) {
+                new DefaultSecretsProviderConfigurator(), false, Optional.empty())) {
 
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
