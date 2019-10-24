@@ -79,9 +79,13 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     protected boolean isConsumersExceededOnTopic() {
         Policies policies;
         try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topicName).getNamespace()))
-                    .orElseGet(() -> new Policies());
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+
+            if (policies == null) {
+                policies = new Policies();
+            }
         } catch (Exception e) {
             policies = new Policies();
         }
@@ -97,9 +101,13 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     protected boolean isConsumersExceededOnSubscription() {
         Policies policies;
         try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topicName).getNamespace()))
-                    .orElseGet(() -> new Policies());
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+
+            if (policies == null) {
+                policies = new Policies();
+            }
         } catch (Exception e) {
             policies = new Policies();
         }

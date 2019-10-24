@@ -62,13 +62,10 @@ static void messageListenerFunctionWithoutAck(Consumer consumer, const Message &
     latch.countdown();
 }
 
-static void sendCallBack(Result r, const Message &msg, std::string prefix, int *count) {
+static void sendCallBack(Result r, const MessageId &msgId, std::string prefix, int *count) {
     static std::mutex sendMutex_;
     sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
-    std::string messageContent = prefix + std::to_string(*count);
-    ASSERT_EQ(messageContent, msg.getDataAsString());
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
     *count += 1;
     sendMutex_.unlock();
 }
@@ -91,12 +88,12 @@ static void receiveCallBack(Result r, const Message &msg, std::string &messageCo
     receiveMutex_.unlock();
 }
 
-static void sendCallBackWithDelay(Result r, const Message &msg, std::string prefix, double percentage,
+static void sendCallBackWithDelay(Result r, const MessageId &msgId, std::string prefix, double percentage,
                                   uint64_t delayInMicros, int *count) {
     if ((rand() % 100) <= percentage) {
         std::this_thread::sleep_for(std::chrono::microseconds(delayInMicros));
     }
-    sendCallBack(r, msg, prefix, count);
+    sendCallBack(r, msgId, prefix, count);
 }
 
 class EncKeyReader : public CryptoKeyReader {
@@ -210,7 +207,7 @@ TEST(BasicEndToEndTest, testBatchMessages) {
     ASSERT_EQ(i, numOfMessages);
 }
 
-void resendMessage(Result r, const Message msg, Producer producer) {
+void resendMessage(Result r, const MessageId msgId, Producer producer) {
     Lock lock(mutex_);
     if (r != ResultOk) {
         LOG_DEBUG("globalResendMessageCount" << globalResendMessageCount);
@@ -2291,8 +2288,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
 }
 
 // for partitioned reason, it may hard to verify message id.
-static void simpleCallback(Result code, const Message &msg) {
-    LOG_INFO("Received code: " << code << " -- Msg: " << msg);
+static void simpleCallback(Result code, const MessageId &msgId) {
+    LOG_INFO("Received code: " << code << " -- MsgID: " << msgId);
 }
 
 TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
