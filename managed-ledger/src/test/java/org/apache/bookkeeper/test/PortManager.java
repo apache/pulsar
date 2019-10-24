@@ -18,14 +18,17 @@
  */
 package org.apache.bookkeeper.test;
 
-import java.io.FileReader;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.CharBuffer;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Path;
@@ -33,6 +36,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
 import lombok.Cleanup;
+
+import org.jboss.netty.util.internal.ByteBufferUtil;
 
 /**
  * Port manager allows a base port to be specified on the commandline. Tests will then use ports, counting up from this
@@ -56,32 +61,36 @@ public class PortManager {
 
         try {
             @Cleanup
-            FileChannel fileChannel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            FileChannel fileChannel = FileChannel.open(path,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.READ);
+
+            @Cleanup
             FileLock lock = fileChannel.lock();
 
-            try {
-                @Cleanup
-                FileReader reader = new FileReader(lockFilename);
-                CharBuffer buffer = CharBuffer.allocate(16);
-                int len = reader.read(buffer);
-                buffer.flip();
+            ByteBuffer buffer = ByteBuffer.allocate(32);
+            int len = fileChannel.read(buffer, 0L);
+            buffer.flip();
 
-                int lastUsedPort = basePort;
-                if (len > 0) {
-                    String lastUsedPortStr = buffer.toString();
-                    lastUsedPort = Integer.parseInt(lastUsedPortStr);
-                }
-
-                int freePort = probeFreePort(lastUsedPort + 1);
-
-                @Cleanup
-                FileWriter writer = new FileWriter(lockFilename);
-                writer.write(Integer.toString(freePort));
-
-                return freePort;
-            } finally {
-                lock.release();
+            int lastUsedPort = basePort;
+            if (len > 0) {
+                byte[] bytes = new byte[buffer.remaining()];
+                buffer.get(bytes);
+                String lastUsedPortStr = new String(bytes);
+                lastUsedPort = Integer.parseInt(lastUsedPortStr);
             }
+
+            int freePort = probeFreePort(lastUsedPort + 1);
+
+            buffer.clear();
+            buffer.put(Integer.toString(freePort).getBytes());
+            buffer.flip();
+            fileChannel.write(buffer, 0L);
+            fileChannel.truncate(buffer.position());
+            fileChannel.force(true);
+
+            return freePort;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -113,6 +122,13 @@ public class PortManager {
             if (exceptionCount > MAX_PORT_CONFLICTS) {
                 throw new RuntimeException("Failed to find an open port");
             }
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        while (true) {
+            System.out.println("Port: " + nextFreePort());
+            Thread.sleep(100);
         }
     }
 }
