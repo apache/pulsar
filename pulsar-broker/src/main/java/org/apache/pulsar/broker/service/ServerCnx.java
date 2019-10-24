@@ -515,9 +515,9 @@ public class ServerCnx extends PulsarHandler {
 
         try {
             AuthData clientData = AuthData.of(connect.getAuthData().toByteArray());
-            handleAuthentication(connect, clientData);
-            doAuthentication(clientData, clientProtocolVersion, clientVersion);
-            scheduleConnectionExpiryCheck();
+            if (!handleAuthentication(connect, clientData)) {
+                doAuthentication(clientData, clientProtocolVersion, clientVersion);
+            }
         } catch (Exception e) {
             String msg = "Unable to authenticate";
             log.warn("[{}] {} ", remoteAddress, msg, e);
@@ -527,7 +527,7 @@ public class ServerCnx extends PulsarHandler {
         
     }
 
-    private void handleAuthentication(CommandConnect connect, AuthData clientData) {
+    private boolean handleAuthentication(CommandConnect connect, AuthData clientData) {
         
         try {
             int clientProtocolVersion = connect.getProtocolVersion();
@@ -553,7 +553,7 @@ public class ServerCnx extends PulsarHandler {
                     .orElseThrow(() ->
                         new AuthenticationException("No anonymous role, and no authentication provider configured"));
                 completeConnect(clientProtocolVersion, clientVersion);
-                return;
+                return true;
             }
 
             // init authState and other var
@@ -577,6 +577,7 @@ public class ServerCnx extends PulsarHandler {
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
             close();
         }
+        return false;
     }
     
     @Override
@@ -642,7 +643,7 @@ public class ServerCnx extends PulsarHandler {
         if (service.isAuthenticationEnabled()) {
             CommandConnect connect = commandRenewedConnect.getRenewedConnect();
             AuthData clientData = AuthData.of(connect.getAuthData().toByteArray());
-            handleAuthentication(connect, clientData);;
+            handleAuthentication(connect, clientData);
         }
     }
 
