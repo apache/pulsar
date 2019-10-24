@@ -238,7 +238,6 @@
       <artifactId>simpleclient_jetty</artifactId>
     </dependency>
 
-
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_hotspot</artifactId>
