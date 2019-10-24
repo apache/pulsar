@@ -16,6 +16,7 @@ Commands
 * `brokers`
 * `clusters`
 * `functions`
+* `functions-worker`
 * `namespaces`
 * `ns-isolation-policy`
 * `sources`
@@ -749,6 +750,66 @@ Options
 |`--trigger-file`|The path to the file that contains the data with which you'd like to trigger the function||
 |`--trigger-value`|The value with which you want to trigger the function||
 
+
+## `functions-worker`
+Operations to collect function-worker statistics
+
+```bash
+$ pulsar-admin functions-worker subcommand
+```
+
+Subcommands
+
+* `function-stats`
+* `get-cluster`
+* `get-cluster-leader`
+* `get-function-assignments`
+* `monitoring-metrics`
+
+### `function-stats`
+
+Dump all functions stats running on this broker
+
+Usage
+```bash
+$ pulsar-admin functions-worker function-stats
+```
+
+### `get-cluster`
+
+Get all workers belonging to this cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-cluster
+```
+
+### `get-cluster-leader`
+
+Get the leader of the worker cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-cluster-leader
+```
+
+### `get-function-assignments`
+
+Get the assignments of the functions across the worker cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-function-assignments
+```
+
+### `monitoring-metrics`
+
+Dump metrics for Monitoring
+
+Usage
+```bash
+$ pulsar-admin functions-worker monitoring-metrics
+```
 
 ## `namespaces`
 
