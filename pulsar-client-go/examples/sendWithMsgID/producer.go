@@ -17,40 +17,47 @@
 // under the License.
 //
 
-package pulsar
+package main
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
+	"fmt"
+
 	log "github.com/apache/pulsar/pulsar-client-go/logutil"
-	"net/http"
-	"reflect"
+	"github.com/apache/pulsar/pulsar-client-go/pulsar"
 )
 
-func httpPut(url string, body interface{}) {
-	client := http.Client{}
+func main() {
+	client, err := pulsar.NewClient(pulsar.ClientOptions{
+		URL:       "pulsar://localhost:6650",
+		IOThreads: 5,
+	})
 
-	data, _ := json.Marshal(body)
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(data))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	req.Header = map[string][]string{
-		"Content-Type": {"application/json"},
-	}
+	defer client.Close()
 
-	_, err = client.Do(req)
+	producer, err := client.CreateProducer(pulsar.ProducerOptions{
+		Topic: "topic-1",
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
-}
 
-// IsNil check if the interface is nil
-func IsNil(i interface{}) bool {
-	vi := reflect.ValueOf(i)
-	if vi.Kind() == reflect.Ptr {
-		return vi.IsNil()
+	defer producer.Close()
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		msgID, err := producer.SendAndGetMsgID(ctx, pulsar.ProducerMessage{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		})
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("The message Id value is: [%v] \n", msgID)
 	}
-	return false
 }
