@@ -83,7 +83,6 @@ cp $CPP_DIR/pkg/licenses/LICENSE.txt $DEVEL_DEST_DIR/DEBIAN/copyright
 
 cp $DEST_DIR/usr/share/doc/pulsar-client-$VERSION/* $DEVEL_DEST_DIR/usr/share/doc/pulsar-client-dev-$VERSION
 
-
 ## Build actual debian packages
 dpkg-deb --build $DEST_DIR
 dpkg-deb --build $DEVEL_DEST_DIR
