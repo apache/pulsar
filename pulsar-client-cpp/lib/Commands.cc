@@ -527,6 +527,45 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::AUTH_RESPONSE:
             return "AUTH_RESPONSE";
             break;
+        case BaseCommand::ACK_RESPONSE:
+            return "ACK_RESPONSE";
+            break;
+        case BaseCommand::NEW_TXN:
+            return "NEW_TXN";
+            break;
+        case BaseCommand::NEW_TXN_RESPONSE:
+            return "NEW_TXN_RESPONSE";
+            break;
+        case BaseCommand::ADD_PARTITION_TO_TXN:
+            return "ADD_PARTITION_TO_TXN";
+            break;
+        case BaseCommand::ADD_PARTITION_TO_TXN_RESPONSE:
+            return "ADD_PARTITION_TO_TXN_RESPONSE";
+            break;
+        case BaseCommand::ADD_SUBSCRIPTION_TO_TXN:
+            return "ADD_SUBSCRIPTION_TO_TXN";
+            break;
+        case BaseCommand::ADD_SUBSCRIPTION_TO_TXN_RESPONSE:
+            return "ADD_SUBSCRIPTION_TO_TXN_RESPONSE";
+            break;
+        case BaseCommand::END_TXN:
+            return "END_TXN";
+            break;
+        case BaseCommand::END_TXN_RESPONSE:
+            return "END_TXN_RESPONSE";
+            break;
+        case BaseCommand::END_TXN_ON_PARTITION:
+            return "END_TXN_ON_PARTITION";
+            break;
+        case BaseCommand::END_TXN_ON_PARTITION_RESPONSE:
+            return "END_TXN_ON_PARTITION_RESPONSE";
+            break;
+        case BaseCommand::END_TXN_ON_SUBSCRIPTION:
+            return "END_TXN_ON_SUBSCRIPTION";
+            break;
+        case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
+            return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
+            break;
     };
 }
 

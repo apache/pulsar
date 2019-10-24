@@ -18,12 +18,20 @@
  */
 package org.apache.pulsar.common.functions;
 
-import lombok.Builder;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Options while updating the sink.
+ */
 @Data
 @NoArgsConstructor
+@ApiModel(value = "UpdateOptions", description = "Options while updating the sink")
 public class UpdateOptions {
+    @ApiModelProperty(
+        value = "Whether or not to update the auth data",
+        name = "update-auth-data")
     private boolean updateAuthData = false;
 }

@@ -114,16 +114,32 @@ _retype = type(re.compile('x'))
 
 import certifi
 
+
 class MessageId:
     """
     Represents a message id
     """
+
+    def __init__(self, partition=-1, ledger_id=-1, entry_id=-1, batch_index=-1):
+        self._msg_id = _pulsar.MessageId(partition, ledger_id, entry_id, batch_index)
 
     'Represents the earliest message stored in a topic'
     earliest = _pulsar.MessageId.earliest
 
     'Represents the latest message published on a topic'
     latest = _pulsar.MessageId.latest
+
+    def ledger_id(self):
+        return self._msg_id.ledger_id()
+
+    def entry_id(self):
+        return self._msg_id.entry_id()
+
+    def batch_index(self):
+        return self._msg_id.batch_index()
+
+    def partition(self):
+        return self._msg_id.partition()
 
     def serialize(self):
         """
@@ -196,6 +212,32 @@ class Message:
         Get the topic Name from which this message originated from
         """
         return self._message.topic_name()
+
+    @staticmethod
+    def _wrap(_message):
+        self = Message()
+        self._message = _message
+        return self
+
+
+class MessageBatch:
+
+    def __init__(self):
+        self._msg_batch = _pulsar.MessageBatch()
+
+    def with_message_id(self, msg_id):
+        if not isinstance(msg_id, _pulsar.MessageId):
+            if isinstance(msg_id, MessageId):
+                msg_id = msg_id._msg_id
+            else:
+                raise TypeError("unknown message id type")
+        self._msg_batch.with_message_id(msg_id)
+        return self
+
+    def parse_from(self, data, size):
+        self._msg_batch.parse_from(data, size)
+        _msgs = self._msg_batch.messages()
+        return list(map(Message._wrap, _msgs))
 
 
 class Authentication:

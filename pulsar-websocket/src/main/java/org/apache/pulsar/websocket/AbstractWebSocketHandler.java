@@ -137,13 +137,13 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     public void close(WebSocketError error) {
         log.warn("[{}] Closing WebSocket session for topic {} - code: [{}], reason: [{}]",
-                getSession().getRemoteAddress(), topic, error);
+                getSession().getRemoteAddress(), topic, error.getCode(), error.getDescription());
         getSession().close(error.getCode(), error.getDescription());
     }
 
     public void close(WebSocketError error, String message) {
         log.warn("[{}] Closing WebSocket session for topic {} - code: [{}], reason: [{}]",
-                getSession().getRemoteAddress(), topic, error, message);
+                getSession().getRemoteAddress(), topic, error.getCode(), error.getDescription() + ": " + message);
         getSession().close(error.getCode(), error.getDescription() + ": " + message);
     }
 

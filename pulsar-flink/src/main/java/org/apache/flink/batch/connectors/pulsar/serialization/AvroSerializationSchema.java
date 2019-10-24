@@ -18,15 +18,14 @@
  */
 package org.apache.flink.batch.connectors.pulsar.serialization;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 
 /**
  * Avro Serialization Schema to serialize Dataset records to Avro.
@@ -49,7 +48,7 @@ public class AvroSerializationSchema<T extends SpecificRecord> implements Serial
         Encoder encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
         arrayOutputStream.reset();
         try {
-            writer.write(t,encoder);
+            writer.write(t, encoder);
             encoder.flush();
         } catch (IOException e) {
             throw new RuntimeException("Error while serializing the record to Avro", e);

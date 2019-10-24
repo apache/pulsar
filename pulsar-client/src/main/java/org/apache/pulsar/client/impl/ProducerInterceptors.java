@@ -63,9 +63,9 @@ public class ProducerInterceptors<T> implements Closeable {
         for (int i = 0; i < interceptors.size(); i++) {
             try {
                 interceptorMessage = interceptors.get(i).beforeSend(producer, interceptorMessage);
-            } catch (Exception e) {
-                if (message != null && producer != null) {
-                    log.warn("Error executing interceptor beforeSend callback for messageId: {}, topicName:{} ", message.getMessageId(), producer.getTopic(), e);
+            } catch (Throwable e) {
+                if (producer != null) {
+                    log.warn("Error executing interceptor beforeSend callback for topicName:{} ", producer.getTopic(), e);
                 } else {
                     log.warn("Error Error executing interceptor beforeSend callback ", e);
                 }
@@ -91,7 +91,7 @@ public class ProducerInterceptors<T> implements Closeable {
         for (int i = 0; i < interceptors.size(); i++) {
             try {
                 interceptors.get(i).onSendAcknowledgement(producer, message, msgId, exception);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.warn("Error executing interceptor onSendAcknowledgement callback ", e);
             }
         }
@@ -102,7 +102,7 @@ public class ProducerInterceptors<T> implements Closeable {
         for (int i = 0; i < interceptors.size(); i++) {
             try {
                 interceptors.get(i).close();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Fail to close producer interceptor ", e);
             }
         }

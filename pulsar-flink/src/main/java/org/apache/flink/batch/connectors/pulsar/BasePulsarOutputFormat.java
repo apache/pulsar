@@ -18,24 +18,23 @@
  */
 package org.apache.flink.batch.connectors.pulsar;
 
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 
 /**
  * Base Pulsar Output Format to write Flink DataSets into a Pulsar topic.
@@ -54,7 +53,8 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
     private ProducerConfigurationData producerConf;
 
 
-    protected BasePulsarOutputFormat(final String serviceUrl, final String topicName, final Authentication authentication) {
+    protected BasePulsarOutputFormat(final String serviceUrl, final String topicName,
+        final Authentication authentication) {
         Preconditions.checkArgument(StringUtils.isNotBlank(serviceUrl), "serviceUrl cannot be blank.");
         Preconditions.checkArgument(StringUtils.isNotBlank(topicName),  "topicName cannot be blank.");
 
@@ -65,7 +65,8 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
         this.clientConf.setAuthentication(authentication);
         this.producerConf.setTopicName(topicName);
 
-        LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic: {}", this.producerConf.getTopicName());
+        LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic: {}",
+            this.producerConf.getTopicName());
     }
 
     protected BasePulsarOutputFormat(ClientConfigurationData clientConf, ProducerConfigurationData producerConf) {
@@ -75,7 +76,8 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
         Preconditions.checkArgument(StringUtils.isNotBlank(clientConf.getServiceUrl()), "serviceUrl cannot be blank.");
         Preconditions.checkArgument(StringUtils.isNotBlank(producerConf.getTopicName()),  "topicName cannot be blank.");
 
-        LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic: {}", this.producerConf.getTopicName());
+        LOG.info("PulsarOutputFormat is being started to write batches to Pulsar topic: {}",
+            this.producerConf.getTopicName());
     }
 
     @Override
@@ -107,9 +109,9 @@ public abstract class BasePulsarOutputFormat<T> extends RichOutputFormat<T>  {
 
     private Producer<byte[]> getProducerInstance()
             throws PulsarClientException {
-        if(producer == null){
+        if (producer == null){
             synchronized (PulsarOutputFormat.class) {
-                if(producer == null){
+                if (producer == null){
                     producer = Preconditions.checkNotNull(createPulsarProducer(),
                             "Pulsar producer cannot be null.");
                 }

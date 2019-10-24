@@ -61,13 +61,10 @@ static void messageListenerFunctionWithoutAck(Consumer consumer, const Message &
     latch.countdown();
 }
 
-static void sendCallBack(Result r, const Message &msg, std::string prefix, int *count) {
+static void sendCallBack(Result r, const MessageId &msgId, std::string prefix, int *count) {
     static std::mutex sendMutex_;
     sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
-    std::string messageContent = prefix + std::to_string(*count);
-    ASSERT_EQ(messageContent, msg.getDataAsString());
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
     *count += 1;
     sendMutex_.unlock();
 }
@@ -90,12 +87,12 @@ static void receiveCallBack(Result r, const Message &msg, std::string &messageCo
     receiveMutex_.unlock();
 }
 
-static void sendCallBackWithDelay(Result r, const Message &msg, std::string prefix, double percentage,
+static void sendCallBackWithDelay(Result r, const MessageId &msgId, std::string prefix, double percentage,
                                   uint64_t delayInMicros, int *count) {
     if ((rand() % 100) <= percentage) {
         std::this_thread::sleep_for(std::chrono::microseconds(delayInMicros));
     }
-    sendCallBack(r, msg, prefix, count);
+    sendCallBack(r, msgId, prefix, count);
 }
 
 class EncKeyReader : public CryptoKeyReader {
@@ -209,7 +206,7 @@ TEST(BasicEndToEndTest, testBatchMessages) {
     ASSERT_EQ(i, numOfMessages);
 }
 
-void resendMessage(Result r, const Message msg, Producer producer) {
+void resendMessage(Result r, const MessageId msgId, Producer producer) {
     Lock lock(mutex_);
     if (r != ResultOk) {
         LOG_DEBUG("globalResendMessageCount" << globalResendMessageCount);
@@ -1550,6 +1547,57 @@ TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
     client.close();
 }
 
+static long messagesReceived = 0;
+
+static void unackMessageListenerFunction(Consumer consumer, const Message &msg) { messagesReceived++; }
+
+TEST(BasicEndToEndTest, testPartitionTopicUnAckedMessageTimeout) {
+    Client client(lookupUrl);
+    long unAckedMessagesTimeoutMs = 10000;
+
+    std::string topicName = "persistent://public/default/testPartitionTopicUnAckedMessageTimeout";
+
+    // call admin api to make it partitioned
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/testPartitionTopicUnAckedMessageTimeout/partitions";
+    int res = makePutRequest(url, "3");
+
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
+
+    std::string subName = "my-sub-name";
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consConfig;
+    consConfig.setMessageListener(
+        std::bind(unackMessageListenerFunction, std::placeholders::_1, std::placeholders::_2));
+    consConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    result = client.subscribe(topicName, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    for (int i = 0; i < 10; i++) {
+        Message msg = MessageBuilder().setContent("test-" + std::to_string(i)).build();
+        producer.sendAsync(msg, nullptr);
+    }
+
+    producer.flush();
+    long timeWaited = 0;
+    while (true) {
+        // maximum wait time
+        ASSERT_LE(timeWaited, unAckedMessagesTimeoutMs * 3);
+        if (messagesReceived >= 10 * 2) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        timeWaited += 500;
+    }
+}
+
 TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
     Client client(lookupUrl);
     std::string topicName = "testUnAckedMessageTimeoutListener";
@@ -2239,8 +2287,8 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
 }
 
 // for partitioned reason, it may hard to verify message id.
-static void simpleCallback(Result code, const Message &msg) {
-    LOG_INFO("Received code: " << code << " -- Msg: " << msg);
+static void simpleCallback(Result code, const MessageId &msgId) {
+    LOG_INFO("Received code: " << code << " -- MsgID: " << msgId);
 }
 
 TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
@@ -2276,7 +2324,7 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
     consConfig.setConsumerType(ConsumerExclusive);
     consConfig.setReceiverQueueSize(2);
     ASSERT_FALSE(consConfig.hasMessageListener());
-    Consumer consumer[numberOfPartitions];
+    std::vector<Consumer> consumer(numberOfPartitions);
     Result subscribeResult;
     for (int i = 0; i < numberOfPartitions; i++) {
         std::stringstream partitionedTopicName;
@@ -2488,7 +2536,7 @@ TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     consConfig.setConsumerType(ConsumerExclusive);
     consConfig.setReceiverQueueSize(2);
     ASSERT_FALSE(consConfig.hasMessageListener());
-    Consumer consumer[numberOfPartitions];
+    std::vector<Consumer> consumer(numberOfPartitions);
     Result subscribeResult;
     for (int i = 0; i < numberOfPartitions; i++) {
         std::stringstream partitionedTopicName;
@@ -2926,4 +2974,128 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         timeWaited += 500;
     }
+}
+
+TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "testPartitionedTopicWithOnePartition";
+    std::string subsName = topicName + "-sub-";
+
+    // call admin api to make 1 partition
+    std::string url = adminUrl + "admin/v2/persistent/public/default/" + topicName + "/partitions";
+    int putRes = makePutRequest(url, "1");
+    LOG_INFO("res = " << putRes);
+    ASSERT_FALSE(putRes != 204 && putRes != 409);
+
+    Consumer consumer1;
+    ConsumerConfiguration conf;
+    Result result = client.subscribe(topicName, subsName + "1", consumer1);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer2;
+    result = client.subscribe(topicName + "-partition-0", subsName + "2", consumer2);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 2 consumer");
+
+    Producer producer1;
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingEnabled(false);
+    result = client.createProducer(topicName, producerConf, producer1);
+    ASSERT_EQ(ResultOk, result);
+
+    Producer producer2;
+    result = client.createProducer(topicName + "-partition-0", producerConf, producer2);
+    ASSERT_EQ(ResultOk, result);
+
+    LOG_INFO("created 2 producer");
+
+    // create messages
+    int numMessages = 10;
+    for (int i = 0; i < numMessages; i++) {
+        Message msg = MessageBuilder().setContent("test-producer1-" + topicName + std::to_string(i)).build();
+        producer1.send(msg);
+        msg = MessageBuilder().setContent("test-producer2-" + topicName + std::to_string(i)).build();
+        producer2.send(msg);
+    }
+
+    // produced 10 messages by each producer.
+    // expected receive 20 messages by each consumer.
+    for (int i = 0; i < numMessages * 2; i++) {
+        LOG_INFO("begin to receive message " << i);
+
+        Message msg;
+        Result res = consumer1.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        consumer1.acknowledge(msg);
+
+        res = consumer2.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        consumer2.acknowledge(msg);
+    }
+
+    // No more messages expected
+    Message msg;
+    Result res = consumer1.receive(msg, 100);
+    ASSERT_EQ(ResultTimeout, res);
+
+    res = consumer2.receive(msg, 100);
+    ASSERT_EQ(ResultTimeout, res);
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "testCumulativeAcknowledgeNotAllowed";
+    std::string subsName = topicName + "-sub-";
+
+    Consumer consumer1;
+    ConsumerConfiguration consumerConfiguration1;
+    consumerConfiguration1.setConsumerType(ConsumerShared);
+
+    Result result = client.subscribe(topicName, subsName + "1", consumerConfiguration1, consumer1);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer2;
+    ConsumerConfiguration consumerConfiguration2;
+    consumerConfiguration2.setConsumerType(ConsumerKeyShared);
+
+    result = client.subscribe(topicName, subsName + "2", consumerConfiguration2, consumer2);
+    ASSERT_EQ(ResultOk, result);
+
+    Producer producer;
+    result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    // publish messages
+    int numMessages = 10;
+    for (int i = 0; i < numMessages; i++) {
+        Message msg = MessageBuilder().setContent("test-producer-" + topicName + std::to_string(i)).build();
+        producer.send(msg);
+    }
+
+    // test cannot use acknowledgeCumulative on Shared subscription
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        Result res = consumer1.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        if (i == 9) {
+            res = consumer1.acknowledgeCumulative(msg);
+            ASSERT_EQ(ResultCumulativeAcknowledgementNotAllowedError, res);
+        }
+    }
+
+    // test cannot use acknowledgeCumulative on Key_Shared subscription
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        Result res = consumer2.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        if (i == 9) {
+            res = consumer2.acknowledgeCumulative(msg);
+            ASSERT_EQ(ResultCumulativeAcknowledgementNotAllowedError, res);
+        }
+    }
+    client.shutdown();
 }

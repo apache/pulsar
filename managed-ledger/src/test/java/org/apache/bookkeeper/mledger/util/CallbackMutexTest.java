@@ -35,15 +35,12 @@ public class CallbackMutexTest {
         salary.add(1000);
         // No thread competition here
         // We will test thread competition in unlock()
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                cbm.lock();
-                if (salary.value() == 1000)
-                    salary.add(2000);
-                cbm.unlock();
-                Assert.assertEquals(salary.value(), 3000);
-            }
+        new Thread(() -> {
+            cbm.lock();
+            if (salary.value() == 1000)
+                salary.add(2000);
+            cbm.unlock();
+            Assert.assertEquals(salary.value(), 3000);
         }).start();
     }
 

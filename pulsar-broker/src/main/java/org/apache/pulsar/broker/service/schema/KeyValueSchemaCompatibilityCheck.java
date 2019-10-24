@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import com.google.gson.Gson;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Map;
@@ -39,48 +40,13 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         this.checkers = checkers;
     }
 
-    private KeyValue<byte[], byte[]> splitKeyValueSchema(byte[] bytes) {
-        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-        int keyLength = byteBuffer.getInt();
-        byte[] keySchema = new byte[keyLength];
-        byteBuffer.get(keySchema);
-
-        int valueLength = byteBuffer.getInt();
-        byte[] valueSchema = new byte[valueLength];
-        byteBuffer.get(valueSchema);
-        return new KeyValue<>(keySchema, valueSchema);
-    }
-
-    private SchemaType fetchSchemaType(Map<String, String> properties, String key) {
-        if (properties.get(key) != null) {
-            return SchemaType.valueOf(properties.get(key));
-        }
-        return SchemaType.BYTES;
-    }
-
-    private SchemaData fetchSchemaData(
-            byte[] keyValue, SchemaType schemaType, Gson schemaGson, Map<String, String> properties, String key) {
-        if (properties.get(key) != null) {
-            return SchemaData.builder().data(keyValue)
-                    .type(schemaType)
-                    .props(schemaGson.fromJson(properties.get(key), Map.class)).build();
-        }
-        return SchemaData.builder().data(keyValue)
-                .type(schemaType)
-                .props(Collections.emptyMap()).build();
-    }
-
-    private KeyValue<SchemaData, SchemaData> splitKeyValueSchemaData(SchemaData schemaData) {
-        KeyValue<byte[], byte[]> keyValue = this.splitKeyValueSchema(schemaData.getData());
-        Map<String, String> properties = schemaData.getProps();
-        SchemaType keyType = fetchSchemaType(properties, "key.schema.type");
-        SchemaType valueType = fetchSchemaType(properties, "value.schema.type");
-        Gson schemaGson = new Gson();
-        SchemaData keySchemaData = fetchSchemaData(
-                keyValue.getKey(), keyType, schemaGson, properties, "key.schema.properties");
-        SchemaData valueSchemaData = fetchSchemaData(
-                keyValue.getValue(), valueType, schemaGson, properties, "value.schema.properties");
-        return new KeyValue<>(keySchemaData, valueSchemaData);
+    public static KeyValue<SchemaData, SchemaData> decodeKeyValueSchemaData(SchemaData schemaData) {
+        KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
+            KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaData.toSchemaInfo());
+        return new KeyValue<>(
+            SchemaData.fromSchemaInfo(schemaInfoKeyValue.getKey()),
+            SchemaData.fromSchemaInfo(schemaInfoKeyValue.getValue())
+        );
     }
 
     @Override
@@ -89,39 +55,44 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
     }
 
     @Override
-    public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        return isCompatible(Collections.singletonList(from), to, strategy);
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+        checkCompatible(Collections.singletonList(from), to, strategy);
     }
 
     @Override
-    public boolean isCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) {
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException  {
         if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
-            return true;
+            return;
         }
         if (to.getType() != SchemaType.KEY_VALUE) {
-            return false;
+            throw new IncompatibleSchemaException("To schema is not a KEY_VALUE schema.");
         }
         LinkedList<SchemaData> fromKeyList = new LinkedList<>();
         LinkedList<SchemaData> fromValueList = new LinkedList<>();
         KeyValue<SchemaData, SchemaData> fromKeyValue;
-        KeyValue<SchemaData, SchemaData> toKeyValue = splitKeyValueSchemaData(to);
+        KeyValue<SchemaData, SchemaData> toKeyValue = decodeKeyValueSchemaData(to);
         SchemaType toKeyType = toKeyValue.getKey().getType();
         SchemaType toValueType = toKeyValue.getValue().getType();
 
         for (SchemaData schemaData : from) {
             if (schemaData.getType() != SchemaType.KEY_VALUE) {
-                return false;
+                throw new IncompatibleSchemaException("From schema is not a KEY_VALUE schema.");
             }
-            fromKeyValue = splitKeyValueSchemaData(schemaData);
+            fromKeyValue = decodeKeyValueSchemaData(schemaData);
             if (fromKeyValue.getKey().getType() != toKeyType || fromKeyValue.getValue().getType() != toValueType) {
-                return false;
+                throw new IncompatibleSchemaException(String.format("Key schemas or Value schemas are different schema type, " +
+                        "from key schema type is %s and to key schema is %s, from value schema is %s and to value schema is %s",
+                        fromKeyValue.getKey().getType(),
+                        toKeyType,
+                        fromKeyValue.getValue().getType(),
+                        toValueType));
             }
             fromKeyList.addFirst(fromKeyValue.getKey());
             fromValueList.addFirst(fromKeyValue.getValue());
         }
         SchemaCompatibilityCheck keyCheck = checkers.getOrDefault(toKeyType, SchemaCompatibilityCheck.DEFAULT);
         SchemaCompatibilityCheck valueCheck = checkers.getOrDefault(toValueType, SchemaCompatibilityCheck.DEFAULT);
-        return keyCheck.isCompatible(fromKeyList, toKeyValue.getKey(), strategy)
-                && valueCheck.isCompatible(fromValueList, toKeyValue.getValue(), strategy);
+        keyCheck.checkCompatible(fromKeyList, toKeyValue.getKey(), strategy);
+        valueCheck.checkCompatible(fromValueList, toKeyValue.getValue(), strategy);
     }
 }

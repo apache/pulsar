@@ -49,6 +49,7 @@ public class NamespaceStatsAggregator {
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, SimpleTextOutputStream stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
+        TopicStats.resetTypes();
         TopicStats topicStats = localTopicStats.get();
 
         printDefaultBrokerStats(stream, cluster);
@@ -201,8 +202,13 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_throughput_out", stats.throughputOut);
 
         metric(stream, cluster, namespace, "pulsar_storage_size", stats.storageSize);
+        metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.backlogSize);
+        metric(stream, cluster, namespace, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
+
         metric(stream, cluster, namespace, "pulsar_storage_write_rate", stats.storageWriteRate);
         metric(stream, cluster, namespace, "pulsar_storage_read_rate", stats.storageReadRate);
+
+        metric(stream, cluster, namespace, "pulsar_subscription_delayed", stats.msgDelayed);
 
         metricWithRemoteCluster(stream, cluster, namespace, "pulsar_msg_backlog", "local", stats.msgBacklog);
 
@@ -255,6 +261,7 @@ public class NamespaceStatsAggregator {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String name,
             long value) {
+        TopicStats.metricType(stream, name);
         stream.write(name)
                 .write("{cluster=\"").write(cluster).write("\"} ")
                 .write(value).write(' ').write(System.currentTimeMillis())
@@ -263,18 +270,21 @@ public class NamespaceStatsAggregator {
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
                                long value) {
+        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
                                double value) {
+        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
                                                 String name, String remoteCluster, double value) {
+        TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
         stream.write("\",remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');

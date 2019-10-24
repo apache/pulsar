@@ -1,19 +1,19 @@
-# The Pulsar website and documentation
+# Pulsar website and documentation
 
-This `README` is basically the meta-documentation for the Pulsar website and documentation. You will find instructions on running the site locally.
+Pulsar website is comprised of two parts: website pages (including blog posts) and documentation.
 
-## Tools
+You can run the website locally to test your updates. The documentation is written in English, and we also encourage contributions in different languages.
 
-Framework [Docusaurus](https://docusaurus.io/).
 
-Ensure you have installed the latest version of [Node](https://nodejs.org/en/download/). You can install [Yarn](https://yarnpkg.com/en/docs/install) as well.
+## Website
+
+Pulsar website framework adopts [Docusaurus](https://docusaurus.io/). Website pages are non-versioned. They are placed in the `/site2/website` directory. Ensure that you have installed the latest version of [Node](https://nodejs.org/en/download/) and [Yarn](https://yarnpkg.com/en/docs/install) before running the site locally.
 
 > You have to be on Node >= 8.x and Yarn >= 1.5.
 
+### Run the site locally
 
-## Running the site locally
-
-To run the site locally:
+To run the site locally, enter the following commands.
 
 ```bash 
 git clone https://github.com/apache/pulsar.git
@@ -27,20 +27,20 @@ yarn start
 > 2. After you enter the `yarn start` command, you will be navigated to a local address, for example, `http://localhost:3000`. Click `Docs` to see documentation for the latest release of Pulsar. 
 > 3. The `http://localhost:3000/en/versions` path shows the documentation for all versions. To view your local changes, click `Documentation` in **Latest Version**, or enter `http://localhost:3000/docs/en/next/standalone` in a browser.
 
-## Contribute
+## Documentation
+Pulsar documents are written in English. Documentation related pages are placed in the `/site2/docs` directory. All documentation pages are versioned. For more details, refer to [versioning](#versioning).
 
-The website is comprised of two parts: one is documentation, the other is website pages (including blog posts).
+### Contribute to documentation
 
-Documentation related pages are placed in the `docs` directory. They are written in [Markdown](http://daringfireball.net/projects/markdown/syntax).
-All documentation pages are versioned. For more details, refer to [versioning](#versioning).
+We welcome contributions to help improve Pulsar documentation. The documents are written in [Markdown](http://daringfireball.net/projects/markdown/syntax) and follow [Google Developer Documentation Style Guide](https://developers.google.com/style/). If you are not familiar with the writing styles, we are happy to guide you along the way.
 
-Website pages are non-versioned. They are placed in the `website` directory.
+For workflow on how to contribute to Pulsar, refer to [contribution](http://pulsar.apache.org/en/contributing/) guidelines.
 
-### Documentation
+To learn more about Pulsar documents, read the following instructions.
 
-#### Layout
+### Layout
 
-All the markdown files are placed in the `docs` directory. It is a flat structure.
+The markdown files placed in the `docs` directory adopt a flat structure.
 
 ```
 ├── docs
@@ -71,14 +71,9 @@ All the files are named in the following convention:
 
 `<category>` is the category within the sidebar that this file belongs to, while `<page-name>` is the string to name the file within this category.
 
-There isn't any constraints on how files are named. It is just a naming convention for better maintenance.
+### Markdown Headers
 
-#### Document
-
-##### Markdown Headers
-
-All the documents are usual Markdown files. However you need to add some Docusaurus-specific fields in Markdown headers in order to link them
-correctly to the [Sidebar](#sidebar) and [Navigation Bar](#navigation).
+All the documents are usual Markdown files. However you need to add some Docusaurus-specific fields in Markdown headers in order to link them correctly to the [Sidebar](#sidebar) and [Navigation Bar](#navigation).
 
 `id`: A unique document ID. If this field is not specified, the document ID defaults to its file name (without the extension).
 
@@ -98,7 +93,7 @@ sidebar_label: Overview
 ---
 ```
 
-##### Linking to another document
+### Link to another document
 
 To link to other documentation files, you can use relative URLs, which will be automatically converted to the corresponding HTML links when they are rendered.
 
@@ -110,10 +105,9 @@ Example:
 
 The markdown file will be automatically converted into a link to /docs/other-document.html (or the appropriately translated/versioned link) once it is rendered.
 
-This helps when you want to navigate through docs on GitHub since the links there are functional links to other documents (still on GitHub),
-and the documents have the correct HTML links when they are rendered.
+This helps when you want to navigate through docs on GitHub since the links there are functional links to other documents (still on GitHub), and the documents have the correct HTML links when they are rendered.
 
-#### Linking to javadoc of pulsar class
+### Link to javadoc of Pulsar class
 
 We have a [remarkable plugin](https://github.com/jonschlinkert/remarkable) to generate links to the javadoc for Pulsar classes.
 You can write them in the following syntax:
@@ -128,7 +122,7 @@ For example, the following line generates a hyperlink to the javadoc of `PulsarA
 {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin.html}
 ```
 
-#### Linking to files in Pulsar GitHub repository
+### Link to files in Pulsar GitHub repository
 
 We use the same [remarkable plugin](https://github.com/jonschlinkert/remarkable) to generate links to files in Pulsar GitHub repository.
 
@@ -146,7 +140,7 @@ For example, the following line generates a hyperlink to the dashboard Dockerfil
 
 For more details about markdown features, read [here](https://docusaurus.io/docs/en/doc-markdown).
 
-#### Sidebar
+### Sidebar
 
 All the sidebars are defined in a `sidebars.json` file in the `website` directory. The documentation sidebar is named `docs` in the JSON structure.
 
@@ -168,15 +162,15 @@ When you want to add a page to sidebar, you can add the document `id` you used i
 }
 ```
 
-#### Navigation
+### Navigation
 
 To add links to the top navigation bar, you can add entries to the `headerLinks` of `siteConfig.js` under `website` directory.
 
 To learn different types of links you can add to the top navigation bar, refer to [Navigation and Sidebars](https://docusaurus.io/docs/en/navigation).
 
-## Versioning
+### Versioning
 
-Documentation versioning with Docusaurus becomes simpler. When done with a new release, just simply run following command:
+Documentation versioning with Docusaurus becomes simpler. When done with a new release, just simply run the following command.
 
 ```shell
 yarn run version ${version}
@@ -192,29 +186,24 @@ If you want to change the documentation for a previous version, you can access f
 
 For more details about versioning, refer to [Versioning](https://docusaurus.io/docs/en/versioning).
 
-## Translation and Localization
+## Translation and localization
 
 Docusaurus makes it easy to use translation functionality using [Crowdin](https://crowdin.com/).
-All the markdown files are written in English. These markdown files are uploaded to Crowdin
-for translation by users within a community. Top-level pages are also written in English.
+All the markdown files are written in English. These markdown files are uploaded to Crowdin for translation by users within a community. Top-level pages are also written in English.
 The strings that are needed to be translated are wrapped in a `<translate>` tag.
 
-[Pulsar Website Build](https://builds.apache.org/job/pulsar-website-build/) 
-pulls down and uploads translation for all the Pulsar website documentation files automatically. Once
-it pulls down translation from Crowdin, it will build the translation into the website.
+[Pulsar Website Build](https://builds.apache.org/job/pulsar-website-build/) pulls down and uploads translation for all the Pulsar website documentation files automatically. Once it pulls down translation from Crowdin, it will build the translation into the website.
 
-### Contribute Translation
+### Contribute translation
 
 Translation is stored and managed in the [Pulsar Crowdin project](https://crowdin.com/project/apache-pulsar).
 To contribute translation, you can simply create a Crowdin account, join the project and make contributions.
-Crowdin provides very good documentation for translators. You can read [Crowdin Knowledge Base](https://support.crowdin.com/crowdin-intro/)
-before contributing.
+Crowdin provides very good documentation for translators. You can read [Crowdin Knowledge Base](https://support.crowdin.com/crowdin-intro/) before contributing.
 
 Translation you contribute is licensed under [Apache License V2](https://www.apache.org/licenses/LICENSE-2.0).
-Pulsar Committers will review translation. If your translation is not reviewed or approved by any committer,
-feel free to reach out via [slack channel](https://apache-pulsar.herokuapp.com/) or [mailing lists](https://pulsar.apache.org/contact/).
+Pulsar Committers will review translation. If your translation is not reviewed or approved by any committer, feel free to reach out via [slack channel](https://apache-pulsar.herokuapp.com/) or [mailing lists](https://pulsar.apache.org/contact/).
 
-### Download Translated Docs
+### Download translated docs
 
 When you find display issues on the translated pages, you can download the translated docs from Crowdin, and follow the instructions below to debug and fix issues.
 
@@ -259,4 +248,4 @@ The translated docs are downloaded to the `site2/website/translated_docs` direct
 ### Check issues, fix and verify
 
 After download the translated documents, you can open the target markdown file, check issues and fix them.
-To verify if you have fixed the issues correctly, [run the site locally](#running-the-site-locally).
+To verify if you have fixed the issues correctly, [run the site locally](#run-the-site-locally).

@@ -291,14 +291,14 @@ public class Functions extends AdminResource implements Supplier<WorkerService> 
 
     @POST
     @ApiOperation(
-            value = "Uploads Pulsar Function file data",
+            value = "Uploads Pulsar Function file data (admin only)",
             hidden = true
     )
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("path") String path) {
-        return functions.uploadFunction(uploadedInputStream, path);
+        return functions.uploadFunction(uploadedInputStream, path, clientAppId());
     }
 
     @GET

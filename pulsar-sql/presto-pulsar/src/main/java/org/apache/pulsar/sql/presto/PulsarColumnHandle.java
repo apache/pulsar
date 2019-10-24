@@ -18,27 +18,29 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static java.util.Objects.requireNonNull;
+
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.Arrays;
 
-import static java.util.Objects.requireNonNull;
-
+/**
+ * This class represents the basic information about a presto column.
+ */
 public class PulsarColumnHandle implements ColumnHandle {
 
     private final String connectorId;
 
     /**
-     * Column Name
+     * Column Name.
      */
     private final String name;
 
     /**
-     * Column type
+     * Column type.
      */
     private final Type type;
 
@@ -116,17 +118,33 @@ public class PulsarColumnHandle implements ColumnHandle {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         PulsarColumnHandle that = (PulsarColumnHandle) o;
 
-        if (hidden != that.hidden) return false;
-        if (internal != that.internal) return false;
-        if (connectorId != null ? !connectorId.equals(that.connectorId) : that.connectorId != null) return false;
-        if (name != null ? !name.equals(that.name) : that.name != null) return false;
-        if (type != null ? !type.equals(that.type) : that.type != null) return false;
-        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) return false;
+        if (hidden != that.hidden) {
+            return false;
+        }
+        if (internal != that.internal) {
+            return false;
+        }
+        if (connectorId != null ? !connectorId.equals(that.connectorId) : that.connectorId != null) {
+            return false;
+        }
+        if (name != null ? !name.equals(that.name) : that.name != null) {
+            return false;
+        }
+        if (type != null ? !type.equals(that.type) : that.type != null) {
+            return false;
+        }
+        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) {
+            return false;
+        }
         return Arrays.deepEquals(positionIndices, that.positionIndices);
     }
 
@@ -144,14 +162,14 @@ public class PulsarColumnHandle implements ColumnHandle {
 
     @Override
     public String toString() {
-        return "PulsarColumnHandle{" +
-                "connectorId='" + connectorId + '\'' +
-                ", name='" + name + '\'' +
-                ", type=" + type +
-                ", hidden=" + hidden +
-                ", internal=" + internal +
-                ", fieldNames=" + Arrays.toString(fieldNames) +
-                ", positionIndices=" + Arrays.toString(positionIndices) +
-                '}';
+        return "PulsarColumnHandle{"
+            + "connectorId='" + connectorId + '\''
+            + ", name='" + name + '\''
+            + ", type=" + type
+            + ", hidden=" + hidden
+            + ", internal=" + internal
+            + ", fieldNames=" + Arrays.toString(fieldNames)
+            + ", positionIndices=" + Arrays.toString(positionIndices)
+            + '}';
     }
 }

@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.client.api.v1;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -87,7 +86,9 @@ import org.testng.annotations.Test;
  * Basic tests using the deprecated client APIs from Pulsar-1.x
  */
 public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
+
     private static final Logger log = LoggerFactory.getLogger(V1_ProducerConsumerTest.class);
+    private static final long BATCHING_MAX_PUBLISH_DELAY_THRESHOLD = 1;
 
     @BeforeMethod
     @Override
@@ -160,7 +161,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic2")
                 .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .enableBatching(batchMessageDelayMs != 0)
                 .create();
 
@@ -218,7 +219,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic3")
                 .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .enableBatching(batchMessageDelayMs != 0)
                 .create();
 
@@ -237,7 +238,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         }
 
         log.info("Waiting for message listener to ack all messages");
-        assertEquals(latch.await(numMessages, TimeUnit.SECONDS), true, "Timed out waiting for message listener acks");
+        assertTrue(latch.await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -254,7 +255,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic4")
                 .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .enableBatching(batchMessageDelayMs != 0)
                 .create();
 
@@ -305,7 +306,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic5")
                 .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(2 * batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(2 * BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .enableBatching(batchMessageDelayMs != 0)
                 .sendTimeout(1, TimeUnit.SECONDS)
                 .create();
@@ -527,7 +528,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         // publish 100 messages so that the consumers blocked on receive() will now get the messages
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic7")
-                .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .batchingMaxMessages(5)
                 .enableBatching(batchMessageDelayMs != 0)
                 .create();
@@ -723,7 +724,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         retryStrategically((test) -> entryCache.getSize() == 0, 5, 100);
 
         // Verify: EntryCache should be cleared
-        assertTrue(entryCache.getSize() == 0);
+        assertEquals(entryCache.getSize(), 0);
         subscriber1.close();
         log.info("-- Exiting {} test --", methodName);
     }
@@ -879,14 +880,14 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             consumerMsgSet2.add(msg);
         }
 
-        consumerMsgSet1.stream().forEach(m -> {
+        consumerMsgSet1.forEach(m -> {
             try {
                 consumer2.acknowledge(m);
             } catch (PulsarClientException e) {
                 fail();
             }
         });
-        consumerMsgSet2.stream().forEach(m -> {
+        consumerMsgSet2.forEach(m -> {
             try {
                 consumer1.acknowledge(m);
             } catch (PulsarClientException e) {
@@ -1104,8 +1105,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     /**
      * Verify: Consumer1 which doesn't send ack will not impact Consumer2 which sends ack for consumed message.
      *
-     *
-     * @param batchMessageDelayMs
      * @throws Exception
      */
     @Test
@@ -1365,7 +1364,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             Producer<byte[]> producer = pulsarClient.newProducer()
                     .topic("persistent://my-property/use/my-ns/unacked-topic")
                     .enableBatching(batchMessageDelayMs != 0)
-                    .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                    .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5)
                     .create();
 
@@ -1431,8 +1430,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     /**
      * Verify: Consumer2 sends ack of Consumer1 and consumer1 should be unblock if it is blocked due to unack-messages
      *
-     *
-     * @param batchMessageDelayMs
      * @throws Exception
      */
     @Test
@@ -2043,7 +2040,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // (1) simple consumers
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/failAsyncReceive")
+                .topic("persistent://my-property/use/my-ns/failAsyncReceive-1")
                 .subscriptionName("my-subscriber-name")
                 .subscribe();
         consumer.close();
@@ -2057,7 +2054,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // (2) Partitioned-consumer
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/failAsyncReceive");
+        TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/failAsyncReceive-2");
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
         Consumer<byte[]> partitionedConsumer = pulsarClient.newConsumer().topic(topicName.toString())
                 .subscriptionName("my-partitioned-subscriber")

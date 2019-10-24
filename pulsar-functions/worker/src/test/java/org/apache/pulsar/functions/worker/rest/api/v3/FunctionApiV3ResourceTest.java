@@ -18,9 +18,36 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.doNothing;
+import static org.powermock.api.mockito.PowerMockito.doThrow;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertEquals;
+
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import lombok.extern.slf4j.Slf4j;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
+
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -63,37 +90,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
-import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.assertEquals;
-
 /**
  * Unit test of {@link FunctionsApiV2Resource}.
  */
 @PrepareForTest({WorkerUtils.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.functions.api.*" })
-@Slf4j
 public class FunctionApiV3ResourceTest {
 
     @ObjectFactory
@@ -106,6 +107,13 @@ public class FunctionApiV3ResourceTest {
         @Override
         public String process(String input, Context context) {
             return input;
+        }
+    }
+
+    private static final class WrongFunction implements Consumer<String> {
+        @Override
+        public void accept(String s) {
+
         }
     }
 
@@ -227,7 +235,7 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
     public void testRegisterFunctionMissingFunctionName() {
         try {
         testRegisterFunctionMissingArguments(
@@ -438,6 +446,27 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function class .*. does not implement the correct interface")
+    public void testRegisterFunctionImplementWrongInterface() {
+        try {
+            testRegisterFunctionMissingArguments(
+                    tenant,
+                    namespace,
+                    function,
+                    mockedInputStream,
+                    topicsToSerDeClassName,
+                    mockedFormData,
+                    outputTopic,
+                    outputSerdeClassName,
+                    WrongFunction.class.getName(),
+                    parallelism,
+                    null);
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
     private void testRegisterFunctionMissingArguments(
             String tenant,
             String namespace,
@@ -484,9 +513,37 @@ public class FunctionApiV3ResourceTest {
                 inputStream,
                 details,
                 functionPkgUrl,
-                new Gson().toJson(functionConfig),
+                functionConfig,
                 null, null);
 
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function config is not provided")
+    public void testMissingFunctionConfig() {
+        resource.registerFunction(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function config is not provided")
+    public void testUpdateMissingFunctionConfig() {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        resource.updateFunction(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                null,
+                null,
+                null, null, null);
     }
 
     private void registerDefaultFunction() {
@@ -498,7 +555,7 @@ public class FunctionApiV3ResourceTest {
             mockedInputStream,
             mockedFormData,
             null,
-            new Gson().toJson(functionConfig),
+            functionConfig,
                 null, null);
     }
 
@@ -683,7 +740,7 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
     public void testUpdateFunctionMissingFunctionName() {
         try {
             testUpdateFunctionMissingArguments(
@@ -697,7 +754,7 @@ public class FunctionApiV3ResourceTest {
                     outputSerdeClassName,
                 className,
                 parallelism,
-                    "Function Name is not provided");
+                    "Function name is not provided");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;
@@ -912,7 +969,7 @@ public class FunctionApiV3ResourceTest {
             inputStream,
             details,
             null,
-            new Gson().toJson(functionConfig),
+            functionConfig,
                 null, null, null);
 
     }
@@ -936,7 +993,7 @@ public class FunctionApiV3ResourceTest {
             mockedInputStream,
             mockedFormData,
             null,
-            new Gson().toJson(functionConfig),
+            functionConfig,
                 null, null, null);
     }
 
@@ -1024,7 +1081,7 @@ public class FunctionApiV3ResourceTest {
             null,
             null,
             filePackageUrl,
-            new Gson().toJson(functionConfig),
+            functionConfig,
                 null, null, null);
 
     }
@@ -1112,7 +1169,7 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
     public void testDeregisterFunctionMissingFunctionName() {
         try {
              testDeregisterFunctionMissingArguments(
@@ -1239,7 +1296,7 @@ public class FunctionApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Name is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function name is not provided")
     public void testGetFunctionMissingFunctionName() {
         try {
             testGetFunctionMissingArguments(
@@ -1414,11 +1471,12 @@ public class FunctionApiV3ResourceTest {
         String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         WorkerService worker = mock(WorkerService.class);
+        doReturn(true).when(worker).isInitialized();
         WorkerConfig config = mock(WorkerConfig.class);
         when(config.isAuthorizationEnabled()).thenReturn(false);
         when(worker.getWorkerConfig()).thenReturn(config);
         FunctionsImpl function = new FunctionsImpl(()-> worker);
-        StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl);
+        StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl, null, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1433,11 +1491,12 @@ public class FunctionApiV3ResourceTest {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         WorkerService worker = mock(WorkerService.class);
+        doReturn(true).when(worker).isInitialized();
         WorkerConfig config = mock(WorkerConfig.class);
         when(config.isAuthorizationEnabled()).thenReturn(false);
         when(worker.getWorkerConfig()).thenReturn(config);
         FunctionsImpl function = new FunctionsImpl(() -> worker);
-        StreamingOutput streamOutput = function.downloadFunction("file://" + fileLocation);
+        StreamingOutput streamOutput = function.downloadFunction("file://" + fileLocation, null, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1469,7 +1528,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, new Gson().toJson(functionConfig), null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
 
     }
 
@@ -1500,7 +1559,32 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, new Gson().toJson(functionConfig), null, null);
+        resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, functionConfig, null, null);
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function language runtime is either not set or cannot be determined")
+    public void testCreateFunctionWithoutSettingRuntime() {
+        Configurator.setRootLevel(Level.DEBUG);
+
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String filePackageUrl = "file://" + fileLocation;
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+
+        RequestResult rr = new RequestResult().setSuccess(true).setMessage("function registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(function);
+        functionConfig.setClassName(className);
+        functionConfig.setParallelism(parallelism);
+        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        functionConfig.setOutput(outputTopic);
+        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
+
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {

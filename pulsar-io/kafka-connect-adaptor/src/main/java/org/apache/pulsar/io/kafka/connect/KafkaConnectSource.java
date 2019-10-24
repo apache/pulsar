@@ -105,7 +105,8 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
         valueConverter.configure(config, false);
 
         offsetStore = new PulsarOffsetBackingStore();
-        offsetStore.configure(new PulsarKafkaWorkerConfig(stringConfig));
+        PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(stringConfig);
+        offsetStore.configure(pulsarKafkaWorkerConfig);
         offsetStore.start();
 
         offsetReader = new OffsetStorageReaderImpl(
@@ -121,7 +122,7 @@ public class KafkaConnectSource implements Source<KeyValue<byte[], byte[]>> {
             valueConverter
         );
 
-        sourceTaskContext = new PulsarIOSourceTaskContext(offsetReader);
+        sourceTaskContext = new PulsarIOSourceTaskContext(offsetReader, pulsarKafkaWorkerConfig);
 
         sourceTask.initialize(sourceTaskContext);
         sourceTask.start(stringConfig);

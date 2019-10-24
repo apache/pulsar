@@ -46,13 +46,7 @@ public abstract class AbstractSource<V> extends PushSource<V> {
 
     protected volatile boolean running = false;
 
-    protected final Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
-
-        @Override
-        public void uncaughtException(Thread t, Throwable e) {
-            log.error("[{}] parse events has an error", t.getName(), e);
-        }
-    };
+    protected final Thread.UncaughtExceptionHandler handler = (t, e) -> log.error("[{}] parse events has an error", t.getName(), e);
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -69,14 +63,7 @@ public abstract class AbstractSource<V> extends PushSource<V> {
     public abstract V extractValue(String message);
 
     protected void start() {
-        thread = new Thread(new Runnable() {
-
-            @Override
-            public void run() {
-                process();
-            }
-        });
-
+        thread = new Thread(this::process);
         thread.setName("flume source thread");
         thread.setUncaughtExceptionHandler(handler);
         running = true;

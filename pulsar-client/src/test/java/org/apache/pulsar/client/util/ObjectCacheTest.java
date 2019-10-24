@@ -37,13 +37,14 @@ public class ObjectCacheTest {
         AtomicLong currentTime = new AtomicLong(0);
 
         Clock clock = mock(Clock.class);
-        when(clock.millis()).then(invocation -> currentTime);
+        when(clock.millis()).then(invocation -> currentTime.longValue());
 
         AtomicInteger currentValue = new AtomicInteger(0);
 
         Supplier<Integer> cache = new ObjectCache<>(() -> currentValue.getAndIncrement(),
                 10, TimeUnit.MILLISECONDS, clock);
 
+        cache.get();
         assertEquals(cache.get().intValue(), 0);
         assertEquals(cache.get().intValue(), 0);
 

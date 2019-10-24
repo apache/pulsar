@@ -97,6 +97,7 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("restart", restartSource);
         jcommander.addCommand("localrun", localSourceRunner);
         jcommander.addCommand("available-sources", new ListBuiltInSources());
+        jcommander.addCommand("reload", new ReloadBuiltInSources());
     }
 
     /**
@@ -603,6 +604,15 @@ public class CmdSources extends CmdBase {
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));
                         System.out.println("----------------------------------------");
                     });
+        }
+    }
+
+    @Parameters(commandDescription = "Reload the available built-in connectors")
+    public class ReloadBuiltInSources extends BaseCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            admin.sources().reloadBuiltInSources();
         }
     }
 }

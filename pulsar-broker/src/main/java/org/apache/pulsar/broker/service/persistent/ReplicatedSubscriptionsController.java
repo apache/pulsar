@@ -23,24 +23,32 @@ import io.prometheus.client.Gauge;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate;
+import org.apache.pulsar.common.protocol.Markers;
 
 /**
  * Encapsulate all the logic of replicated subscriptions tracking for a given topic.
@@ -93,6 +101,25 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
     }
 
+    public void localSubscriptionUpdated(String subscriptionName, ReplicatedSubscriptionsSnapshot snapshot) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Updating subscription to snapshot {}", topic, subscriptionName,
+                    snapshot.getClustersList().stream()
+                            .map(cmid -> String.format("%s -> %d:%d", cmid.getCluster(),
+                                    cmid.getMessageId().getLedgerId(), cmid.getMessageId().getEntryId()))
+                            .collect(Collectors.toList()));
+        }
+
+        Map<String, MessageIdData> clusterIds = new TreeMap<>();
+        for (int i = 0, size = snapshot.getClustersCount(); i < size; i++) {
+            ClusterMessageId cmid = snapshot.getClusters(i);
+            clusterIds.put(cmid.getCluster(), cmid.getMessageId());
+        }
+
+        ByteBuf subscriptionUpdate = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
+        topic.publishMessage(subscriptionUpdate, this);
+    }
+
     private void receivedSnapshotRequest(ReplicatedSubscriptionsSnapshotRequest request) {
         // Send response containing the current last written message id. The response
         // marker we're publishing locally and then replicating will have a higher
@@ -115,8 +142,10 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         String snapshotId = response.getSnapshotId();
         ReplicatedSubscriptionsSnapshotBuilder builder = pendingSnapshots.get(snapshotId);
         if (builder == null) {
-            log.info("[{}] Received late reply for timed-out snapshot {} from {}", topic.getName(), snapshotId,
-                    response.getCluster().getCluster());
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Received late reply for timed-out snapshot {} from {}", topic.getName(), snapshotId,
+                        response.getCluster().getCluster());
+            }
             return;
         }
 
@@ -124,7 +153,35 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void receiveSubscriptionUpdated(ReplicatedSubscriptionsUpdate update) {
+        MessageIdData updatedMessageId = null;
+        for (int i = 0, size = update.getClustersCount(); i < size; i++) {
+            ClusterMessageId cmid = update.getClusters(i);
+            if (localCluster.equals(cmid.getCluster())) {
+                updatedMessageId = cmid.getMessageId();
+            }
+        }
 
+        if (updatedMessageId == null) {
+            // No updates for this cluster, ignore
+            return;
+        }
+
+        Position pos = new PositionImpl(updatedMessageId.getLedgerId(), updatedMessageId.getEntryId());
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Received update for subscription to {}", topic, update.getSubscriptionName(), pos);
+        }
+
+        PersistentSubscription sub = topic.getSubscription(update.getSubscriptionName());
+        if (sub != null) {
+            sub.acknowledgeMessage(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
+        } else {
+            // Subscription doesn't exist. We need to force the creation of the subscription in this cluster, because
+            log.info("[{}][{}] Creating subscription at {}:{} after receiving update from replicated subcription",
+                    topic, update.getSubscriptionName(), updatedMessageId.getLedgerId(), pos);
+            topic.createSubscription(update.getSubscriptionName(),
+                    InitialPosition.Latest, true /* replicateSubscriptionState */);
+        }
     }
 
     private void startNewSnapshot() {

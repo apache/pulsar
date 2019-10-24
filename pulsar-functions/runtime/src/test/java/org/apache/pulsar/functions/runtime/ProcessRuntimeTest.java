@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.runtime;
 
+import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -34,6 +35,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
@@ -46,6 +48,7 @@ import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -123,6 +126,11 @@ public class ProcessRuntimeTest {
         this.logDirectory = "Users/user/logs";
     }
 
+    @BeforeClass
+    public void setup() {
+        System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
+    }
+
     @AfterMethod
     public void tearDown() {
         if (null != this.factory) {
@@ -139,7 +147,7 @@ public class ProcessRuntimeTest {
             pythonInstanceFile,
             logDirectory,
             extraDependenciesDir, /* extra dependencies dir */
-            new TestSecretsProviderConfigurator(), false);
+            new TestSecretsProviderConfigurator(), false, Optional.empty());
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {
@@ -266,12 +274,12 @@ public class ProcessRuntimeTest {
         }
 
         String expectedArgs = "java -cp " + classpath
-                + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
                 + extraDepsEnv
-                + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
+                + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
+                + " -Dlog4j.configurationFile=java_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
-                + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
+                + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()

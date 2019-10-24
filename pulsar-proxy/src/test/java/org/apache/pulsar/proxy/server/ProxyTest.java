@@ -24,7 +24,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 
-import java.util.concurrent.ExecutionException;
 import java.util.Optional;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -227,7 +226,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    private void testGetSchema() throws Exception {
+    public void testGetSchema() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
                 .build();
         Producer<Foo> producer;
@@ -250,7 +249,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    private void testProtocolVersionAdvertisement() throws Exception {
+    public void testProtocolVersionAdvertisement() throws Exception {
         final String url = "pulsar://localhost:" + proxyConfig.getServicePort().get();
         final String topic = "persistent://sample/test/local/protocol-version-advertisement";
         final String sub = "my-sub";

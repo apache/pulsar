@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 
 import java.util.Set;
@@ -30,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;

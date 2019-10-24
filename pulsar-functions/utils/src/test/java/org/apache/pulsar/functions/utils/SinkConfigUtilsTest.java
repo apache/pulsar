@@ -264,6 +264,21 @@ public class SinkConfigUtilsTest {
         );
     }
 
+    @Test
+    public void testMergeRuntimeFlags() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newFunctionConfig = createUpdatedSinkConfig("runtimeFlags", "-Dfoo=bar2");
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getRuntimeFlags(), "-Dfoo=bar2"
+        );
+        mergedConfig.setRuntimeFlags(sinkConfig.getRuntimeFlags());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
     private SinkConfig createSinkConfig() {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant("test-tenant");

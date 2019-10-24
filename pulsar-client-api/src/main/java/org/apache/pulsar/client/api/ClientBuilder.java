@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
 /**
@@ -31,7 +31,7 @@ import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticat
 public interface ClientBuilder extends Cloneable {
 
     /**
-     * Construct the final {@link PulsarClient} instance
+     * Construct the final {@link PulsarClient} instance.
      *
      * @return the new {@link PulsarClient} instance
      */
@@ -40,8 +40,7 @@ public interface ClientBuilder extends Cloneable {
     /**
      * Load the configuration from provided <tt>config</tt> map.
      *
-     * <p>
-     * Example:
+     * <p>Example:
      *
      * <pre>
      * {@code
@@ -64,8 +63,8 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Create a copy of the current client builder.
-     * <p>
-     * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
+     *
+     * <p>Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
      * example:
      *
      * <pre>{@code
@@ -85,10 +84,10 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Configure the service URL for the Pulsar service.
-     * <p>
-     * This parameter is required.
-     * <p>
-     * Examples:
+     *
+     * <p>This parameter is required.
+     *
+     * <p>Examples:
      * <ul>
      * <li>{@code pulsar://my-broker:6650} for regular endpoint</li>
      * <li>{@code pulsar+ssl://my-broker:6651} for TLS encrypted endpoint</li>
@@ -101,10 +100,10 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder serviceUrl(String serviceUrl);
 
     /**
-     * Configure the service URL provider for Pulsar service
-     * <p>
-     * Instead of specifying a static service URL string (with {@link #serviceUrl(String)}), an application can pass a
-     * {@link ServiceUrlProvider} instance that dynamically provide a service URL.
+     * Configure the service URL provider for Pulsar service.
+     *
+     * <p>Instead of specifying a static service URL string (with {@link #serviceUrl(String)}), an application
+     * can pass a {@link ServiceUrlProvider} instance that dynamically provide a service URL.
      *
      * @param serviceUrlProvider
      *            the provider instance
@@ -114,8 +113,8 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
-     * <p>
-     * Example:
+     *
+     * <p>Example:
      * <pre>{@code
      * PulsarClient client = PulsarClient.builder()
      *         .serviceUrl("pulsar+ssl://broker.example.com:6651/")
@@ -124,9 +123,10 @@ public interface ClientBuilder extends Cloneable {
      *         .build();
      * }</pre>
      *
-     * For token based authentication, this will look like:
+     * <p>For token based authentication, this will look like:
      * <pre>{@code
-     * AuthenticationFactory.token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
+     * AuthenticationFactory
+     *      .token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
      * }</pre>
      *
      * @param authentication
@@ -137,9 +137,8 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Configure the authentication provider to use in the Pulsar client instance.
-     * <p>
-     * Example:
      *
+     * <p>Example:
      * <pre>
      * <code>
      * PulsarClient client = PulsarClient.builder()
@@ -165,9 +164,8 @@ public interface ClientBuilder extends Cloneable {
     /**
      * Configure the authentication provider to use in the Pulsar client instance
      * using a config map.
-     * <p>
-     * Example:
      *
+     * <p>Example:
      * <pre>{@code
      * Map<String, String> conf = new TreeMap<>();
      * conf.put("tlsCertFile", "/my/cert/file");
@@ -192,9 +190,9 @@ public interface ClientBuilder extends Cloneable {
             throws UnsupportedAuthenticationException;
 
     /**
-     * Set the operation timeout <i>(default: 30 seconds)</i>
-     * <p>
-     * Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the
+     * Set the operation timeout <i>(default: 30 seconds)</i>.
+     *
+     * <p>Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the
      * operation will be marked as failed
      *
      * @param operationTimeout
@@ -206,7 +204,7 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder operationTimeout(int operationTimeout, TimeUnit unit);
 
     /**
-     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>
+     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.
      *
      * @param numIoThreads the number of IO threads
      * @return the client builder instance
@@ -215,8 +213,8 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.
-     * <p>
-     * The listener thread pool is shared across all the consumers and readers that are
+     *
+     * <p>The listener thread pool is shared across all the consumers and readers that are
      * using a "listener" model to get messages. For a given consumer, the listener will be
      * always invoked from the same thread, to ensure ordering.
      *
@@ -227,9 +225,9 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Sets the max number of connection that the client library will open to a single broker.
-     * <p>
-     * By default, the connection pool will use a single connection for all the producers and consumers. Increasing this
-     * parameter may improve throughput when using many producers over a high latency connection.
+     *
+     * <p>By default, the connection pool will use a single connection for all the producers and consumers.
+     * Increasing this parameter may improve throughput when using many producers over a high latency connection.
      *
      * @param connectionsPerBroker
      *            max number of connections per broker (needs to be greater than 0)
@@ -239,12 +237,13 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Configure whether to use TCP no-delay flag on the connection, to disable Nagle algorithm.
-     * <p>
-     * No-delay features make sure packets are sent out on the network as soon as possible, and it's critical to achieve
-     * low latency publishes. On the other hand, sending out a huge number of small packets might limit the overall
-     * throughput, so if latency is not a concern, it's advisable to set the <code>useTcpNoDelay</code> flag to false.
-     * <p>
-     * Default value is true.
+     *
+     * <p>No-delay features make sure packets are sent out on the network as soon as possible, and it's critical
+     * to achieve low latency publishes. On the other hand, sending out a huge number of small packets
+     * might limit the overall throughput, so if latency is not a concern,
+     * it's advisable to set the <code>useTcpNoDelay</code> flag to false.
+     *
+     * <p>Default value is true.
      *
      * @param enableTcpNoDelay whether to enable TCP no-delay feature
      * @return the client builder instance
@@ -253,7 +252,7 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Configure whether to use TLS encryption on the connection
-     * <i>(default: true if serviceUrl starts with "pulsar+ssl://", false otherwise)</i>
+     * <i>(default: true if serviceUrl starts with "pulsar+ssl://", false otherwise)</i>.
      *
      * @param enableTls
      * @deprecated use "pulsar+ssl://" in serviceUrl to enable
@@ -263,7 +262,7 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder enableTls(boolean enableTls);
 
     /**
-     * Set the path to the trusted TLS certificate file
+     * Set the path to the trusted TLS certificate file.
      *
      * @param tlsTrustCertsFilePath
      * @return the client builder instance
@@ -271,7 +270,7 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder tlsTrustCertsFilePath(String tlsTrustCertsFilePath);
 
     /**
-     * Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i>
+     * Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i>.
      *
      * @param allowTlsInsecureConnection whether to accept a untrusted TLS certificate
      * @return the client builder instance
@@ -292,7 +291,7 @@ public interface ClientBuilder extends Cloneable {
 
     /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
-     * statsInterval It should be set to at least 1 second
+     * statsInterval It should be set to at least 1 second.
      *
      * @param statsInterval
      *            the interval between each stat info
@@ -305,7 +304,7 @@ public interface ClientBuilder extends Cloneable {
     /**
      * Number of concurrent lookup-requests allowed to send on each broker-connection to prevent overload on broker.
      * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe
-     * on thousands of topic using created {@link PulsarClient}
+     * on thousands of topic using created {@link PulsarClient}.
      *
      * @param maxConcurrentLookupRequests
      * @return the client builder instance
@@ -326,7 +325,7 @@ public interface ClientBuilder extends Cloneable {
     /**
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
-     * 50)</i>
+     * 50)</i>.
      *
      * @param maxNumberOfRejectedRequestPerConnection
      * @return the client builder instance
@@ -354,26 +353,38 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder connectionTimeout(int duration, TimeUnit unit);
-    
+
     /**
      * Set the duration of time for a backoff interval.
-     * 
-     * @param duration 
-     * 			 the duration of the interval
-     * @param unit
-     * 			 the time unit in which the duration is defined
+     *
+     * @param duration the duration of the interval
+     * @param unit the time unit in which the duration is defined
      * @return the client builder instance
      */
     ClientBuilder startingBackoffInterval(long duration, TimeUnit unit);
-    
+
     /**
      * Set the maximum duration of time for a backoff interval.
-     * 
-     * @param duration 
-     * 			 the duration of the interval
-     * @param unit
-     * 			 the time unit in which the duration is defined
+     *
+     * @param duration the duration of the interval
+     * @param unit the time unit in which the duration is defined
      * @return the client builder instance
      */
     ClientBuilder maxBackoffInterval(long duration, TimeUnit unit);
+
+    /**
+     * The clock used by the pulsar client.
+     *
+     * <p>The clock is currently used by producer for setting publish timestamps.
+     * {@link Clock#millis()} is called to retrieve current timestamp as the publish
+     * timestamp when producers produce messages. The default clock is a system default zone
+     * clock. So the publish timestamp is same as calling {@link System#currentTimeMillis()}.
+     *
+     * <p>Warning: the clock is used for TTL enforcement and timestamp based seeks.
+     * so be aware of the impacts if you are going to use a different clock.
+     *
+     * @param clock the clock used by the pulsar client to retrieve time information
+     * @return the client builder instance
+     */
+    ClientBuilder clock(Clock clock);
 }

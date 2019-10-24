@@ -422,6 +422,21 @@ public interface Functions {
     void downloadFunction(String destinationFile, String path) throws PulsarAdminException;
 
     /**
+     * Download Function Code.
+     *
+     * @param destinationFile
+     *           file where data should be downloaded to
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @throws PulsarAdminException
+     */
+    void downloadFunction(String destinationFile, String tenant, String namespace, String function) throws PulsarAdminException;
+
+    /**
      * Deprecated in favor of getting sources and sinks for their own APIs
      *
      * Fetches a list of supported Pulsar IO connectors currently running in cluster mode

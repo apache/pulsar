@@ -232,67 +232,6 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
 
-        for (int i = 0; i < numMsgs; i++) {
-            String message = "my-message-" + i;
-            futures.add(producer.sendAsync(message.getBytes()));
-        }
-        FutureUtil.waitForAll(futures).get();
-        futures.clear();
-
-        // 6. consumer subscription should send messages to the new consumer if its name is highest in the list
-        for (int i = 0; i < 5; i++) {
-            msg = consumer2.receive(1, TimeUnit.SECONDS);
-            Assert.assertNotNull(msg);
-            Assert.assertEquals(new String(msg.getData()), "my-message-" + i);
-            consumer2.acknowledge(msg);
-        }
-        consumer1 = consumerBulder1.subscribe();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
-        for (int i = 5; i < numMsgs; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
-            Assert.assertNotNull(msg);
-            Assert.assertEquals(new String(msg.getData()), "my-message-" + i);
-            consumer1.acknowledge(msg);
-        }
-        Assert.assertNull(consumer1.receive(100, TimeUnit.MILLISECONDS));
-
-        rolloverPerIntervalStats();
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
-
-        for (int i = 0; i < numMsgs; i++) {
-            String message = "my-message-" + i;
-            futures.add(producer.sendAsync(message.getBytes()));
-        }
-        FutureUtil.waitForAll(futures).get();
-        futures.clear();
-
-        // 7. consumer subscription should not send messages to the new consumer if its name is not highest in the list
-        for (int i = 0; i < 5; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
-            Assert.assertNotNull(msg);
-            Assert.assertEquals(new String(msg.getData()), "my-message-" + i);
-            consumer1.acknowledge(msg);
-        }
-        TestConsumerStateEventListener listener3 = new TestConsumerStateEventListener();
-        Consumer<byte[]> consumer3 = consumerBuilder.clone().consumerName("3").consumerEventListener(listener3)
-                .subscribe();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
-
-        verifyConsumerInactive(listener3, -1);
-
-        Assert.assertNull(consumer3.receive(100, TimeUnit.MILLISECONDS));
-        for (int i = 5; i < numMsgs; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
-            Assert.assertNotNull(msg);
-            Assert.assertEquals(new String(msg.getData()), "my-message-" + i);
-            consumer1.acknowledge(msg);
-        }
-
-        rolloverPerIntervalStats();
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(), 0);
-
         // 8. unsubscribe not allowed if multiple consumers connected
         try {
             consumer1.unsubscribe();
@@ -303,10 +242,9 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         // 9. unsubscribe allowed if there is a lone consumer
         consumer1.close();
-        consumer2.close();
         Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
         try {
-            consumer3.unsubscribe();
+            consumer2.unsubscribe();
         } catch (PulsarClientException e) {
             fail("Should not fail", e);
         }
@@ -316,7 +254,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         assertNull(subRef);
 
         producer.close();
-        consumer3.close();
+        consumer2.close();
 
         admin.topics().delete(topicName);
     }

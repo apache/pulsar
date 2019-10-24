@@ -26,11 +26,14 @@ import java.util.Set;
 
 import lombok.Data;
 
+/**
+ * Information of admin roles and allowed clusters for tenant.
+ */
 @Data
 @ApiModel(value = "TenantInfo", description = "Information of adminRoles and allowedClusters for tenant")
 public class TenantInfo {
     /**
-     * List of role enabled as admin for this tenant
+     * List of role enabled as admin for this tenant.
      */
     @ApiModelProperty(
         value = "Comma separated list of auth principal allowed to administrate the tenant.",
@@ -39,7 +42,7 @@ public class TenantInfo {
     private Set<String> adminRoles;
 
     /**
-     * List of clusters this tenant is restricted on
+     * List of clusters this tenant is restricted on.
      */
     @ApiModelProperty(
         value = "Comma separated allowed clusters.",

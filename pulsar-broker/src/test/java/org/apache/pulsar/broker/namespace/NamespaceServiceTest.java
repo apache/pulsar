@@ -20,12 +20,13 @@ package org.apache.pulsar.broker.namespace;
 
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -141,17 +142,17 @@ public class NamespaceServiceTest extends BrokerTestBase {
         byte[] content = this.pulsar.getLocalZkCache().getZooKeeper().getData(path, null, new Stat());
         Policies policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
         NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
-        assertTrue(updatedNsBundles.equals(localZkBundles));
+        assertEquals(localZkBundles, updatedNsBundles);
         log.info("Policies: {}", policies);
 
         // (3) validate ownership of new split bundles by local owner
-        bundleList.stream().forEach(b -> {
+        bundleList.forEach(b -> {
             try {
                 byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
@@ -203,8 +204,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         // status-map should be updated with new split bundles
         NamespaceBundle splitBundle = pulsar.getNamespaceService().getBundle(topicName);
-        assertTrue(!CollectionUtils.isEmpty(
-                this.pulsar.getBrokerService().getAllTopicsFromNamespaceBundle(nspace, splitBundle.toString())));
+        assertFalse(CollectionUtils.isEmpty(
+            this.pulsar.getBrokerService()
+                .getAllTopicsFromNamespaceBundle(nspace, splitBundle.toString())));
 
     }
 
@@ -411,17 +413,17 @@ public class NamespaceServiceTest extends BrokerTestBase {
         byte[] content = this.pulsar.getLocalZkCache().getZooKeeper().getData(path, null, new Stat());
         Policies policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
         NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
-        assertTrue(updatedNsBundles.equals(localZkBundles));
+        assertEquals(localZkBundles, updatedNsBundles);
         log.info("Policies: {}", policies);
 
         // (3) validate ownership of new split bundles by local owner
-        bundleList.stream().forEach(b -> {
+        bundleList.forEach(b -> {
             try {
                 byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(b), null,
                         new Stat());
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }

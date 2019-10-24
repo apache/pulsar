@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static com.google.common.base.Throwables.throwIfUnchecked;
+import static java.util.Objects.requireNonNull;
+
 import com.facebook.presto.spi.ConnectorHandleResolver;
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorContext;
@@ -26,12 +29,11 @@ import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
-
 import java.util.Map;
 
-import static com.google.common.base.Throwables.throwIfUnchecked;
-import static java.util.Objects.requireNonNull;
-
+/**
+ * The factory class which helps to build the presto connector.
+ */
 public class PulsarConnectorFactory implements ConnectorFactory {
 
     private static final Logger log = Logger.get(PulsarConnectorFactory.class);
@@ -49,7 +51,9 @@ public class PulsarConnectorFactory implements ConnectorFactory {
     @Override
     public Connector create(String connectorId, Map<String, String> config, ConnectorContext context) {
         requireNonNull(config, "requiredConfig is null");
-        log.debug("Creating Pulsar connector with configs: %s", config);
+        if (log.isDebugEnabled()) {
+            log.debug("Creating Pulsar connector with configs: %s", config);
+        }
         try {
             // A plugin is not required to use Guice; it is just very convenient
             Bootstrap app = new Bootstrap(

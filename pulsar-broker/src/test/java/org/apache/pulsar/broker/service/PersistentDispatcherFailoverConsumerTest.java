@@ -20,10 +20,9 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.matches;
-import static org.mockito.Matchers.same;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.matches;
+import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -34,6 +33,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 
 import io.netty.buffer.ByteBuf;
@@ -137,7 +137,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         consumerChanges = new LinkedBlockingQueue<>();
         this.channelCtx = mock(ChannelHandlerContext.class);
         doAnswer(invocationOnMock -> {
-            ByteBuf buf = invocationOnMock.getArgumentAt(0, ByteBuf.class);
+            ByteBuf buf = invocationOnMock.getArgument(0);
 
             ByteBuf cmdBuf = buf.retainedSlice(4, buf.writerIndex() - 4);
             try {
@@ -203,7 +203,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // call openLedgerFailed on ML factory asyncOpen
         doAnswer(new Answer<Object>() {
@@ -214,7 +214,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 return null;
             }
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), anyObject());
+                any(OpenLedgerCallback.class), any());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer(new Answer<Object>() {
@@ -223,7 +223,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(new PositionImpl(1, 1), null);
                 return null;
             }
-        }).when(ledgerMock).asyncAddEntry(any(byte[].class), any(AddEntryCallback.class), anyObject());
+        }).when(ledgerMock).asyncAddEntry(any(byte[].class), any(AddEntryCallback.class), any());
 
         // call openCursorComplete on cursor asyncOpen
         doAnswer(new Answer<Object>() {
@@ -232,7 +232,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
                 return null;
             }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
 
         // call deleteLedgerComplete on ledger asyncDelete
         doAnswer(new Answer<Object>() {
@@ -241,7 +241,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 ((DeleteLedgerCallback) invocationOnMock.getArguments()[0]).deleteLedgerComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), anyObject());
+        }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -249,7 +249,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
     }
 
     private void verifyActiveConsumerChange(CommandActiveConsumerChange change,
@@ -277,7 +277,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 "Cons1"/* consumer name */, 50000, serverCnxWithOldVersion, "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest);
         pdfc.addConsumer(consumer1);
         List<Consumer> consumers = pdfc.getConsumers();
-        assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
+        assertSame(consumers.get(0).consumerName(), consumer1.consumerName());
         assertEquals(1, consumers.size());
         assertNull(consumerChanges.poll());
 
@@ -288,7 +288,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 "Cons2"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest);
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
-        assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
+        assertSame(consumers.get(0).consumerName(), consumer1.consumerName());
         assertEquals(2, consumers.size());
 
         CommandActiveConsumerChange change = consumerChanges.take();
@@ -304,7 +304,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
-        int partitionIndex = 0;
+        int partitionIndex = 4;
         PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
                 SubType.Failover, partitionIndex, topic, sub);
 
@@ -317,7 +317,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 false /* read compacted */, InitialPosition.Latest));
         pdfc.addConsumer(consumer1);
         List<Consumer> consumers = pdfc.getConsumers();
-        assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
+        assertSame(consumers.get(0).consumerName(), consumer1.consumerName());
         assertEquals(1, consumers.size());
         CommandActiveConsumerChange change = consumerChanges.take();
         verifyActiveConsumerChange(change, 1, true);
@@ -326,11 +326,11 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 3. Add again, duplicate allowed
         pdfc.addConsumer(consumer1);
         consumers = pdfc.getConsumers();
-        assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
+        assertSame(consumers.get(0).consumerName(), consumer1.consumerName());
         assertEquals(2, consumers.size());
 
         // 4. Verify active consumer
-        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         // get the notified with who is the leader
         change = consumerChanges.take();
         verifyActiveConsumerChange(change, 1, true);
@@ -341,7 +341,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest));
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
-        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(3, consumers.size());
         // get notified with who is the leader
         change = consumerChanges.take();
@@ -355,7 +355,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 false /* read compacted */, InitialPosition.Latest));
         pdfc.addConsumer(consumer0);
         consumers = pdfc.getConsumers();
-        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer0.consumerName());
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer0.consumerName());
         assertEquals(4, consumers.size());
 
         // all consumers will receive notifications
@@ -376,7 +376,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 7. Remove last consumer
         pdfc.removeConsumer(consumer2);
         consumers = pdfc.getConsumers();
-        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer0.consumerName());
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(3, consumers.size());
         // not consumer group changes
         assertNull(consumerChanges.poll());
@@ -387,7 +387,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 9. Remove active consumer
         pdfc.removeConsumer(consumer0);
         consumers = pdfc.getConsumers();
-        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(2, consumers.size());
 
         // the remaining consumers will receive notifications
@@ -408,13 +408,74 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 11. Remove active consumer
         pdfc.removeConsumer(consumer1);
         consumers = pdfc.getConsumers();
-        assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(1, consumers.size());
         // not consumer group changes
         assertNull(consumerChanges.poll());
 
         // 11. With only one consumer, unsubscribe is allowed
         assertTrue(pdfc.canUnsubscribe(consumer1));
+    }
+
+    @Test
+    public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
+        log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
+
+        // Non partitioned topic.
+        int partitionIndex = -1;
+        PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
+                SubType.Failover, partitionIndex, topic, sub);
+
+        // 1. Verify no consumers connected
+        assertFalse(pdfc.isConsumerConnected());
+
+        // 2. Add a consumer
+        Consumer consumer1 = spy(new Consumer(sub, SubType.Failover, topic.getName(), 1 /* consumer id */, 1,
+                "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */, InitialPosition.Latest));
+        pdfc.addConsumer(consumer1);
+        List<Consumer> consumers = pdfc.getConsumers();
+        assertEquals(1, consumers.size());
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
+
+        // 3. Add a consumer with same priority level and consumer name is smaller in lexicographic order.
+        Consumer consumer2 = spy(new Consumer(sub, SubType.Failover, topic.getName(), 2 /* consumer id */, 1,
+                "Cons2"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */, InitialPosition.Latest));
+        pdfc.addConsumer(consumer2);
+
+        // 4. Verify active consumer doesn't change
+        consumers = pdfc.getConsumers();
+        assertEquals(2, consumers.size());
+        CommandActiveConsumerChange change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 2, false);
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
+        verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
+
+        // 5. Add another consumer which has higher priority level
+        Consumer consumer3 = spy(new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0, "Cons3"/* consumer name */,
+                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest));
+        pdfc.addConsumer(consumer3);
+        consumers = pdfc.getConsumers();
+        assertEquals(3, consumers.size());
+        change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 3, false);
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
+        verify(consumer3, times(1)).notifyActiveConsumerChange(same(consumer1));
+
+        // 7. Remove first consumer and active consumer should change to consumer2 since it's added before consumer3
+        // though consumer 3 has higher priority level
+        pdfc.removeConsumer(consumer1);
+        consumers = pdfc.getConsumers();
+        assertEquals(2, consumers.size());
+        change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 2, true);
+        assertSame(pdfc.getActiveConsumer().consumerName(), consumer2.consumerName());
+        verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer2));
+        verify(consumer3, times(1)).notifyActiveConsumerChange(same(consumer2));
     }
 
     @Test
@@ -486,7 +547,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         Assert.assertEquals(getNextConsumer(dispatcher), consumer2);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer3);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
-        Assert.assertEquals(getNextConsumer(dispatcher), null);
+        assertNull(getNextConsumer(dispatcher));
     }
 
     @Test
@@ -540,7 +601,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         Assert.assertEquals(getNextConsumer(dispatcher), consumer13);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer10);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer12);
-        Assert.assertEquals(getNextConsumer(dispatcher), null);
+        assertNull(getNextConsumer(dispatcher));
     }
 
     @Test
@@ -565,7 +626,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         Assert.assertEquals(getNextConsumer(dispatcher), consumer5);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer4);
         Assert.assertEquals(getNextConsumer(dispatcher), consumer6);
-        Assert.assertEquals(getNextConsumer(dispatcher), null);
+        assertNull(getNextConsumer(dispatcher));
     }
 
     @SuppressWarnings("unchecked")

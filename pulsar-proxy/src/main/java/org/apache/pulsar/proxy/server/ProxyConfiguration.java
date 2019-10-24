@@ -197,6 +197,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "to take effect"
     )
     private boolean forwardAuthorizationCredentials = false;
+    @FieldContext(
+        category = CATEGORY_AUTHENTICATION,
+        doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
+            + "'authenticationEnabled' must also be set for this to take effect."
+    )
+    private boolean authenticateMetricsEndpoint = true;
 
 
     @FieldContext(
@@ -252,6 +258,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "Whether TLS is enabled when communicating with Pulsar brokers"
     )
     private boolean tlsEnabledWithBroker = false;
+
+    @FieldContext(
+            category = CATEGORY_AUTHORIZATION,
+            doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
+    )
+    private String anonymousUserRole = null;
 
     /***** --- TLS --- ****/
 

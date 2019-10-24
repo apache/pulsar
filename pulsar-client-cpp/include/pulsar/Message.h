@@ -141,6 +141,8 @@ class PULSAR_PUBLIC Message {
      */
     const std::string& getTopicName() const;
 
+    bool operator==(const Message& msg) const;
+
    private:
     typedef std::shared_ptr<MessageImpl> MessageImplPtr;
     MessageImplPtr impl_;
@@ -161,6 +163,7 @@ class PULSAR_PUBLIC Message {
     friend class BatchMessageContainer;
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
+    friend class MessageBatch;
 
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const StringMap& map);
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg);

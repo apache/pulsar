@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -112,7 +112,7 @@ public class NamespaceBundlesTest {
         // the same instance
         assertEquals(partitions.size(), partFld.length);
         NamespaceName nsFld = (NamespaceName) nsField.get(bundles);
-        assertTrue(nsFld.toString().equals("pulsar/use/ns2"));
+        assertEquals(nsFld.toString(), "pulsar/use/ns2");
         ArrayList<NamespaceBundle> bundleList = (ArrayList<NamespaceBundle>) bundlesField.get(bundles);
         assertEquals(bundleList.size(), 3);
         assertEquals(bundleList.get(0),
@@ -169,7 +169,7 @@ public class NamespaceBundlesTest {
             bundles = new NamespaceBundles(topicName.getNamespaceObject(), newPar, factory);
             bundles.findBundle(topicName);
             fail("Should have failed due to out-of-range");
-        } catch (ArrayIndexOutOfBoundsException iae) {
+        } catch (IndexOutOfBoundsException iae) {
             // OK, expected
         }
     }
@@ -256,7 +256,7 @@ public class NamespaceBundlesTest {
         for (NamespaceBundle bundle : splitBundles) {
             span = span.span(bundle.getKeyRange());
         }
-        assertTrue(fullRange.equals(span));
+        assertEquals(span, fullRange);
     }
 
     @SuppressWarnings("unchecked")
@@ -288,7 +288,7 @@ public class NamespaceBundlesTest {
     }
 
     private void assertBundleDivideInTwo(NamespaceBundle bundle, List<NamespaceBundle> bundles, int numBundles) {
-        assertTrue(bundles.size() == 2);
+        assertEquals(bundles.size(), 2);
         String[] range = bundle.getBundleRange().split("_");
         long lower = Long.decode(range[0]);
         long upper = Long.decode(range[1]);
@@ -296,8 +296,8 @@ public class NamespaceBundlesTest {
 
         String lRange = String.format("0x%08x_0x%08x", lower, middle);
         String uRange = String.format("0x%08x_0x%08x", middle, upper);
-        assertTrue(bundles.get(0).getBundleRange().equals(lRange));
-        assertTrue(bundles.get(1).getBundleRange().equals(uRange));
+        assertEquals(lRange, bundles.get(0).getBundleRange());
+        assertEquals(uRange, bundles.get(1).getBundleRange());
         log.info("[{},{}] => [{},{}]", range[0], range[1], lRange, uRange);
     }
 

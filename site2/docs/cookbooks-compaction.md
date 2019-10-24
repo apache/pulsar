@@ -17,7 +17,7 @@ To use compaction:
 
 ## When should I use compacted topics? {#when}
 
-The classic example of a topic that could benefit from compaction would be a stock ticker topic through which consumers can access up-to-date values for specific stocks. Imagine a scneario in which messages carrying stock value data use the stock symbol as the key (`GOOG`, `AAPL`, `TWTR`, etc.). Compacting this topic would give consumers on the topic two options:
+The classic example of a topic that could benefit from compaction would be a stock ticker topic through which consumers can access up-to-date values for specific stocks. Imagine a scenario in which messages carrying stock value data use the stock symbol as the key (`GOOG`, `AAPL`, `TWTR`, etc.). Compacting this topic would give consumers on the topic two options:
 
 * They can read from the "original," non-compacted topic in case they need access to "historical" values, i.e. the entirety of the topic's messages.
 * They can read from the compacted topic if they only want to see the most up-to-date messages.
@@ -74,14 +74,9 @@ $ bin/pulsar compact-topic \
 
 How often you [trigger compaction](#trigger) will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
 
-## Consumer configuration {#config}
+## Consumer configuration
 
 Pulsar consumers and readers need to be configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients. If the
-
-
-> #### Java only
-> Currently, only [Java](#java) clients can consume messages from compacted topics.
-
 
 ### Java
 

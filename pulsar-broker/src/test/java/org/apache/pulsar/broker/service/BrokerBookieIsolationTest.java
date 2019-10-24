@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
@@ -49,6 +48,7 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -158,6 +158,8 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
 
+        config.setAllowAutoTopicCreationType("non-partitioned");
+
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
         config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
@@ -249,7 +251,6 @@ public class BrokerBookieIsolationTest {
      */
     @Test
     public void testBookieIsilationWithSecondaryGroup() throws Exception {
-
         final String tenant1 = "tenant1";
         final String cluster = "use";
         final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
@@ -289,6 +290,7 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
+        config.setAllowAutoTopicCreationType("non-partitioned");
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
@@ -374,6 +376,86 @@ public class BrokerBookieIsolationTest {
         }
     }
 
+    @Test
+    public void testDeleteIsolationGroup() throws Exception {
+
+        final String tenant1 = "tenant1";
+        final String cluster = "use";
+        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
+        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
+
+        final String brokerBookkeeperClientIsolationGroups = "default-group";
+        final String tenantNamespaceIsolationGroupsPrimary = "tenant1-isolation-primary";
+        final String tenantNamespaceIsolationGroupsSecondary = "tenant1-isolation=secondary";
+
+        BookieServer[] bookies = bkEnsemble.getBookies();
+        ZooKeeper zkClient = bkEnsemble.getZkClient();
+
+        Set<BookieSocketAddress> defaultBookies = Sets.newHashSet(bookies[0].getLocalAddress(),
+                bookies[1].getLocalAddress());
+        Set<BookieSocketAddress> isolatedBookies = Sets.newHashSet(bookies[2].getLocalAddress(),
+                bookies[3].getLocalAddress());
+
+        setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
+        // primary group empty
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroupsPrimary, zkClient, Sets.newHashSet());
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroupsSecondary, zkClient, isolatedBookies);
+
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config.setClusterName(cluster);
+        config.setWebServicePort(Optional.of(PRIMARY_BROKER_WEBSERVICE_PORT));
+        config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
+        config.setBrokerServicePort(Optional.of(PRIMARY_BROKER_PORT));
+        config.setAdvertisedAddress("localhost");
+        config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
+
+        config.setManagedLedgerDefaultEnsembleSize(2);
+        config.setManagedLedgerDefaultWriteQuorum(2);
+        config.setManagedLedgerDefaultAckQuorum(2);
+        config.setAllowAutoTopicCreationType("non-partitioned");
+
+        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        pulsarService = new PulsarService(config);
+        pulsarService.start();
+
+        URL brokerUrl = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build();
+
+        ClusterData clusterData = new ClusterData(pulsarService.getWebServiceAddress());
+        admin.clusters().createCluster(cluster, clusterData);
+        TenantInfo tenantInfo = new TenantInfo(null, Sets.newHashSet(cluster));
+        admin.tenants().createTenant(tenant1, tenantInfo);
+        admin.namespaces().createNamespace(ns2);
+        admin.namespaces().createNamespace(ns3);
+
+        // (1) set affinity-group
+        admin.namespaces().setBookieAffinityGroup(ns2, new BookieAffinityGroupData(
+                tenantNamespaceIsolationGroupsPrimary, tenantNamespaceIsolationGroupsSecondary));
+        admin.namespaces().setBookieAffinityGroup(ns3, new BookieAffinityGroupData(
+                tenantNamespaceIsolationGroupsPrimary, tenantNamespaceIsolationGroupsSecondary));
+
+        // (2) get affinity-group
+        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2), new BookieAffinityGroupData(
+                tenantNamespaceIsolationGroupsPrimary, tenantNamespaceIsolationGroupsSecondary));
+        assertEquals(admin.namespaces().getBookieAffinityGroup(ns3), new BookieAffinityGroupData(
+                tenantNamespaceIsolationGroupsPrimary, tenantNamespaceIsolationGroupsSecondary));
+
+        // (3) delete affinity-group
+        admin.namespaces().deleteBookieAffinityGroup(ns2);
+
+        try {
+            admin.namespaces().getBookieAffinityGroup(ns2);
+            fail("should have fail due to affinity-group not present");
+        } catch (NotFoundException e) {
+            // Ok
+        }
+
+        assertEquals(admin.namespaces().getBookieAffinityGroup(ns3), new BookieAffinityGroupData(
+                tenantNamespaceIsolationGroupsPrimary, tenantNamespaceIsolationGroupsSecondary));
+
+    }
+    
     private void assertAffinityBookies(LedgerManager ledgerManager, List<LedgerInfo> ledgers1,
             Set<BookieSocketAddress> defaultBookies) throws Exception {
         for (LedgerInfo lInfo : ledgers1) {

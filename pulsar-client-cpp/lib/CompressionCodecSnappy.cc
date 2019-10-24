@@ -20,39 +20,28 @@
 
 #if HAS_SNAPPY
 #include <snappy.h>
-#include "snappy-c.h"
+#include <snappy-sinksource.h>
 
 namespace pulsar {
 
 SharedBuffer CompressionCodecSnappy::encode(const SharedBuffer& raw) {
     // Get the max size of the compressed data and allocate a buffer to hold it
-    int maxCompressedSize = snappy_max_compressed_length(raw.readableBytes());
-    SharedBuffer compressed = SharedBuffer::allocate(maxCompressedSize);
-
-    unsigned long bytesWritten = maxCompressedSize;
-
-    snappy_status status =
-        snappy_compress(raw.data(), raw.readableBytes(), compressed.mutableData(), &bytesWritten);
-
-    if (status != SNAPPY_OK) {
-        LOG_ERROR("Failed to compress to snappy. res=" << res);
-        abort();
-    }
-
-    compressed.bytesWritten(bytesWritten);
-
+    size_t maxCompressedLength = snappy::MaxCompressedLength(raw.readableBytes());
+    SharedBuffer compressed = SharedBuffer::allocate(static_cast<const uint32_t>(maxCompressedLength));
+    snappy::ByteArraySource source(raw.data(), raw.readableBytes());
+    snappy::UncheckedByteArraySink sink(compressed.mutableData());
+    size_t compressedSize = snappy::Compress(&source, &sink);
+    compressed.setWriterIndex(static_cast<uint32_t>(compressedSize));
     return compressed;
 }
 
 bool CompressionCodecSnappy::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
                                     SharedBuffer& decoded) {
-    SharedBuffer decompressed = SharedBuffer::allocate(uncompressedSize);
-
-    snappy_status status = snappy_uncompress(encoded.data(), encoded.readableBytes(),
-                                             decompressed.mutableData(), uncompressedSize);
-
-    if (status == SNAPPY_OK) {
-        decoded = decompressed;
+    SharedBuffer uncompressed = SharedBuffer::allocate(uncompressedSize);
+    snappy::ByteArraySource source(encoded.data(), encoded.readableBytes());
+    snappy::UncheckedByteArraySink sink(uncompressed.mutableData());
+    if (snappy::Uncompress(&source, &sink)) {
+        decoded = uncompressed;
         decoded.setWriterIndex(uncompressedSize);
         return true;
     } else {

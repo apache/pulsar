@@ -37,6 +37,9 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
@@ -44,6 +47,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -73,9 +77,10 @@ public class NonPersistentTopics extends PersistentTopics {
     public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return getPartitionedTopicMetadata(topicName, authoritative);
+        return getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
     }
 
     @GET
@@ -118,8 +123,21 @@ public class NonPersistentTopics extends PersistentTopics {
             int numPartitions) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateAdminAccessForTenant(topicName.getTenant());
-        if (numPartitions <= 1) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
+        if (numPartitions <= 0) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
+        }
+        try {
+            boolean topicExist = pulsar().getNamespaceService()
+                    .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                    .join()
+                    .contains(topicName.toString());
+            if (topicExist) {
+                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                throw new RestException(Status.CONFLICT, "This topic already exists");
+            }
+        } catch (Exception e) {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            throw new RestException(e);
         }
         try {
             String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(),
@@ -160,20 +178,32 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiOperation(value = "Get the list of non-persistent topics under a namespace.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getList(@PathParam("property") String property, @PathParam("cluster") String cluster,
-                                @PathParam("namespace") String namespace) {
+    public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         log.info("[{}] list of topics on namespace {}/{}/{}", clientAppId(), property, cluster, namespace);
-        validateAdminAccessForTenant(property);
-        Policies policies = getNamespacePolicies(property, cluster, namespace);
-        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
 
-        if (!cluster.equals(Constants.GLOBAL_CLUSTER)) {
-            validateClusterOwnership(cluster);
-            validateClusterForTenant(property, cluster);
-        } else {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(nsName);
+        Policies policies = null;
+        NamespaceName nsName = null;
+        try {
+            validateAdminAccessForTenant(property);
+            policies = getNamespacePolicies(property, cluster, namespace);
+            nsName = NamespaceName.get(property, cluster, namespace);
+
+            if (!cluster.equals(Constants.GLOBAL_CLUSTER)) {
+                validateClusterOwnership(cluster);
+                validateClusterForTenant(property, cluster);
+            } else {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                validateGlobalNamespaceOwnership(nsName);
+            }
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+            return;
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+            return;
         }
+
         final List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
         final List<String> boundaries = policies.bundles.getBoundaries();
         for (int i = 0; i < boundaries.size() - 1; i++) {
@@ -182,30 +212,30 @@ public class NonPersistentTopics extends PersistentTopics {
                 futures.add(pulsar().getAdminClient().nonPersistentTopics().getListInBundleAsync(nsName.toString(),
                         bundle));
             } catch (PulsarServerException e) {
-                log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s/%s/%s", clientAppId(),
-                        property, cluster, namespace, bundle), e);
-                throw new RestException(e);
+                log.error("[{}] Failed to get list of topics under namespace {}/{}/{}/{}", clientAppId(), property,
+                        cluster, namespace, bundle, e);
+                asyncResponse.resume(new RestException(e));
+                return;
             }
         }
+
         final List<String> topics = Lists.newArrayList();
-        try {
-            FutureUtil.waitForAll(futures).get();
-            futures.forEach(topicListFuture -> {
+        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+            for (int i = 0; i < futures.size(); i++) {
                 try {
-                    if (topicListFuture.isDone() && topicListFuture.get() != null) {
-                        topics.addAll(topicListFuture.get());
+                    if (futures.get(i).isDone() && futures.get(i).get() != null) {
+                        topics.addAll(futures.get(i).get());
                     }
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s/%s", clientAppId(),
-                            property, cluster, namespace), e);
+                    log.error("[{}] Failed to get list of topics under namespace {}/{}/{}", clientAppId(), property,
+                            cluster, namespace, e);
+                    asyncResponse.resume(new RestException(e instanceof ExecutionException ? e.getCause() : e));
+                    return null;
                 }
-            });
-        } catch (InterruptedException | ExecutionException e) {
-            log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s/%s", clientAppId(),
-                    property, cluster, namespace), e);
-            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
-        }
-        return topics;
+            }
+            asyncResponse.resume(topics);
+            return null;
+        });
     }
 
     @GET

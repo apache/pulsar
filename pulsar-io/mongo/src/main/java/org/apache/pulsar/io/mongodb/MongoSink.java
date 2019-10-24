@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.toList;
@@ -70,15 +71,29 @@ public class MongoSink implements Sink<byte[]> {
 
     private ScheduledExecutorService flushExecutor;
 
+    private Supplier<MongoClient> clientProvider;
+
+    public MongoSink() {
+        this(null);
+    }
+
+    public MongoSink(Supplier<MongoClient> clientProvider) {
+        this.clientProvider = clientProvider;
+    }
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Open MongoDB Sink");
 
         mongoConfig = MongoConfig.load(config);
-        mongoConfig.validate();
+        mongoConfig.validate(true, true);
 
-        mongoClient = MongoClients.create(mongoConfig.getMongoUri());
+        if (clientProvider != null) {
+            mongoClient = clientProvider.get();
+        } else {
+            mongoClient = MongoClients.create(mongoConfig.getMongoUri());
+        }
+
         final MongoDatabase db = mongoClient.getDatabase(mongoConfig.getDatabase());
         collection = db.getCollection(mongoConfig.getCollection());
 

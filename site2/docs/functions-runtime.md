@@ -1,29 +1,31 @@
 ---
 id: functions-runtime
 title: Configure Functions runtime
-sidebar_label: Configure Functions runtime
+sidebar_label: Setup: Configure Functions runtime
 ---
 
-Currently, Pulsar Functions support the following three methods to run functions.
+Pulsar Functions support the following methods to run functions.
 
 - *Thread*: Invoke functions in threads in Functions Worker.
 - *Process*: Invoke functions in processes forked by Functions Worker.
 - *Kubernetes*: Submit functions as Kubernetes StatefulSets by Functions Worker.
 
-## Configure thread runtime
+The differences of the thread and process modes are:   
+- Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with Functions worker.   
+- Process mode: when a function runs in process mode, it runs on the same machine that Functions worker runs.
 
-*Thread* runtime is easy to configure. In most cases, you don't need to configure anything. You can customize the thread group name with the following settings:
+## Configure thread runtime
+It is easy to configure *Thread* runtime. In most cases, you do not need to configure anything. You can customize the thread group name with the following settings:
 
 ```yaml
 threadContainerFactory:
   threadGroupName: "Your Function Container Group"
 ```
 
-*Thread* runtime only supports Java language.
+*Thread* runtime is only supported in Java function.
 
 ## Configure process runtime
-
-Similar as *Thread* runtime, you don't need to configure anything special when enabling *Process* runtime.
+When you enable *Process* runtime, you do not need to configure anything.
 
 ```yaml
 processContainerFactory:
@@ -37,7 +39,7 @@ processContainerFactory:
   extraFunctionDependenciesDir:
 ```
 
-Currently Pulsar supports running Java, Python, and Go Functions in process runtime mode.
+*Process* runtime is supported in Java, Python, and Go functions.
 
 ## Configure Kubernetes runtime
 

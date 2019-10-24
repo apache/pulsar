@@ -198,6 +198,21 @@ public class SourceConfigUtilsTest {
         );
     }
 
+    @Test
+    public void testMergeRuntimeFlags() {
+        SourceConfig sourceConfig = createSourceConfig();
+        SourceConfig newFunctionConfig = createUpdatedSourceConfig("runtimeFlags", "-Dfoo=bar2");
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newFunctionConfig);
+        assertEquals(
+                mergedConfig.getRuntimeFlags(), "-Dfoo=bar2"
+        );
+        mergedConfig.setRuntimeFlags(sourceConfig.getRuntimeFlags());
+        assertEquals(
+                new Gson().toJson(sourceConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
     private SourceConfig createSourceConfig() {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant("test-tenant");

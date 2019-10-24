@@ -28,6 +28,9 @@ import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
+/**
+ * Namespace isolation policies.
+ */
 public class NamespaceIsolationPolicies {
 
     private Map<String, NamespaceIsolationData> policies = null;
@@ -41,8 +44,8 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Access method to get the namespace isolation policy by the policy name
-     * 
+     * Access method to get the namespace isolation policy by the policy name.
+     *
      * @param policyName
      * @return
      */
@@ -54,13 +57,11 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Get the namespace isolation policy for the specified namespace
-     * 
-     * <p>
-     * There should only be one namespace isolation policy defined for the specific namespace. If multiple policies
+     * Get the namespace isolation policy for the specified namespace.
+     *
+     * <p>There should only be one namespace isolation policy defined for the specific namespace. If multiple policies
      * match, the first one will be returned.
-     * <p>
-     * 
+     *
      * @param namespace
      * @return
      */
@@ -83,8 +84,8 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Set the policy data for a single policy
-     * 
+     * Set the policy data for a single policy.
+     *
      * @param policyName
      * @param policyData
      */
@@ -94,8 +95,8 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Delete a policy
-     * 
+     * Delete a policy.
+     *
      * @param policyName
      */
     public void deletePolicy(String policyName) {
@@ -103,8 +104,8 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Get the full policy map
-     * 
+     * Get the full policy map.
+     *
      * @return All policy data in a map
      */
     public Map<String, NamespaceIsolationData> getPolicies() {
@@ -112,8 +113,8 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Check to see whether a broker is in the shared broker pool or not
-     * 
+     * Check to see whether a broker is in the shared broker pool or not.
+     *
      * @param host
      * @return
      */
@@ -129,9 +130,9 @@ public class NamespaceIsolationPolicies {
     }
 
     /**
-     * Get the broker assignment based on the namespace name
-     * 
-     * @param nsname
+     * Get the broker assignment based on the namespace name.
+     *
+     * @param nsPolicy
      *            The namespace name
      * @param brokerAddress
      *            The broker adderss is the format of host:port

@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A Reader can be used to scan through all the messages currently available in a topic.
- *
  */
 public interface Reader<T> extends Closeable {
 
@@ -35,8 +34,8 @@ public interface Reader<T> extends Closeable {
 
     /**
      * Read the next message in the topic.
-     * <p>
-     * This method will block until a message is available.
+     *
+     * <p>This method will block until a message is available.
      *
      * @return the next message
      * @throws PulsarClientException
@@ -45,8 +44,8 @@ public interface Reader<T> extends Closeable {
 
     /**
      * Read the next message in the topic waiting for a maximum time.
-     * <p>
-     * Returns null if no message is received before the timeout.
+     *
+     * <p>Returns null if no message is received before the timeout.
      *
      * @return the next message(Could be null if none received in time)
      * @throws PulsarClientException
@@ -62,7 +61,7 @@ public interface Reader<T> extends Closeable {
     CompletableFuture<Message<T>> readNextAsync();
 
     /**
-     * Asynchronously close the reader and stop the broker to push more messages
+     * Asynchronously close the reader and stop the broker to push more messages.
      *
      * @return a future that can be used to track the completion of the operation
      */
@@ -70,8 +69,8 @@ public interface Reader<T> extends Closeable {
 
     /**
      * Return true if the topic was terminated and this reader has reached the end of the topic.
-     * <p>
-     * Note that this only applies to a "terminated" topic (where the topic is "sealed" and no
+     *
+     * <p>Note that this only applies to a "terminated" topic (where the topic is "sealed" and no
      * more messages can be published) and not just that the reader is simply caught up with
      * the publishers. Use {@link #hasMessageAvailable()} to check for for that.
      */
@@ -79,20 +78,20 @@ public interface Reader<T> extends Closeable {
 
     /**
      * Check if there is any message available to read from the current position.
-     * <p>
-     * This check can be used by an application to scan through a topic and stop
+     *
+     * <p>This check can be used by an application to scan through a topic and stop
      * when the reader reaches the current last published message. For example:
      *
-     * <pre>
+     * <pre>{@code
      * while (reader.hasMessageAvailable()) {
-     *     Message&lt;String&gt; msg = reader.readNext();
+     *     Message<String> msg = reader.readNext();
      *     // Do something
      * }
      *
      * // Done reading
-     * </pre>
+     * }</pre>
      *
-     * Note that this call might be blocking (see {@link #hasMessageAvailableAsync() for async version) and
+     * <p>Note that this call might be blocking (see {@link #hasMessageAvailableAsync()} for async version) and
      * that even if this call returns true, that will not guarantee that a subsequent call to {@link #readNext()}
      * will not block.
      *
@@ -103,8 +102,8 @@ public interface Reader<T> extends Closeable {
 
     /**
      * Asynchronously check if there is any message available to read from the current position.
-     * <p>
-     * This check can be used by an application to scan through a topic and stop when the reader reaches the current
+     *
+     * <p>This check can be used by an application to scan through a topic and stop when the reader reaches the current
      * last published message.
      *
      * @return a future that will yield true if the are messages available to be read, false otherwise, or a
@@ -119,17 +118,15 @@ public interface Reader<T> extends Closeable {
 
     /**
      * Reset the subscription associated with this reader to a specific message id.
-     * <p>
      *
-     * The message id can either be a specific message or represent the first or last messages in the topic.
-     * <p>
+     * <p>The message id can either be a specific message or represent the first or last messages in the topic.
      * <ul>
      * <li><code>MessageId.earliest</code> : Reset the reader on the earliest message available in the topic
      * <li><code>MessageId.latest</code> : Reset the reader on the latest message in the topic
      * </ul>
      *
-     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
-     * the individual partitions.
+     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
+     * the seek() on the individual partitions.
      *
      * @param messageId the message id where to reposition the reader
      */
@@ -138,8 +135,8 @@ public interface Reader<T> extends Closeable {
     /**
      * Reset the subscription associated with this reader to a specific message publish time.
      *
-     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
-     * the individual partitions.
+     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
+     * the seek() on the individual partitions.
      *
      * @param timestamp the message publish time where to reposition the reader
      */
@@ -147,17 +144,15 @@ public interface Reader<T> extends Closeable {
 
     /**
      * Reset the subscription associated with this reader to a specific message id.
-     * <p>
      *
-     * The message id can either be a specific message or represent the first or last messages in the topic.
-     * <p>
+     * <p>The message id can either be a specific message or represent the first or last messages in the topic.
      * <ul>
      * <li><code>MessageId.earliest</code> : Reset the reader on the earliest message available in the topic
      * <li><code>MessageId.latest</code> : Reset the reader on the latest message in the topic
      * </ul>
      *
-     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
-     * the individual partitions.
+     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
+     * the seek() on the individual partitions.
      *
      * @param messageId the message id where to position the reader
      * @return a future to track the completion of the seek operation
@@ -167,8 +162,8 @@ public interface Reader<T> extends Closeable {
     /**
      * Reset the subscription associated with this reader to a specific message publish time.
      *
-     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
-     * the individual partitions.
+     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
+     * the seek() on the individual partitions.
      *
      * @param timestamp
      *            the message publish time where to position the reader

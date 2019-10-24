@@ -148,7 +148,16 @@ public class MessageImpl<T> implements Message<T> {
             msgMetadataBuilder.setEventTime(singleMessageMetadata.getEventTime());
         }
 
+        if (singleMessageMetadata.hasSequenceId()) {
+            msgMetadataBuilder.setSequenceId(singleMessageMetadata.getSequenceId());
+        }
+
         this.schema = schema;
+    }
+
+    public MessageImpl(String topic, String msgId, Map<String, String> properties,
+            byte[] payload, Schema<T> schema) {
+        this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema);
     }
 
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
@@ -189,11 +198,13 @@ public class MessageImpl<T> implements Message<T> {
         msgMetadataBuilder.setReplicatedFrom(cluster);
     }
 
+    @Override
     public boolean isReplicated() {
         checkNotNull(msgMetadataBuilder);
         return msgMetadataBuilder.hasReplicatedFrom();
     }
 
+    @Override
     public String getReplicatedFrom() {
         checkNotNull(msgMetadataBuilder);
         return msgMetadataBuilder.getReplicatedFrom();
@@ -242,7 +253,7 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public T getValue() {
-        if (SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
+        if (schema.getSchemaInfo() != null && SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();
             } else {

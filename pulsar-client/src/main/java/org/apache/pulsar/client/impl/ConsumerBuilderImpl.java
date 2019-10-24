@@ -25,9 +25,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
@@ -59,6 +59,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private List<ConsumerInterceptor<T>> interceptorList;
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
+    private static long MIN_TICK_TIME_MILLIS = 100;
     private static long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
 
 
@@ -87,16 +88,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public Consumer<T> subscribe() throws PulsarClientException {
         try {
             return subscribeAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -122,7 +115,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 "Passed in topicNames should not be null or empty.");
         Arrays.stream(topicNames).forEach(topicName ->
                 checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(Lists.newArrayList(topicNames));
+        conf.getTopicNames().addAll(Lists.newArrayList(Arrays.stream(topicNames).map(StringUtils::trim)
+                .collect(Collectors.toList())));
         return this;
     }
 
@@ -132,7 +126,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 "Passed in topicNames list should not be null or empty.");
         topicNames.stream().forEach(topicName ->
                 checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(topicNames);
+        conf.getTopicNames().addAll(topicNames.stream().map(StringUtils::trim).collect(Collectors.toList()));
         return this;
     }
 
@@ -162,6 +156,14 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         checkArgument(ackTimeout == 0 || timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
                 "Ack timeout should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
         conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> ackTimeoutTickTime(long tickTime, TimeUnit timeUnit) {
+        checkArgument(timeUnit.toMillis(tickTime) >= MIN_TICK_TIME_MILLIS,
+                "Ack timeout tick time should be greater than " + MIN_TICK_TIME_MILLIS + " ms");
+        conf.setTickDurationMillis(timeUnit.toMillis(tickTime));
         return this;
     }
 
@@ -316,5 +318,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     public ConsumerConfigurationData<T> getConf() {
         return conf;
+    }
+    
+    @Override
+    public String toString() {
+        return conf != null ? conf.toString() : null;
     }
 }

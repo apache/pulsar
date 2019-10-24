@@ -67,7 +67,7 @@ $ mvn test
 Run Individual Unit Test:
 
 ```bash
-cd related-module (e.g: pulsar-client)
+$ cd module-name (e.g: pulsar-client)
 $ mvn test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
 ```
 
@@ -100,7 +100,7 @@ To configure annotation processing in IntelliJ:
    1. Set "Production sources directory:" to "target/generated-sources/annotations".
    2. Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
 
-4. Click “OK”.
+4. Click "OK".
 
 5. Install the lombok plugin in intellij.
 

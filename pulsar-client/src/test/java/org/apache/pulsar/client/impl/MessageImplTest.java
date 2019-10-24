@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -34,7 +35,7 @@ import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertEquals;
@@ -184,7 +185,7 @@ public class MessageImplTest {
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(keyValueSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -221,7 +222,7 @@ public class MessageImplTest {
                 fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(keyValueSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -259,7 +260,7 @@ public class MessageImplTest {
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(keyValueSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -296,7 +297,7 @@ public class MessageImplTest {
                 fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(keyValueSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -334,7 +335,7 @@ public class MessageImplTest {
         Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(keyValueSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -371,7 +372,7 @@ public class MessageImplTest {
                 fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
-                .thenReturn(keyValueSchema.getSchemaInfo());
+                .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");

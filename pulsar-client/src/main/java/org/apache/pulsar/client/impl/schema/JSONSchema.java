@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.reader.JsonReader;
 import org.apache.pulsar.client.impl.schema.writer.JsonWriter;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -58,7 +59,7 @@ public class JSONSchema<T> extends StructSchema<T> {
     }
 
     @Override
-    protected SchemaReader<T> loadReader(byte[] schemaVersion) {
+    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         throw new RuntimeException("JSONSchema don't support schema versioning");
     }
 

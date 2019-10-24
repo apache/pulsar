@@ -30,6 +30,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -176,7 +178,7 @@ public class LoadBalancerTest {
         int loopCount = 0;
 
         while (loopCount < MAX_RETRIES) {
-            Thread.sleep(1000 * 1);
+            Thread.sleep(1000);
             // Check if the new leader is elected. If yes, break without incrementing the loopCount
             newLeader = les.getCurrentLeader();
             if (newLeader.equals(oldLeader) == false) {
@@ -227,7 +229,7 @@ public class LoadBalancerTest {
                 TopicName topicName = TopicName.get("persistent://pulsar/use/primary-ns/test-topic");
                 ResourceUnit found = pulsarServices[i].getLoadManager().get()
                         .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(topicName)).get();
-                assertTrue(found != null);
+                assertNotNull(found);
             }
         } catch (InterruptedException | KeeperException e) {
             fail("Unable to read the data from Zookeeper - [{}]", e);
@@ -812,7 +814,7 @@ public class LoadBalancerTest {
         LocalZooKeeperCache originalLZK2 = (LocalZooKeeperCache) zkCacheField.get(pulsarServices[1]);
         zkCacheField.set(pulsarServices[0], mockCache);
         zkCacheField.set(pulsarServices[1], mockCache);
-        LoadManager loadManager = new SimpleLoadManagerImpl(pulsarServices[0]);
+        SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsarServices[0]);
 
         // TODO move to its own test
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -832,8 +834,7 @@ public class LoadBalancerTest {
         sortedRankings.setAccessible(true);
         sortedRankings.set(loadManager, sortedRankingsInstance);
 
-        ResourceUnit found = ((SimpleLoadManagerImpl) loadManager)
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
+        ResourceUnit found = loadManager.getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
         assertEquals("http://prod1-broker1.messaging.use.example.com:8080", found.getResourceId());
 
         zkCacheField.set(pulsarServices[0], originalLZK1);
@@ -962,8 +963,8 @@ public class LoadBalancerTest {
         }
         String inactiveBroker = "prod1-broker3.messaging.use.example.com:8080";
         // check owner list contains only two entries, broker-3 should not be in
-        assertTrue(namespaceOwner.size() == 2);
-        assertTrue(!namespaceOwner.containsKey(inactiveBroker));
+        assertEquals(namespaceOwner.size(), 2);
+        assertFalse(namespaceOwner.containsKey(inactiveBroker));
     }
 
     @Test(enabled = false)

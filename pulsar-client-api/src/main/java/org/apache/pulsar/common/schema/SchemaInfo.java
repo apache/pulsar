@@ -30,7 +30,11 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 
+/**
+ * Information about the schema.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -42,17 +46,17 @@ public class SchemaInfo {
     private String name;
 
     /**
-     * The schema data in AVRO JSON format
+     * The schema data in AVRO JSON format.
      */
     private byte[] schema;
 
     /**
-     * The type of schema (AVRO, JSON, PROTOBUF, etc..)
+     * The type of schema (AVRO, JSON, PROTOBUF, etc..).
      */
     private SchemaType type;
 
     /**
-     * Additional properties of the schema definition (implementation defined)
+     * Additional properties of the schema definition (implementation defined).
      */
     private Map<String, String> properties = Collections.emptyMap();
 
@@ -66,8 +70,18 @@ public class SchemaInfo {
             case JSON:
             case PROTOBUF:
                 return new String(schema, UTF_8);
+            case KEY_VALUE:
+                KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
+                    DefaultImplementation.decodeKeyValueSchemaInfo(this);
+                return DefaultImplementation.jsonifyKeyValueSchemaInfo(schemaInfoKeyValue);
             default:
                 return Base64.getEncoder().encodeToString(schema);
         }
     }
+
+    @Override
+    public String toString(){
+        return DefaultImplementation.jsonifySchemaInfo(this);
+    }
+
 }

@@ -25,10 +25,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -84,16 +84,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     public Producer<T> create() throws PulsarClientException {
         try {
             return createAsync().get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
@@ -125,27 +117,24 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> topic(String topicName) {
         checkArgument(StringUtils.isNotBlank(topicName), "topicName cannot be blank");
-        conf.setTopicName(topicName);
+        conf.setTopicName(StringUtils.trim(topicName));
         return this;
     }
 
     @Override
     public ProducerBuilder<T> producerName(String producerName) {
-        checkArgument(StringUtils.isNotBlank(producerName), "producerName cannot be blank");
         conf.setProducerName(producerName);
         return this;
     }
 
     @Override
     public ProducerBuilder<T> sendTimeout(int sendTimeout, @NonNull TimeUnit unit) {
-        checkArgument(sendTimeout >= 0, "sendTimeout needs to be >= 0");
-        conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
+        conf.setSendTimeoutMs(sendTimeout, unit);
         return this;
     }
 
     @Override
     public ProducerBuilder<T> maxPendingMessages(int maxPendingMessages) {
-        checkArgument(maxPendingMessages > 0, "maxPendingMessages needs to be > 0");
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
@@ -213,7 +202,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, @NonNull TimeUnit timeUnit) {
-        conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
+        conf.setBatchingMaxPublishDelayMicros(batchDelay, timeUnit);
         return this;
     }
 
@@ -222,6 +211,13 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
+
+    @Override
+    public ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder) {
+        conf.setBatcherBuilder(batcherBuilder);
+        return this;
+    }
+
 
     @Override
     public ProducerBuilder<T> initialSequenceId(long initialSequenceId) {
@@ -273,5 +269,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " +
                     "should be set as " + MessageRoutingMode.CustomPartition);
         }
+    }
+    
+    @Override
+    public String toString() {
+        return conf != null ? conf.toString() : null;
     }
 }

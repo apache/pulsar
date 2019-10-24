@@ -45,10 +45,12 @@ namespace pulsar {
 class BatchMessageContainer {
    public:
     struct MessageContainer {
-        MessageContainer(Message message, SendCallback sendCallback)
-            : message_(message), sendCallback_(sendCallback) {}
+        MessageContainer(Message message, SendCallback sendCallback, MessageId messageId)
+            : message_(message), sendCallback_(sendCallback), messageId_(messageId) {}
         Message message_;
         SendCallback sendCallback_;
+        MessageId messageId_;
+        void callBack(const pulsar::Result& r) { sendCallback_(r, messageId_); }
     };
     typedef std::vector<MessageContainer> MessageContainerList;
     typedef std::shared_ptr<MessageContainerList> MessageContainerListPtr;

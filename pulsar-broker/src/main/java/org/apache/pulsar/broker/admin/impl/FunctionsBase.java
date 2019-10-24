@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.*;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.Example;
+import io.swagger.annotations.ExampleProperty;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -65,95 +70,90 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiOperation(value = "Creates a new Pulsar Function in cluster mode")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
+            @ApiResponse(code = 400, message = "Invalid request (The Pulsar Function already exists, etc.)"),
             @ApiResponse(code = 408, message = "Request timeout"),
             @ApiResponse(code = 200, message = "Pulsar Function successfully created")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void registerFunction(
-            @ApiParam(value = "The functions tenant")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The functions namespace")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The functions name")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
-                    value = "A JSON value presenting functions configuration payload. An example of the expected functions can be found here.  \n" +
-                            "autoAck  \n" +
-                            "  Whether or not the framework will automatically acknowledge messages.  \n" +
-                            "runtime  \n" +
-                            "  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \n" +
-                            "resources  \n" +
-                            "  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \n" +
-                            "className  \n" +
-                            "  The class name of functions.  \n" +
-                            "tenant  \n" +
-                            "  The tenant of functions.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of functions.  \n" +
-                            "name  \n" +
-                            "  The name of functions.  \n" +
-                            "customSchemaInputs  \n" +
-                            "  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \n" +
-                            "customSerdeInputs  \n" +
-                            "  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \n" +
-                            "deadLetterTopic  \n" +
+                    value = "A JSON value presenting configuration payload of a Pulsar Function. An example of the expected Pulsar Function can be found here.  \n" +
+                            "- **autoAck**  \n" +
+                            "  Whether or not the framework acknowledges messages automatically.  \n" +
+                            "- **runtime**  \n" +
+                            "  What is the runtime of the Pulsar Function. Possible Values: [JAVA, PYTHON, GO]  \n" +
+                            "- **resources**  \n" +
+                            "  The size of the system resources allowed by the Pulsar Function runtime. The resources include: cpu, ram, disk.  \n" +
+                            "- **className**  \n" +
+                            "  The class name of a Pulsar Function.  \n" +
+                            "- **customSchemaInputs**  \n" +
+                            "  The map of input topics to Schema class names (specified as a JSON object).  \n" +
+                            "- **customSerdeInputs**  \n" +
+                            "  The map of input topics to SerDe class names (specified as a JSON object).  \n" +
+                            "- **deadLetterTopic**  \n" +
                             "  Messages that are not processed successfully are sent to `deadLetterTopic`.  \n" +
-                            "runtimeFlags  \n" +
+                            "- **runtimeFlags**  \n" +
                             "  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \n" +
-                            "fqfn  \n" +
-                            "  The Fully Qualified Function Name (FQFN) for the function.  \n" +
-                            "inputSpecs  \n" +
-                            "  A generalized way of specifying inputs.  \n" +
-                            "inputs  \n" +
-                            "  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \n" +
-                            "jar  \n" +
-                            "  Path to the JAR file for the function (if the function is written in Java). " +
+                            "- **fqfn**  \n" +
+                            "  The Fully Qualified Function Name (FQFN) for the Pulsar Function.  \n" +
+                            "- **inputSpecs**  \n" +
+                            "   The map of input topics to its consumer configuration, each configuration has schema of " +
+                            "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n" +
+                            "- **inputs**  \n" +
+                            "  The input topic or topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function.  \n" +
+                            "- **jar**  \n" +
+                            "  Path to the JAR file for the Pulsar Function (if the Pulsar Function is written in Java). " +
                             "  It also supports URL path [http/https/file (file protocol assumes that file " +
                             "  already exists on worker host)] from which worker can download the package.  \n" +
-                            "py  \n" +
-                            "  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \n" +
-                            "go  \n" +
-                            "  Path to the main Go executable binary for the function (if the function is written in Go).  \n" +
-                            "logTopic  \n" +
-                            "  The topic to which the functions logs are produced.  \n" +
-                            "maxMessageRetries  \n" +
+                            "- **py**  \n" +
+                            "  Path to the main Python file or Python wheel file for the Pulsar Function (if the Pulsar Function is written in Python).  \n" +
+                            "- **go**  \n" +
+                            "  Path to the main Go executable binary for the Pulsar Function (if the Pulsar Function is written in Go).  \n" +
+                            "- **logTopic**  \n" +
+                            "  The topic to which the logs of a Pulsar Function are produced.  \n" +
+                            "- **maxMessageRetries**  \n" +
                             "  How many times should we try to process a message before giving up.  \n" +
-                            "output  \n" +
-                            "  The functions output topic (If none is specified, no output is written).  \n" +
-                            "outputSerdeClassName  \n" +
-                            "  The SerDe class to be used for messages output by the function.  \n" +
-                            "parallelism  \n" +
-                            "  The functions parallelism factor (i.e. the number of function instances to run).  \n" +
-                            "processingGuarantees  \n" +
-                            "  The processing guarantees (that is, delivery semantics) applied to the function." +
+                            "- **output**  \n" +
+                            "  The output topic of a Pulsar Function (If none is specified, no output is written).  \n" +
+                            "- **outputSerdeClassName**  \n" +
+                            "  The SerDe class to be used for messages output by the Pulsar Function.  \n" +
+                            "- **parallelism**  \n" +
+                            "  The parallelism factor of a Pulsar Function (i.e. the number of a Pulsar Function instances to run).  \n" +
+                            "- **processingGuarantees**  \n" +
+                            "  The processing guarantees (that is, delivery semantics) applied to the Pulsar Function." +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
-                            "retainOrdering  \n" +
+                            "- **retainOrdering**  \n" +
                             "  Function consumes and processes messages in order.  \n" +
-                            "outputSchemaType  \n" +
+                            "- **outputSchemaType**  \n" +
                             "   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation." +
-                            "subName  \n" +
+                            "- **subName**  \n" +
                             "  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \n" +
-                            "windowConfig  \n" +
-                            "  The window functions configuration.  \n" +
-                            "timeoutMs  \n" +
+                            "- **windowConfig**  \n" +
+                            "  The window configuration of a Pulsar Function.  \n" +
+                            "- **timeoutMs**  \n" +
                             "  The message timeout in milliseconds.  \n" +
-                            "topicsPattern  \n" +
+                            "- **topicsPattern**  \n" +
                             "  The topic pattern to consume from a list of topics under a namespace that match the pattern." +
-                            "  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a " +
-                            "  pattern in --custom-serde-inputs (supported for java fun only)  \n" +
-                            "userConfig  \n" +
-                            "  User-defined config key/values  \n" +
-                            "secrets  \n" +
-                            "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
+                            "  [input] and [topic-pattern] are mutually exclusive. Add SerDe class name for a " +
+                            "  pattern in customSerdeInputs (supported for java fun only)  \n" +
+                            "- **userConfig**  \n" +
+                            "  A map of user-defined configurations (specified as a JSON object).  \n" +
+                            "- **secrets**  \n" +
+                            "  This is a map of secretName(that is how the secret is going to be accessed in the Pulsar Function via context) to an object that" +
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
                             "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
-                            "cleanupSubscription  \n" +
-                            "  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+                            "- **cleanupSubscription**  \n" +
+                            "  Whether the subscriptions of a Pulsar Function created or used should be deleted when the Pulsar Function is deleted.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -168,104 +168,99 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             )
                     )
             )
-            final @FormDataParam("functionConfig") String functionConfigJson) {
+            final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
 
         functions.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-            functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData());
+            functionPkgUrl, functionConfig, clientAppId(), clientAuthData());
     }
 
     @PUT
     @ApiOperation(value = "Updates a Pulsar Function currently running in cluster mode")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function doesn't exist, etc.)"),
+            @ApiResponse(code = 400, message = "Invalid request (The Pulsar Function doesn't exist, etc.)"),
             @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void updateFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String functionPkgUrl,
             @ApiParam(
-                    value = "A JSON value presenting a functions config playload. An example of the expected functions can be found down here.  \n" +
-                            "autoAck  \n" +
-                            "  Whether or not the framework will automatically acknowledge messages.  \n" +
-                            "runtime  \n" +
-                            "  What is the runtime of the function. Possible Values: [JAVA, PYTHON, GO]  \n" +
-                            "resources  \n" +
-                            "  The size of the system resources allowed by the function runtime. The resources include: cpu, ram, disk.  \n" +
-                            "className  \n" +
-                            "  The class name of functions.  \n" +
-                            "tenant  \n" +
-                            "  The tenant of functions.  \n" +
-                            "namespace  \n" +
-                            "  The namespace of functions.  \n" +
-                            "name  \n" +
-                            "  The name of functions.  \n" +
-                            "customSchemaInputs  \n" +
-                            "  The map of input topics to Schema class names (The customSchemaInputs is JSON string).  \n" +
-                            "customSerdeInputs  \n" +
-                            "  The map of input topics to SerDe class names (The customSerdeInputs is JSON string).  \n" +
-                            "deadLetterTopic  \n" +
+                    value = "A JSON value presenting configuration payload of a Pulsar Function. An example of the expected Pulsar Function can be found here.  \n" +
+                            "- **autoAck**  \n" +
+                            "  Whether or not the framework acknowledges messages automatically.  \n" +
+                            "- **runtime**  \n" +
+                            "  What is the runtime of the Pulsar Function. Possible Values: [JAVA, PYTHON, GO]  \n" +
+                            "- **resources**  \n" +
+                            "  The size of the system resources allowed by the Pulsar Function runtime. The resources include: cpu, ram, disk.  \n" +
+                            "- **className**  \n" +
+                            "  The class name of a Pulsar Function.  \n" +
+                            "- **customSchemaInputs**  \n" +
+                            "  The map of input topics to Schema class names (specified as a JSON object).  \n" +
+                            "- **customSerdeInputs**  \n" +
+                            "  The map of input topics to SerDe class names (specified as a JSON object).  \n" +
+                            "- **deadLetterTopic**  \n" +
                             "  Messages that are not processed successfully are sent to `deadLetterTopic`.  \n" +
-                            "runtimeFlags  \n" +
+                            "- **runtimeFlags**  \n" +
                             "  Any flags that you want to pass to the runtime. Note that in thread mode, these flags have no impact.  \n" +
-                            "fqfn  \n" +
-                            "  The Fully Qualified Function Name (FQFN) for the function.  \n" +
-                            "inputSpecs  \n" +
-                            "  A generalized way of specifying inputs.  \n" +
-                            "inputs  \n" +
-                            "  The input topic or topics (multiple topics can be specified as a comma-separated list) of functions.  \n" +
-                            "jar  \n" +
-                            "  Path to the JAR file for the function (if the function is written in Java). " +
+                            "- **fqfn**  \n" +
+                            "  The Fully Qualified Function Name (FQFN) for the Pulsar Function.  \n" +
+                            "- **inputSpecs**  \n" +
+                            "   The map of input topics to its consumer configuration, each configuration has schema of " +
+                            "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n" +
+                            "- **inputs**  \n" +
+                            "  The input topic or topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function.  \n" +
+                            "- **jar**  \n" +
+                            "  Path to the JAR file for the Pulsar Function (if the Pulsar Function is written in Java). " +
                             "  It also supports URL path [http/https/file (file protocol assumes that file " +
                             "  already exists on worker host)] from which worker can download the package.  \n" +
-                            "py  \n" +
-                            "  Path to the main Python file/Python Wheel file for the function (if the function is written in Python).  \n" +
-                            "go  \n" +
-                            "  Path to the main Go executable binary for the function (if the function is written in Go).  \n" +
-                            "logTopic  \n" +
-                            "  The topic to which the functions logs are produced.  \n" +
-                            "maxMessageRetries  \n" +
+                            "- **py**  \n" +
+                            "  Path to the main Python file or Python wheel file for the Pulsar Function (if the Pulsar Function is written in Python).  \n" +
+                            "- **go**  \n" +
+                            "  Path to the main Go executable binary for the Pulsar Function (if the Pulsar Function is written in Go).  \n" +
+                            "- **logTopic**  \n" +
+                            "  The topic to which the logs of a Pulsar Function are produced.  \n" +
+                            "- **maxMessageRetries**  \n" +
                             "  How many times should we try to process a message before giving up.  \n" +
-                            "output  \n" +
-                            "  The functions output topic (If none is specified, no output is written).  \n" +
-                            "outputSerdeClassName  \n" +
-                            "  The SerDe class to be used for messages output by the function.  \n" +
-                            "parallelism  \n" +
-                            "  The functions parallelism factor (i.e. the number of function instances to run).  \n" +
-                            "processingGuarantees  \n" +
-                            "  The processing guarantees (that is, delivery semantics) applied to the function." +
+                            "- **output**  \n" +
+                            "  The output topic of a Pulsar Function (If none is specified, no output is written).  \n" +
+                            "- **outputSerdeClassName**  \n" +
+                            "  The SerDe class to be used for messages output by the Pulsar Function.  \n" +
+                            "- **parallelism**  \n" +
+                            "  The parallelism factor of a Pulsar Function (i.e. the number of a Pulsar Function instances to run).  \n" +
+                            "- **processingGuarantees**  \n" +
+                            "  The processing guarantees (that is, delivery semantics) applied to the Pulsar Function." +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
-                            "retainOrdering  \n" +
+                            "- **retainOrdering**  \n" +
                             "  Function consumes and processes messages in order.  \n" +
-                            "outputSchemaType  \n" +
+                            "- **outputSchemaType**  \n" +
                             "   Represents either a builtin schema type (for example: 'avro', 'json', ect) or the class name for a Schema implementation." +
-                            "subName  \n" +
+                            "- **subName**  \n" +
                             "  Pulsar source subscription name. User can specify a subscription-name for the input-topic consumer.  \n" +
-                            "windowConfig  \n" +
-                            "  The window functions configuration.  \n" +
-                            "timeoutMs  \n" +
+                            "- **windowConfig**  \n" +
+                            "  The window configuration of a Pulsar Function.  \n" +
+                            "- **timeoutMs**  \n" +
                             "  The message timeout in milliseconds.  \n" +
-                            "topicsPattern  \n" +
+                            "- **topicsPattern**  \n" +
                             "  The topic pattern to consume from a list of topics under a namespace that match the pattern." +
-                            "  [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a " +
-                            "  pattern in --custom-serde-inputs (supported for java fun only)  \n" +
-                            "userConfig  \n" +
-                            "  User-defined config key/values  \n" +
-                            "secrets  \n" +
-                            "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
+                            "  [input] and [topic-pattern] are mutually exclusive. Add SerDe class name for a " +
+                            "  pattern in customSerdeInputs (supported for java fun only)  \n" +
+                            "- **userConfig**  \n" +
+                            "  A map of user-defined configurations (specified as a JSON object).  \n" +
+                            "- **secrets**  \n" +
+                            "  This is a map of secretName(that is how the secret is going to be accessed in the Pulsar Function via context) to an object that" +
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
                             "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
-                            "cleanupSubscription  \n" +
-                            "  Whether the subscriptions the functions created/used should be deleted when the functions are deleted.  \n",
+                            "- **cleanupSubscription**  \n" +
+                            "  Whether the subscriptions of a Pulsar Function created or used should be deleted when the Pulsar Function is deleted.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
@@ -280,12 +275,12 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                             )
                     )
             )
-            final @FormDataParam("functionConfig") String functionConfigJson,
+            final @FormDataParam("functionConfig") FunctionConfig functionConfig,
             @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
 
         functions.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfigJson, clientAppId(), clientAuthData(), updateOptions);
+                functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
 
@@ -294,17 +289,17 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function doesn't exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist"),
             @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "The function was successfully deleted")
+            @ApiResponse(code = 200, message = "The Pulsar Function was successfully deleted")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public void deregisterFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
         functions.deregisterFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
@@ -318,15 +313,15 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public FunctionConfig getFunctionInfo(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionInfo(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
@@ -339,18 +334,18 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/status")
     public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (if instance-id is not provided, the stats of all instances is returned")
+            @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, the stats of all instances is returned")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -363,16 +358,16 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/status")
     public FunctionStatus getFunctionStatus(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionStatus(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -385,16 +380,16 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/stats")
     public FunctionStats getFunctionStats(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions.getFunctionStats(tenant, namespace, functionName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -407,18 +402,18 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
     public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionInstanceStats(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (if instance-id is not provided, the stats of all instances is returned")
+            @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, the stats of all instances is returned")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return functions.getFunctionsInstanceStats(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -435,9 +430,9 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     })
     @Path("/{tenant}/{namespace}")
     public List<String> listFunctions(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace) {
         return functions.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
@@ -449,24 +444,24 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 408, message = "Request timeout"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public String triggerFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The value with which you want to trigger the function")
+            @ApiParam(value = "The value with which you want to trigger the Pulsar Function")
             final @FormDataParam("data") String triggerValue,
-            @ApiParam(value = "The path to the file that contains the data with which you'd like to trigger the function")
+            @ApiParam(value = "The path to the file that contains the data with which you'd like to trigger the Pulsar Function")
             final @FormDataParam("dataStream") InputStream triggerStream,
-            @ApiParam(value = "The specific topic name that the function consumes from which you want to inject the data to")
+            @ApiParam(value = "The specific topic name that the Pulsar Function consumes from which you want to inject the data to")
             final @FormDataParam("topic") String topic) {
         return functions.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientAppId(), clientAuthData());
     }
@@ -484,11 +479,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     })
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
     public FunctionState getFunctionState(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The stats key")
             final @PathParam("key") String key) {
@@ -502,7 +497,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
@@ -516,135 +511,145 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @POST
-    @ApiOperation(value = "Restart function instance", response = Void.class)
+    @ApiOperation(value = "Restart an instance of a Pulsar Function", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (if instance-id is not provided, all instances are restarted")
+            @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are restarted")
             final @PathParam("instanceId") String instanceId) {
         functions.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Restart all function instances", response = Void.class)
+    @ApiOperation(value = "Restart all instances of a Pulsar Function", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
         functions.restartFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Stop function instance", response = Void.class)
+    @ApiOperation(value = "Stop an instance of a Pulsar Function", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (if instance-id is not provided, all instances are stopped. ")
+            @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are stopped. ")
             final @PathParam("instanceId") String instanceId) {
         functions.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Stop all function instances", response = Void.class)
+    @ApiOperation(value = "Stop all instances of a Pulsar Function", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
         functions.stopFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Start function instance", response = Void.class)
+    @ApiOperation(value = "Start an instance of a Pulsar Function", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The function instanceId (if instance-id is not provided, all instances sre started. ")
+            @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided, all instances sre started. ")
             final @PathParam("instanceId") String instanceId) {
         functions.startFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Start all function instances", response = Void.class)
+    @ApiOperation(value = "Start all instances of a Pulsar Function", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startFunction(
-            @ApiParam(value = "The tenant of functions")
+            @ApiParam(value = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of functions")
+            @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of functions")
+            @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
         functions.startFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @POST
     @ApiOperation(
-            value = "Uploads Pulsar Function file data",
+            value = "Uploads Pulsar Function file data (Admin only)",
             hidden = true
     )
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions.uploadFunction(uploadedInputStream, path);
+        functions.uploadFunction(uploadedInputStream, path, clientAppId());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Downloads Pulsar Function file data (Admin only)",
+            hidden = true
+    )
+    @Path("/download")
+    public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
+        return functions.downloadFunction(path, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -652,9 +657,16 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             value = "Downloads Pulsar Function file data",
             hidden = true
     )
-    @Path("/download")
-    public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
-        return functions.downloadFunction(path);
+    @Path("/{tenant}/{namespace}/{functionName}/download")
+    public StreamingOutput downloadFunction(
+            @ApiParam(value = "The tenant of a Pulsar Function")
+            final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The namespace of a Pulsar Function")
+            final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of a Pulsar Function")
+            final @PathParam("functionName") String functionName) {
+
+        return functions.downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
     }
 
     @GET

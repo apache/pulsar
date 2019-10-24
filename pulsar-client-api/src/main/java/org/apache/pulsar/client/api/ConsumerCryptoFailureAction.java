@@ -25,22 +25,22 @@ package org.apache.pulsar.client.api;
  */
 public enum ConsumerCryptoFailureAction {
     /**
-     * This is the default option to fail consume messages until crypto succeeds
+     * This is the default option to fail consume messages until crypto succeeds.
      */
     FAIL,
 
     /**
-     * Message is silently acknowledged and not delivered to the application
+     * Message is silently acknowledged and not delivered to the application.
      */
     DISCARD,
 
     /**
      * Deliver the encrypted message to the application. It's the application's responsibility to decrypt the message.
-     * <p>
-     * If message is also compressed, decompression will fail. If message contain batch messages, client will not be
+     *
+     * <p>If message is also compressed, decompression will fail. If message contain batch messages, client will not be
      * able to retrieve individual messages in the batch.
-     * <p>
-     * Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression
+     *
+     * <p>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression
      * information in it using which application can decrypt consumed message payload.
      */
     CONSUME;

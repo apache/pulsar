@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -210,7 +211,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder startingBackoffInterval(long duration, TimeUnit unit) {
-    	conf.setDefaultBackoffIntervalNanos(unit.toNanos(duration));
+    	conf.setInitialBackoffIntervalNanos(unit.toNanos(duration));
     	return this;
     }
     
@@ -222,5 +223,11 @@ public class ClientBuilderImpl implements ClientBuilder {
     
     public ClientConfigurationData getClientConfigurationData() {
         return conf;
+    }
+
+    @Override
+    public ClientBuilder clock(Clock clock) {
+        conf.setClock(clock);
+        return this;
     }
 }

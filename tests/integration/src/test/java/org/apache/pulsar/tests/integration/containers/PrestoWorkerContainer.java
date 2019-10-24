@@ -37,6 +37,7 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
                 -1,
                 PRESTO_HTTP_PORT,
                 "/v1/node");
+
     }
 
     @Override
@@ -49,5 +50,9 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
                     "/pulsar/lib/presto/var/log"
             );
         }
+    }
+
+    public String getUrl() {
+        return String.format("%s:%s",  getContainerIpAddress(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
     }
 }

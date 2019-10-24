@@ -19,9 +19,13 @@
 
 package org.apache.pulsar.io.jdbc;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -40,6 +44,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -49,7 +54,8 @@ import static org.mockito.Mockito.when;
 @Slf4j
 public class JdbcSinkTest {
     private final SqliteUtils sqliteUtils = new SqliteUtils(getClass().getSimpleName());
-    private Message<GenericRecord> message;
+    private JdbcAutoSchemaSink jdbcSink;
+    private final String tableName = "TestOpenAndWriteSink";
 
     /**
      * A Simple class to test jdbc class
@@ -66,79 +72,187 @@ public class JdbcSinkTest {
     @BeforeMethod
     public void setUp() throws Exception {
         sqliteUtils.setUp();
+        sqliteUtils.createTable(
+                "CREATE TABLE " + tableName + "(" +
+                        "    field1  TEXT," +
+                        "    field2  TEXT," +
+                        "    field3 INTEGER," +
+                        "PRIMARY KEY (field1));"
+        );
+
+        // prepare data for udpate sql
+        String updateSql = "insert into " + tableName + " values('ValueOfField4', 'ValueOfField4', 4)";
+        sqliteUtils.execute(updateSql);
+
+        // prepare data for delete sql
+        String deleteSql = "insert into " + tableName + " values('ValueOfField5', 'ValueOfField5', 5)";
+        sqliteUtils.execute(deleteSql);
+
+        Map<String, Object> conf;
+
+        String jdbcUrl = sqliteUtils.sqliteUri();
+
+        conf = Maps.newHashMap();
+        conf.put("jdbcUrl", jdbcUrl);
+        conf.put("tableName", tableName);
+        conf.put("key", "field3");
+        conf.put("nonKey", "field1,field2");
+        // change batchSize to 1, to flush on each write.
+        conf.put("batchSize", 1);
+
+        jdbcSink = new JdbcAutoSchemaSink();
+
+        // open should success
+        jdbcSink.open(conf, null);
+
     }
 
     @AfterMethod
     public void tearDown() throws Exception {
         sqliteUtils.tearDown();
+        jdbcSink.close();
     }
 
-    @Test
-    public void TestOpenAndWriteSink() throws Exception {
-        message = mock(MessageImpl.class);
-        JdbcAutoSchemaSink jdbcSink;
-        Map<String, Object> conf;
-        String tableName = "TestOpenAndWriteSink";
+    private void testOpenAndWriteSink(Map<String, String> actionProperties) throws Exception {
+        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;
-
-        String jdbcUrl = sqliteUtils.sqliteUri();
-        conf = Maps.newHashMap();
-        conf.put("jdbcUrl", jdbcUrl);
-        conf.put("tableName", tableName);
-
-        jdbcSink = new JdbcAutoSchemaSink();
-
-        sqliteUtils.createTable(
-            "CREATE TABLE " + tableName + "(" +
-                "    field1  TEXT," +
-                "    field2  TEXT," +
-                "    field3 INTEGER," +
-                "PRIMARY KEY (field1));"
-        );
-
         // prepare a foo Record
-        Foo obj = new Foo();
-        obj.setField1("ValueOfField1");
-        obj.setField2("ValueOfField1");
-        obj.setField3(3);
+        Foo insertObj = new Foo();
+        insertObj.setField1("ValueOfField1");
+        insertObj.setField2("ValueOfField1");
+        insertObj.setField3(3);
         AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
-        byte[] bytes = schema.encode(obj);
-
-        Record<GenericRecord> record = PulsarRecord.<GenericRecord>builder()
-            .message(message)
+        byte[] insertBytes = schema.encode(insertObj);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
+            .message(insertMessage)
             .topicName("fake_topic_name")
+            .ackFunction(() -> future.complete(null))
             .build();
 
         genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
-
-        when(message.getValue())
-                .thenReturn(genericAvroSchema.decode(bytes));
+        when(insertMessage.getValue()).thenReturn(genericAvroSchema.decode(insertBytes));
+        when(insertMessage.getProperties()).thenReturn(actionProperties);
         log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
-            obj.toString(),
-            message.getValue().toString(),
-            record.getValue().toString());
-
-        // change batchSize to 1, to flush on each write.
-        conf.put("batchSize", 1);
-        // open should success
-        jdbcSink.open(conf, null);
+                insertObj.toString(),
+                insertMessage.getValue().toString(),
+                insertRecord.getValue().toString());
 
         // write should success.
-        jdbcSink.write(record);
+        jdbcSink.write(insertRecord);
         log.info("executed write");
         // sleep to wait backend flush complete
-        Thread.sleep(500);
+        future.get(1, TimeUnit.SECONDS);
 
         // value has been written to db, read it out and verify.
-        String querySql = "SELECT * FROM " + tableName;
-        sqliteUtils.select(querySql, (resultSet) -> {
-            Assert.assertEquals(obj.getField1(), resultSet.getString(1));
-            Assert.assertEquals(obj.getField2(), resultSet.getString(2));
-            Assert.assertEquals(obj.getField3(), resultSet.getInt(3));
+        String querySql = "SELECT * FROM " + tableName + " WHERE field3=3";
+        int count = sqliteUtils.select(querySql, (resultSet) -> {
+            Assert.assertEquals(insertObj.getField1(), resultSet.getString(1));
+            Assert.assertEquals(insertObj.getField2(), resultSet.getString(2));
+            Assert.assertEquals(insertObj.getField3(), resultSet.getInt(3));
         });
+        Assert.assertEquals(count, 1);
 
-        jdbcSink.close();
+    }
+
+    @Test
+    public void TestInsertAction() throws Exception {
+        testOpenAndWriteSink(ImmutableMap.of("ACTION", "INSERT"));
+    }
+
+    @Test
+    public void TestNoAction() throws Exception {
+        testOpenAndWriteSink(ImmutableMap.of());
+    }
+
+    @Test
+    public void TestUnknownAction() throws Exception {
+        Record<GenericRecord> recordRecord = mock(Record.class);
+        when(recordRecord.getProperties()).thenReturn(ImmutableMap.of("ACTION", "UNKNOWN"));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        doAnswer(a -> future.complete(null)).when(recordRecord).fail();
+        jdbcSink.write(recordRecord);
+        future.get(1, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void TestUpdateAction() throws Exception {
+
+        AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+
+        Foo updateObj = new Foo();
+        updateObj.setField1("ValueOfField3");
+        updateObj.setField2("ValueOfField3");
+        updateObj.setField3(4);
+
+        byte[] updateBytes = schema.encode(updateObj);
+        Message<GenericRecord> updateMessage = mock(MessageImpl.class);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Record<GenericRecord> updateRecord = PulsarRecord.<GenericRecord>builder()
+                .message(updateMessage)
+                .topicName("fake_topic_name")
+                .ackFunction(() -> future.complete(null))
+                .build();
+
+        GenericSchema<GenericRecord> updateGenericAvroSchema;
+        updateGenericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
+
+        Map<String, String> updateProperties = Maps.newHashMap();
+        updateProperties.put("ACTION", "UPDATE");
+        when(updateMessage.getValue()).thenReturn(updateGenericAvroSchema.decode(updateBytes));
+        when(updateMessage.getProperties()).thenReturn(updateProperties);
+        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
+                updateObj.toString(),
+                updateMessage.getValue().toString(),
+                updateRecord.getValue().toString());
+
+        jdbcSink.write(updateRecord);
+        future.get(1, TimeUnit.SECONDS);
+
+        // value has been written to db, read it out and verify.
+        String updateQuerySql = "SELECT * FROM " + tableName + " WHERE field3=4";
+        sqliteUtils.select(updateQuerySql, (resultSet) -> {
+            Assert.assertEquals(updateObj.getField1(), resultSet.getString(1));
+            Assert.assertEquals(updateObj.getField2(), resultSet.getString(2));
+            Assert.assertEquals(updateObj.getField3(), resultSet.getInt(3));
+        });
+    }
+
+    @Test
+    public void TestDeleteAction() throws Exception {
+
+        AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
+
+        Foo deleteObj = new Foo();
+        deleteObj.setField3(5);
+
+        byte[] deleteBytes = schema.encode(deleteObj);
+        Message<GenericRecord> deleteMessage = mock(MessageImpl.class);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Record<GenericRecord> deleteRecord = PulsarRecord.<GenericRecord>builder()
+                .message(deleteMessage)
+                .topicName("fake_topic_name")
+                .ackFunction(() -> future.complete(null))
+                .build();
+
+        GenericSchema<GenericRecord> deleteGenericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
+
+        Map<String, String> deleteProperties = Maps.newHashMap();
+        deleteProperties.put("ACTION", "DELETE");
+        when(deleteMessage.getValue()).thenReturn(deleteGenericAvroSchema.decode(deleteBytes));
+        when(deleteMessage.getProperties()).thenReturn(deleteProperties);
+        log.info("foo:{}, Message.getValue: {}, record.getValue: {}",
+                deleteObj.toString(),
+                deleteMessage.getValue().toString(),
+                deleteRecord.getValue().toString());
+
+        jdbcSink.write(deleteRecord);
+        future.get(1, TimeUnit.SECONDS);
+
+        // value has been written to db, read it out and verify.
+        String deleteQuerySql = "SELECT * FROM " + tableName + " WHERE field3=5";
+        Assert.assertEquals(sqliteUtils.select(deleteQuerySql, (resultSet) -> {}), 0);
     }
 
 }

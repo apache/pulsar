@@ -18,12 +18,22 @@
  */
 package org.apache.pulsar.common.protocol.schema;
 
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Comparator;
+
 /**
- * Bytes schema version
+ * Bytes schema version.
  */
-public class BytesSchemaVersion implements SchemaVersion {
+public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchemaVersion> {
+
+    private static final char[] HEX_CHARS_UPPER = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
 
     private final byte[] bytes;
+    // cache the hash code for the string, default to 0
+    private int hashCode;
 
     private BytesSchemaVersion(byte[] bytes) {
         this.bytes = bytes;
@@ -36,5 +46,146 @@ public class BytesSchemaVersion implements SchemaVersion {
 
     public static BytesSchemaVersion of(byte[] bytes) {
         return bytes != null ? new BytesSchemaVersion(bytes) : null;
+    }
+
+    /**
+     * Get the data from the Bytes.
+     * @return The underlying byte array
+     */
+    public byte[] get() {
+        return this.bytes;
+    }
+
+    /**
+     * The hashcode is cached except for the case where it is computed as 0, in which
+     * case we compute the hashcode on every call.
+     *
+     * @return the hashcode
+     */
+    @Override
+    public int hashCode() {
+        if (hashCode == 0) {
+            hashCode = Arrays.hashCode(bytes);
+        }
+        return hashCode;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null) {
+            return false;
+        }
+
+        // we intentionally use the function to compute hashcode here
+        if (this.hashCode() != other.hashCode()) {
+            return false;
+        }
+
+        if (other instanceof BytesSchemaVersion) {
+            return Arrays.equals(this.bytes, ((BytesSchemaVersion) other).get());
+        }
+
+        return false;
+    }
+
+    @Override
+    public int compareTo(BytesSchemaVersion that) {
+        return BYTES_LEXICO_COMPARATOR.compare(this.bytes, that.bytes);
+    }
+
+    @Override
+    public String toString() {
+        return BytesSchemaVersion.toString(bytes, 0, bytes.length);
+    }
+
+    /**
+     * Write a printable representation of a byte array. Non-printable
+     * characters are hex escaped in the format \\x%02X, eg:
+     * \x00 \x05 etc.
+     *
+     * <p>This function is brought from org.apache.hadoop.hbase.util.Bytes
+     *
+     * @param b array to write out
+     * @param off offset to start at
+     * @param len length to write
+     * @return string output
+     */
+    private static String toString(final byte[] b, int off, int len) {
+        StringBuilder result = new StringBuilder();
+
+        if (b == null) {
+            return result.toString();
+        }
+
+        // just in case we are passed a 'len' that is > buffer length...
+        if (off >= b.length) {
+            return result.toString();
+        }
+
+        if (off + len > b.length) {
+            len = b.length - off;
+        }
+
+        for (int i = off; i < off + len; ++i) {
+            int ch = b[i] & 0xFF;
+            if (ch >= ' ' && ch <= '~' && ch != '\\') {
+                result.append((char) ch);
+            } else {
+                result.append("\\x");
+                result.append(HEX_CHARS_UPPER[ch / 0x10]);
+                result.append(HEX_CHARS_UPPER[ch % 0x10]);
+            }
+        }
+        return result.toString();
+    }
+
+    /**
+     * A byte array comparator based on lexicograpic ordering.
+     */
+    public final static ByteArrayComparator BYTES_LEXICO_COMPARATOR = new LexicographicByteArrayComparator();
+
+    /**
+     * This interface helps to compare byte arrays.
+     */
+    public interface ByteArrayComparator extends Comparator<byte[]>, Serializable {
+
+        int compare(final byte[] buffer1, int offset1, int length1,
+                    final byte[] buffer2, int offset2, int length2);
+    }
+
+    private static class LexicographicByteArrayComparator implements ByteArrayComparator {
+
+        private static final long serialVersionUID = -1915703761143534937L;
+
+        @Override
+        public int compare(byte[] buffer1, byte[] buffer2) {
+            return compare(buffer1, 0, buffer1.length, buffer2, 0, buffer2.length);
+        }
+
+        public int compare(final byte[] buffer1, int offset1, int length1,
+                           final byte[] buffer2, int offset2, int length2) {
+
+            // short circuit equal case
+            if (buffer1 == buffer2
+                && offset1 == offset2
+                && length1 == length2) {
+                return 0;
+            }
+
+            // similar to Arrays.compare() but considers offset and length
+            int end1 = offset1 + length1;
+            int end2 = offset2 + length2;
+            for (int i = offset1, j = offset2; i < end1 && j < end2; i++, j++) {
+                int a = buffer1[i] & 0xff;
+                int b = buffer2[j] & 0xff;
+                if (a != b) {
+                    return a - b;
+                }
+            }
+            return length1 - length2;
+        }
     }
 }

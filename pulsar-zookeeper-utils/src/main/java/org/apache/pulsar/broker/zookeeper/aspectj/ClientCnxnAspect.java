@@ -74,12 +74,7 @@ public class ClientCnxnAspect {
         // zkResponse event shouldn't be blocked and it should be processed
         // async
         if (eventProcessExecutor != null && !eventProcessExecutor.isShutdown()) {
-            eventProcessExecutor.submit(new Runnable() {
-                @Override
-                public void run() {
-                    processEvent(joinPoint);
-                }
-            });
+            eventProcessExecutor.submit(() -> processEvent(joinPoint));
         }
     }
 

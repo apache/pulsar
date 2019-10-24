@@ -47,19 +47,12 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private volatile boolean waitingOnReceiveForZeroQueueSize = false;
 
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
+            ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer, CompletableFuture<Consumer<T>> subscribeFuture,
             SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors) {
-    	this(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, subscriptionMode, startMessageId,
-    		 schema, interceptors, Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS);
-    }
-    
-    public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer<T>> subscribeFuture,
-            SubscriptionMode subscriptionMode, MessageId startMessageId, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors, long backoffIntervalNanos, long maxBackoffIntervalNanos) {
-        super(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, subscriptionMode, startMessageId,
-              schema, interceptors, backoffIntervalNanos, maxBackoffIntervalNanos);
+            ConsumerInterceptors<T> interceptors,
+            boolean createTopicIfDoesNotExist) {
+        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture, subscriptionMode, startMessageId,
+              schema, interceptors, createTopicIfDoesNotExist);
     }
 
     @Override
@@ -117,9 +110,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             stats.updateNumMsgsReceived(message);
             return message;
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
             stats.incrementNumReceiveFailed();
-            throw new PulsarClientException(e);
+            throw PulsarClientException.unwrap(e);
         } finally {
             // Finally blocked is invoked in case the block on incomingMessages is interrupted
             waitingOnReceiveForZeroQueueSize = false;

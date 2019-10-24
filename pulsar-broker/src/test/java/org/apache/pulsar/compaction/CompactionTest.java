@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNull;

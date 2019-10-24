@@ -287,7 +287,7 @@ public class WebServiceTest {
 
         try {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),
-                    new ClusterData(pulsar.getWebServiceAddress()));
+                    new ClusterData(pulsar.getSafeWebServiceAddress()));
         } catch (ConflictException ce) {
             // This is OK.
         } finally {

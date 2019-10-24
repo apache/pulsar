@@ -18,50 +18,51 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Map;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Map;
+
 /**
+ * Statistics about a publisher.
  */
 public class PublisherStats {
     private int count;
 
-    /** Total rate of messages published by this publisher. msg/s */
+    /** Total rate of messages published by this publisher (msg/s). */
     public double msgRateIn;
 
-    /** Total throughput of messages published by this publisher. byte/s */
+    /** Total throughput of messages published by this publisher (byte/s). */
     public double msgThroughputIn;
 
-    /** Average message size published by this publisher */
+    /** Average message size published by this publisher. */
     public double averageMsgSize;
 
-    /** Id of this publisher */
+    /** Id of this publisher. */
     public long producerId;
 
-    /** Producer name */
+    /** Producer name. */
     private int producerNameOffset = -1;
     private int producerNameLength;
 
-    /** Address of this publisher */
+    /** Address of this publisher. */
     private int addressOffset = -1;
     private int addressLength;
 
-    /** Timestamp of connection */
+    /** Timestamp of connection. */
     private int connectedSinceOffset = -1;
     private int connectedSinceLength;
 
-    /** Client library version */
+    /** Client library version. */
     private int clientVersionOffset = -1;
     private int clientVersionLength;
 
     /**
      * In order to prevent multiple string objects under stats: create a string-buffer that stores data for all string
-     * place-holders
+     * place-holders.
      */
     private StringBuilder stringBuffer = new StringBuilder();
 
-    /** Metadata (key/value strings) associated with this publisher */
+    /** Metadata (key/value strings) associated with this publisher. */
     public Map<String, String> metadata;
 
     public PublisherStats add(PublisherStats stats) {

@@ -66,7 +66,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerInfo> getCluster() {
-        return worker.getCluster();
+        return worker.getCluster(clientAppId());
     }
 
     @GET
@@ -81,7 +81,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
     public WorkerInfo getClusterLeader() {
-        return worker.getClusterLeader();
+        return worker.getClusterLeader(clientAppId());
     }
 
     @GET
@@ -96,7 +96,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/assignments")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Collection<String>> getAssignments() {
-        return worker.getAssignments();
+        return worker.getAssignments(clientAppId());
     }
 
     @GET
@@ -112,6 +112,6 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/connectors")
     @Produces(MediaType.APPLICATION_JSON)
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return worker.getListOfConnectors();
+        return worker.getListOfConnectors(clientAppId());
     }
 }

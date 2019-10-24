@@ -24,13 +24,17 @@ import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
+@Slf4j
 public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final Subscription subscription;
@@ -61,20 +65,26 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      * @param subscription
      *            the subscription object
      */
-    public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo) {
+    public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
+            SendMessageInfo sendMessageInfo) {
         int totalMessages = 0;
         long totalBytes = 0;
 
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            PositionImpl pos = (PositionImpl) entry.getPosition();
 
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
 
             try {
                 if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+                    PositionImpl pos = (PositionImpl) entry.getPosition();
                     // Message metadata was corrupted or the messages was a server-only marker
+
+                    if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
+                        processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
+                    }
+
                     entries.set(i, null);
                     entry.release();
                     subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
@@ -99,5 +109,22 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
+    }
+
+    private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {
+        // Remove the protobuf headers
+        Commands.skipMessageMetadata(headersAndPayload);
+
+        try {
+            ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(headersAndPayload);
+            subscription.processReplicatedSubscriptionSnapshot(snapshot);
+        } catch (Throwable t) {
+            log.warn("Failed to process replicated subscription snapshot at {} -- {}", pos, t.getMessage(), t);
+            return;
+        }
+    }
+
+    public void resetCloseFuture() {
+        // noop
     }
 }

@@ -119,6 +119,9 @@ static Result getResult(ServerError serverError) {
 }
 
 static bool file_exists(const std::string& path) {
+    if (path.empty()) {
+        return false;
+    }
     std::ifstream f(path);
     return f.good();
 }
@@ -133,8 +136,15 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       serverProtocolVersion_(ProtocolVersion_MIN),
       maxMessageSize_(Commands::DefaultMaxMessageSize),
       executor_(executor),
-      resolver_(executor->createTcpResolver()),
-      socket_(executor->createSocket()),
+      resolver_(executor_->createTcpResolver()),
+      socket_(executor_->createSocket()),
+#if BOOST_VERSION >= 107000
+      strand_(boost::asio::make_strand(executor_->io_service_.get_executor())),
+#elif BOOST_VERSION >= 106600
+      strand_(executor_->io_service_.get_executor()),
+#else
+      strand_(executor_->io_service_),
+#endif
       logicalAddress_(logicalAddress),
       physicalAddress_(physicalAddress),
       cnxString_("[<none> -> " + physicalAddress + "] "),
@@ -212,7 +222,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             }
         }
 
-        tlsSocket_ = executor->createTlsSocket(socket_, ctx);
+        tlsSocket_ = executor_->createTlsSocket(socket_, ctx);
     }
 }
 
@@ -341,9 +351,16 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
                     return;
                 }
             }
+#if BOOST_VERSION >= 106600
             tlsSocket_->async_handshake(
                 boost::asio::ssl::stream<tcp::socket>::client,
-                std::bind(&ClientConnection::handleHandshake, shared_from_this(), std::placeholders::_1));
+                boost::asio::bind_executor(strand_, std::bind(&ClientConnection::handleHandshake,
+                                                              shared_from_this(), std::placeholders::_1)));
+#else
+            tlsSocket_->async_handshake(boost::asio::ssl::stream<tcp::socket>::client,
+                                        strand_.wrap(std::bind(&ClientConnection::handleHandshake,
+                                                               shared_from_this(), std::placeholders::_1)));
+#endif
         } else {
             handleHandshake(boost::system::errc::make_error_code(boost::system::errc::success));
         }
@@ -652,9 +669,12 @@ void ClientConnection::handleIncomingCommand() {
                     const CommandSendReceipt& sendReceipt = incomingCmd_.send_receipt();
                     int producerId = sendReceipt.producer_id();
                     uint64_t sequenceId = sendReceipt.sequence_id();
+                    const proto::MessageIdData& messageIdData = sendReceipt.message_id();
+                    MessageId messageId = MessageId(messageIdData.partition(), messageIdData.ledgerid(),
+                                                    messageIdData.entryid(), messageIdData.batch_index());
 
                     LOG_DEBUG(cnxString_ << "Got receipt for producer: " << producerId
-                                         << " -- msg: " << sequenceId);
+                                         << " -- msg: " << sequenceId << "-- message id: " << messageId);
 
                     Lock lock(mutex_);
                     ProducersMap::iterator it = producers_.find(producerId);
@@ -663,7 +683,7 @@ void ClientConnection::handleIncomingCommand() {
                         lock.unlock();
 
                         if (producer) {
-                            if (!producer->ackReceived(sequenceId)) {
+                            if (!producer->ackReceived(sequenceId, messageId)) {
                                 // If the producer fails to process the ack, we need to close the connection
                                 // to give it a chance to recover from there
                                 close();
@@ -1143,29 +1163,55 @@ void ClientConnection::sendCommand(const SharedBuffer& cmd) {
 
     if (pendingWriteOperations_++ == 0) {
         // Write immediately to socket
-        asyncWrite(cmd.const_asio_buffer(),
-                   customAllocWriteHandler(std::bind(&ClientConnection::handleSend, shared_from_this(),
-                                                     std::placeholders::_1, cmd)));
+        if (tlsSocket_) {
+#if BOOST_VERSION >= 106600
+            boost::asio::post(strand_,
+                              std::bind(&ClientConnection::sendCommandInternal, shared_from_this(), cmd));
+#else
+            strand_.post(std::bind(&ClientConnection::sendCommandInternal, shared_from_this(), cmd));
+#endif
+        } else {
+            sendCommandInternal(cmd);
+        }
     } else {
         // Queue to send later
         pendingWriteBuffers_.push_back(cmd);
     }
 }
 
+void ClientConnection::sendCommandInternal(const SharedBuffer& cmd) {
+    asyncWrite(cmd.const_asio_buffer(),
+               customAllocWriteHandler(
+                   std::bind(&ClientConnection::handleSend, shared_from_this(), std::placeholders::_1, cmd)));
+}
+
 void ClientConnection::sendMessage(const OpSendMsg& opSend) {
     Lock lock(mutex_);
 
     if (pendingWriteOperations_++ == 0) {
-        PairSharedBuffer buffer = Commands::newSend(outgoingBuffer_, outgoingCmd_, opSend.producerId_,
-                                                    opSend.sequenceId_, getChecksumType(), opSend.msg_);
-
         // Write immediately to socket
-        asyncWrite(buffer, customAllocWriteHandler(std::bind(&ClientConnection::handleSendPair,
-                                                             shared_from_this(), std::placeholders::_1)));
+        if (tlsSocket_) {
+#if BOOST_VERSION >= 106600
+            boost::asio::post(strand_,
+                              std::bind(&ClientConnection::sendMessageInternal, shared_from_this(), opSend));
+#else
+            strand_.post(std::bind(&ClientConnection::sendMessageInternal, shared_from_this(), opSend));
+#endif
+        } else {
+            sendMessageInternal(opSend);
+        }
     } else {
         // Queue to send later
         pendingWriteBuffers_.push_back(opSend);
     }
+}
+
+void ClientConnection::sendMessageInternal(const OpSendMsg& opSend) {
+    PairSharedBuffer buffer = Commands::newSend(outgoingBuffer_, outgoingCmd_, opSend.producerId_,
+                                                opSend.sequenceId_, getChecksumType(), opSend.msg_);
+
+    asyncWrite(buffer, customAllocWriteHandler(std::bind(&ClientConnection::handleSendPair,
+                                                         shared_from_this(), std::placeholders::_1)));
 }
 
 void ClientConnection::handleSend(const boost::system::error_code& err, const SharedBuffer&) {
@@ -1282,6 +1328,9 @@ void ClientConnection::handleConsumerStatsTimeout(const boost::system::error_cod
 
 void ClientConnection::close() {
     Lock lock(mutex_);
+    if (isClosed()) {
+        return;
+    }
     state_ = Disconnected;
     boost::system::error_code err;
     socket_->close(err);
@@ -1295,11 +1344,14 @@ void ClientConnection::close() {
 
     if (keepAliveTimer_) {
         keepAliveTimer_->cancel();
+        keepAliveTimer_.reset();
     }
 
     if (consumerStatsRequestTimer_) {
         consumerStatsRequestTimer_->cancel();
+        consumerStatsRequestTimer_.reset();
     }
+
     for (ProducersMap::iterator it = producers.begin(); it != producers.end(); ++it) {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
@@ -1338,6 +1390,10 @@ void ClientConnection::close() {
 
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
+    }
+
+    if (executor_) {
+        executor_.reset();
     }
 }
 

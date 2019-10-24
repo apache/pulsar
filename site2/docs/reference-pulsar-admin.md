@@ -16,10 +16,15 @@ Commands
 * `brokers`
 * `clusters`
 * `functions`
+* `functions-worker`
 * `namespaces`
 * `ns-isolation-policy`
-* `sinks`
 * `sources`
+
+    For more information, see [here](reference-connector-admin.md#sources)
+* `sinks`
+  
+  For more information, see [here](reference-connector-admin.md#sinks)
 * `topics`
 * `tenants`
 * `resource-quotas`
@@ -166,6 +171,21 @@ Usage
 ```bash
 $ pulsar-admin brokers list-dynamic-config
 ```
+
+### `delete-dynamic-config`
+Delete dynamic-serviceConfiguration of broker
+
+Usage
+```bash
+$ pulsar-admin brokers delete-dynamic-config options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--config`|Service configuration parameter name||
+
 
 ### `get-all-dynamic-config`
 Get all overridden dynamic-configuration values
@@ -387,6 +407,7 @@ Subcommands
 * `stats`
 * `list`
 * `querystate`
+* `putstate`
 * `trigger`
 
 
@@ -692,6 +713,23 @@ Options
 |`--tenant`|The function's tenant||
 |`-w`, `--watch`|Watch for changes in the value associated with a key for a Pulsar Function|false|
 
+### `putstate`
+Put a key/value pair to the state associated with a Pulsar Function
+
+Usage
+```bash
+$ pulsar-admin functions putstate options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--fqfn`|The Fully Qualified Function Name (FQFN) for the Pulsar Function||
+|`--name`|The name of a Pulsar Function||
+|`--namespace`|The namespace of a Pulsar Function||
+|`--tenant`|The tenant of a Pulsar Function||
+|`-s`, `--state`|The FunctionState that needs to be put||
 
 ### `trigger`
 Triggers the specified Pulsar Function with a supplied value
@@ -712,6 +750,66 @@ Options
 |`--trigger-file`|The path to the file that contains the data with which you'd like to trigger the function||
 |`--trigger-value`|The value with which you want to trigger the function||
 
+
+## `functions-worker`
+Operations to collect function-worker statistics
+
+```bash
+$ pulsar-admin functions-worker subcommand
+```
+
+Subcommands
+
+* `function-stats`
+* `get-cluster`
+* `get-cluster-leader`
+* `get-function-assignments`
+* `monitoring-metrics`
+
+### `function-stats`
+
+Dump all functions stats running on this broker
+
+Usage
+```bash
+$ pulsar-admin functions-worker function-stats
+```
+
+### `get-cluster`
+
+Get all workers belonging to this cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-cluster
+```
+
+### `get-cluster-leader`
+
+Get the leader of the worker cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-cluster-leader
+```
+
+### `get-function-assignments`
+
+Get the assignments of the functions across the worker cluster
+
+Usage
+```bash
+$ pulsar-admin functions-worker get-function-assignments
+```
+
+### `monitoring-metrics`
+
+Dump metrics for Monitoring
+
+Usage
+```bash
+$ pulsar-admin functions-worker monitoring-metrics
+```
 
 ## `namespaces`
 
@@ -753,6 +851,8 @@ Subcommands
 * `split-bundle`
 * `set-dispatch-rate`
 * `get-dispatch-rate`
+* `set-replicator-dispatch-rate`
+* `get-replicator-dispatch-rate`
 * `set-subscribe-rate`
 * `get-subscribe-rate`
 * `set-subscription-dispatch-rate`
@@ -1126,6 +1226,29 @@ Usage
 $ pulsar-admin namespaces get-dispatch-rate tenant/namespace
 ```
 
+### set-replicator-dispatch-rate
+Set replicator message-dispatch-rate for all topics of the namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-replicator-dispatch-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
+|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
+|`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
+
+### get-replicator-dispatch-rate
+Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
+
+Usage
+```bash
+$ pulsar-admin namespaces get-replicator-dispatch-rate tenant/namespace
+```
+
 ### `set-subscribe-rate`
 Set subscribe-rate per consumer for all topics of the namespace
 
@@ -1466,503 +1589,6 @@ Options
 |----|---|---|
 |`--broker`|Broker name to get namespace-isolation policies attached to it||
 
-
-## `sinks`
-
-An interface for managing Pulsar IO sinks (egress data from Pulsar)
-
-Usage
-```bash
-$ pulsar-admin sinks subcommand
-```
-
-Subcommands
-* `create`
-* `update`
-* `delete`
-* `list`
-* `get`
-* `status`
-* `stop`
-* `start`
-* `restart`
-* `localrun`
-* `available-sinks`
-
-
-### `create`
-Submit a Pulsar IO sink connector to run in a Pulsar cluster
-
-Usage
-```bash
-$ pulsar-admin sinks create options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`--classname`|The sink's class name if archive is file-url-path (file://)||
-|`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
-|`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
-|`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
-|`--archive`|Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
-|`--name`|The sink’s name||
-|`--namespace`|The sink’s namespace||
-|`--parallelism`|The sink’s parallelism factor (i.e. the number of sink instances to run).||
-|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
-|`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--sink-config`|User defined configs key/values||
-|`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
-|`--sink-type`|The built-in sinks's connector provider||
-|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
-|`--tenant`|The sink’s tenant||
-|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
-|`--timeout-ms`|The message timeout in milliseconds||
-|`--retain-ordering`|Sink consumes and sinks messages in order||
-|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
-
-
-### `update`
-Update a Pulsar IO sink connector
-
-Usage
-```bash
-$ pulsar-admin sinks update options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`--classname`|The sink's class name if archive is file-url-path (file://)||
-|`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
-|`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
-|`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
-|`--archive`|Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
-|`--name`|The sink’s name||
-|`--namespace`|The sink’s namespace||
-|`--parallelism`|The sink’s parallelism factor (i.e. the number of sink instances to run).||
-|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
-|`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--sink-config`|User defined configs key/values||
-|`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
-|`--sink-type`|The built-in sinks's connector provider||
-|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
-|`--tenant`|The sink’s tenant||
-|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
-|`--retain-ordering`|Sink consumes and sinks messages in order||
-|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
-|`--timeout-ms`|The message timeout in milliseconds||
-
-
-### `delete`
-Stops a Pulsar IO sink connector
-
-Usage
-```bash
-$ pulsar-admin sinks delete options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--name`|The sink's name||
-|`--namespace`|The sink's namespace||
-|`--tenant`|The sink's tenant||
-
-
-### `list`
-List all running Pulsar IO sink connectors
-
-Usage
-```bash
-$ pulsar-admin sinks list options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--namespace`|The sink's namespace||
-|`--tenant`|The sink's tenant||
-
-
-### `get`
-Gets the information about a Pulsar IO sink connector
-
-Usage
-```bash
-$ pulsar-admin sinks get options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--name`|The sink's name||
-|`--namespace`|The sink's namespace||
-|`--tenant`|The sink's tenant||
-
-
-### `status`
-Check the current status of a Pulsar Sink
-
-Usage
-```bash
-$ pulsar-admin sinks status options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--instance-id`|The sink instanceId (Get-status of all instances if instance-id is not provided)||
-|`--name`|The sink's name||
-|`--namespace`|The sink's namespace||
-|`--tenant`|The sink's tenant||
-
-
-### `stop`
-Stops sink instance
-
-Usage
-```bash
-$ pulsar-admin sinks stop options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--instance-id`|The sink instanceId (stop all instances if instance-id is not provided)||
-|`--name`|The sink's name||
-|`--namespace`|The sink's namespace||
-|`--tenant`|The sink's tenant||
-
-
-### `start`
-Starts sink instance
-
-Usage
-```bash
-$ pulsar-admin sinks start options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--instance-id`|The sink instanceId (start all instances if instance-id is not provided)||
-|`--name`|The sink's name||
-|`--namespace`|The sink's namespace||
-|`--tenant`|The sink's tenant||
-
-
-### `restart`
-Restart sink instance
-
-Usage
-```bash
-$ pulsar-admin sinks restart options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--instance-id`|The sink instanceId (restart all instances if instance-id is not provided)||
-|`--name`|The sink's name||
-|`--namespace`|The sink's namespace||
-|`--tenant`|The sink's tenant||
-
-
-### `localrun`
-Run a Pulsar IO sink connector locally (rather than deploying it to the Pulsar cluster)
-
-Usage
-```bash
-$ pulsar-admin sinks localrun options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`--broker-service-url`|The URL for the Pulsar broker||
-|`--classname`|The sink's class name if archive is file-url-path (file://)||
-|`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--custom-serde-inputs`|The map of input topics to SerDe class names (as a JSON string)||
-|`--custom-schema-inputs`|The map of input topics to Schema types or class names (as a JSON string)||
-|`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--inputs`|The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)||
-|`--archive`|Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
-|`--name`|The sink’s name||
-|`--namespace`|The sink’s namespace||
-|`--parallelism`|The sink’s parallelism factor (i.e. the number of sink instances to run).||
-|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the sink. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
-|`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)||
-|`--sink-config`|User defined configs key/values||
-|`--sink-config-file`|The path to a YAML config file specifying the sink’s configuration||
-|`--sink-type`|The built-in sinks's connector provider||
-|`--topics-pattern`|TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)||
-|`--tenant`|The sink’s tenant||
-|`--auto-ack`|Whether or not the framework will automatically acknowledge messages||
-|`--timeout-ms`|The message timeout in milliseconds||
-|`--client-auth-params`|Client authentication param||
-|`--client-auth-plugin`|Client authentication plugin using which function-process can connect to broker||
-|`--hostname-verification-enabled`|Enable hostname verification|false|
-|`--retain-ordering`|Sink consumes and sinks messages in order||
-|`--subs-name`|Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer||
-|`--tls-allow-insecure`|Allow insecure tls connection|false|
-|`--tls-trust-cert-path`|The tls trust cert file path||
-|`--use-tls`|Use tls connection|false|
-
-
-### `available-sinks`
-Get the list of Pulsar IO connector sinks supported by Pulsar cluster
-
-Usage
-```bash
-$ pulsar-admin sinks available-sinks
-```
-
-
-## `sources`
-An interface for managing Pulsar IO sources (ingress data into Pulsar)
-
-Usage
-```bash
-$ pulsar-admin sources subcommand
-```
-
-Subcommands
-* `create`
-* `update`
-* `delete`
-* `get`
-* `status`
-* `list`
-* `stop`
-* `start`
-* `restart`
-* `localrun`
-* `available-sources`
-
-
-### `create`
-Submit a Pulsar IO source connector to run in a Pulsar cluster
-
-Usage
-```bash
-$ pulsar-admin sources create options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`--classname`|The source's class name if archive is file-url-path (file://)||
-|`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--deserialization-classname`|The SerDe classname for the source||
-|`--destination-topic-name`|The Pulsar topic to which data is sent||
-|`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--archive`|The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
-|`--name`|The source’s name||
-|`--namespace`|The source’s namespace||
-|`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
-|`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
-|`--source-type`|One of the built-in source's connector provider||
-|`--source-config`|Source config key/values||
-|`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
-|`--tenant`|The source’s tenant||
-
-
-### `update`
-Update a already submitted Pulsar IO source connector
-
-Usage
-```bash
-$ pulsar-admin sources update options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`--classname`|The source's class name if archive is file-url-path (file://)||
-|`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--deserialization-classname`|The SerDe classname for the source||
-|`--destination-topic-name`|The Pulsar topic to which data is sent||
-|`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--archive`|The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
-|`--name`|The source’s name||
-|`--namespace`|The source’s namespace||
-|`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
-|`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
-|`--source-type`|One of the built-in source's connector provider||
-|`--source-config`|Source config key/values||
-|`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
-|`--tenant`|The source’s tenant||
-
-
-### `delete`
-Stops a Pulsar IO source connector
-
-Usage
-```bash
-$ pulsar-admin sources delete options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--name`|The source's name||
-|`--namespace`|The source's namespace||
-|`--tenant`|The source's tenant||
-
-
-### `get`
-Gets the information about a Pulsar IO source connector
-
-Usage
-```bash
-$ pulsar-admin sources get options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--name`|The source's name||
-|`--namespace`|The source's namespace||
-|`--tenant`|The source's tenant||
-
-
-### `status`
-Check the current status of a Pulsar Source
-
-Usage
-```bash
-$ pulsar-admin sources status options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--instance-id`|The source instanceId (Get-status of all instances if instance-id is not provided)||
-|`--name`|The source's name||
-|`--namespace`|The source's namespace||
-|`--tenant`|The source's tenant||
-
-
-### `list`
-List all running Pulsar IO source connectors
-
-Usage
-```bash
-$ pulsar-admin sources list options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--namespace`|The source's namespace||
-|`--tenant`|The source's tenant||
-
-
-### `stop`
-Stop source instance
-
-Usage
-```bash
-$ pulsar-admin sources stop options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--instance-id`|The source instanceId (stop all instances if instance-id is not provided)||
-|`--name`|The source's name||
-|`--namespace`|The source's namespace||
-|`--tenant`|The source's tenant||
-
-
-### `start`
-Start source instance
-
-Usage
-```bash
-$ pulsar-admin sources start options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--instance-id`|The source instanceId (start all instances if instance-id is not provided)||
-|`--name`|The source's name||
-|`--namespace`|The source's namespace||
-|`--tenant`|The source's tenant||
-
-
-### `restart`
-Restart source instance
-
-Usage
-```bash
-$ pulsar-admin sources restart options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--instance-id`|The source instanceId (restart all instances if instance-id is not provided)||
-|`--name`|The source's name||
-|`--namespace`|The source's namespace||
-|`--tenant`|The source's tenant||
-
-
-### `localrun`
-Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar cluster)
-
-Usage
-```bash
-$ pulsar-admin sources localrun options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`--classname`|The source's class name if archive is file-url-path (file://)||
-|`--cpu`|The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--deserialization-classname`|The SerDe classname for the source||
-|`--destination-topic-name`|The Pulsar topic to which data is sent||
-|`--disk`|The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--archive`|The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
-|`--name`|The source’s name||
-|`--namespace`|The source’s namespace||
-|`--parallelism`|The source’s parallelism factor (i.e. the number of source instances to run).||
-|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.||
-|`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
-|`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
-|`--source-type`|One of the built-in source's connector provider||
-|`--source-config`|Source config key/values||
-|`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
-|`--tenant`|The source’s tenant||
-|`--broker-service-url`|The URL for the Pulsar broker||
-|`--client-auth-params`|Client authentication param||
-|`--client-auth-plugin`|Client authentication plugin using which function-process can connect to broker||
-|`--hostname-verification-enabled`|Enable hostname verification|false|
-|`--tls-allow-insecure`|Allow insecure tls connection|false|
-|`--tls-trust-cert-path`|The tls trust cert file path||
-|`--use-tls`|Use tls connection||
-
-
-### `available-sources`
-Get the list of Pulsar IO connector sources supported by Pulsar cluster
-
-Usage
-```bash
-$ pulsar-admin sources available-sources
-```
-
-
 ## `topics`
 Operations for managing Pulsar topics (both persistent and non persistent)
 
@@ -1998,7 +1624,7 @@ Subcommands
 * `info-internal`
 * `partitioned-stats`
 * `skip`
-* `skip-all`
+* `clear-backlog`
 * `expire-messages`
 * `expire-messages-all-subscriptions`
 * `peek-messages`
@@ -2058,6 +1684,16 @@ Options
 ### `create-partitioned-topic`
 Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
 
+> #### Note
+>
+> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
+>
+> To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
+>
+> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+>
+> For more information about these two parameters, see [here](reference-configuration.md#broker).
+
 Usage
 ```bash
 $ pulsar-admin topics create-partitioned-topic {persistent|non-persistent}://tenant/namespace/topic options
@@ -2078,6 +1714,16 @@ $ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
 
 ### `create`
 Creates a non-partitioned topic. A non-partitioned topic must explicitly be created by the user if allowAutoTopicCreation or createIfMissing is disabled.
+
+> #### Note
+>
+> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
+>
+> To disable this feature, set `brokerDeleteInactiveTopicsEnabled`  to `false`.
+>
+> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+>
+> For more information about these two parameters, see [here](reference-configuration.md#broker).
 
 Usage
 ```bash
@@ -2273,12 +1919,12 @@ Options
 |`-s`, `--subscription`|The subscription on which to skip messages||
 
 
-### `skip-all`
-Skip all the messages for the subscription
+### `clear-backlog`
+Clear backlog (skip all the messages) for the subscription
 
 Usage
 ```bash
-$ pulsar-admin topics skip-all topic options
+$ pulsar-admin topics clear-backlog topic options
 ```
 
 Options

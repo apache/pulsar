@@ -50,6 +50,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_SERVER = "Server";
     @Category
+    private static final String CATEGORY_PROTOCOLS = "Protocols";
+    @Category
     private static final String CATEGORY_STORAGE_BK = "Storage (BookKeeper)";
     @Category
     private static final String CATEGORY_STORAGE_ML = "Storage (Managed Ledger)";
@@ -108,6 +110,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests"
     )
+
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -536,6 +539,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Timeout for building a consistent snapshot for tracking replicated subscriptions state. ")
     private int replicatedSubscriptionsSnapshotTimeoutSeconds = 30;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Max number of snapshot to be cached per subscription.")
+    private int replicatedSubscriptionsSnapshotMaxCachedPerSubscription = 10;
+
+    /**** --- Messaging Protocols --- ****/
+
+    @FieldContext(
+        category = CATEGORY_PROTOCOLS,
+        doc = "The directory to locate messaging protocol handlers"
+    )
+    private String protocolHandlerDirectory = "./protocols";
+
+    @FieldContext(
+        category = CATEGORY_PROTOCOLS,
+        doc = "List of messaging protocols to load, which is a list of protocol names"
+    )
+    private Set<String> messagingProtocols = Sets.newTreeSet();
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -611,6 +633,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
+        dynamic = true,
         doc = "Role names that are treated as `super-user`, meaning they will be able to"
             + " do all admin operations and publish/consume from all topics"
     )
@@ -638,12 +661,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
+        dynamic = true,
         doc = "Authentication settings of the broker itself. \n\nUsed when the broker connects"
             + " to other brokers, either in same or other clusters. Default uses plugin which disables authentication"
     )
     private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
+        dynamic = true,
         doc = "Authentication parameters of the authentication plugin the broker is using to connect to other brokers"
     )
     private String brokerClientAuthenticationParameters = "";
@@ -667,7 +692,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
-        doc = "Service Principal, for login context name. Default value is \"Broker\"."
+        doc = "Service Principal, for login context name. Default value is \"PulsarBroker\"."
     )
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
 
@@ -760,7 +785,40 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
             "preference) to read all entries for a ledger.")
-    private boolean bookkeeperEnableStickyReads = true;
+    private boolean bookkeeperEnableStickyReads = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the client security provider factory class name. "
+            + "Default: org.apache.bookkeeper.tls.TLSContextFactory")
+    private String bookkeeperTLSProviderFactoryClass = "org.apache.bookkeeper.tls.TLSContextFactory";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable tls authentication with bookie")
+    private boolean bookkeeperTLSClientAuthentication = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Supported type: PEM, JKS, PKCS12. Default value: PEM")
+    private String bookkeeperTLSKeyFileType = "PEM";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Supported type: PEM, JKS, PKCS12. Default value: PEM")
+    private String bookkeeperTLSTrustCertTypes = "PEM";
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path to file containing keystore password, "
+            + "if the client keystore is password protected.")
+    private String bookkeeperTLSKeyStorePasswordPath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path to file containing truststore password, "
+            + "if the client truststore is password protected.")
+    private String bookkeeperTLSTrustStorePasswordPath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the TLS private key file")
+    private String bookkeeperTLSKeyFilePath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the TLS certificate file")
+    private String bookkeeperTLSCertificateFilePath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
+    private String bookkeeperTLSTrustCertsFilePath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
+    private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -840,9 +898,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double managedLedgerDefaultMarkDeleteRateLimit = 1.0;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
-    	doc = "Allow automated creation of non-partition topics if set to true (default value)."
+    	doc = "Allow automated creation of topics if set to true (default value)."
     )
     private boolean allowAutoTopicCreation = true;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
+    )
+    private String allowAutoTopicCreationType = "non-partitioned";
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "The number of partitioned topics that is allowed to be automatically created"
+                    + "if allowAutoTopicCreationType is partitioned."
+    )
+    private int defaultNumPartitions = 1;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"
@@ -905,7 +974,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)" 
+            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
         )
     private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
@@ -926,11 +995,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Read entries timeout when broker tries to read messages from bookkeeper "
                     + "(0 to disable it)"
         )
-    private long managedLedgerReadEntryTimeoutSeconds = 120;
+    private long managedLedgerReadEntryTimeoutSeconds = 0;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
-    private long managedLedgerAddEntryTimeoutSeconds = 120;
+    private long managedLedgerAddEntryTimeoutSeconds = 0;
 
     /*** --- Load balancer --- ****/
     @FieldContext(
@@ -1095,6 +1164,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean replicationTlsEnabled = false;
     @FieldContext(
         category = CATEGORY_REPLICATION,
+        dynamic = true,
         doc = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
             + " or different clusters (replication)"
     )
@@ -1311,5 +1381,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public Optional<Integer> getWebServicePortTls() {
         return webServicePortTls;
+    }
+
+    public boolean isDefaultTopicTypePartitioned() {
+        return TopicType.PARTITIONED.toString().equals(allowAutoTopicCreationType);
+    }
+
+    enum TopicType {
+        PARTITIONED("partitioned"),
+        NON_PARTITIONED("non-partitioned");
+        private String type;
+
+        TopicType(String type) {
+            this.type = type;
+        }
+
+        public String toString() {
+            return type;
+        }
     }
 }

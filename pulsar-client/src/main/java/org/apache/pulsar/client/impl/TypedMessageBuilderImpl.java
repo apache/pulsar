@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -43,27 +44,65 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
+
+    private static final long serialVersionUID = 0L;
+
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
 
     private final ProducerBase<T> producer;
     private final MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
     private final Schema<T> schema;
     private ByteBuffer content;
+    private final TransactionImpl txn;
 
     public TypedMessageBuilderImpl(ProducerBase<T> producer, Schema<T> schema) {
+        this(producer, schema, null);
+    }
+
+    public TypedMessageBuilderImpl(ProducerBase<T> producer,
+                                   Schema<T> schema,
+                                   TransactionImpl txn) {
         this.producer = producer;
         this.schema = schema;
         this.content = EMPTY_CONTENT;
+        this.txn = txn;
+    }
+
+    private long beforeSend() {
+        if (txn == null) {
+            return -1L;
+        }
+        msgMetadataBuilder.setTxnidLeastBits(txn.getTxnIdLeastBits());
+        msgMetadataBuilder.setTxnidLeastBits(txn.getTxnIdMostBits());
+        long sequenceId = txn.nextSequenceId();
+        msgMetadataBuilder.setSequenceId(sequenceId);
+        return sequenceId;
     }
 
     @Override
     public MessageId send() throws PulsarClientException {
+        if (null != txn) {
+            // NOTE: it makes no sense to send a transactional message in a blocking way.
+            //       because #send only completes when a transaction is committed or aborted.
+            throw new IllegalStateException("Use sendAsync to send a transactional message");
+        }
         return producer.send(getMessage());
     }
 
     @Override
     public CompletableFuture<MessageId> sendAsync() {
-        return producer.internalSendAsync(getMessage());
+        long sequenceId = beforeSend();
+        CompletableFuture<MessageId> sendFuture = producer.internalSendAsync(getMessage());
+        if (txn != null) {
+            // it is okay that we register produced topic after sending the messages. because
+            // the transactional messages will not be visible for consumers until the transaction
+            // is committed.
+            txn.registerProducedTopic(producer.getTopic());
+            // register the sendFuture as part of the transaction
+            return txn.registerSendOp(sequenceId, sendFuture);
+        } else {
+            return sendFuture;
+        }
     }
 
     @Override
@@ -212,6 +251,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     }
 
     public Message<T> getMessage() {
+        beforeSend();
         return (Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema);
     }
 

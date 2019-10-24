@@ -66,7 +66,7 @@ public enum SchemaAutoUpdateCompatibilityStrategy {
     ForwardTransitive,
 
     /**
-     * BackwardTransitive and ForwardTransitive
+     * BackwardTransitive and ForwardTransitive.
      */
     FullTransitive
 }

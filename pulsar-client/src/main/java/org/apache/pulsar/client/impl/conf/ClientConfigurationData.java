@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.time.Clock;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
@@ -67,8 +67,11 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int keepAliveIntervalSeconds = 30;
     private int connectionTimeoutMs = 10000;
     private int requestTimeoutMs = 60000;
-    private long defaultBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
-    private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(30);
+    private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
+    private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
+
+    @JsonIgnore
+    private Clock clock = Clock.systemDefaultZone();
 
     public Authentication getAuthentication() {
         if (authentication == null) {

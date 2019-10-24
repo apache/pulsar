@@ -464,6 +464,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                 doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
         )
         private int percentMemoryPadding;
+
+        @FieldContext(
+                doc = "The ratio cpu request and cpu limit to be set for a function/source/sink." +
+                        "  The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio"
+        )
+        private double cpuOverCommitRatio = 1.0;
+
+        @FieldContext(
+                doc = "The ratio memory request and memory limit to be set for a function/source/sink." +
+                        "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
+        )
+        private double memoryOverCommitRatio = 1.0;
     }
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
@@ -487,6 +499,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "A set of the minimum amount of resources functions must request.  Support for this depends on function runtime."
     )
     private Resources functionInstanceMinResources;
+
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "The class name of the Function Authentication Provider to use." +
+                    "  The Function Authentication Provider is responsible to distributing the necessary" +
+                    " authentication information to individual functions e.g. user tokens"
+    )
+    private String functionAuthProviderClassName;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

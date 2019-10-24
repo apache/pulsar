@@ -22,20 +22,12 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
-import java.lang.reflect.Type;
 import java.net.URL;
 import java.net.URLClassLoader;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
-import org.apache.pulsar.common.schema.SchemaInfo;
 
 @Parameters(commandDescription = "Operations about schemas")
 public class CmdSchemas extends CmdBase {
@@ -60,27 +52,11 @@ public class CmdSchemas extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            SchemaInfo schemaInfo;
             if (version == null) {
-                schemaInfo = admin.schemas().getSchemaInfo(topic);
+                System.out.println(admin.schemas().getSchemaInfoWithVersion(topic));
             } else {
-                schemaInfo = admin.schemas().getSchemaInfo(topic, version);
+                System.out.println(admin.schemas().getSchemaInfo(topic, version));
             }
-            Gson customGson = new GsonBuilder().registerTypeHierarchyAdapter(byte[].class,
-                    new ByteArrayToStringAdapter(schemaInfo)).create();
-            System.out.println(customGson.toJson(schemaInfo));
-        }
-    }
-
-    // Using Android's base64 libraries. This can be replaced with any base64 library.
-    private class ByteArrayToStringAdapter implements JsonSerializer<byte[]> {
-        private SchemaInfo schemaInfo;
-        public ByteArrayToStringAdapter(SchemaInfo schemaInfo) {
-            this.schemaInfo = schemaInfo;
-        }
-
-        public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(schemaInfo.getSchemaDefinition());
         }
     }
 
@@ -126,29 +102,47 @@ public class CmdSchemas extends CmdBase {
         @Parameter(names = { "-c", "--classname" }, description = "class name of pojo", required = true)
         private String className;
 
+        @Parameter(names = { "--always-allow-null" }, arity = 1,
+                   description = "set schema whether always allow null or not")
+        private boolean alwaysAllowNull = true;
+
+        @Parameter(names = { "-n", "--dry-run"},
+                   description = "dost not apply to schema registry, " +
+                                 "just prints the post schema payload")
+        private boolean dryRun = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
 
             File file  = new File(jarFilePath);
             ClassLoader cl = new URLClassLoader(new URL[]{ file.toURI().toURL() });
-
             Class cls = cl.loadClass(className);
 
             PostSchemaPayload input = new PostSchemaPayload();
-
+            SchemaDefinition<Object> schemaDefinition =
+                    SchemaDefinition.builder()
+                                    .withPojo(cls)
+                                    .withAlwaysAllowNull(alwaysAllowNull)
+                                    .build();
             if (type.toLowerCase().equalsIgnoreCase("avro")) {
                 input.setType("AVRO");
-                input.setSchema(SchemaExtractor.getAvroSchemaInfo(cls));
+                input.setSchema(SchemaExtractor.getAvroSchemaInfo(schemaDefinition));
             } else if (type.toLowerCase().equalsIgnoreCase("json")){
                 input.setType("JSON");
-                input.setSchema(SchemaExtractor.getJsonSchemaInfo(cls));
+                input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
             }
             else {
                 throw new Exception("Unknown schema type specified as type");
             }
-
-            admin.schemas().createSchema(topic, input);
+            input.setProperties(schemaDefinition.getProperties());
+            if (dryRun) {
+                System.out.println(topic);
+                System.out.println(MAPPER.writerWithDefaultPrettyPrinter()
+                                         .writeValueAsString(input));
+            } else {
+                admin.schemas().createSchema(topic, input);
+            }
         }
     }
 

@@ -441,13 +441,9 @@ public class KeyValueSchemaCompatibilityCheckTest {
         Map<String, String> fromProperties = Maps.newHashMap();
         fromProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         fromProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        fromProperties.put("key.schema.properties", null);
-        fromProperties.put("value.schema.properties", null);
         Map<String, String> toProperties = Maps.newHashMap();
         toProperties.put("key.schema.type", String.valueOf(SchemaType.AVRO));
         toProperties.put("value.schema.type", String.valueOf(SchemaType.AVRO));
-        toProperties.put("key.schema.properties", null);
-        toProperties.put("value.schema.properties", null);
         SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
@@ -460,11 +456,7 @@ public class KeyValueSchemaCompatibilityCheckTest {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
         Map<String, String> fromProperties = Maps.newHashMap();
-        fromProperties.put("key.schema.type", null);
-        fromProperties.put("value.schema.type", null);
         Map<String, String> toProperties = Maps.newHashMap();
-        toProperties.put("key.schema.type", null);
-        toProperties.put("value.schema.type", null);
         SchemaData fromSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)
                 .data(KeyValueSchema.of(fooSchema, barSchema).getSchemaInfo().getSchema()).props(fromProperties).build();
         SchemaData toSchemaData = SchemaData.builder().type(SchemaType.KEY_VALUE)

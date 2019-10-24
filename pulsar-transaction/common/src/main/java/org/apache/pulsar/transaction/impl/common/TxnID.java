@@ -45,4 +45,8 @@ public class TxnID implements Serializable {
      */
     private final long leastSigBits;
 
+    @Override
+    public String toString() {
+        return "(" + mostSigBits + "," + leastSigBits + ")";
+    }
 }

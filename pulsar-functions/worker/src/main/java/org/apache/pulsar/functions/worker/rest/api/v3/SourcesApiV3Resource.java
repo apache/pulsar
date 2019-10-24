@@ -33,7 +33,14 @@ import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
-import javax.ws.rs.*;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
@@ -62,10 +69,10 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                    final @FormDataParam("url") String functionPkgUrl,
-                                   final @FormDataParam("sourceConfig") String sourceConfigJson) {
+                                   final @FormDataParam("sourceConfig") SourceConfig sourceConfig) {
 
-        source.registerFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData());
+        source.registerSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+                functionPkgUrl, sourceConfig, clientAppId(), clientAuthData());
 
     }
 
@@ -78,11 +85,11 @@ public class SourcesApiV3Resource extends FunctionApiResource {
                              final @FormDataParam("data") InputStream uploadedInputStream,
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String functionPkgUrl,
-                             final @FormDataParam("sourceConfig") String sourceConfigJson,
+                             final @FormDataParam("sourceConfig") SourceConfig sourceConfig,
                              final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
 
-        source.updateFunction(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sourceConfigJson, clientAppId(), clientAuthData(), updateOptions);
+        source.updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
+                functionPkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
     }
 
 

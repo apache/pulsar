@@ -369,6 +369,20 @@ public class FunctionConfigUtils {
 
     private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
 
+        try {
+            Class functionClass = clsLoader.loadClass(functionConfig.getClassName());
+
+            if (!org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass)
+                    && !java.util.function.Function.class.isAssignableFrom(functionClass)) {
+                throw new IllegalArgumentException(
+                        String.format("Function class %s does not implement the correct interface",
+                                functionClass.getName()));
+            }
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(
+                    String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
+        }
+
         Class<?>[] typeArgs;
         try {
             typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
@@ -632,9 +646,11 @@ public class FunctionConfigUtils {
         } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
             doGolangChecks(functionConfig);
             return null;
-        } else {
+        } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON){
             doPythonChecks(functionConfig);
             return null;
+        } else {
+            throw new IllegalArgumentException("Function language runtime is either not set or cannot be determined");
         }
     }
 
@@ -755,6 +771,9 @@ public class FunctionConfigUtils {
         }
         if (newConfig.getCleanupSubscription() != null) {
             mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
+        }
+        if (!StringUtils.isEmpty(newConfig.getRuntimeFlags())) {
+            mergedConfig.setRuntimeFlags(newConfig.getRuntimeFlags());
         }
         return mergedConfig;
     }

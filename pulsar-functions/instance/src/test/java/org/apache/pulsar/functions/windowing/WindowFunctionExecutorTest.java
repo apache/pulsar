@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.windowing;
 
 import com.google.gson.Gson;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
@@ -40,8 +39,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
@@ -49,7 +47,6 @@ import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 /**
  * Unit tests for {@link WindowFunctionExecutor}
  */
-@Slf4j
 public class WindowFunctionExecutorTest {
 
     private static class TestWindowFunctionExecutor extends WindowFunctionExecutor<Long, Long> {
@@ -206,22 +203,22 @@ public class WindowFunctionExecutorTest {
     public void testExecuteWithLateTupleStream() throws Exception {
 
         windowConfig.setLateDataTopic("$late");
-        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
-        TypedMessageBuilder typedMessageBuilder = Mockito.mock(TypedMessageBuilder.class);
-        Mockito.when(typedMessageBuilder.value(anyString())).thenReturn(typedMessageBuilder);
-        Mockito.when(typedMessageBuilder.sendAsync()).thenReturn(CompletableFuture.anyOf());
-        Mockito.when(context.newOutputMessage(anyString(), anyObject())).thenReturn(typedMessageBuilder);
+        TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
+        when(typedMessageBuilder.value(any())).thenReturn(typedMessageBuilder);
+        when(typedMessageBuilder.sendAsync()).thenReturn(CompletableFuture.anyOf());
+        when(context.newOutputMessage(anyString(), any())).thenReturn(typedMessageBuilder);
 
         long[] timestamps = {603, 605, 607, 618, 626, 636, 600};
         List<Long> events = new ArrayList<>(timestamps.length);
 
         for (long ts : timestamps) {
             events.add(ts);
-            Record<?> record = Mockito.mock(Record.class);
-            Mockito.doReturn(Optional.of("test-topic")).when(record).getTopicName();
-            Mockito.doReturn(record).when(context).getCurrentRecord();
-            Mockito.doReturn(ts).when(record).getValue();
+            Record<?> record = mock(Record.class);
+            doReturn(Optional.of("test-topic")).when(record).getTopicName();
+            doReturn(record).when(context).getCurrentRecord();
+            doReturn(ts).when(record).getValue();
             testWindowedPulsarFunction.process(ts, context);
 
             //Update the watermark to this timestamp

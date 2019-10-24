@@ -18,16 +18,24 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Sets;
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
+
+import io.netty.buffer.ByteBuf;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
@@ -46,23 +54,32 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -74,11 +91,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
-
-import com.google.common.collect.Sets;
-import com.scurrilous.circe.checksum.Crc32cIntChecksum;
-
-import io.netty.buffer.ByteBuf;
 
 /**
  * Starts 3 brokers that are in 3 different clusters
@@ -454,7 +466,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         replicator.updateRates(); // for code-coverage
         replicator.expireMessages(1); // for code-coverage
         ReplicatorStats status = replicator.getStats();
-        assertTrue(status.replicationBacklog == 0);
+        assertEquals(status.replicationBacklog, 0);
     }
 
     @Test(enabled = true, timeOut = 30000)
@@ -721,7 +733,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producerField.setAccessible(true);
         @SuppressWarnings("unchecked")
         ProducerImpl<byte[]> replicatorProducer = (ProducerImpl<byte[]>) producerField.get(replicator);
-        assertEquals(replicatorProducer, null);
+        assertNull(replicatorProducer);
     }
 
     @Test(timeOut = 30000)
@@ -812,6 +824,99 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
+    @Test
+    public void testReplicatedCluster() throws Exception {
+
+        log.info("--- Starting ReplicatorTest::testReplicatedCluster ---");
+
+        final String namespace = "pulsar/global/repl";
+        final String topicName = String.format("persistent://%s/topic1", namespace);
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.topics().createPartitionedTopic(topicName, 4);
+
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        byte[] value = "test".getBytes();
+
+        // publish message local only
+        TypedMessageBuilder<byte[]> msg = producer1.newMessage().replicationClusters(Lists.newArrayList("r1")).value(value);
+        msg.send();
+        assertEquals(consumer1.receive().getValue(), value);
+
+        Message<byte[]> msg2 = consumer2.receive(1, TimeUnit.SECONDS);
+        if (msg2 != null) {
+            fail("msg should have not been replicated to remote cluster");
+        }
+        
+        consumer1.close();
+        consumer2.close();
+        producer1.close();
+
+    }
+
+    /**
+     * This validates that broker supports update-partition api for global topics.
+     * <pre>
+     *  1. Create global topic with 4 partitions
+     *  2. Update partition with 8 partitions
+     *  3. Create producer on the partition topic which loads all new partitions
+     *  4. Check subscriptions are created on all new partitions. 
+     * </pre>
+     * @throws Exception
+     */
+    @Test
+    public void testUpdateGlobalTopicPartition() throws Exception {
+        log.info("--- Starting ReplicatorTest::testUpdateGlobalTopicPartition ---");
+
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String namespace = "pulsar/global/ns3";
+        final String topicName = "persistent://" + namespace + "/topic1";
+        int startPartitions = 4;
+        int newPartitions = 8;
+        final String subscriberName = "sub1";
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.topics().createPartitionedTopic(topicName, startPartitions);
+
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subscriberName)
+                .subscribe();
+        Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subscriberName)
+                .subscribe();
+
+        admin1.topics().updatePartitionedTopic(topicName, newPartitions);
+
+        assertEquals(admin1.topics().getPartitionedTopicMetadata(topicName).partitions, newPartitions);
+
+        // create producers to load all the partition topics
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
+        Producer<byte[]> producer2 = client2.newProducer().topic(topicName).create();
+
+        for (int i = startPartitions; i < newPartitions; i++) {
+            String partitionedTopic = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX + i;
+            assertEquals(admin1.topics().getSubscriptions(partitionedTopic).size(), 1);
+            assertEquals(admin2.topics().getSubscriptions(partitionedTopic).size(), 1);
+        }
+
+        producer1.close();
+        producer2.close();
+        consumer1.close();
+        consumer2.close();
+
+        client1.close();
+        client2.close();
+    }
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
 }

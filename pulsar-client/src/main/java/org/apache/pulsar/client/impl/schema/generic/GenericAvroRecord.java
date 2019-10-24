@@ -28,12 +28,12 @@ import org.apache.pulsar.client.api.schema.Field;
  * A generic avro record.
  */
 @Slf4j
-class GenericAvroRecord extends VersionedGenericRecord {
+public class GenericAvroRecord extends VersionedGenericRecord {
 
     private final org.apache.avro.Schema schema;
     private final org.apache.avro.generic.GenericRecord record;
 
-    GenericAvroRecord(byte[] schemaVersion,
+    public GenericAvroRecord(byte[] schemaVersion,
                       org.apache.avro.Schema schema,
                       List<Field> fields,
                       org.apache.avro.generic.GenericRecord record) {
@@ -61,7 +61,7 @@ class GenericAvroRecord extends VersionedGenericRecord {
         }
     }
 
-    org.apache.avro.generic.GenericRecord getAvroRecord() {
+    public org.apache.avro.generic.GenericRecord getAvroRecord() {
         return record;
     }
 

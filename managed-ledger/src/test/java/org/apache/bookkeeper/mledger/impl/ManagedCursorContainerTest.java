@@ -18,10 +18,15 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +41,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.testng.annotations.Test;
@@ -304,12 +310,28 @@ public class ManagedCursorContainerTest {
         public double getThrottleMarkDelete() {
             return -1;
         }
+
+        @Override
+        public ManagedLedger getManagedLedger() {
+            return null;
+        }
+
+        @Override
+        public Range<PositionImpl> getLastIndividualDeletedRange() {
+            return null;
+        }
+
+        @Override
+        public void trimDeletedEntries(List<Entry> entries) {
+
+        }
+
     }
 
     @Test
     void simple() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
-        assertEquals(container.getSlowestReaderPosition(), null);
+        assertNull(container.getSlowestReaderPosition());
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         container.add(cursor1);
@@ -350,7 +372,7 @@ public class ManagedCursorContainerTest {
         assertFalse(container.isEmpty());
 
         container.removeCursor(cursor4.getName());
-        assertEquals(container.getSlowestReaderPosition(), null);
+        assertNull(container.getSlowestReaderPosition());
 
         assertTrue(container.isEmpty());
 
@@ -409,7 +431,7 @@ public class ManagedCursorContainerTest {
 
         assertEquals(container, Lists.newArrayList(cursor1, cursor3));
 
-        assertEquals(container.get("test2"), null);
+        assertNull(container.get("test2"));
 
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(1, 1));
 

@@ -21,6 +21,9 @@ package org.apache.bookkeeper.mledger.impl;
 import com.google.common.base.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+
+import java.util.Optional;
+
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
@@ -64,7 +67,7 @@ class OpFindNewest implements ReadEntryCallback {
         switch (state) {
         case checkFirst:
             if (!condition.apply(entry)) {
-                callback.findEntryComplete(null, OpFindNewest.this.ctx);
+                callback.findEntryComplete(startPosition, OpFindNewest.this.ctx);
                 return;
             } else {
                 lastMatchedPosition = position;
@@ -107,7 +110,7 @@ class OpFindNewest implements ReadEntryCallback {
 
     @Override
     public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-        callback.findEntryFailed(exception, OpFindNewest.this.ctx);
+        callback.findEntryFailed(exception, Optional.ofNullable(searchPosition), OpFindNewest.this.ctx);
     }
 
     public void find() {

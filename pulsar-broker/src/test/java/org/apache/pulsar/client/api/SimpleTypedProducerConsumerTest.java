@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.base.MoreObjects;
@@ -37,6 +38,7 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -156,61 +158,31 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testJsonConsumerWithWrongCorruptedSchema() throws Exception {
+    public void testWrongCorruptedSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         byte[] randomSchemaBytes = "hello".getBytes();
 
-        pulsar.getSchemaRegistryService()
-            .putSchemaIfAbsent("my-property/my-ns/my-topic1",
-                SchemaData.builder()
-                    .type(SchemaType.JSON)
-                    .isDeleted(false)
-                    .timestamp(Clock.systemUTC().millis())
-                    .user("me")
-                    .data(randomSchemaBytes)
-                    .props(Collections.emptyMap())
-                    .build(),
-                SchemaCompatibilityStrategy.FULL
-            ).get();
-
-        Consumer<JsonEncodedPojo> consumer = pulsarClient
-            .newConsumer(JSONSchema.of(SchemaDefinition.<JsonEncodedPojo>builder().withPojo(JsonEncodedPojo.class).build()))
-            .topic("persistent://my-property/use/my-ns/my-topic1")
-            .subscriptionName("my-subscriber-name")
-            .subscribe();
-
-        log.info("-- Exiting {} test --", methodName);
-    }
-
-    @Test
-    public void testJsonProducerWithWrongCorruptedSchema() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        byte[] randomSchemaBytes = "hello".getBytes();
-
-        pulsar.getSchemaRegistryService()
-            .putSchemaIfAbsent("my-property/my-ns/my-topic1",
-                SchemaData.builder()
-                    .type(SchemaType.JSON)
-                    .isDeleted(false)
-                    .timestamp(Clock.systemUTC().millis())
-                    .user("me")
-                    .data(randomSchemaBytes)
-                    .props(Collections.emptyMap())
-                    .build(),
-                SchemaCompatibilityStrategy.FULL
-            ).get();
-
-        Producer<JsonEncodedPojo> producer = pulsarClient
-            .newProducer(JSONSchema.of(SchemaDefinition.<JsonEncodedPojo>builder().withPojo(JsonEncodedPojo.class).build()))
-            .topic("persistent://my-property/use/my-ns/my-topic1")
-            .create();
-
+        try {
+            pulsar.getSchemaRegistryService()
+                .putSchemaIfAbsent("my-property/my-ns/my-topic1",
+                    SchemaData.builder()
+                        .type(SchemaType.JSON)
+                        .isDeleted(false)
+                        .timestamp(Clock.systemUTC().millis())
+                        .user("me")
+                        .data(randomSchemaBytes)
+                        .props(Collections.emptyMap())
+                        .build(),
+                    SchemaCompatibilityStrategy.FULL
+                ).get();
+            fail("Should fail to add corrupted schema data");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof InvalidSchemaDataException);
+        }
 
         log.info("-- Exiting {} test --", methodName);
     }
-
 
     @Test
     public void testProtobufProducerAndConsumer() throws Exception {

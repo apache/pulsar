@@ -49,8 +49,13 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
+
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
+        }
+
+        if (readerConfiguration.isResetIncludeHead()) {
+            consumerConfiguration.setResetIncludeHead(true);
         }
 
         if (readerConfiguration.getReaderListener() != null) {
@@ -78,9 +83,8 @@ public class ReaderImpl<T> implements Reader<T> {
 
         final int partitionIdx = TopicName.getPartitionIndex(readerConfiguration.getTopicName());
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration, listenerExecutor,
-                partitionIdx, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
-                client.getConfiguration().getDefaultBackoffIntervalNanos(), client.getConfiguration().getMaxBackoffIntervalNanos());
-        
+                partitionIdx, false, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
+                true /* createTopicIfDoesNotExist */);
     }
 
     @Override

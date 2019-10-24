@@ -22,12 +22,14 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 
 import java.io.IOException;
 import java.security.Key;
 
 import javax.naming.AuthenticationException;
 
+import io.jsonwebtoken.security.SignatureException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -46,10 +48,14 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     // The token's claim that corresponds to the "role" string
     final static String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
 
+    // When using public key's, the algorithm of the key
+    final static String CONF_TOKEN_PUBLIC_ALG = "tokenPublicAlg";
+
     final static String TOKEN = "token";
 
     private Key validationKey;
     private String roleClaim;
+    private SignatureAlgorithm publicKeyAlg;
 
     @Override
     public void close() throws IOException {
@@ -57,7 +63,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
+    public void initialize(ServiceConfiguration config) throws IOException, IllegalArgumentException {
+        // we need to fetch the algorithm before we fetch the key
+        this.publicKeyAlg = getPublicKeyAlgType(config);
         this.validationKey = getValidationKey(config);
         this.roleClaim = getTokenRoleClaim(config);
     }
@@ -130,7 +138,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY))) {
             final String validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY);
             final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
-            return AuthTokenUtils.decodePublicKey(validationKey);
+            return AuthTokenUtils.decodePublicKey(validationKey, publicKeyAlg);
         } else {
             throw new IOException("No secret key was provided for token authentication");
         }
@@ -142,6 +150,20 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             return (String) conf.getProperty(CONF_TOKEN_AUTH_CLAIM);
         } else {
             return Claims.SUBJECT;
+        }
+    }
+
+    private SignatureAlgorithm getPublicKeyAlgType(ServiceConfiguration conf) throws IllegalArgumentException {
+        if (conf.getProperty(CONF_TOKEN_PUBLIC_ALG) != null
+                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_ALG))) {
+            String alg = (String) conf.getProperty(CONF_TOKEN_PUBLIC_ALG);
+            try {
+                return SignatureAlgorithm.forName(alg);
+            } catch (SignatureException ex) {
+                throw new IllegalArgumentException("invalid algorithm provided " + alg, ex);
+            }
+        } else {
+            return SignatureAlgorithm.RS256;
         }
     }
 }

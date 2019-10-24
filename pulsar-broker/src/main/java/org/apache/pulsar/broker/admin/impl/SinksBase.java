@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.functions.UpdateOptions;
@@ -63,45 +61,170 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
     @POST
     @ApiOperation(value = "Creates a new Pulsar Sink in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+            @ApiResponse(code = 400, message = "Invalid request (The Pulsar Sink already exists, etc.)"),
+            @ApiResponse(code = 200, message = "Pulsar Sink successfully created"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to authorize, failed to get tenant data, failed to process package, etc.)"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public void registerSink(final @PathParam("tenant") String tenant,
+    public void registerSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                             final @PathParam("tenant") String tenant,
+                             @ApiParam(value = "The namespace of a Pulsar Sink")
                              final @PathParam("namespace") String namespace,
+                             @ApiParam(value = "The name of a Pulsar Sink")
                              final @PathParam("sinkName") String sinkName,
                              final @FormDataParam("data") InputStream uploadedInputStream,
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                             final @FormDataParam("url") String functionPkgUrl,
-                             final @FormDataParam("sinkConfig") String sinkConfigJson) {
-
-        sink.registerFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData());
+                             final @FormDataParam("url") String sinkPkgUrl,
+                             @ApiParam(
+                                 value =
+                                     "A JSON value presenting config payload of a Pulsar Sink. All available configuration options are:  \n" +
+                                     "- **classname**  \n" +
+                                     "   The class name of a Pulsar Sink if archive is file-url-path (file://)  \n" +
+                                     "- **sourceSubscriptionName**  \n" +
+                                     "   Pulsar source subscription name if user wants a specific  \n" +
+                                     "   subscription-name for input-topic consumer  \n" +
+                                     "- **inputs**  \n" +
+                                     "   The input topic or topics of a Pulsar Sink (specified as a JSON array)  \n" +
+                                     "- **topicsPattern**  \n" +
+                                     "   TopicsPattern to consume from list of topics under a namespace that " +
+                                     "   match the pattern. [input] and [topicsPattern] are mutually " +
+                                     "   exclusive. Add SerDe class name for a pattern in customSerdeInputs " +
+                                     "   (supported for java fun only)" +
+                                     "- **topicToSerdeClassName**  \n" +
+                                     "   The map of input topics to SerDe class names (specified as a JSON object)  \n" +
+                                     "- **topicToSchemaType**  \n" +
+                                     "   The map of input topics to Schema types or class names (specified as a JSON object)  \n" +
+                                     "- **inputSpecs**  \n" +
+                                     "   The map of input topics to its consumer configuration, each configuration has schema of " +
+                                     "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n" +
+                                     "- **configs**  \n" +
+                                     "   The map of configs (specified as a JSON object)  \n" +
+                                     "- **secrets**  \n" +
+                                     "   a map of secretName(aka how the secret is going to be \n" +
+                                     "   accessed in the function via context) to an object that \n" +
+                                     "   encapsulates how the secret is fetched by the underlying \n" +
+                                     "   secrets provider. The type of an value here can be found by the \n" +
+                                     "   SecretProviderConfigurator.getSecretObjectType() method. (specified as a JSON object)  \n" +
+                                     "- **parallelism**  \n" +
+                                     "   The parallelism factor of a Pulsar Sink (i.e. the number of a Pulsar Sink instances to run \n" +
+                                     "- **processingGuarantees**  \n" +
+                                     "   The processing guarantees (aka delivery semantics) applied to the Pulsar Sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"  \n" +
+                                     "- **retainOrdering**  \n" +
+                                     "   Boolean denotes whether the Pulsar Sink consumes and processes messages in order  \n" +
+                                     "- **resources**  \n" +
+                                     "   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores), RAM (in bytes) and disk (in bytes) that needs to be allocated per Pulsar Sink instance (applicable only to Docker runtime)  \n" +
+                                     "- **autoAck**  \n" +
+                                     "   Boolean denotes whether or not the framework will automatically acknowledge messages  \n" +
+                                     "- **timeoutMs**  \n" +
+                                     "   Long denotes the message timeout in milliseconds  \n" +
+                                     "- **cleanupSubscription**  \n" +
+                                     "   Boolean denotes whether the subscriptions the functions created/used should be deleted when the functions is deleted  \n" +
+                                     "- **runtimeFlags**  \n" +
+                                     "   Any flags that you want to pass to the runtime as a single string  \n",
+                                 examples = @Example(
+                                     value = @ExampleProperty(
+                                         mediaType = MediaType.APPLICATION_JSON,
+                                         value = "{  \n" +
+                                             "\t\"classname\": \"org.example.MySinkTest\",\n" +
+                                             "\t\"inputs\": [\"persistent://public/default/sink-input\"],\n" +
+                                             "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n" +
+                                             "\t\"parallelism\": 10\n" +
+                                             "}"
+                                     )
+                                 )
+                             )
+                             final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
+        sink.registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData());
     }
 
     @PUT
     @ApiOperation(value = "Updates a Pulsar Sink currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function doesn't exist, etc.)"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+            @ApiResponse(code = 400, message = "Invalid request (The Pulsar Sink doesn't exist, update contains no change, etc.)"),
+            @ApiResponse(code = 200, message = "Pulsar Sink successfully updated"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to authorize, failed to process package, etc.)"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public void updateSink(final @PathParam("tenant") String tenant,
+    public void updateSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                           final @PathParam("tenant") String tenant,
+                           @ApiParam(value = "The namespace of a Pulsar Sink")
                            final @PathParam("namespace") String namespace,
+                           @ApiParam(value = "The name of a Pulsar Sink")
                            final @PathParam("sinkName") String sinkName,
                            final @FormDataParam("data") InputStream uploadedInputStream,
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                           final @FormDataParam("url") String functionPkgUrl,
-                           final @FormDataParam("sinkConfig") String sinkConfigJson,
+                           final @FormDataParam("url") String sinkPkgUrl,
+                           @ApiParam(
+                               value =
+                                   "A JSON value presenting config payload of a Pulsar Sink. All available configuration options are:  \n" +
+                                       "- **classname**  \n" +
+                                       "   The class name of a Pulsar Sink if archive is file-url-path (file://)  \n" +
+                                       "- **sourceSubscriptionName**  \n" +
+                                       "   Pulsar source subscription name if user wants a specific  \n" +
+                                       "   subscription-name for input-topic consumer  \n" +
+                                       "- **inputs**  \n" +
+                                       "   The input topic or topics of a Pulsar Sink (specified as a JSON array)  \n" +
+                                       "- **topicsPattern**  \n" +
+                                       "   TopicsPattern to consume from list of topics under a namespace that " +
+                                       "   match the pattern. [input] and [topicsPattern] are mutually " +
+                                       "   exclusive. Add SerDe class name for a pattern in customSerdeInputs " +
+                                       "   (supported for java fun only)" +
+                                       "- **topicToSerdeClassName**  \n" +
+                                       "   The map of input topics to SerDe class names (specified as a JSON object)  \n" +
+                                       "- **topicToSchemaType**  \n" +
+                                       "   The map of input topics to Schema types or class names (specified as a JSON object)  \n" +
+                                       "- **inputSpecs**  \n" +
+                                       "   The map of input topics to its consumer configuration, each configuration has schema of " +
+                                       "   {\"schemaType\": \"type-x\", \"serdeClassName\": \"name-x\", \"isRegexPattern\": true, \"receiverQueueSize\": 5}  \n" +
+                                       "- **configs**  \n" +
+                                       "   The map of configs (specified as a JSON object)  \n" +
+                                       "- **secrets**  \n" +
+                                       "   a map of secretName(aka how the secret is going to be \n" +
+                                       "   accessed in the function via context) to an object that \n" +
+                                       "   encapsulates how the secret is fetched by the underlying \n" +
+                                       "   secrets provider. The type of an value here can be found by the \n" +
+                                       "   SecretProviderConfigurator.getSecretObjectType() method. (specified as a JSON object)  \n" +
+                                       "- **parallelism**  \n" +
+                                       "   The parallelism factor of a Pulsar Sink (i.e. the number of a Pulsar Sink instances to run \n" +
+                                       "- **processingGuarantees**  \n" +
+                                       "   The processing guarantees (aka delivery semantics) applied to the Pulsar Sink. Possible Values: \"ATLEAST_ONCE\", \"ATMOST_ONCE\", \"EFFECTIVELY_ONCE\"  \n" +
+                                       "- **retainOrdering**  \n" +
+                                       "   Boolean denotes whether the Pulsar Sink consumes and processes messages in order  \n" +
+                                       "- **resources**  \n" +
+                                       "   {\"cpu\": 1, \"ram\": 2, \"disk\": 3} The CPU (in cores), RAM (in bytes) and disk (in bytes) that needs to be allocated per Pulsar Sink instance (applicable only to Docker runtime)  \n" +
+                                       "- **autoAck**  \n" +
+                                       "   Boolean denotes whether or not the framework will automatically acknowledge messages  \n" +
+                                       "- **timeoutMs**  \n" +
+                                       "   Long denotes the message timeout in milliseconds  \n" +
+                                       "- **cleanupSubscription**  \n" +
+                                       "   Boolean denotes whether the subscriptions the functions created/used should be deleted when the functions is deleted  \n" +
+                                       "- **runtimeFlags**  \n" +
+                                       "   Any flags that you want to pass to the runtime as a single string  \n",
+                               examples = @Example(
+                                   value = @ExampleProperty(
+                                       mediaType = MediaType.APPLICATION_JSON,
+                                       value = "{  \n" +
+                                           "\t\"classname\": \"org.example.SinkStressTest\",  \n" +
+                                               "\t\"inputs\": [\"persistent://public/default/sink-input\"],\n" +
+                                               "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n" +
+                                               "\t\"parallelism\": 5\n" +
+                                               "}"
+                                   )
+                               )
+                           )
+                           final @FormDataParam("sinkConfig") SinkConfig sinkConfig,
+                           @ApiParam(value = "Update options for the Pulsar Sink")
                            final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
-
-         sink.updateFunction(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfigJson, clientAppId(), clientAuthData(), updateOptions);
+         sink.updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
+                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData(), updateOptions);
 
     }
 
@@ -109,15 +232,20 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
     @DELETE
     @ApiOperation(value = "Deletes a Pulsar Sink currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function doesn't exist"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "The function was successfully deleted")
+            @ApiResponse(code = 400, message = "Invalid deregister request"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 200, message = "The Pulsar Sink was successfully deleted"),
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to authorize, failed to deregister, etc.)"),
+            @ApiResponse(code = 408, message = "Got InterruptedException while deregistering the Pulsar Sink"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}")
-    public void deregisterSink(final @PathParam("tenant") String tenant,
+    public void deregisterSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                               final @PathParam("tenant") String tenant,
+                               @ApiParam(value = "The namespace of a Pulsar Sink")
                                final @PathParam("namespace") String namespace,
+                               @ApiParam(value = "The name of a Pulsar Sink")
                                final @PathParam("sinkName") String sinkName) {
         sink.deregisterFunction(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
@@ -128,14 +256,16 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             response = SinkConfig.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 404, message = "The function doesn't exist")
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}")
-    public SinkConfig getSinkInfo(final @PathParam("tenant") String tenant,
+    public SinkConfig getSinkInfo(@ApiParam(value = "The tenant of a Pulsar Sink")
+                                  final @PathParam("tenant") String tenant,
+                                  @ApiParam(value = "The namespace of a Pulsar Sink")
                                   final @PathParam("namespace") String namespace,
+                                  @ApiParam(value = "The name of a Pulsar Sink")
                                   final @PathParam("sinkName") String sinkName) throws IOException {
         return sink.getSinkInfo(tenant, namespace, sinkName);
     }
@@ -146,16 +276,21 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             response = SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The sink doesn't exist")
+            @ApiResponse(code = 400, message = "The Pulsar Sink instance does not exist"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 500, message = "Internal Server Error (got exception while getting status, etc.)"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sinkName}/{instanceId}/status")
     public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(
+            @ApiParam(value = "The tenant of a Pulsar Sink")
             final @PathParam("tenant") String tenant,
+            @ApiParam(value = "The namespace of a Pulsar Sink")
             final @PathParam("namespace") String namespace,
+            @ApiParam(value = "The name of a Pulsar Sink")
             final @PathParam("sinkName") String sinkName,
+            @ApiParam(value = "The instanceId of a Pulsar Sink")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return sink.getSinkInstanceStatus(
             tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
@@ -167,14 +302,18 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             response = SinkStatus.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The sink doesn't exist")
+            @ApiResponse(code = 400, message = "Invalid get status request"),
+            @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sinkName}/status")
-    public SinkStatus getSinkStatus(final @PathParam("tenant") String tenant,
+    public SinkStatus getSinkStatus(@ApiParam(value = "The tenant of a Pulsar Sink")
+                                    final @PathParam("tenant") String tenant,
+                                    @ApiParam(value = "The namespace of a Pulsar Sink")
                                     final @PathParam("namespace") String namespace,
+                                    @ApiParam(value = "The name of a Pulsar Sink")
                                     final @PathParam("sinkName") String sinkName) throws IOException {
         return sink.getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -186,104 +325,141 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             responseContainer = "Collection"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+            @ApiResponse(code = 400, message = "Invalid list request"),
+            @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to authorize, etc.)"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}")
-    public List<String> listSinks(final @PathParam("tenant") String tenant,
+    public List<String> listSinks(@ApiParam(value = "The tenant of a Pulsar Sink")
+                                  final @PathParam("tenant") String tenant,
+                                  @ApiParam(value = "The namespace of a Pulsar Sink")
                                   final @PathParam("namespace") String namespace) {
         return sink.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Restart sink instance", response = Void.class)
+    @ApiOperation(value = "Restart an instance of a Pulsar Sink", response = Void.class)
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(code = 400, message = "Invalid restart request"),
+            @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to restart the instance of a Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void restartSink(final @PathParam("tenant") String tenant,
+    public void restartSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                            final @PathParam("tenant") String tenant,
+                            @ApiParam(value = "The namespace of a Pulsar Sink")
                             final @PathParam("namespace") String namespace,
+                            @ApiParam(value = "The name of a Pulsar Sink")
                             final @PathParam("sinkName") String sinkName,
+                            @ApiParam(value = "The instanceId of a Pulsar Sink")
                             final @PathParam("instanceId") String instanceId) {
         sink.restartFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Restart all sink instances", response = Void.class)
+    @ApiOperation(value = "Restart all instances of a Pulsar Sink", response = Void.class)
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(code = 400, message = "Invalid restart request"),
+            @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to restart the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void restartSink(final @PathParam("tenant") String tenant,
+    public void restartSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                            final @PathParam("tenant") String tenant,
+                            @ApiParam(value = "The namespace of a Pulsar Sink")
                             final @PathParam("namespace") String namespace,
+                            @ApiParam(value = "The name of a Pulsar Sink")
                             final @PathParam("sinkName") String sinkName) {
         sink.restartFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Stop sink instance", response = Void.class)
+    @ApiOperation(value = "Stop an instance of a Pulsar Sink", response = Void.class)
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(code = 400, message = "Invalid stop request"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink instance does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to stop the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void stopSink(final @PathParam("tenant") String tenant,
+    public void stopSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                         final @PathParam("tenant") String tenant,
+                         @ApiParam(value = "The namespace of a Pulsar Sink")
                          final @PathParam("namespace") String namespace,
+                         @ApiParam(value = "The name of a Pulsar Sink")
                          final @PathParam("sinkName") String sinkName,
+                         @ApiParam(value = "The instanceId of a Pulsar Sink")
                          final @PathParam("instanceId") String instanceId) {
         sink.stopFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Stop all sink instances", response = Void.class)
+    @ApiOperation(value = "Stop all instances of a Pulsar Sink", response = Void.class)
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(code = 400, message = "Invalid stop request"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to stop the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void stopSink(final @PathParam("tenant") String tenant,
+    public void stopSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                         final @PathParam("tenant") String tenant,
+                         @ApiParam(value = "The namespace of a Pulsar Sink")
                          final @PathParam("namespace") String namespace,
+                         @ApiParam(value = "The name of a Pulsar Sink")
                          final @PathParam("sinkName") String sinkName) {
         sink.stopFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Start sink instance", response = Void.class)
+    @ApiOperation(value = "Start an instance of a Pulsar Sink", response = Void.class)
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(code = 400, message = "Invalid start request"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to start the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void startSink(final @PathParam("tenant") String tenant,
+    public void startSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                          final @PathParam("tenant") String tenant,
+                          @ApiParam(value = "The namespace of a Pulsar Sink")
                           final @PathParam("namespace") String namespace,
+                          @ApiParam(value = "The name of a Pulsar Sink")
                           final @PathParam("sinkName") String sinkName,
+                          @ApiParam(value = "The instanceId of a Pulsar Sink")
                           final @PathParam("instanceId") String instanceId) {
         sink.startFunctionInstance(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Start all sink instances", response = Void.class)
+    @ApiOperation(value = "Start all instances of a Pulsar Sink", response = Void.class)
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(code = 400, message = "Invalid start request"),
+            @ApiResponse(code = 404, message = "The Pulsar Sink does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error (failed to start the Pulsar Sink, failed to authorize, etc.)"),
+            @ApiResponse(code = 401, message = "The client is not authorized to perform this operation"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sinkName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
-    public void startSink(final @PathParam("tenant") String tenant,
+    public void startSink(@ApiParam(value = "The tenant of a Pulsar Sink")
+                          final @PathParam("tenant") String tenant,
+                          @ApiParam(value = "The namespace of a Pulsar Sink")
                           final @PathParam("namespace") String namespace,
+                          @ApiParam(value = "The name of a Pulsar Sink")
                           final @PathParam("sinkName") String sinkName) {
         sink.startFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
     }
@@ -294,9 +470,7 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             response = List.class
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout")
+            @ApiResponse(code = 200, message = "Get builtin sinks successfully.")
     })
     @Path("/builtinsinks")
     public List<ConnectorDefinition> getSinkList() {
@@ -308,5 +482,20 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
             }
         }
         return retval;
+    }
+
+    @POST
+    @ApiOperation(
+            value = "Reload the available built-in connectors, include Source and Sink",
+            response = Void.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/reloadBuiltInSinks")
+    public void reloadSinks() {
+        sink.reloadConnectors(clientAppId());
     }
 }

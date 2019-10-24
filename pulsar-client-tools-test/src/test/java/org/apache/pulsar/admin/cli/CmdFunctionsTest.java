@@ -19,9 +19,9 @@
 package org.apache.pulsar.admin.cli;
 
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -37,7 +37,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
@@ -550,58 +549,32 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).getFunctionState(eq(tenant), eq(namespace), eq(fnName), eq(key));
     }
 
+    @Test
+    public void testStateGetterWithoutKey() throws Exception {
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
+        String fnName = TEST_NAME + "-function";
+        ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+        consoleOutputCapturer.start();
+        cmd.run(new String[] {
+                "querystate",
+                "--tenant", tenant,
+                "--namespace", namespace,
+                "--name", fnName,
+        });
+        consoleOutputCapturer.stop();
+        String output = consoleOutputCapturer.getStderr();
+        assertTrue(output.replace("\n", "").contains("State key needs to be specified"));
+        StateGetter stateGetter = cmd.getStateGetter();
+        assertEquals(tenant, stateGetter.getTenant());
+        assertEquals(namespace, stateGetter.getNamespace());
+        assertEquals(fnName, stateGetter.getFunctionName());
+        verify(functions, times(0)).getFunctionState(any(), any(), any(), any());
+    }
+
     private static final String fnName = TEST_NAME + "-function";
     private static final String inputTopicName = TEST_NAME + "-input-topic";
     private static final String outputTopicName = TEST_NAME + "-output-topic";
-
-    private void testValidateFunctionsConfigs(String[] correctArgs, String[] incorrectArgs,
-                                              String errMessageCheck) throws Exception {
-
-        String[] cmds = {"create", "update", "localrun"};
-
-        for (String type : cmds) {
-            List<String> correctArgList = new LinkedList<>();
-            List<String> incorrectArgList = new LinkedList<>();
-            correctArgList.add(type);
-            incorrectArgList.add(type);
-
-            correctArgList.addAll(Arrays.asList(correctArgs));
-            incorrectArgList.addAll(Arrays.asList(incorrectArgs));
-            cmd.run(correctArgList.toArray(new String[correctArgList.size()]));
-
-            if (type.equals("create")) {
-                CreateFunction creater = cmd.getCreater();
-                assertEquals(fnName, creater.getFunctionName());
-                assertEquals(inputTopicName, creater.getInputs());
-                assertEquals(outputTopicName, creater.getOutput());
-            } else if (type.equals("update")){
-                UpdateFunction updater = cmd.getUpdater();
-                assertEquals(fnName, updater.getFunctionName());
-                assertEquals(inputTopicName, updater.getInputs());
-                assertEquals(outputTopicName, updater.getOutput());
-            } else {
-                CmdFunctions.LocalRunner localRunner = cmd.getLocalRunner();
-                assertEquals(fnName, localRunner.getFunctionName());
-                assertEquals(inputTopicName, localRunner.getInputs());
-                assertEquals(outputTopicName, localRunner.getOutput());
-            }
-
-            if (type.equals("create")) {
-                verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
-            } else if (type.equals("update")) {
-                verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString());
-            }
-
-            setup();
-            ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
-            consoleOutputCapturer.start();
-            cmd.run(incorrectArgList.toArray(new String[incorrectArgList.size()]));
-
-            consoleOutputCapturer.stop();
-            String output = consoleOutputCapturer.getStderr();
-            assertTrue(output.replace("\n", "").contains(errMessageCheck));
-        }
-    }
 
     @Test
     public void testCreateFunctionWithCpu() throws Exception {

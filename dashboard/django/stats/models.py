@@ -73,6 +73,9 @@ class Namespace(Model):
     def is_global(self):
         return self.name.split('/', 2)[1] == 'global'
 
+    def is_v2(self):
+        return len(self.name.split('/', 2)) == 2
+
     def __str__(self):
         return self.name
 
@@ -130,6 +133,9 @@ class Topic(Model):
     def is_global(self):
         return self.namespace.is_global()
 
+    def is_v2(self):
+        return self.namespace.is_v2()
+
     def url_name(self):
         return '/'.join(self.name.split('://', 1))
 
@@ -169,7 +175,7 @@ class Subscription(Model):
     unackedMessages  = BigIntegerField(default=0)
 
     class Meta:
-        index_together = ('name', 'topic', 'timestamp', 'deleted')
+        unique_together = ('name', 'topic', 'timestamp')
 
     def __str__(self):
         return self.name
@@ -182,7 +188,7 @@ class Consumer(Model):
     address = CharField(max_length=64, null=True)
     availablePermits = IntegerField(default=0)
     connectedSince   = DateTimeField(null=True)
-    consumerName     = CharField(max_length=64, null=True)
+    consumerName     = CharField(max_length=256, null=True)
     msgRateOut       = DecimalField(max_digits = 12, decimal_places=1, default=0)
     msgRateRedeliver = DecimalField(max_digits = 12, decimal_places=1, default=0)
     msgThroughputOut = DecimalField(max_digits = 12, decimal_places=1, default=0)

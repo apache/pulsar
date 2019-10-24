@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.stats;
 
 /**
- * 
+ *
  * {@link JvmGCMetricsLogger} can be implemented for each specific GC type which retrieves GC count and pause time and
  * logs it into metrics.
  *
@@ -28,13 +28,13 @@ public interface JvmGCMetricsLogger {
 
     /**
      * {@link JvmGCMetricsLogger} should update the metrics with GC specific dimensions and value.
-     * 
+     *
      * @param metrics
      */
     void logMetrics(Metrics metrics);
 
     /**
-     * It will be triggered by {@link JvmMetrics} periodically to refresh stats at interval (default = 1 min)
+     * It will be triggered by {@link JvmMetrics} periodically to refresh stats at interval (default = 1 min).
      */
     void refresh();
 }

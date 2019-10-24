@@ -52,8 +52,8 @@ public class ServiceURI {
 
     private static final int BINARY_PORT = 6650;
     private static final int BINARY_TLS_PORT = 6651;
-    private static final int HTTP_PORT = 8080;
-    private static final int HTTPS_PORT = 8443;
+    private static final int HTTP_PORT = 80;
+    private static final int HTTPS_PORT = 443;
 
     /**
      * Create a service uri instance from a uri string.

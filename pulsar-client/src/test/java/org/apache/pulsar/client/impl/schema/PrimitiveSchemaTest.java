@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.sql.Date;
@@ -88,10 +89,14 @@ public class PrimitiveSchemaTest {
     @Test(dataProvider = "schemas")
     public void allSchemasShouldSupportNull(Map<Schema, List<Object>> testData) {
         for (Schema<?> schema : testData.keySet()) {
+            byte[] bytes = null;
+            ByteBuf byteBuf =  null;
             assertNull(schema.encode(null),
                 "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
-            assertNull(schema.decode( null),
+            assertNull(schema.decode(bytes),
                 "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+            assertNull(((AbstractSchema)schema).decode(byteBuf),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
         }
     }
 

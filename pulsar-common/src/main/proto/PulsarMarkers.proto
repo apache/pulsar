@@ -32,6 +32,8 @@ enum MarkerType {
     REPLICATED_SUBSCRIPTION_UPDATE            = 13;
 
     // Next markers start at 20
+    TXN_COMMIT = 20;
+    TXN_ABORT = 21;
 }
 
 /// --- Replicated subscriptions ---
@@ -77,4 +79,10 @@ message ClusterMessageId {
 message MessageIdData {
 	required uint64 ledger_id = 1;
 	required uint64 entry_id  = 2;
+}
+
+
+/// --- Transaction marker ---
+message TxnCommitMarker {
+    required MessageIdData message_id = 1;
 }

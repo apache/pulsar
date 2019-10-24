@@ -27,6 +27,8 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -40,6 +42,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -187,7 +190,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
 
         IntStream.range(0, topics.size()).forEach(index ->
-            assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
+            assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
         ((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
 
@@ -277,7 +280,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
 
         IntStream.range(0, topics.size()).forEach(index ->
-            assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
+            assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
         ((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
 
@@ -367,7 +370,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
 
         IntStream.range(0, topics.size()).forEach(index ->
-            assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
+            assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
         ((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
 
@@ -452,7 +455,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // empty list minus: addedNames2.size = 2, addedNames3.size = 0
         List<String> addedNames4 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames2, addedNames3);
-        assertTrue(addedNames4.size() == addedNames2.size());
+        assertEquals(addedNames2.size(), addedNames4.size());
         addedNames4.forEach(name -> assertTrue(addedNames2.contains(name)));
 
         List<String> addedNames5 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames3, addedNames2);
@@ -725,7 +728,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // seems no direct way to verify auto-unsubscribe, because this patternConsumer also referenced the topic.
         List<String> topicNames = Lists.newArrayList(topicName2);
         NamespaceService nss = pulsar.getNamespaceService();
-        doReturn(topicNames).when(nss).getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
+        doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
+                .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
 
         // 7. call recheckTopics to unsubscribe topic 1,3 , verify topics number: 2=6-1-3
         log.debug("recheck topics change");
@@ -757,5 +761,52 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
+    }
+
+    @Test()
+    public void testTopicDeletion() throws Exception {
+        String baseTopicName = "persistent://my-property/my-ns/pattern-topic-" + System.currentTimeMillis();
+        Pattern pattern = Pattern.compile(baseTopicName + ".*");
+
+        // Create 2 topics
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-1")
+                .create();
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-2")
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+            .topicsPattern(pattern)
+            .patternAutoDiscoveryPeriod(1)
+            .subscriptionName("sub")
+            .subscribe();
+
+        assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
+        PatternMultiTopicsConsumerImpl<String> consumerImpl = (PatternMultiTopicsConsumerImpl<String>) consumer;
+
+        // 4. verify consumer get methods
+        assertSame(consumerImpl.getPattern(), pattern);
+        assertEquals(consumerImpl.getTopics().size(), 2);
+
+        producer1.send("msg-1");
+
+        producer1.close();
+
+        Message<String> message = consumer.receive();
+        assertEquals(message.getValue(), "msg-1");
+        consumer.acknowledge(message);
+
+        // Force delete the topic while the regex consumer is connected
+        admin.topics().delete(baseTopicName + "-1", true);
+
+        producer2.send("msg-2");
+
+        message = consumer.receive();
+        assertEquals(message.getValue(), "msg-2");
+        consumer.acknowledge(message);
+
+        assertEquals(pulsar.getBrokerService().getTopicIfExists(baseTopicName + "-1").join(), Optional.empty());
+        assertTrue(pulsar.getBrokerService().getTopicIfExists(baseTopicName + "-2").join().isPresent());
     }
 }

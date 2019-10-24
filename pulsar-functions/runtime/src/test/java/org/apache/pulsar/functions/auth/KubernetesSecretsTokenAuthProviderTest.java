@@ -18,16 +18,23 @@
  */
 package org.apache.pulsar.functions.auth;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+
 import io.kubernetes.client.ApiException;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1Container;
 import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1PodTemplateSpec;
 import io.kubernetes.client.models.V1Secret;
-import io.kubernetes.client.models.V1ServiceAccount;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetSpec;
-import lombok.extern.slf4j.Slf4j;
+
+import java.util.Collections;
+import java.util.Optional;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
@@ -35,23 +42,15 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.Optional;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-
-@Slf4j
 public class KubernetesSecretsTokenAuthProviderTest {
 
     @Test
     public void testConfigureAuthDataStatefulSet() {
 
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider(coreV1Api, "default");
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default");
 
 
         V1StatefulSet statefulSet = new V1StatefulSet();
@@ -77,7 +76,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(), any(), anyString());
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider(coreV1Api, "default");
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default");
         Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.cacheAuthData("test-tenant",
                 "test-ns", "test-func", new AuthenticationDataSource() {
                     @Override
@@ -98,7 +98,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
     @Test
     public void configureAuthenticationConfig() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider(coreV1Api, "default");
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default");
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         FunctionAuthData functionAuthData = FunctionAuthData.builder().data("foo".getBytes()).build();
         kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, Optional.of(functionAuthData));
@@ -110,8 +111,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
     @Test
     public void testUpdateAuthData() throws Exception {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider(coreV1Api, "default");
-
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, "default");
         // test when existingFunctionAuthData is empty
         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
         Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData("test-tenant",

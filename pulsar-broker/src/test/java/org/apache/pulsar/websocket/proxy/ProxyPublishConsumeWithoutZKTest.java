@@ -59,7 +59,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(Optional.of(port));
         config.setClusterName("test");
-        config.setServiceUrl(pulsar.getWebServiceAddress());
+        config.setServiceUrl(pulsar.getSafeWebServiceAddress());
         config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();

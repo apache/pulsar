@@ -20,7 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -251,7 +251,7 @@ public class TestCmdSinks {
                 sinkConfig
         );
     }
-    
+
     @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();

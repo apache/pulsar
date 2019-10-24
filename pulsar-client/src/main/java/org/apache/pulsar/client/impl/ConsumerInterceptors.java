@@ -66,7 +66,7 @@ public class ConsumerInterceptors<T> implements Closeable {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptorMessage = interceptors.get(i).beforeConsume(consumer, interceptorMessage);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 if (consumer != null) {
                     log.warn("Error executing interceptor beforeConsume callback topic: {} consumerName: {}", consumer.getTopic(), consumer.getConsumerName(), e);
                 } else {
@@ -92,7 +92,7 @@ public class ConsumerInterceptors<T> implements Closeable {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptors.get(i).onAcknowledge(consumer, messageId, exception);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.warn("Error executing interceptor onAcknowledge callback ", e);
             }
         }
@@ -113,7 +113,7 @@ public class ConsumerInterceptors<T> implements Closeable {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptors.get(i).onAcknowledgeCumulative(consumer, messageId, exception);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.warn("Error executing interceptor onAcknowledgeCumulative callback ", e);
             }
         }
@@ -134,7 +134,7 @@ public class ConsumerInterceptors<T> implements Closeable {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptors.get(i).onNegativeAcksSend(consumer, messageIds);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.warn("Error executing interceptor onNegativeAcksSend callback", e);
             }
         }
@@ -155,7 +155,7 @@ public class ConsumerInterceptors<T> implements Closeable {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptors.get(i).onAckTimeoutSend(consumer, messageIds);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.warn("Error executing interceptor onAckTimeoutSend callback", e);
             }
         }
@@ -166,7 +166,7 @@ public class ConsumerInterceptors<T> implements Closeable {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptors.get(i).close();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Fail to close consumer interceptor ", e);
             }
         }

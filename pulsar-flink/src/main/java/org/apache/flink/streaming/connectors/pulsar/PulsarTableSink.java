@@ -59,7 +59,7 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
         checkNotNull(topic, "Topic is null");
         this.clientConfigurationData.setServiceUrl(serviceUrl);
         this.clientConfigurationData.setAuthentication(authentication);
-        this.producerConfigurationData.setTopicName(topic);;
+        this.producerConfigurationData.setTopicName(topic);
         this.routingKeyFieldName = routingKeyFieldName;
     }
 
@@ -91,11 +91,11 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
      * Returns the low-level producer.
      */
     protected FlinkPulsarProducer<Row> createFlinkPulsarProducer() {
-        return new FlinkPulsarProducer<Row>(
-                clientConfigurationData,
-                producerConfigurationData,
-                serializationSchema,
-                keyExtractor);
+        return new FlinkPulsarProducer<>(
+            clientConfigurationData,
+            producerConfigurationData,
+            serializationSchema,
+            keyExtractor);
     }
 
     @Override

@@ -41,7 +41,6 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -53,6 +52,8 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
@@ -65,7 +66,6 @@ import org.testng.annotations.Test;
 
 import com.beust.jcommander.internal.Maps;
 import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
@@ -238,7 +238,7 @@ public class AntiAffinityNamespaceGroupTest {
         brokerToDomainMap.put("brokerName-3", "domain-1");
 
         Set<String> candidate = Sets.newHashSet();
-        Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange = Maps.newHashMap();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
 
         assertEquals(brokers.size(), totalBrokers);
 
@@ -324,7 +324,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         Set<String> brokers = Sets.newHashSet();
         Set<String> candidate = Sets.newHashSet();
-        Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange = Maps.newHashMap();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
         brokers.add("broker-0");
         brokers.add("broker-1");
         brokers.add("broker-2");
@@ -368,10 +368,13 @@ public class AntiAffinityNamespaceGroupTest {
         assertEquals(candidate.size(), 3);
     }
 
-    private void selectBrokerForNamespace(Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange,
+    private void selectBrokerForNamespace(
+            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange,
             String broker, String namespace, String assignedBundleName) {
-        Map<String, Set<String>> nsToBundleMap = Maps.newHashMap();
-        nsToBundleMap.put(namespace, Sets.newHashSet(assignedBundleName));
+        ConcurrentOpenHashSet<String> bundleSet = new ConcurrentOpenHashSet<>();
+        bundleSet.add(assignedBundleName);
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> nsToBundleMap = new ConcurrentOpenHashMap<>();
+        nsToBundleMap.put(namespace, bundleSet);
         brokerToNamespaceToBundleRange.put(broker, nsToBundleMap);
     }
 
@@ -460,7 +463,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         Set<String> brokers = Sets.newHashSet();
         Set<String> candidate = Sets.newHashSet();
-        Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange = Maps.newHashMap();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
         brokers.add("broker-0");
         brokers.add("broker-1");
         brokers.add("broker-2");
@@ -511,7 +514,7 @@ public class AntiAffinityNamespaceGroupTest {
             admin1.namespaces().setNamespaceAntiAffinityGroup(ns, namespaceAntiAffinityGroup);
         }
 
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getWebServiceAddress()).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getSafeWebServiceAddress()).build();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://" + namespace + "0/my-topic1")
                 .create();
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar1

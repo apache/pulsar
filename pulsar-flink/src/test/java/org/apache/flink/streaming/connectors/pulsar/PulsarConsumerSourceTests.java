@@ -38,9 +38,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
-import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -57,7 +54,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Tests for the PulsarConsumerSource. The source supports two operation modes.
@@ -133,7 +134,7 @@ public class PulsarConsumerSourceTests {
             }
 
             final TestPulsarConsumerSource sourceCopy =
-                createSource(Mockito.mock(Consumer.class), 1, true);
+                createSource(mock(Consumer.class), 1, true);
             final StreamSource<String, TestPulsarConsumerSource> srcCopy = new StreamSource<>(sourceCopy);
             final AbstractStreamOperatorTestHarness<String> testHarnessCopy =
                 new AbstractStreamOperatorTestHarness<>(srcCopy, 1, 1, 0);
@@ -147,14 +148,14 @@ public class PulsarConsumerSourceTests {
 
             final int start = consumer.currentMessage.get() - numMessages;
             for (int mi = start; mi < (start + numMessages); ++mi) {
-                Assert.assertTrue(messageIds.contains(consumer.messages.get(mi).getMessageId()));
+                assertTrue(messageIds.contains(consumer.messages.get(mi).getMessageId()));
             }
 
             // check if the messages are being acknowledged
             synchronized (context.getCheckpointLock()) {
                 source.notifyCheckpointComplete(snapshotId);
 
-                Assert.assertEquals(consumer.acknowledgedIds.keySet(), messageIds);
+                assertEquals(consumer.acknowledgedIds.keySet(), messageIds);
                 // clear acknowledgements for the next snapshot comparison
                 consumer.acknowledgedIds.clear();
             }
@@ -175,14 +176,14 @@ public class PulsarConsumerSourceTests {
 
         receiveMessages();
 
-        Assert.assertEquals(5, context.elements.size());
+        assertEquals(5, context.elements.size());
 
         // try to reprocess the messages we should not collect any more elements
         consumer.reset();
 
         receiveMessages();
 
-        Assert.assertEquals(5, context.elements.size());
+        assertEquals(5, context.elements.size());
     }
 
     @Test
@@ -197,7 +198,7 @@ public class PulsarConsumerSourceTests {
 
         receiveMessages();
 
-        Assert.assertEquals(1, consumer.acknowledgedIds.size());
+        assertEquals(1, consumer.acknowledgedIds.size());
     }
 
     @Test
@@ -212,7 +213,7 @@ public class PulsarConsumerSourceTests {
 
         receiveMessages();
 
-        Assert.assertEquals(1, consumer.acknowledgedIds.size());
+        assertEquals(1, consumer.acknowledgedIds.size());
     }
 
     @Test
@@ -227,7 +228,7 @@ public class PulsarConsumerSourceTests {
 
         receiveMessages();
 
-        Assert.assertEquals(0, consumer.acknowledgedIds.size());
+        assertEquals(0, consumer.acknowledgedIds.size());
     }
 
     @Test
@@ -242,7 +243,7 @@ public class PulsarConsumerSourceTests {
 
         receiveMessages();
 
-        Assert.assertEquals(2, consumer.acknowledgedIds.size());
+        assertEquals(2, consumer.acknowledgedIds.size());
     }
 
     private void receiveMessages() throws InterruptedException {
@@ -258,10 +259,10 @@ public class PulsarConsumerSourceTests {
                 .acknowledgementBatchSize(batchSize);
         TestPulsarConsumerSource source = new TestPulsarConsumerSource(builder, testConsumer, isCheckpointingEnabled);
 
-        OperatorStateStore mockStore = Mockito.mock(OperatorStateStore.class);
-        FunctionInitializationContext mockContext = Mockito.mock(FunctionInitializationContext.class);
-        Mockito.when(mockContext.getOperatorStateStore()).thenReturn(mockStore);
-        Mockito.when(mockStore.getSerializableListState(any(String.class))).thenReturn(null);
+        OperatorStateStore mockStore = mock(OperatorStateStore.class);
+        FunctionInitializationContext mockContext = mock(FunctionInitializationContext.class);
+        when(mockContext.getOperatorStateStore()).thenReturn(mockStore);
+        when(mockStore.getSerializableListState(any(String.class))).thenReturn(null);
 
         source.initializeState(mockContext);
 
@@ -284,14 +285,14 @@ public class PulsarConsumerSourceTests {
 
         @Override
         protected boolean addId(MessageId messageId) {
-            Assert.assertEquals(true, isCheckpointingEnabled());
+            assertTrue(isCheckpointingEnabled());
             return super.addId(messageId);
         }
 
         @Override
         public RuntimeContext getRuntimeContext() {
-            StreamingRuntimeContext context = Mockito.mock(StreamingRuntimeContext.class);
-            Mockito.when(context.isCheckpointingEnabled()).thenReturn(isCheckpointingEnabled);
+            StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
+            when(context.isCheckpointingEnabled()).thenReturn(isCheckpointingEnabled);
             return context;
         }
 
@@ -307,7 +308,7 @@ public class PulsarConsumerSourceTests {
 
         @Override
         PulsarClient createClient() {
-            return Mockito.mock(PulsarClient.class);
+            return mock(PulsarClient.class);
         }
 
         @Override
@@ -529,6 +530,16 @@ public class PulsarConsumerSourceTests {
         @Override
         public void resume() {
         }
+
+        @Override
+        public MessageId getLastMessageId() throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<MessageId> getLastMessageIdAsync() {
+            return null;
+        }
     }
 
     private static List<Message> createMessages(int startIndex, int numMessages) {
@@ -542,7 +553,7 @@ public class PulsarConsumerSourceTests {
 
     private static Message<byte[]> createMessage(String content, String messageId) {
         return new MessageImpl<byte[]>("my-topic", messageId, Collections.emptyMap(),
-                                       Unpooled.wrappedBuffer(content.getBytes()), Schema.BYTES);
+                                       content.getBytes(), Schema.BYTES);
     }
 
     private static String createMessageId(long ledgerId, long entryId, long partitionIndex) {

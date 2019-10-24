@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.api.raw;
 
+/**
+ * Interface to uniquely identify an internal raw message.
+ */
 public interface RawMessageId {
 
 }

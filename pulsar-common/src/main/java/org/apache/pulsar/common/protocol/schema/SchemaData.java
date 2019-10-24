@@ -23,8 +23,12 @@ import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+/**
+ * Schema data.
+ */
 @Builder
 @Data
 @ToString
@@ -36,4 +40,33 @@ public class SchemaData {
     private final byte[] data;
     @Builder.Default
     private Map<String, String> props = new HashMap<>();
+
+    /**
+     * Convert a schema data to a schema info.
+     *
+     * @return the converted schema info.
+     */
+    public SchemaInfo toSchemaInfo() {
+        return SchemaInfo.builder()
+            .name("")
+            .type(type)
+            .schema(data)
+            .properties(props)
+            .build();
+    }
+
+    /**
+     * Convert a schema info to a schema data.
+     *
+     * @param schemaInfo schema info
+     * @return the converted schema schema data
+     */
+    public static SchemaData fromSchemaInfo(SchemaInfo schemaInfo) {
+        return SchemaData.builder()
+            .type(schemaInfo.getType())
+            .data(schemaInfo.getSchema())
+            .props(schemaInfo.getProperties())
+            .build();
+    }
+
 }

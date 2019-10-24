@@ -267,7 +267,7 @@ OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC"
 # log directory & file
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
-PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"debug"}
+PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"info"}
 PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
 
@@ -283,6 +283,8 @@ OPTS="$OPTS -Dpulsar.functions.process.container.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
 OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
 OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR}"
+OPTS="$OPTS -Dpulsar.functions.instance.classpath=${PULSAR_CLASSPATH}"
+
 
 ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=*"
 
@@ -293,6 +295,8 @@ if [ $COMMAND == "broker" ]; then
     exec $JAVA $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarBrokerStarter --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "bookie" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"bookkeeper.log"}
+    # Pass BOOKIE_EXTRA_OPTS option defined in pulsar_env.sh
+    OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.proto.BookieServer --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}

@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
-import io.netty.buffer.ByteBuf;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
-
 import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.ObjectSet;
+
+import io.netty.buffer.ByteBuf;
+
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,7 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     protected final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
     protected final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
-    protected int currentConsumerRoundRobinIndex = 0;
+    protected volatile int currentConsumerRoundRobinIndex = 0;
 
     protected static final int FALSE = 0;
     protected static final int TRUE = 1;
@@ -61,6 +62,10 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     public synchronized boolean canUnsubscribe(Consumer consumer) {
         return consumerList.size() == 1 && consumerSet.contains(consumer);
+    }
+
+    public boolean isClosed() {
+        return isClosed == TRUE;
     }
 
     public SubType getType() {

@@ -18,8 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import lombok.Cleanup;
 
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -29,6 +35,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 
@@ -59,14 +66,16 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      */
     @Test
     public void testOrderedRedelivery() throws Exception {
-        String topic = "persistent://my-property/my-ns/redelivery";
+        String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
 
         conf.setManagedLedgerMaxEntriesPerLedger(2);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name");
-        Producer<byte[]> producer = producerBuilder.create();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("my-producer-name")
+                .create();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
                 .subscriptionType(SubscriptionType.Shared);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
@@ -108,6 +117,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         // close consumer so, this consumer's unack messages will be redelivered to new consumer
         consumer1.close();
 
+        @Cleanup
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
         lastMsgId = null;
         for (int i = 0; i < totalMsgs / 2; i++) {
@@ -118,9 +128,55 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
             }
             lastMsgId = msgId;
         }
+    }
+
+    @Test
+    public void testUnAckMessageRedeliveryWithReceiveAsync() throws PulsarClientException, ExecutionException, InterruptedException {
+        String topic = "persistent://my-property/my-ns/async-unack-redelivery";
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("s1")
+                .ackTimeout(3, TimeUnit.SECONDS)
+                .subscribe();
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(5)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+
+        final int messages = 10;
+        List<CompletableFuture<Message<String>>> futures = new ArrayList<>(10);
+        for (int i = 0; i < messages; i++) {
+            futures.add(consumer.receiveAsync());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            producer.sendAsync("my-message-" + i);
+        }
+
+        int messageReceived = 0;
+        for (CompletableFuture<Message<String>> future : futures) {
+            Message<String> message = future.get();
+            assertNotNull(message);
+            messageReceived++;
+            // Don't ack message, wait for ack timeout.
+        }
+
+        assertEquals(10, messageReceived);
+
+        for (int i = 0; i < messages; i++) {
+            Message<String> message = consumer.receive();
+            assertNotNull(message);
+            messageReceived++;
+            consumer.acknowledge(message);
+        }
+
+        assertEquals(20, messageReceived);
 
         producer.close();
-        consumer2.close();
+        consumer.close();
     }
 
 }

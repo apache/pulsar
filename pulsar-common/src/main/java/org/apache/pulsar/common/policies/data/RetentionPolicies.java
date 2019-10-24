@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 /**
+ * Definition of the retention policy.
  */
 public class RetentionPolicies {
     private int retentionTimeInMinutes;

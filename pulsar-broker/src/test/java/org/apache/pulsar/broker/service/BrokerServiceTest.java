@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -208,6 +208,22 @@ public class BrokerServiceTest extends BrokerTestBase {
         subStats = stats.subscriptions.values().iterator().next();
 
         assertEquals(subStats.msgBacklog, 0);
+    }
+
+    @Test
+    public void testStatsOfStorageSizeWithSubscription() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/no-subscription";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getStats().storageSize, 0);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send(new byte[10]);
+        }
+
+        assertTrue(topicRef.getStats().storageSize > 0);
     }
 
     @Test
@@ -787,7 +803,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
-        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(any());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
 
@@ -830,7 +846,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.complete(new ManagedLedgerConfig());
-        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(any());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
         // fail managed-ledger future

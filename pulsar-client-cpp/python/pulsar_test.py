@@ -22,6 +22,7 @@
 from unittest import TestCase, main
 import time
 import os
+import uuid
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
             AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition
@@ -370,26 +371,33 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_reader_on_specific_message(self):
+        num_of_msgs = 10
         client = Client(self.serviceUrl)
         producer = client.create_producer(
             'my-python-topic-reader-on-specific-message')
 
-        for i in range(10):
+        for i in range(num_of_msgs):
             producer.send(b'hello-%d' % i)
 
         reader1 = client.create_reader(
                 'my-python-topic-reader-on-specific-message',
                 MessageId.earliest)
 
-        for i in range(5):
+        for i in range(num_of_msgs/2):
             msg = reader1.read_next()
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
             last_msg_id = msg.message_id()
+            last_msg_idx = i
 
         reader2 = client.create_reader(
                 'my-python-topic-reader-on-specific-message',
                 last_msg_id)
 
-        for i in range(5, 10):
+        # The reset would be effectively done on the next position relative to reset.
+        # When available, we should test this behaviour with `startMessageIdInclusive` opt.
+        from_msg_idx = last_msg_idx
+        for i in range(from_msg_idx, num_of_msgs):
             msg = reader2.read_next()
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
@@ -601,7 +609,7 @@ class PulsarTest(TestCase):
 
     def test_publish_compact_and_consume(self):
         client = Client(self.serviceUrl)
-        topic = 'my-python-test_publish_compact_and_consume'
+        topic = 'compaction_%s' % (uuid.uuid4())
         producer = client.create_producer(topic, producer_name='my-producer-name', batching_enabled=False)
         self.assertEqual(producer.last_sequence_id(), -1)
         consumer = client.subscribe(topic, 'my-sub1', is_read_compacted=True)
@@ -614,7 +622,7 @@ class PulsarTest(TestCase):
         producer.close()
 
         # issue compact command, and wait success
-        url=self.adminUrl + '/admin/v2/persistent/public/default/my-python-test_publish_compact_and_consume/compaction'
+        url='%s/admin/v2/persistent/public/default/%s/compaction' % (self.adminUrl, topic)
         doHttpPut(url, '')
         while True:
             s=doHttpGet(url).decode('utf-8')
@@ -627,6 +635,14 @@ class PulsarTest(TestCase):
                 print("Compact Complete now")
                 print(s)
                 break
+
+        # after compaction completes the compacted ledger is recorded
+        # as a property of a cursor. As persisting the cursor is async
+        # and we don't wait for the acknowledgement of the acknowledgement,
+        # there may be a race if we try to read the compacted ledger immediately.
+        # therefore wait a second to allow the compacted ledger to be updated on
+        # the broker.
+        time.sleep(1.0)
 
         # after compact, consumer with `is_read_compacted=True`, expected read only the second message for same key.
         consumer1 = client.subscribe(topic, 'my-sub1', is_read_compacted=True)

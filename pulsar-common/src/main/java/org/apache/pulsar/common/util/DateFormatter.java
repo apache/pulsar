@@ -24,7 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 /**
- * Date-time String formatter utility class
+ * Date-time String formatter utility class.
  */
 public class DateFormatter {
 

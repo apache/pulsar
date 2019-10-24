@@ -21,6 +21,8 @@ package org.apache.bookkeeper.test;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
@@ -37,7 +39,7 @@ public class PortManager {
 
     private static final String lockFilename = System.getProperty("test.lockFilename",
             "/tmp/pulsar-test-port-manager.lock");
-    private static final int basePort = Integer.valueOf(System.getProperty("test.basePort", "15000"));
+    private static final int basePort = Integer.parseInt(System.getProperty("test.basePort", "15000"));
 
     private static final int maxPort = 32000;
 
@@ -95,7 +97,9 @@ public class PortManager {
                 port = basePort;
             }
 
-            try (ServerSocket ss = new ServerSocket(port)) {
+            try (ServerSocket ss = new ServerSocket()) {
+                ss.setReuseAddress(false);
+                ss.bind(new InetSocketAddress(InetAddress.getByName("localhost"), port), 1);
                 ss.close();
                 // Give it some time to truly close the connection
                 Thread.sleep(100);

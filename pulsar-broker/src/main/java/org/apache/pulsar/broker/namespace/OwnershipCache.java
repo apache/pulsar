@@ -149,12 +149,12 @@ public class OwnershipCache {
      *            the local broker URL that will be set as owner for the <code>ServiceUnit</code>
      */
     public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory) {
-        this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
+        this.ownerBrokerUrl = pulsar.getSafeBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
-                pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(), false);
+                pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(), false);
         this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
-                pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(), true);
+                pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(), true);
         this.bundleFactory = bundleFactory;
         this.localZkCache = pulsar.getLocalZkCache();
         this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();

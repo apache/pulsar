@@ -29,6 +29,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -132,6 +133,18 @@ public class BrokersBase extends AdminResource {
         updateDynamicConfigurationOnZk(configName, configValue);
     }
 
+    @DELETE
+    @Path("/configuration/{configName}")
+    @ApiOperation(value = "Delete dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
+            @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
+            @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void deleteDynamicConfiguration(@PathParam("configName") String configName) throws Exception {
+        validateSuperUserAccess();
+        deleteDynamicConfigurationOnZk(configName);
+    }
+    
     @GET
     @Path("/configuration/values")
     @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
@@ -249,6 +262,13 @@ public class BrokersBase extends AdminResource {
         PulsarClient client = pulsar().getClient();
 
         String messageStr = UUID.randomUUID().toString();
+        // create non-partitioned topic manually
+        try {
+            pulsar().getBrokerService().getTopic(topic, true).get();
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
         CompletableFuture<Producer<String>> producerFuture =
             client.newProducer(Schema.STRING).topic(topic).createAsync();
         CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)
@@ -319,6 +339,35 @@ public class BrokersBase extends AdminResource {
                             }
                         });
             });
+    }
+    
+    private synchronized void deleteDynamicConfigurationOnZk(String configName) {
+        try {
+            if (BrokerService.isDynamicConfiguration(configName)) {
+                ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
+                        .getDynamicConfigurationCache();
+                Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
+                        .orElse(null);
+                if (configurationMap != null && configurationMap.containsKey(configName)) {
+                    configurationMap.remove(configName);
+                    byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
+                    dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
+                    serviceConfigZkVersion = localZk()
+                            .setData(BROKER_SERVICE_CONFIGURATION_PATH, content, serviceConfigZkVersion).getVersion();
+                }
+                LOG.info("[{}] Deleted Service configuration {}", clientAppId(), configName);
+            } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName);
+                }
+                throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
+            }
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception ie) {
+            LOG.error("[{}] Failed to update configuration {}, {}", clientAppId(), configName, ie.getMessage(), ie);
+            throw new RestException(ie);
+        }
     }
 }
 

@@ -50,8 +50,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Set incoming message rate quota
-     * 
+     * Set incoming message rate quota.
+     *
      * @param msgRateIn
      *            incoming messages rate quota (msg/sec)
      */
@@ -60,8 +60,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Get incoming message rate quota
-     * 
+     * Get incoming message rate quota.
+     *
      * @return incoming message rate quota (msg/sec)
      */
     public double getMsgRateIn() {
@@ -69,8 +69,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Set outgoing message rate quota
-     * 
+     * Set outgoing message rate quota.
+     *
      * @param msgRateOut
      *            outgoing messages rate quota (msg/sec)
      */
@@ -79,8 +79,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Get outgoing message rate quota
-     * 
+     * Get outgoing message rate quota.
+     *
      * @return outgoing message rate quota (msg/sec)
      */
     public double getMsgRateOut() {
@@ -88,8 +88,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Set inbound bandwidth quota
-     * 
+     * Set inbound bandwidth quota.
+     *
      * @param bandwidthIn
      *            inbound bandwidth quota (bytes/sec)
      */
@@ -98,8 +98,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Get inbound bandwidth quota
-     * 
+     * Get inbound bandwidth quota.
+     *
      * @return inbound bandwidth quota (bytes/sec)
      */
     public double getBandwidthIn() {
@@ -107,8 +107,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Set outbound bandwidth quota
-     * 
+     * Set outbound bandwidth quota.
+     *
      * @param bandwidthOut
      *            outbound bandwidth quota (bytes/sec)
      */
@@ -117,8 +117,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Get outbound bandwidth quota
-     * 
+     * Get outbound bandwidth quota.
+     *
      * @return outbound bandwidth quota (bytes/sec)
      */
     public double getBandwidthOut() {
@@ -126,8 +126,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Set memory quota
-     * 
+     * Set memory quota.
+     *
      * @param memory
      *            memory quota (Mbytes)
      */
@@ -136,8 +136,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Get memory quota
-     * 
+     * Get memory quota.
+     *
      * @return memory quota (Mbytes)
      */
     public double getMemory() {
@@ -145,8 +145,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Set dynamic to true/false
-     * 
+     * Set dynamic to true/false.
+     *
      * @param dynamic
      *            allow the quota to be dynamically re-calculated
      */
@@ -155,8 +155,8 @@ public class ResourceQuota {
     }
 
     /**
-     * Get dynamic setting
-     * 
+     * Get dynamic setting.
+     *
      * @return is dynamic or not
      */
     public boolean getDynamic() {
@@ -164,7 +164,7 @@ public class ResourceQuota {
     }
 
     /**
-     * Check if this is a valid quota definition
+     * Check if this is a valid quota definition.
      */
     @JsonIgnore
     public boolean isValid() {
@@ -178,7 +178,7 @@ public class ResourceQuota {
 
     /**
      * Add quota.
-     * 
+     *
      * @param quota
      *            <code>ResourceQuota</code> to add
      */
@@ -192,7 +192,7 @@ public class ResourceQuota {
 
     /**
      * Substract quota.
-     * 
+     *
      * @param quota
      *            <code>ResourceQuota</code> to substract
      */

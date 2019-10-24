@@ -55,23 +55,35 @@ public class AuthTokenUtils {
         return Keys.hmacShaKeyFor(secretKey);
     }
 
-    public static PrivateKey decodePrivateKey(byte[] key) throws IOException {
+    public static PrivateKey decodePrivateKey(byte[] key, SignatureAlgorithm algType) throws IOException {
         try {
             PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(key);
-            KeyFactory kf = KeyFactory.getInstance("RSA");
+            KeyFactory kf = KeyFactory.getInstance(keyTypeForSignatureAlgorithm(algType));
             return kf.generatePrivate(spec);
         } catch (Exception e) {
             throw new IOException("Failed to decode private key", e);
         }
     }
 
-    public static PublicKey decodePublicKey(byte[] key) throws IOException {
+
+    public static PublicKey decodePublicKey(byte[] key, SignatureAlgorithm algType) throws IOException {
         try {
             X509EncodedKeySpec spec = new X509EncodedKeySpec(key);
-            KeyFactory kf = KeyFactory.getInstance("RSA");
+            KeyFactory kf = KeyFactory.getInstance(keyTypeForSignatureAlgorithm(algType));
             return kf.generatePublic(spec);
         } catch (Exception e) {
             throw new IOException("Failed to decode public key", e);
+        }
+    }
+
+    private static String keyTypeForSignatureAlgorithm(SignatureAlgorithm alg) {
+        if (alg.getFamilyName().equals("RSA")) {
+            return "RSA";
+        } else if (alg.getFamilyName().equals("ECDSA")) {
+            return "EC";
+        } else {
+            String msg = "The " + alg.name() + " algorithm does not support Key Pairs.";
+            throw new IllegalArgumentException(msg);
         }
     }
 

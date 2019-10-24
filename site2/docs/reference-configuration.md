@@ -13,15 +13,16 @@ sidebar_label: Pulsar configuration
 
 Pulsar configuration can be managed either via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
 
-* [BookKeeper](#bookkeeper)
-* [Broker](#broker)
-* [Client](#client)
-* [Service discovery](#service-discovery)
-* [Log4j](#log4j)
-* [Log4j shell](#log4j-shell)
-* [Standalone](#standalone)
-* [WebSocket](#websocket)
-* [ZooKeeper](#zookeeper)
+- [BookKeeper](#bookkeeper)
+- [Broker](#broker)
+- [Client](#client)
+- [Service discovery](#service-discovery)
+- [Log4j](#log4j)
+- [Log4j shell](#log4j-shell)
+- [Standalone](#standalone)
+- [WebSocket](#websocket)
+- [Pulsar proxy](#pulsar-proxy)
+- [ZooKeeper](#zookeeper)
 
 ## BookKeeper
 
@@ -126,6 +127,9 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitGB|  Default per-topic backlog quota limit |10|
+|allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
+|allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned| 
+|defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
 |messageExpiryCheckIntervalInMinutes| How frequently to proactively check and purge expired messages  |5|
@@ -144,6 +148,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
+|tokenPublicAlg| Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (https://github.com/jwtk/jjwt#signature-algorithms-keys) |RS256|
 |tokenAuthClaim| Specify which of the token's claims will be used as the authentication "principal" or "role". The default "sub" claim will be used if this is left blank ||
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
@@ -437,6 +442,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath|  Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
 |authenticationEnabled| Whether authentication is enabled for the Pulsar proxy  |false|
+|authenticateMetricsEndpoint| Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect. |true|
 |authenticationProviders| Authentication provider name list (a comma-separated list of class names) ||
 |authorizationEnabled|  Whether authorization is enforced by the Pulsar proxy |false|
 |authorizationProvider| Authorization provider as a fully qualified class name  |org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider|
@@ -458,6 +464,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
+|tokenPublicAlg| Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (https://github.com/jwtk/jjwt#signature-algorithms-keys) |RS256|
 |tokenAuthClaim| Specify the token claim that will be used as the authentication "principal" or "role". The "subject" field will be used if this is left blank ||
 
 ## ZooKeeper

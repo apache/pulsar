@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.request;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;

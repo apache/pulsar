@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.dlog;
 
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;

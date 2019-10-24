@@ -19,11 +19,11 @@
 package org.apache.pulsar.client.api;
 
 import static org.apache.bookkeeper.test.PortManager.nextFreePort;
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -161,7 +161,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // mock: return Broker2 as a Least-loaded broker when leader receies request [3]
         doReturn(true).when(loadManager1).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getSafeWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
@@ -252,7 +252,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // mock: return Broker2 as a Least-loaded broker when leader receies request
         doReturn(true).when(loadManager2).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getSafeWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager2));
         /**** started broker-2 ****/
@@ -826,7 +826,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
         // mock: return Broker1 as a Least-loaded broker when leader receies request [3]
         doReturn(true).when(loadManager1).isCentralized();
-        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
+        SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
@@ -869,7 +869,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 .subscribe();
 
         NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService().getBundle(TopicName.get(topic2));
-        assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
+        assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit);
 
         consumer1.close();
         consumer2.close();
@@ -934,7 +934,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
             // mock: return Broker1 as a Least-loaded broker when leader receies request [3]
             doReturn(true).when(loadManager1).isCentralized();
-            SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
+            SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
             Optional<ResourceUnit> res = Optional.of(resourceUnit);
             doReturn(res).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
             doReturn(res).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
@@ -1000,7 +1000,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                     .subscribe();
 
             NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService().getBundle(TopicName.get(topic2));
-            assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
+            assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit);
 
             consumer1.close();
             consumer2.close();
@@ -1031,7 +1031,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf.setClientLibraryVersionCheckEnabled(true);
         startBroker();
 
-        URI brokerServiceUrl = new URI(pulsar.getWebServiceAddress());
+        URI brokerServiceUrl = new URI(pulsar.getSafeWebServiceAddress());
 
         URL url = brokerServiceUrl.toURL();
         String path = String.format("admin/%s/partitions", dest.getLookupName());

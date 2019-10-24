@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.schema;
 
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 
 import java.time.Clock;
@@ -34,7 +35,10 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -106,9 +110,30 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         deleteSchema(schemaId1, version(1));
 
-        SchemaData latest2 = getLatestSchema(schemaId1, version(1));
+        assertNull(schemaRegistryService.getSchema(schemaId1).get());
+    }
 
-        assertTrue(latest2.isDeleted());
+    @Test
+    public void findSchemaVersionTest() throws Exception {
+        putSchema(schemaId1, schema1, version(0));
+        assertEquals(0, schemaRegistryService.findSchemaVersion(schemaId1, schema1).get().longValue());
+    }
+
+    @Test
+    public void deleteSchemaAndAddSchema() throws Exception {
+        putSchema(schemaId1, schema1, version(0));
+        SchemaData latest = getLatestSchema(schemaId1, version(0));
+        assertEquals(schema1, latest);
+
+        deleteSchema(schemaId1, version(1));
+
+        assertNull(schemaRegistryService.getSchema(schemaId1).get());
+
+        putSchema(schemaId1, schema1, version(2));
+
+        latest = getLatestSchema(schemaId1, version(2));
+        assertEquals(schema1, latest);
+
     }
 
     @Test
@@ -225,6 +250,32 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schema1, version(0));
         putSchema(schemaId1, schema1, version(0));
         putSchema(schemaId1, schema1, version(0));
+    }
+
+
+    @Test
+    public void trimDeletedSchemaAndGetListTest() throws Exception {
+        List<SchemaAndMetadata> list = new ArrayList<>();
+        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
+                schemaId1, schema1, SchemaCompatibilityStrategy.FULL);
+        SchemaVersion newVersion = put.get();
+        list.add(new SchemaAndMetadata(schemaId1, schema1, newVersion));
+        put = schemaRegistryService.putSchemaIfAbsent(
+                schemaId1, schema2, SchemaCompatibilityStrategy.FULL);
+        newVersion = put.get();
+        list.add(new SchemaAndMetadata(schemaId1, schema2, newVersion));
+        List<SchemaAndMetadata> list1 = schemaRegistryService.trimDeletedSchemaAndGetList(schemaId1).get();
+        assertEquals(list.size(), list1.size());
+        HashFunction hashFunction = Hashing.sha256();
+        for (int i = 0; i < list.size(); i++) {
+            SchemaAndMetadata schemaAndMetadata1 = list.get(i);
+            SchemaAndMetadata schemaAndMetadata2 = list1.get(i);
+            assertEquals(hashFunction.hashBytes(schemaAndMetadata1.schema.getData()).asBytes(),
+                    hashFunction.hashBytes(schemaAndMetadata2.schema.getData()).asBytes());
+            assertEquals(((LongSchemaVersion)schemaAndMetadata1.version).getVersion()
+                    , ((LongSchemaVersion)schemaAndMetadata2.version).getVersion());
+            assertEquals(schemaAndMetadata1.id, schemaAndMetadata2.id);
+        }
     }
 
     @Test

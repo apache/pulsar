@@ -19,22 +19,21 @@
 
 package org.apache.pulsar.functions.secretsprovider;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import java.lang.reflect.Field;
 import java.util.Map;
 
-/**
- * Unit test of {@link Exceptions}.
- */
+import org.testng.annotations.Test;
+
 public class EnvironmentBasedSecretsProviderTest {
     @Test
     public void testConfigValidation() throws Exception {
         EnvironmentBasedSecretsProvider provider = new EnvironmentBasedSecretsProvider();
-        Assert.assertEquals(provider.provideSecret("mySecretName", "Ignored"), null);
+        assertNull(provider.provideSecret("mySecretName", "Ignored"));
         injectEnvironmentVariable("mySecretName", "SecretValue");
-        Assert.assertEquals(provider.provideSecret("mySecretName", "Ignored"), "SecretValue");
+        assertEquals(provider.provideSecret("mySecretName", "Ignored"), "SecretValue");
     }
 
     private static void injectEnvironmentVariable(String key, String value)

@@ -37,7 +37,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -47,7 +46,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 import org.apache.pulsar.io.PulsarFunctionE2ETest;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
@@ -91,7 +89,7 @@ public class PulsarFunctionE2ESecurityTest {
     final String TENANT2 = "tenant2";
 
     final String NAMESPACE = "test-ns";
-    String pulsarFunctionsNamespace = TENANT + "/use/pulsar-function-admin";
+    String pulsarFunctionsNamespace = TENANT + "/pulsar-function-admin";
     String primaryHost;
     String workerId;
 
@@ -134,6 +132,7 @@ public class PulsarFunctionE2ESecurityTest {
         config.setBrokerServicePort(Optional.of(brokerServicePort));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
+        config.setAllowAutoTopicCreationType("non-partitioned");
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());

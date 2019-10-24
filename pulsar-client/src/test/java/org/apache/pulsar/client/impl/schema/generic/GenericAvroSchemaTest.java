@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -28,9 +29,9 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 public class GenericAvroSchemaTest {
 
@@ -67,7 +68,7 @@ public class GenericAvroSchemaTest {
         MultiVersionSchemaInfoProvider provider = mock(MultiVersionSchemaInfoProvider.class);
         readerSchema.setSchemaInfoProvider(provider);
         when(provider.getSchemaByVersion(any(byte[].class)))
-            .thenReturn(writerSchema.getSchemaInfo());
+            .thenReturn(CompletableFuture.completedFuture(writerSchema.getSchemaInfo()));
         GenericRecord dataForWriter = writerSchema.newRecordBuilder()
             .set("field1", SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING)
             .set("field3", 0)

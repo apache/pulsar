@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStr
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 
 import java.util.LinkedHashSet;
@@ -83,7 +84,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
     @Test(dataProvider = "lookupType", timeOut = 10000)
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
-        // clean up peer-clusters
+     // clean up peer-clusters
         admin1.clusters().updatePeerClusterNames("r1", null);
         admin1.clusters().updatePeerClusterNames("r2", null);
         admin1.clusters().updatePeerClusterNames("r3", null);
@@ -166,7 +167,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.clusters().updatePeerClusterNames("r3", null);
 
         final String mainClusterName = "r1";
-        assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), null);
+        assertNull(admin1.clusters().getPeerClusterNames(mainClusterName));
         LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(Lists.newArrayList("r2", "r3"));
         admin1.clusters().updatePeerClusterNames(mainClusterName, peerClusters);
         retryStrategically((test) -> {

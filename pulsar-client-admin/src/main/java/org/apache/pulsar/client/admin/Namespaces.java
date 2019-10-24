@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -302,6 +303,20 @@ public interface Namespaces {
      *             Unexpected error
      */
     void deleteNamespaceBundle(String namespace, String bundleRange) throws PulsarAdminException;
+
+    /**
+     * Delete an existing bundle in a namespace asynchronously.
+     * <p>
+     * The bundle needs to be empty.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundleRange
+     *            range of the bundle
+     *
+     * @return a future that can be used to track when the bundle is deleted
+     */
+    CompletableFuture<Void> deleteNamespaceBundleAsync(String namespace, String bundleRange);
 
     /**
      * Get permissions on a namespace.
@@ -775,6 +790,13 @@ public interface Namespaces {
     void setBookieAffinityGroup(String namespace, BookieAffinityGroupData bookieAffinityGroup)
             throws PulsarAdminException;
     
+    /**
+     * Delete bookie affinity group configured for a namespace.
+     * 
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void deleteBookieAffinityGroup(String namespace) throws PulsarAdminException;
 
     /**
      * Get bookie affinity group configured for a namespace.
@@ -877,11 +899,23 @@ public interface Namespaces {
      * Unload namespace bundle
      *
      * @param namespace
-     * @bundle range of bundle to unload
+     * @param bundle
+     *           range of bundle to unload
      * @throws PulsarAdminException
      *             Unexpected error
      */
     void unloadNamespaceBundle(String namespace, String bundle) throws PulsarAdminException;
+
+    /**
+     * Unload namespace bundle asynchronously
+     *
+     * @param namespace
+     * @param bundle
+     *           range of bundle to unload
+     *
+     * @return a future that can be used to track when the bundle is unloaded
+     */
+    CompletableFuture<Void> unloadNamespaceBundleAsync(String namespace, String bundle);
 
     /**
      * Split namespace bundle
@@ -1007,6 +1041,16 @@ public interface Namespaces {
     void clearNamespaceBundleBacklog(String namespace, String bundle) throws PulsarAdminException;
 
     /**
+     * Clear backlog for all topics on a namespace bundle asynchronously
+     *
+     * @param namespace
+     * @param bundle
+     *
+     * @return a future that can be used to track when the bundle is cleared
+     */
+    CompletableFuture<Void> clearNamespaceBundleBacklogAsync(String namespace, String bundle);
+
+    /**
      * Clear backlog for a given subscription on all topics on a namespace bundle
      *
      * @param namespace
@@ -1017,6 +1061,18 @@ public interface Namespaces {
      */
     void clearNamespaceBundleBacklogForSubscription(String namespace, String bundle, String subscription)
             throws PulsarAdminException;
+
+    /**
+     * Clear backlog for a given subscription on all topics on a namespace bundle asynchronously
+     *
+     * @param namespace
+     * @param bundle
+     * @param subscription
+     *
+     * @return a future that can be used to track when the bundle is cleared
+     */
+    CompletableFuture<Void> clearNamespaceBundleBacklogForSubscriptionAsync(String namespace, String bundle,
+            String subscription);
 
     /**
      * Unsubscribes the given subscription on all topics on a namespace
@@ -1036,6 +1092,17 @@ public interface Namespaces {
      * @throws PulsarAdminException
      */
     void unsubscribeNamespaceBundle(String namespace, String bundle, String subscription) throws PulsarAdminException;
+
+    /**
+     * Unsubscribes the given subscription on all topics on a namespace bundle asynchronously
+     *
+     * @param namespace
+     * @param bundle
+     * @param subscription
+     *
+     * @return a future that can be used to track when the subscription is unsubscribed
+     */
+    CompletableFuture<Void> unsubscribeNamespaceBundleAsync(String namespace, String bundle, String subscription);
 
     /**
      * Set the encryption required status for all topics within a namespace.

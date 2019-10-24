@@ -38,6 +38,8 @@
         <include>**/pom.xml</include>
         <include>**/src/**</include>
         <include>**/pulsar-client-cpp/**</include>
+        <include>**/pulsar-client-go/**</include>
+        <include>**/pulsar-function-go/**</include>
         <include>**/conf/**</include>
         <include>**/bin/**</include>
         <include>**/*.txt</include>
@@ -76,6 +78,7 @@
         <exclude>**/python/dist/**</exclude>
         <exclude>**/pulsar-client-cpp/pkg/rpm/RPMS/**</exclude>
         <exclude>**/pulsar-client-cpp/pkg/rpm/SOURCES/**</exclude>
+        <exclude>**/pulsar-client-cpp/pkg/deb/BUILD/**</exclude>
         <exclude>**/python/wheelhouse/**</exclude>
         <exclude>**/python/MANIFEST</exclude>
         <exclude>**/*.egg-info/**</exclude>

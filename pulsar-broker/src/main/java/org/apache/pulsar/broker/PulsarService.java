@@ -28,9 +28,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
@@ -46,6 +49,9 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -73,6 +79,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -124,6 +131,8 @@ import org.slf4j.LoggerFactory;
  * Main class for Pulsar broker service
  */
 
+@Getter(AccessLevel.PUBLIC)
+@Setter(AccessLevel.PROTECTED)
 public class PulsarService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private ServiceConfiguration config = null;
@@ -168,6 +177,7 @@ public class PulsarService implements AutoCloseable {
     private final String brokerVersion;
     private SchemaRegistryService schemaRegistryService = null;
     private final Optional<WorkerService> functionWorkerService;
+    private ProtocolHandlers protocolHandlers = null;
 
     private final MessagingServiceShutdownHook shutdownService;
 
@@ -299,8 +309,12 @@ public class PulsarService implements AutoCloseable {
 
             offloaderManager.close();
 
-            state = State.Closed;
+            if (protocolHandlers != null) {
+                protocolHandlers.close();
+                protocolHandlers = null;
+            }
 
+            state = State.Closed;
         } catch (Exception e) {
             throw new PulsarServerException(e);
         } finally {
@@ -326,6 +340,14 @@ public class PulsarService implements AutoCloseable {
         return functionWorkerService.map(service -> service.getWorkerConfig());
     }
 
+    public Map<String, String> getProtocolDataToAdvertise() {
+        if (null == protocolHandlers) {
+            return Collections.emptyMap();
+        } else {
+            return protocolHandlers.getProtocolDataToAdvertise();
+        }
+    }
+
     /**
      * Start the pulsar service instance.
      */
@@ -343,6 +365,18 @@ public class PulsarService implements AutoCloseable {
             if (state != State.Init) {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
             }
+
+            if (!config.getWebServicePort().isPresent() && !config.getWebServicePortTls().isPresent()) {
+                throw new IllegalArgumentException("webServicePort/webServicePortTls must be present");
+            }
+
+            if (!config.getBrokerServicePort().isPresent() && !config.getBrokerServicePortTls().isPresent()) {
+                throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
+            }
+
+            // Initialize the message protocol handlers
+            protocolHandlers = ProtocolHandlers.load(config);
+            protocolHandlers.initialize(config);
 
             // Now we are ready to start services
             localZooKeeperConnectionProvider = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
@@ -433,6 +467,15 @@ public class PulsarService implements AutoCloseable {
 
             this.metricsGenerator = new MetricsGenerator(this);
 
+            // start the protocol handlers only after the broker is ready and before starting
+            // the load manager service. so that the protocol handlers can access broker service
+            // properly and advertise the protocol data together with Pulsar protocol data.
+            this.protocolHandlers.start(brokerService);
+
+            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
+                this.protocolHandlers.newChannelInitializers();
+            this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
+
             // By starting the Load manager service, the broker will also become visible
             // to the rest of the broker by creating the registration z-node. This needs
             // to be done only when the broker is fully operative.
@@ -445,9 +488,15 @@ public class PulsarService implements AutoCloseable {
             // start function worker service if necessary
             this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
 
-            LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
-                    config.getWebServicePort().get(), brokerServiceUrl, config.getClusterName(),
-                    ReflectionToStringBuilder.toString(config));
+            final String bootstrapMessage = "bootstrap service "
+                    + (config.getWebServicePort().isPresent() ? "port = " + config.getWebServicePort().get() : "")
+                    + (config.getWebServicePortTls().isPresent() ? "tls-port = " + config.getWebServicePortTls() : "")
+                    + (config.getBrokerServicePort().isPresent() ? "broker url= " + brokerServiceUrl : "")
+                    + (config.getBrokerServicePortTls().isPresent() ? "broker url= " + brokerServiceUrlTls : "");
+            LOG.info("messaging service is ready");
+
+            LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
+                    config.getClusterName(), ReflectionToStringBuilder.toString(config));
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
             throw new PulsarServerException(e);
@@ -456,7 +505,7 @@ public class PulsarService implements AutoCloseable {
         }
     }
 
-    private void startLeaderElectionService() {
+    protected void startLeaderElectionService() {
         this.leaderElectionService = new LeaderElectionService(this, new LeaderListener() {
             @Override
             public synchronized void brokerIsTheLeaderNow() {
@@ -490,7 +539,7 @@ public class PulsarService implements AutoCloseable {
         leaderElectionService.start();
     }
 
-    private void acquireSLANamespace() {
+    protected void acquireSLANamespace() {
         try {
             // Namespace not created hence no need to unload it
             String nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
@@ -539,7 +588,7 @@ public class PulsarService implements AutoCloseable {
         }
     }
 
-    private void startZkCacheService() throws PulsarServerException {
+    protected void startZkCacheService() throws PulsarServerException {
 
         LOG.info("starting configuration cache service");
 
@@ -559,7 +608,7 @@ public class PulsarService implements AutoCloseable {
         this.localZkCacheService = new LocalZooKeeperCacheService(getLocalZkCache(), this.configurationCacheService);
     }
 
-    private void startNamespaceService() throws PulsarServerException {
+    protected void startNamespaceService() throws PulsarServerException {
 
         LOG.info("Starting name space service, bootstrap namespaces=" + config.getBootstrapNamespaces());
 
@@ -570,7 +619,7 @@ public class PulsarService implements AutoCloseable {
         return () -> new NamespaceService(PulsarService.this);
     }
 
-    private void startLoadManagementService() throws PulsarServerException {
+    protected void startLoadManagementService() throws PulsarServerException {
         LOG.info("Starting load management service ...");
         this.loadManager.get().start();
 
@@ -600,7 +649,7 @@ public class PulsarService implements AutoCloseable {
             List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
             long topicLoadStart = System.nanoTime();
 
-            for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)) {
+            for (String topic : getNamespaceService().getListOfPersistentTopics(nsName).join()) {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName)) {
@@ -694,7 +743,7 @@ public class PulsarService implements AutoCloseable {
     public ManagedLedgerClientFactory getManagedLedgerClientFactory() {
         return managedLedgerClientFactory;
     }
-    
+
     public LedgerOffloader getManagedLedgerOffloader() {
         return offloader;
     }
@@ -837,7 +886,7 @@ public class PulsarService implements AutoCloseable {
                     builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                 }
-                
+
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on
                 // zk-operation timeout
                 builder.readTimeout(conf.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
@@ -917,40 +966,12 @@ public class PulsarService implements AutoCloseable {
         return String.format("https://%s:%d", host, port);
     }
 
-    public String getBindAddress() {
-        return bindAddress;
+    public String getSafeWebServiceAddress() {
+        return webServiceAddress != null ? webServiceAddress : webServiceAddressTls;
     }
 
-    public String getAdvertisedAddress() {
-        return advertisedAddress;
-    }
-
-    public String getWebServiceAddress() {
-        return webServiceAddress;
-    }
-
-    public String getWebServiceAddressTls() {
-        return webServiceAddressTls;
-    }
-
-    public String getBrokerServiceUrl() {
-        return brokerServiceUrl;
-    }
-
-    public String getBrokerServiceUrlTls() {
-        return brokerServiceUrlTls;
-    }
-
-    public AtomicReference<LoadManager> getLoadManager() {
-        return loadManager;
-    }
-
-    public String getBrokerVersion() {
-        return brokerVersion;
-    }
-
-    public SchemaRegistryService getSchemaRegistryService() {
-        return schemaRegistryService;
+    public String getSafeBrokerServiceUrl() {
+        return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
     }
 
     private void startWorkerService(AuthenticationService authenticationService,
@@ -994,7 +1015,7 @@ public class PulsarService implements AutoCloseable {
             // create cluster for function worker service
             try {
                 NamedEntity.checkName(cluster);
-                ClusterData clusterData = new ClusterData(this.getWebServiceAddress(), null /* serviceUrlTls */,
+                ClusterData clusterData = new ClusterData(this.getSafeWebServiceAddress(), null /* serviceUrlTls */,
                         brokerServiceUrl, null /* brokerServiceUrlTls */);
                 this.getGlobalZkCache().getZooKeeper().create(
                         AdminResource.path("clusters", cluster),

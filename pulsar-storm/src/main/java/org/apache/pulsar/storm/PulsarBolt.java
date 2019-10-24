@@ -91,6 +91,7 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
         this.producerConf = producerConf;
         this.clientConf.setServiceUrl(pulsarBoltConf.getServiceUrl());
         this.producerConf.setTopicName(pulsarBoltConf.getTopic());
+        this.producerConf.setBatcherBuilder(null);
     }
     
     @SuppressWarnings({ "rawtypes" })

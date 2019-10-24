@@ -187,7 +187,7 @@ public class WebService implements AutoCloseable {
 
             server.start();
 
-            log.info("Web Service started at {}", pulsar.getWebServiceAddress());
+            log.info("Web Service started at {}", pulsar.getSafeWebServiceAddress());
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }

@@ -24,10 +24,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -315,7 +313,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // (5.1) Validate: active-consumer must be empty
         assertFalse(ledger.getActiveCursors().iterator().hasNext());
         // (5.2) Validate: Entry-cache must be cleared
-        assertTrue(entryCache.getSize() == 0);
+        assertEquals(entryCache.getSize(), 0);
 
     }
 
@@ -556,7 +554,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         pulsarClient.newProducer().topic(topic).create();
         pulsarClient.close();
 
-        assertTrue(pulsar.getBrokerService().getTopicReference(topic) != null);
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topic));
         assertTrue(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers()
                 .containsKey(topicName.getPersistenceNamingEncoding()));
 
@@ -763,6 +761,53 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         runGC();
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // 4. Topic can be GCed after unsubscribe
+        admin.topics().deleteSubscription(topicName, subName);
+
+        runGC();
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+    }
+
+    /**
+     * Set retention policy in default configuration.
+     * It should be effective.
+     */
+    @Test
+    public void testServiceConfigurationRetentionPolicy() throws Exception {
+        // set retention policy in service configuration
+        pulsar.getConfiguration().setDefaultRetentionSizeInMB(-1);
+        pulsar.getConfiguration().setDefaultRetentionTimeInMinutes(-1);
+
+        String namespaceName = "prop/ns-default-retention-policy";
+        admin.namespaces().createNamespace(namespaceName);
+
+        // 1. Simple successful GC
+        String topicName = "persistent://prop/ns-abc/topic-10";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        runGC();
+        // Should not have been deleted, since we have retention
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        // Remove retention
+        admin.namespaces().setRetention("prop/ns-abc", new RetentionPolicies(0, 10));
+        Thread.sleep(300);
+
+        // 2. Topic is not GCed with live connection
+        String subName = "sub1";
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+
+        runGC();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        // 3. Topic with subscription is not GCed even with no connections
+        consumer.close();
+
+        runGC();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 4. Topic can be GCed after unsubscribe
         admin.topics().deleteSubscription(topicName, subName);
@@ -1307,7 +1352,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String subName = "sub2";
 
         Message<String> msg;
-        int totalMessages = 10;
+        List<Message<String>> unackedMessages = new ArrayList<>();
+        int totalMessages = 20;
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
@@ -1326,12 +1372,11 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             producer.send("my-message-" + i);
         }
 
-        // (2) Consume and ack messages except first message
-        Message<String> unAckedMsg = null;
+        // (2) Consume and only ack last 10 messages
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer.receive();
-            if (i == 0) {
-                unAckedMsg = msg;
+            if (i >= 10) {
+                unackedMessages.add(msg);
             } else {
                 consumer.acknowledge(msg);
             }
@@ -1339,13 +1384,17 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         consumer.redeliverUnacknowledgedMessages();
 
-        // Verify: msg [L:0] must be redelivered
-        try {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
-            assertEquals(msg.getValue(), unAckedMsg.getValue());
-        } catch (Exception e) {
-            fail("msg should be redelivered ", e);
+        for (int i = 0; i < 10; i++) {
+            // Verify: msg [L:0] must be redelivered
+            try {
+                final Message<String> redeliveredMsg = consumer.receive(1, TimeUnit.SECONDS);
+                unackedMessages.removeIf(unackedMessage -> unackedMessage.getValue().equals(redeliveredMsg.getValue()));
+            } catch (Exception e) {
+                fail("msg should be redelivered ", e);
+            }
         }
+        // Make sure that first 10 messages that we didn't acknowledge get redelivered.
+        assertEquals(unackedMessages.size(), 0);
 
         // Verify no other messages are redelivered
         msg = consumer.receive(100, TimeUnit.MILLISECONDS);
