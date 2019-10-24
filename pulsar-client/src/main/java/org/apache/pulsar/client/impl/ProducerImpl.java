@@ -468,10 +468,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
                     msg.getDataBuffer().readableBytes());
         }
-        batchMessageAndSend();
-        batchMessageContainer.add(msg, callback);
-        lastSendFuture = callback.getFuture();
-        payload.release();
+        try {
+            batchMessageAndSend();
+            batchMessageContainer.add(msg, callback);
+            lastSendFuture = callback.getFuture();
+        } finally {
+            payload.release();
+        }
     }
 
     private boolean isValidProducerState(SendCallback callback) {
