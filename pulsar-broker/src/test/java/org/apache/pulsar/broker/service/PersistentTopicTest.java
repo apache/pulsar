@@ -647,8 +647,8 @@ public class PersistentTopicTest {
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
         when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
+                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(policies);
 
         testMaxConsumersShared();
     }
@@ -737,10 +737,10 @@ public class PersistentTopicTest {
         Policies policies = new Policies();
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
 
+        when(pulsar.getConfigurationCache().policiesCache()
+                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(policies);
         testMaxConsumersFailover();
     }
 

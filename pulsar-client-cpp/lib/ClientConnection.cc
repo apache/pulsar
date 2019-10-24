@@ -669,9 +669,12 @@ void ClientConnection::handleIncomingCommand() {
                     const CommandSendReceipt& sendReceipt = incomingCmd_.send_receipt();
                     int producerId = sendReceipt.producer_id();
                     uint64_t sequenceId = sendReceipt.sequence_id();
+                    const proto::MessageIdData& messageIdData = sendReceipt.message_id();
+                    MessageId messageId = MessageId(messageIdData.partition(), messageIdData.ledgerid(),
+                                                    messageIdData.entryid(), messageIdData.batch_index());
 
                     LOG_DEBUG(cnxString_ << "Got receipt for producer: " << producerId
-                                         << " -- msg: " << sequenceId);
+                                         << " -- msg: " << sequenceId << "-- message id: " << messageId);
 
                     Lock lock(mutex_);
                     ProducersMap::iterator it = producers_.find(producerId);
@@ -680,7 +683,7 @@ void ClientConnection::handleIncomingCommand() {
                         lock.unlock();
 
                         if (producer) {
-                            if (!producer->ackReceived(sequenceId)) {
+                            if (!producer->ackReceived(sequenceId, messageId)) {
                                 // If the producer fails to process the ack, we need to close the connection
                                 // to give it a chance to recover from there
                                 close();
