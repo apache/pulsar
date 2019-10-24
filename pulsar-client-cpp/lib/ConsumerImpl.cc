@@ -837,8 +837,12 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
+    LOG_INFO(getName() << "Closing consumer for topic " << topic_);
+    state_ = Closing;
+
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
+        state_ = Closed;
         lock.unlock();
         // If connection is gone, also the consumer is closed on the broker side
         if (callback) {
@@ -847,9 +851,9 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
-    LOG_INFO(getName() << "Closing consumer for topic " << topic_);
     ClientImplPtr client = client_.lock();
     if (!client) {
+        state_ = Closed;
         lock.unlock();
         // Client was already destroyed
         if (callback) {
