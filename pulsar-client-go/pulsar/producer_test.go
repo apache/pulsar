@@ -388,3 +388,31 @@ func TestProducer_Batch(t *testing.T) {
 		assert.Equal(t, 1, num)
 	}
 }
+
+func TestProducer_SendAndGetMsgID(t *testing.T) {
+	client, err := NewClient(ClientOptions{
+		URL: "pulsar://localhost:6650",
+	})
+	assert.Nil(t, err)
+	defer client.Close()
+
+	topicName := "test-send-with-message-id"
+	producer, err := client.CreateProducer(ProducerOptions{
+		Topic: topicName,
+	})
+	assert.Nil(t, err)
+	defer producer.Close()
+
+	for i := 0; i < 10; i++ {
+		msgID, err := producer.SendAndGetMsgID(context.Background(), ProducerMessage{
+			Payload: []byte(fmt.Sprintf("async-message-%d", i)),
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Printf("enable batch, the message id: %v\n", msgID)
+
+		assert.NotNil(t, IsNil(msgID))
+	}
+}

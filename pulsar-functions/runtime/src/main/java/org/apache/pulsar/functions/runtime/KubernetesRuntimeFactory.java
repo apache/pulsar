@@ -34,8 +34,8 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
-import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -96,6 +96,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private CoreV1Api coreClient;
     private Resources functionInstanceMinResources;
     private final boolean authenticationEnabled;
+    private Optional<KubernetesFunctionAuthProvider> authProvider;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -121,7 +122,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String changeConfigMapNamespace,
                                     Resources functionInstanceMinResources,
                                     SecretsProviderConfigurator secretsProviderConfigurator,
-                                    boolean authenticationEnabled) {
+                                    boolean authenticationEnabled,
+                                    Optional<FunctionAuthProvider> functionAuthProvider) {
         this.kubernetesInfo = new KubernetesInfo();
         this.kubernetesInfo.setK8Uri(k8Uri);
         if (!isEmpty(jobNamespace)) {
@@ -181,6 +183,21 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             log.error("Failed to setup client", e);
             throw new RuntimeException(e);
         }
+
+        if (functionAuthProvider.isPresent()) {
+            if (!(functionAuthProvider.get() instanceof KubernetesFunctionAuthProvider)) {
+                throw new IllegalArgumentException("Function authentication provider "
+                        + functionAuthProvider.get().getClass().getName() + " must implement KubernetesFunctionAuthProvider");
+            } else {
+                KubernetesFunctionAuthProvider kubernetesFunctionAuthProvider = (KubernetesFunctionAuthProvider) functionAuthProvider.get();
+                kubernetesFunctionAuthProvider.initialize(coreClient, jobNamespace);
+                this.authProvider = Optional.of(kubernetesFunctionAuthProvider);
+            }
+        } else {
+            this.authProvider = Optional.empty();
+        }
+
+
     }
 
     @Override
@@ -207,9 +224,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
 
         // adjust the auth config to support auth
-        if (authenticationEnabled) {
-            getAuthProvider().configureAuthenticationConfig(authConfig,
-                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
+        if (authenticationEnabled ) {
+            authProvider.ifPresent(kubernetesFunctionAuthProvider ->
+                    kubernetesFunctionAuthProvider.configureAuthenticationConfig(authConfig,
+                            Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
+
         }
 
         return new KubernetesRuntime(
@@ -238,7 +257,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.kubernetesInfo.getPercentMemoryPadding(),
             this.kubernetesInfo.getCpuOverCommitRatio(),
             this.kubernetesInfo.getMemoryOverCommitRatio(),
-            getAuthProvider(),
+            authProvider,
             authenticationEnabled);
     }
 
@@ -341,7 +360,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public KubernetesFunctionAuthProvider getAuthProvider() {
-        return new KubernetesSecretsTokenAuthProvider(coreClient, kubernetesInfo.jobNamespace);
+    public Optional<FunctionAuthProvider> getAuthProvider() {
+        return Optional.ofNullable(authProvider.orElse(null));
     }
 }
