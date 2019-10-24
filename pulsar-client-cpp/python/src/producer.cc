@@ -29,7 +29,7 @@ void Producer_send(Producer& producer, const Message& message) {
     CHECK_RESULT(res);
 }
 
-void Producer_sendAsyncCallback(PyObject* callback, Result res, const Message& msg) {
+void Producer_sendAsyncCallback(PyObject* callback, Result res, const MessageId& msgId) {
     if (callback == Py_None) {
         return;
     }
@@ -37,7 +37,7 @@ void Producer_sendAsyncCallback(PyObject* callback, Result res, const Message& m
     PyGILState_STATE state = PyGILState_Ensure();
 
     try {
-        py::call<void>(callback, res, py::object(&msg));
+        py::call<void>(callback, res, py::object(&msgId));
     } catch (py::error_already_set e) {
         PyErr_Print();
     }

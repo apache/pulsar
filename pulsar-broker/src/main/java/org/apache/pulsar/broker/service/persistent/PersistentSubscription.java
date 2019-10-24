@@ -244,7 +244,22 @@ public class PersistentSubscription implements Subscription {
 
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well
-                close();
+                this.close().thenRun(() -> {
+                    synchronized (this) {
+                        if (dispatcher != null) {
+                            dispatcher.close().thenRun(() -> {
+                                log.info("[{}][{}] Successfully closed dispatcher for reader", topicName, subName);
+                            }).exceptionally(ex -> {
+                                log.error("[{}][{}] Failed to close dispatcher for reader", topicName, subName, ex);
+                                return null;
+                            });
+                        }
+                    }
+                }).exceptionally(exception -> {
+                    log.error("[{}][{}] Failed to close subscription for reader", topicName, subName, exception);
+                    return null;
+                });
+
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
                 topic.getBrokerService().pulsar().getExecutor().submit(() ->{
