@@ -2867,7 +2867,7 @@ void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
     Consumer consumer;
     ConsumerConfiguration conf;
     conf.setNegativeAckRedeliveryDelayMs(100);
-    Result result = client.subscribe(topic, "test", consumer);
+    Result result = client.subscribe(topic, "test", conf, consumer);
     ASSERT_EQ(ResultOk, result);
 
     Producer producer;
