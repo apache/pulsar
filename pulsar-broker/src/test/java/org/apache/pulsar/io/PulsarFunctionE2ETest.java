@@ -24,6 +24,7 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpServer;
 import lombok.ToString;
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -202,6 +203,7 @@ public class PulsarFunctionE2ETest {
         urlTls = new URL(brokerServiceUrl);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
         pulsar = new PulsarService(config, functionWorkerService);
+        pulsar.setShutdownService(new NoOpShutdownService());
         pulsar.start();
 
         Map<String, String> authParams = new HashMap<>();
@@ -312,7 +314,7 @@ public class PulsarFunctionE2ETest {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
-        
+
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
@@ -1063,7 +1065,7 @@ public class PulsarFunctionE2ETest {
         // get stats after producing
         functionStats = functionRuntimeManager.getFunctionStats(tenant, namespacePortion,
                 functionName, null);
-        
+
         functionStatsFromAdmin = admin.functions().getFunctionStats(tenant, namespacePortion,
                 functionName);
 

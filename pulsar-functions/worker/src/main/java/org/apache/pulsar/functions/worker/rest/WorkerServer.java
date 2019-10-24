@@ -161,6 +161,7 @@ public class WorkerServer {
     public void stop() {
         if (this.server != null) {
             try {
+                this.server.stop();
                 this.server.destroy();
             } catch (Exception e) {
                 log.error("Failed to stop function web-server ", e);

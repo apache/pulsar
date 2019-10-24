@@ -117,6 +117,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -1072,6 +1073,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         producer.close();
+        executorService.shutdownNow();
     }
 
     @Test
@@ -1702,6 +1704,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer().topic("persistent://prop-xyz/use/ns1/ds2")

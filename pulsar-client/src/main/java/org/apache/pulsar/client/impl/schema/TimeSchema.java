@@ -32,11 +32,16 @@ public class TimeSchema extends AbstractSchema<Time> {
       return INSTANCE;
    }
 
-   private static final TimeSchema INSTANCE = new TimeSchema();
-   private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-         .setName("Time")
-         .setType(SchemaType.TIME)
-         .setSchema(new byte[0]);
+   private static final TimeSchema INSTANCE;
+   private static final SchemaInfo SCHEMA_INFO;
+
+   static {
+       SCHEMA_INFO = new SchemaInfo()
+             .setName("Time")
+             .setType(SchemaType.TIME)
+             .setSchema(new byte[0]);
+       INSTANCE = new TimeSchema();
+   }
 
    @Override
    public byte[] encode(Time message) {
