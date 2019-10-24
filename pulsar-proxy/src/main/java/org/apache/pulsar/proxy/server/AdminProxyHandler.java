@@ -20,9 +20,14 @@ package org.apache.pulsar.proxy.server;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
@@ -30,6 +35,7 @@ import javax.net.ssl.SSLContext;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
@@ -42,6 +48,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpRequest;
 import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
+import org.eclipse.jetty.client.api.ContentProvider;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.proxy.ProxyServlet;
@@ -133,6 +140,33 @@ class AdminProxyHandler extends ProxyServlet {
     }
 
 
+    // This class allows the request body to be replayed, the default implementation
+    // does not
+    protected class ReplayableProxyContentProvider extends ProxyInputStreamContentProvider {
+        private Boolean firstIteratorCalled = false;
+        private final ByteArrayOutputStream bodyBuffer;
+        protected ReplayableProxyContentProvider(HttpServletRequest request, HttpServletResponse response, Request proxyRequest, InputStream input) {
+            super(request, response, proxyRequest, input);
+            bodyBuffer = new ByteArrayOutputStream(request.getContentLength());
+        }
+
+        @Override
+        public Iterator<ByteBuffer> iterator() {
+            if (firstIteratorCalled) {
+                return Collections.singleton(ByteBuffer.wrap(bodyBuffer.toByteArray())).iterator();
+            } else {
+                firstIteratorCalled = true;
+                return super.iterator();
+            }
+        }
+
+        @Override
+        protected ByteBuffer onRead(byte[] buffer, int offset, int length) {
+            bodyBuffer.write(buffer, offset, length);
+            return super.onRead(buffer, offset, length);
+        }
+    }
+
     private static class JettyHttpClient extends HttpClient {
         public JettyHttpClient() {
             super();
@@ -157,6 +191,12 @@ class AdminProxyHandler extends ProxyServlet {
             return newRequest;
         }
 
+    }
+
+    @Override
+    protected ContentProvider proxyRequestContent(HttpServletRequest request,
+                                                  HttpServletResponse response, Request proxyRequest) throws IOException {
+        return new ReplayableProxyContentProvider(request, response, proxyRequest, request.getInputStream());
     }
 
     @Override
