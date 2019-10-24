@@ -80,8 +80,8 @@
                   <workingDirectory>${project.basedir}/target</workingDirectory>
                   <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
                   <arguments>
-                    <!-- build python 3.5 -->
-                    <argument>3.5 cp35-cp35m</argument>
+                    <!-- build python 3.7 -->
+                    <argument>3.7 cp37-cp37m</argument>
                   </arguments>
                 </configuration>
               </execution>

@@ -284,7 +284,7 @@ message CommandSubscribe {
         Latest   = 0;
         Earliest = 1;
     }
-    // Signal wthether the subscription will initialize on latest
+    // Signal whether the subscription will initialize on latest
     // or not -- earliest
     optional InitialPosition initialPosition = 13 [default = Latest];
 
@@ -299,6 +299,10 @@ message CommandSubscribe {
     // If false, the subscribe operation will fail if the topic 
     // does not exist.
     optional bool force_topic_creation = 15 [default = true];
+
+    // If specified, the subscription will reset cursor's position back 
+    // to specified seconds and  will send messages from that point
+    optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
 }
 
 message CommandPartitionedTopicMetadata {

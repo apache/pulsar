@@ -118,6 +118,7 @@ import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
+import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -154,8 +155,7 @@ public class PulsarService implements AutoCloseable {
             new DefaultThreadFactory("pulsar"));
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
             new DefaultThreadFactory("zk-cache-callback"));
-    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("pulsar-ordered")
-            .build();
+    private OrderedExecutor orderedExecutor;
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
@@ -179,7 +179,7 @@ public class PulsarService implements AutoCloseable {
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
 
-    private final MessagingServiceShutdownHook shutdownService;
+    private ShutdownService shutdownService;
 
     private MetricsGenerator metricsGenerator;
 
@@ -295,7 +295,9 @@ public class PulsarService implements AutoCloseable {
                 executor.shutdown();
             }
 
-            orderedExecutor.shutdown();
+            if (orderedExecutor != null) {
+                orderedExecutor.shutdown();
+            }
             cacheExecutor.shutdown();
 
             LoadManager loadManager = this.loadManager.get();
@@ -373,6 +375,9 @@ public class PulsarService implements AutoCloseable {
             if (!config.getBrokerServicePort().isPresent() && !config.getBrokerServicePortTls().isPresent()) {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
             }
+
+            orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("pulsar-ordered")
+                    .build();
 
             // Initialize the message protocol handlers
             protocolHandlers = ProtocolHandlers.load(config);
@@ -905,7 +910,11 @@ public class PulsarService implements AutoCloseable {
         return metricsGenerator;
     }
 
-    public MessagingServiceShutdownHook getShutdownService() {
+    public void setShutdownService(ShutdownService shutdownService) {
+        this.shutdownService = shutdownService;
+    }
+
+    public ShutdownService getShutdownService() {
         return shutdownService;
     }
 

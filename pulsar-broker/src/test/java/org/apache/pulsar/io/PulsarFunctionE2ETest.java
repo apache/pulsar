@@ -24,6 +24,7 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpServer;
 import lombok.ToString;
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -202,6 +203,7 @@ public class PulsarFunctionE2ETest {
         urlTls = new URL(brokerServiceUrl);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
         pulsar = new PulsarService(config, functionWorkerService);
+        pulsar.setShutdownService(new NoOpShutdownService());
         pulsar.start();
 
         Map<String, String> authParams = new HashMap<>();
@@ -1574,7 +1576,7 @@ public class PulsarFunctionE2ETest {
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
         // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.]+)(\\s(\\d+))?$");
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
         Arrays.asList(metrics.split("\n")).forEach(line -> {
             if (line.isEmpty() || line.startsWith("#")) {

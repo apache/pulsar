@@ -54,6 +54,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -66,6 +67,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -73,6 +75,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -139,10 +142,14 @@ public class PersistentTopicTest {
     final String successSubName3 = "successSub3";
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
+    private OrderedExecutor executor;
+
     @BeforeMethod
     public void setup() throws Exception {
+        executor = OrderedExecutor.newBuilder().numThreads(1).build();
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
+        pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
 
@@ -151,7 +158,7 @@ public class PersistentTopicTest {
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
-        doReturn(createMockBookKeeper(mockZk, pulsar.getOrderedExecutor().chooseThread(0)))
+        doReturn(createMockBookKeeper(mockZk, ForkJoinPool.commonPool()))
             .when(pulsar).getBookKeeperClient();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);
@@ -170,6 +177,7 @@ public class PersistentTopicTest {
         doReturn(zkDataCache).when(zkCache).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
+        doReturn(executor).when(pulsar).getOrderedExecutor();
 
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -197,6 +205,8 @@ public class PersistentTopicTest {
             log.warn("Failed to close pulsar service", e);
             throw e;
         }
+
+        executor.shutdownNow();
     }
 
     @Test
@@ -432,7 +442,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false);
+                0 /*avoid reseting cursor*/, false);
         try {
             f1.get();
             fail("should fail with exception");
@@ -452,13 +462,13 @@ public class PersistentTopicTest {
         // 1. simple subscribe
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false);
+                0 /*avoid reseting cursor*/,false);
         f1.get();
 
         // 2. duplicate subscribe
         Future<Consumer> f2 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false);
+                0 /*avoid reseting cursor*/,false);
 
         try {
             f2.get();
@@ -537,6 +547,30 @@ public class PersistentTopicTest {
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.ServerMetadataException);
         }
+    }
+
+    @Test
+    public void testAddRemoveConsumerDurableCursor() throws Exception {
+        doReturn(false).when(cursorMock).isDurable();
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub = new PersistentSubscription(topic, "non-durable-sub", cursorMock, false);
+
+        Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest);
+
+        sub.addConsumer(consumer);
+        assertFalse(sub.getDispatcher().isClosed());
+        sub.removeConsumer(consumer);
+
+        // The dispatcher is closed asynchronously
+        for (int i = 0; i < 100; i++) {
+            if (sub.getDispatcher().isClosed()) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        assertTrue(sub.getDispatcher().isClosed());
     }
 
     public void testMaxConsumersShared() throws Exception {
@@ -623,8 +657,8 @@ public class PersistentTopicTest {
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
         when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
+                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(policies);
 
         testMaxConsumersShared();
     }
@@ -713,10 +747,10 @@ public class PersistentTopicTest {
         Policies policies = new Policies();
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
 
+        when(pulsar.getConfigurationCache().policiesCache()
+                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(policies);
         testMaxConsumersFailover();
     }
 
@@ -778,7 +812,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */);
         f1.get();
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -794,7 +828,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -849,7 +883,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -937,7 +971,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */);
 
         try {
             f.get();
@@ -1067,7 +1101,7 @@ public class PersistentTopicTest {
         Future<Consumer> f1 = topic1.subscribe(serverCnx, cmd1.getSubscription(), cmd1.getConsumerId(),
                 cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.getDurable(), null, Collections.emptyMap(),
                 cmd1.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */);
         f1.get();
 
         // 2. Subscribe with partition topic
@@ -1080,7 +1114,7 @@ public class PersistentTopicTest {
         Future<Consumer> f2 = topic2.subscribe(serverCnx, cmd2.getSubscription(), cmd2.getConsumerId(),
                 cmd2.getSubType(), 0, cmd2.getConsumerName(), cmd2.getDurable(), null, Collections.emptyMap(),
                 cmd2.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */);
         f2.get();
 
         // 3. Subscribe and create second consumer
@@ -1091,7 +1125,7 @@ public class PersistentTopicTest {
         Future<Consumer> f3 = topic2.subscribe(serverCnx, cmd3.getSubscription(), cmd3.getConsumerId(),
                 cmd3.getSubType(), 0, cmd3.getConsumerName(), cmd3.getDurable(), null, Collections.emptyMap(),
                 cmd3.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */);
         f3.get();
 
         assertEquals(
@@ -1113,7 +1147,7 @@ public class PersistentTopicTest {
         Future<Consumer> f4 = topic2.subscribe(serverCnx, cmd4.getSubscription(), cmd4.getConsumerId(),
                 cmd4.getSubType(), 0, cmd4.getConsumerName(), cmd4.getDurable(), null, Collections.emptyMap(),
                 cmd4.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */);
         f4.get();
 
         assertEquals(
@@ -1140,7 +1174,7 @@ public class PersistentTopicTest {
         Future<Consumer> f5 = topic2.subscribe(serverCnx, cmd5.getSubscription(), cmd5.getConsumerId(),
                 cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.getDurable(), null, Collections.emptyMap(),
                 cmd5.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */);
 
         try {
             f5.get();
@@ -1158,7 +1192,7 @@ public class PersistentTopicTest {
         Future<Consumer> f6 = topic2.subscribe(serverCnx, cmd6.getSubscription(), cmd6.getConsumerId(),
                 cmd6.getSubType(), 0, cmd6.getConsumerName(), cmd6.getDurable(), null, Collections.emptyMap(),
                 cmd6.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */);
         f6.get();
 
         // 7. unsubscribe exclusive sub

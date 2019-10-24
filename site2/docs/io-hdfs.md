@@ -7,7 +7,7 @@ sidebar_label: Hdfs Connector
 ## Sink
 
 The Hdfs Sink Connector is used to pull messages from Pulsar topics and persist the messages
-to an hdfs file.
+to a hdfs file.
 
 ## Sink Configuration Options
 

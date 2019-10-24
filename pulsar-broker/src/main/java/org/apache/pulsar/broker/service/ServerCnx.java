@@ -340,40 +340,41 @@ public class ServerCnx extends PulsarHandler {
             }
             String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
-                    if (isProxyAuthorized) {
+                if (isProxyAuthorized) {
                     getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                                                authRole, finalOriginalPrincipal, authenticationData,
+                            authRole, finalOriginalPrincipal, authenticationData,
                             topicName).handle((metadata, ex) -> {
-                                    if (ex == null) {
-                                        int partitions = metadata.partitions;
-                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
+                                if (ex == null) {
+                                    int partitions = metadata.partitions;
+                                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
+                                } else {
+                                    if (ex instanceof PulsarClientException) {
+                                        log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
+                                                remoteAddress, topicName, ex.getMessage());
+                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
+                                                ServerError.AuthorizationError, ex.getMessage(), requestId));
                                     } else {
-                                        if (ex instanceof PulsarClientException) {
-                                            log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
-                                                    remoteAddress, topicName, ex.getMessage());
-                                            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
-                                                    ServerError.AuthorizationError, ex.getMessage(), requestId));
-                                        } else {
-                                            log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
-                                                    topicName, ex.getMessage(), ex);
-                                            ServerError error = (ex instanceof RestException)
-                                                    && ((RestException) ex).getResponse().getStatus() < 500
-                                                            ? ServerError.MetadataError : ServerError.ServiceNotReady;
-                                            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(error,
-                                                    ex.getMessage(), requestId));
-                                        }
+                                        log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
+                                                topicName, ex.getMessage(), ex);
+                                        ServerError error = (ex instanceof RestException)
+                                                && ((RestException) ex).getResponse().getStatus() < 500
+                                                        ? ServerError.MetadataError
+                                                        : ServerError.ServiceNotReady;
+                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(error,
+                                                ex.getMessage(), requestId));
                                     }
-                                    lookupSemaphore.release();
-                                    return null;
-                                });
-                    } else {
-                        final String msg = "Proxy Client is not authorized to Get Partition Metadata";
-                        log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
-                        ctx.writeAndFlush(
-                                Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
-                        lookupSemaphore.release();
-                    }
-                    return null;
+                                }
+                                lookupSemaphore.release();
+                                return null;
+                            });
+                } else {
+                    final String msg = "Proxy Client is not authorized to Get Partition Metadata";
+                    log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
+                    ctx.writeAndFlush(
+                            Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
+                    lookupSemaphore.release();
+                }
+                return null;
             }).exceptionally(ex -> {
                 final String msg = "Exception occured while trying to authorize get Partition Metadata";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
@@ -610,6 +611,9 @@ public class ServerCnx extends PulsarHandler {
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
+        final long startMessageRollbackDurationSec = subscribe.hasStartMessageRollbackDurationSec()
+                ? subscribe.getStartMessageRollbackDurationSec()
+                : -1;
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
         final boolean forceTopicCreation = subscribe.getForceTopicCreation();
@@ -697,7 +701,7 @@ public class ServerCnx extends PulsarHandler {
                                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                                 subType, priorityLevel, consumerName, isDurable,
                                                                 startMessageId, metadata,
-                                                                readCompacted, initialPosition, isReplicated);
+                                                                readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated);
                                                     } else {
                                                         return FutureUtil.failedFuture(
                                                                 new IncompatibleSchemaException(
@@ -709,7 +713,7 @@ public class ServerCnx extends PulsarHandler {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
                                             startMessageId, metadata, readCompacted, initialPosition,
-                                            isReplicated);
+                                            startMessageRollbackDurationSec, isReplicated);
                                     }
                                 })
                                 .thenAccept(consumer -> {
