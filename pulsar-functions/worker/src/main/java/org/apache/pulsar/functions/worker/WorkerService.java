@@ -252,7 +252,7 @@ public class WorkerService {
         if (null != this.brokerAdmin) {
             this.brokerAdmin.close();
         }
-        
+
         if (null != this.functionAdmin) {
             this.functionAdmin.close();
         }
@@ -264,9 +264,13 @@ public class WorkerService {
         if (null != this.dlogNamespace) {
             this.dlogNamespace.close();
         }
-        
+
         if(this.executor != null) {
             this.executor.shutdown();
+        }
+
+        if (this.statsUpdater != null) {
+            statsUpdater.shutdownNow();
         }
     }
 
