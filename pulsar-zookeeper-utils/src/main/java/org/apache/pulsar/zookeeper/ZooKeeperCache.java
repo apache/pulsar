@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
@@ -89,24 +90,35 @@ public abstract class ZooKeeperCache implements Watcher {
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
-    public ZooKeeperCache(ZooKeeper zkSession, int zkOperationTimeoutSeconds, OrderedExecutor executor) {
+    public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds, OrderedExecutor executor) {
         checkNotNull(executor);
         this.zkOperationTimeoutSeconds = zkOperationTimeoutSeconds;
         this.executor = executor;
         this.zkSession.set(zkSession);
         this.shouldShutdownExecutor = false;
 
-        this.dataCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+        this.dataCache = Caffeine.newBuilder()
+                .recordStats()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
                 .buildAsync((key, executor1) -> null);
 
-        this.childrenCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+        this.childrenCache = Caffeine.newBuilder()
+                .recordStats()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
                 .buildAsync((key, executor1) -> null);
-        this.existsCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+
+        this.existsCache = Caffeine.newBuilder()
+                .recordStats()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
                 .buildAsync((key, executor1) -> null);
+
+        CacheMetricsCollector.CAFFEINE.addCache(cacheName + "-data", dataCache);
+        CacheMetricsCollector.CAFFEINE.addCache(cacheName + "-children", childrenCache);
+        CacheMetricsCollector.CAFFEINE.addCache(cacheName + "-exists", existsCache);
     }
 
-    public ZooKeeperCache(ZooKeeper zkSession, int zkOperationTimeoutSeconds) {
-        this(zkSession, zkOperationTimeoutSeconds,
+    public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds) {
+        this(cacheName, zkSession, zkOperationTimeoutSeconds,
                 OrderedExecutor.newBuilder().name("zk-cache-callback-executor").build());
         this.shouldShutdownExecutor = true;
     }
