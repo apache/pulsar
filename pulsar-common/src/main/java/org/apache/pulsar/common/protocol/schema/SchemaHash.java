@@ -21,14 +21,14 @@ package org.apache.pulsar.common.protocol.schema;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-
+import java.util.Optional;
 import lombok.EqualsAndHashCode;
-
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
-import java.util.Optional;
-
+/**
+ * Schema hash wrapper with a HashCode inner type.
+ */
 @EqualsAndHashCode
 public class SchemaHash {
 
