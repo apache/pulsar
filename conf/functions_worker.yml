@@ -111,8 +111,8 @@ functionRuntimeFactoryConfigs:
 
 #functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory
 #functionRuntimeFactoryConfigs:
-#    # thread group name
-#    threadGroupName: "Thread Function Container Group"
+#  # thread group name
+#  threadGroupName: "Thread Function Container Group"
 
 #### Kubernetes Runtime ####
 # Pulsar function are deployed to Kubernetes
