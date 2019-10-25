@@ -17,25 +17,30 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.runtime.thread;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.CollectorRegistry;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeUtils;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 
-import java.io.File;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
+import java.util.Optional;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -43,20 +48,22 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
  * Thread based function container factory implementation.
  */
 @Slf4j
+@NoArgsConstructor
 public class ThreadRuntimeFactory implements RuntimeFactory {
 
-    private final ThreadGroup threadGroup;
-    private final FunctionCacheManager fnCache;
-    private final PulsarClient pulsarClient;
-    private final String storageServiceUrl;
-    private final SecretsProvider secretsProvider;
-    private final CollectorRegistry collectorRegistry;
+    @Getter
+    private ThreadGroup threadGroup;
+    private FunctionCacheManager fnCache;
+    private PulsarClient pulsarClient;
+    private String storageServiceUrl;
+    private SecretsProvider secretsProvider;
+    private CollectorRegistry collectorRegistry;
     private volatile boolean closed;
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry, ClassLoader rootClassLoader) throws Exception {
-        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
+        initialize(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
                 storageServiceUrl, secretsProvider, collectorRegistry, rootClassLoader);
     }
 
@@ -64,24 +71,9 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
                                 SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
                                 ClassLoader rootClassLoader) {
-        if (rootClassLoader == null) {
-            rootClassLoader = Thread.currentThread().getContextClassLoader();
-        }
 
-        this.secretsProvider = secretsProvider;
-        this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
-        this.threadGroup = new ThreadGroup(threadGroupName);
-        this.pulsarClient = pulsarClient;
-        this.storageServiceUrl = storageServiceUrl;
-        this.collectorRegistry = collectorRegistry;
-    }
-
-    public static ClassLoader loadJar(ClassLoader parent, File[] jars) throws MalformedURLException {
-        URL[] urls = new URL[jars.length];
-        for (int i = 0; i < jars.length; i++) {
-            urls[i] = jars[i].toURI().toURL();
-        }
-        return new URLClassLoader(urls, parent);
+        initialize(threadGroupName, pulsarClient, storageServiceUrl,
+                secretsProvider, collectorRegistry, rootClassLoader);
     }
 
     private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
@@ -104,7 +96,35 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         }
         return null;
     }
-    
+
+    private void initialize(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
+                            SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
+                            ClassLoader rootClassLoader) {
+        if (rootClassLoader == null) {
+            rootClassLoader = Thread.currentThread().getContextClassLoader();
+        }
+
+        this.secretsProvider = secretsProvider;
+        this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
+        this.threadGroup = new ThreadGroup(threadGroupName);
+        this.pulsarClient = pulsarClient;
+        this.storageServiceUrl = storageServiceUrl;
+        this.collectorRegistry = collectorRegistry;
+    }
+
+    @Override
+    public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
+                           SecretsProviderConfigurator secretsProviderConfigurator,
+                           Optional<FunctionAuthProvider> functionAuthProvider) throws Exception {
+        ThreadRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
+                workerConfig.getFunctionRuntimeFactoryConfigs(), ThreadRuntimeFactoryConfig.class);
+
+        initialize(factoryConfig.getThreadGroupName(),
+                createPulsarClient(workerConfig.getPulsarServiceUrl(), authenticationConfig),
+                workerConfig.getStateStorageServiceUrl(), new ClearTextSecretsProvider(),
+                null, null);
+    }
+
     @Override
     public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile,
                                          String originalCodeFileName,

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.runtime.kubernetes;
 
 import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.apis.AppsV1Api;
@@ -25,13 +25,16 @@ import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1Container;
 import io.kubernetes.client.models.V1PodSpec;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -154,30 +157,36 @@ public class KubernetesRuntimeTest {
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
                                                             double cpuOverCommitRatio, double memoryOverCommitRatio) throws Exception {
-        KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory(
-            null,
-            null,
-            null,
-            null,
-            pulsarRootDir,
-            false,
-            true,
-            "myrepo",
-            "anotherrepo",
-            extraDepsDir,
-            null,
-                percentMemoryPadding,
-                cpuOverCommitRatio,
-                memoryOverCommitRatio,
-                pulsarServiceUrl,
-            pulsarAdminUrl,
-            stateStorageServiceUrl,
-            null,
-            null,
-            null,
-            null,
-                null, new TestSecretProviderConfigurator(), false,
-                Optional.empty()));
+        KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
+
+        WorkerConfig workerConfig = new WorkerConfig();
+        KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
+        kubernetesRuntimeFactoryConfig.setK8Uri(null);
+        kubernetesRuntimeFactoryConfig.setJobNamespace(null);
+        kubernetesRuntimeFactoryConfig.setPulsarDockerImageName(null);
+        kubernetesRuntimeFactoryConfig.setImagePullPolicy(null);
+        kubernetesRuntimeFactoryConfig.setPulsarRootDir(pulsarRootDir);
+        kubernetesRuntimeFactoryConfig.setSubmittingInsidePod(false);
+        kubernetesRuntimeFactoryConfig.setInstallUserCodeDependencies(true);
+        kubernetesRuntimeFactoryConfig.setPythonDependencyRepository("myrepo");
+        kubernetesRuntimeFactoryConfig.setPythonExtraDependencyRepository("anotherrepo");
+        kubernetesRuntimeFactoryConfig.setExtraFunctionDependenciesDir(extraDepsDir);
+        kubernetesRuntimeFactoryConfig.setCustomLabels(null);
+        kubernetesRuntimeFactoryConfig.setPercentMemoryPadding(percentMemoryPadding);
+        kubernetesRuntimeFactoryConfig.setCpuOverCommitRatio(cpuOverCommitRatio);
+        kubernetesRuntimeFactoryConfig.setMemoryOverCommitRatio(memoryOverCommitRatio);
+        kubernetesRuntimeFactoryConfig.setPulsarServiceUrl(pulsarServiceUrl);
+        kubernetesRuntimeFactoryConfig.setPulsarAdminUrl(pulsarAdminUrl);
+        kubernetesRuntimeFactoryConfig.setChangeConfigMapNamespace(null);
+        kubernetesRuntimeFactoryConfig.setChangeConfigMap(null);
+        workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+        workerConfig.setFunctionInstanceMinResources(null);
+        workerConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
+        workerConfig.setAuthenticationEnabled(false);
+
+        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), Optional.empty());
         doNothing().when(factory).setupClient();
         return factory;
     }
@@ -240,8 +249,6 @@ public class KubernetesRuntimeTest {
         Assert.assertEquals(containerSpec.getResources().getLimits().get("memory").getNumber().longValue(), expectedRamWithPadding);
         Assert.assertEquals(containerSpec.getResources().getRequests().get("memory").getNumber().longValue(), expectedRamWithPadding);
     }
-
-
 
     @Test
     public void testJavaConstructor() throws Exception {
