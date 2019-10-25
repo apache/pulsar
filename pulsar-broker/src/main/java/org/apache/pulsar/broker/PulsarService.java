@@ -1100,11 +1100,11 @@ public class PulsarService implements AutoCloseable {
         return webService.getListenPortHTTPS();
     }
 
-    public Optional<Integer> getListenPort() {
+    public Optional<Integer> getBrokerListenPort() {
         return brokerService.getListenPort();
     }
 
-    public Optional<Integer> getListenPortTls() {
+    public Optional<Integer> getBrokerListenPortTls() {
         return brokerService.getListenPortTls();
     }
 }
