@@ -82,11 +82,31 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     }
 
     private ByteBuf getCompressedBatchMetadataAndPayload() {
-        for (MessageImpl<?> msg : messages) {
+        int batchWriteIndex = batchedMessageMetadataAndPayload.writerIndex();
+        int batchReadIndex = batchedMessageMetadataAndPayload.readerIndex();
+
+        for (int i = 0, n = messages.size(); i < n; i++) {
+            MessageImpl<?> msg = messages.get(i);
             PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
-            batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
-                    msg.getDataBuffer(), batchedMessageMetadataAndPayload);
-            msgBuilder.recycle();
+            msg.getDataBuffer().markReaderIndex();
+            try {
+                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
+                        msg.getDataBuffer(), batchedMessageMetadataAndPayload);
+            } catch (Throwable th) {
+                // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
+                // next iteration doesn't send corrupt message to broker.
+                for (int j = 0; j <= i; j++) {
+                    MessageImpl<?> previousMsg = messages.get(j);
+                    previousMsg.getDataBuffer().resetReaderIndex();
+                }
+                batchedMessageMetadataAndPayload.writerIndex(batchWriteIndex);
+                batchedMessageMetadataAndPayload.readerIndex(batchReadIndex);
+                throw new RuntimeException(th);
+            }
+        }
+        // Recycle messages only once they serialized successfully in batch
+        for (MessageImpl<?> msg : messages) {
+            msg.getMessageBuilder().recycle();
         }
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);

@@ -1286,7 +1286,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void batchMessageAndSend() {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
-                batchMessageContainer.getNumMessagesInBatch());
+                    batchMessageContainer.getNumMessagesInBatch());
         }
         if (!batchMessageContainer.isEmpty()) {
             try {
