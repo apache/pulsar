@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
@@ -269,8 +270,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             // dispatch rate limiter for each subscription
-            subscriptions.forEach((name, subscription) ->
-                subscription.getDispatcher().initializeDispatchRateLimiterIfNeeded(policies));
+            subscriptions.forEach((name, subscription) -> {
+                Dispatcher dispatcher = subscription.getDispatcher();
+                if (dispatcher != null) {
+                    dispatcher.initializeDispatchRateLimiterIfNeeded(policies);
+                }
+            });
 
             // dispatch rate limiter for each replicator
             replicators.forEach((name, replicator) ->
@@ -321,6 +326,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (isFenced) {
                     messageDeduplication.resetHighestSequenceIdPushed();
                     log.info("[{}] Un-fencing topic...", topic);
+                    // signal to managed ledger that we are ready to resume by creating a new ledger
+                    ledger.readyToCreateNewLedger();
+
                     isFenced = false;
                 }
 
@@ -342,15 +350,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
-
-        // fence topic when failed to write a message to BK
-        isFenced = true;
-
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
         } else {
 
+            // fence topic when failed to write a message to BK
+            isFenced = true;
             // close all producers
             List<CompletableFuture<Void>> futures = Lists.newArrayList();
             producers.forEach(producer -> futures.add(producer.disconnect()));
@@ -1672,8 +1678,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
-            if (sub.getDispatcher().getRateLimiter().isPresent()) {
-                sub.getDispatcher().getRateLimiter().get().onPoliciesUpdate(data);
+            Dispatcher dispatcher = sub.getDispatcher();
+            if (dispatcher != null) {
+                dispatcher.getRateLimiter().ifPresent(rateLimiter -> rateLimiter.onPoliciesUpdate(data));
             }
         });
         replicators.forEach((name, replicator) ->

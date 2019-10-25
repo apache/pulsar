@@ -46,7 +46,10 @@ public class LogAppender implements Appender {
 
     @Override
     public void append(LogEvent logEvent) {
-        producer.sendAsync(logEvent.getMessage().getFormattedMessage().getBytes());
+        producer.newMessage()
+                .value(logEvent.getMessage().getFormattedMessage().getBytes())
+                .property("loglevel", logEvent.getLevel().name())
+                .sendAsync();
     }
 
     @Override

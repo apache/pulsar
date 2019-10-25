@@ -139,7 +139,7 @@ public class KubernetesRuntime implements Runtime {
     private int percentMemoryPadding;
     private double cpuOverCommitRatio;
     private double memoryOverCommitRatio;
-    private final KubernetesFunctionAuthProvider functionAuthDataCacheProvider;
+    private final Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider;
     private final AuthenticationConfig authConfig;
 
     KubernetesRuntime(AppsV1Api appsClient,
@@ -167,7 +167,7 @@ public class KubernetesRuntime implements Runtime {
                       int percentMemoryPadding,
                       double cpuOverCommitRatio,
                       double memoryOverCommitRatio,
-                      KubernetesFunctionAuthProvider functionAuthDataCacheProvider,
+                      Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
                       boolean authenticationEnabled) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
@@ -463,8 +463,8 @@ public class KubernetesRuntime implements Runtime {
         final V1StatefulSet statefulSet = createStatefulSet();
         // Configure function authentication if needed
         if (authenticationEnabled) {
-            functionAuthDataCacheProvider.configureAuthDataStatefulSet(
-                    statefulSet, Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
+            functionAuthDataCacheProvider.ifPresent(kubernetesFunctionAuthProvider -> kubernetesFunctionAuthProvider.configureAuthDataStatefulSet(
+                    statefulSet, Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
         }
 
         log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));

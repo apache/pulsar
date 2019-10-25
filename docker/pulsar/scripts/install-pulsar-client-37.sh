@@ -20,5 +20,5 @@
 
 set -x
 
-WHEEL_FILE=$(ls /pulsar/pulsar-client | grep cp35)
-pip3.5 install /pulsar/pulsar-client/${WHEEL_FILE}
+WHEEL_FILE=$(ls /pulsar/pulsar-client | grep cp37)
+pip3.7 install /pulsar/pulsar-client/${WHEEL_FILE}

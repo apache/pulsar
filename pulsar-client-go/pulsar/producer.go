@@ -166,12 +166,25 @@ type Producer interface {
 	// This call will be blocking until is successfully acknowledged by the Pulsar broker.
 	// Example:
 	// producer.Send(ctx, pulsar.ProducerMessage{ Payload: myPayload })
+	// @Deprecated
 	Send(context.Context, ProducerMessage) error
+
+	// Send a message
+	// This call will be blocking until is successfully acknowledged by the Pulsar broker.
+	// Example:
+	// msgID, err := producer.SendAndGetMsgID(ctx, pulsar.ProducerMessage{ Payload: myPayload })
+	SendAndGetMsgID(context.Context, ProducerMessage) (MessageID, error)
 
 	// Send a message in asynchronous mode
 	// The callback will report back the message being published and
 	// the eventual error in publishing
+	// @Deprecated
 	SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))
+
+	// Send a message in asynchronous mode
+	// The callback will report back the message being published and
+	// the eventual error in publishing
+	SendAndGetMsgIDAsync(context.Context, ProducerMessage, func(MessageID, error))
 
 	// Get the last sequence id that was published by this producer.
 	// This represent either the automatically assigned or custom sequence id (set on the ProducerMessage) that

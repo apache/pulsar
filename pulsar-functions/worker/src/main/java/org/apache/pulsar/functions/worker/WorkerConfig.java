@@ -500,6 +500,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private Resources functionInstanceMinResources;
 
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "The class name of the Function Authentication Provider to use." +
+                    "  The Function Authentication Provider is responsible to distributing the necessary" +
+                    " authentication information to individual functions e.g. user tokens"
+    )
+    private String functionAuthProviderClassName;
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }

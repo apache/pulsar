@@ -170,7 +170,7 @@ func (r *reader) HasNext() (bool, error) {
 }
 
 func (r *reader) Close() error {
-	channel := make(chan error)
+	channel := make(chan error, 1)
 	r.CloseAsync(func(err error) { channel <- err; close(channel) })
 	return <-channel
 }

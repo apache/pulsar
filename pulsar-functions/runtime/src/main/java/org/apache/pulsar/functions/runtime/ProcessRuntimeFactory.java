@@ -22,6 +22,8 @@ package org.apache.pulsar.functions.runtime;
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
+import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -29,6 +31,7 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
@@ -47,6 +50,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     private String pythonInstanceFile;
     private String logDirectory;
     private String extraDependenciesDir;
+    private Optional<FunctionAuthProvider> authProvider;
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
@@ -57,7 +61,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  String logDirectory,
                                  String extraDependenciesDir,
                                  SecretsProviderConfigurator secretsProviderConfigurator,
-                                 boolean authenticationEnabled) {
+                                 boolean authenticationEnabled,
+                                 Optional<FunctionAuthProvider> functionAuthProvider) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
@@ -114,6 +119,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                     + " function worker config or system environment");
             }
         }
+
+        authProvider = functionAuthProvider;
     }
 
     @Override
@@ -136,8 +143,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
         // configure auth if necessary
         if (authenticationEnabled) {
-            getAuthProvider().configureAuthenticationConfig(authConfig,
-                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
+            authProvider.ifPresent(functionAuthProvider -> functionAuthProvider.configureAuthenticationConfig(authConfig,
+                    Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
         }
 
         return new ProcessRuntime(
@@ -151,6 +158,11 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             authConfig,
             secretsProviderConfigurator,
             expectedHealthCheckInterval);
+    }
+
+    @Override
+    public Optional<FunctionAuthProvider> getAuthProvider() {
+        return authProvider;
     }
 
     @Override

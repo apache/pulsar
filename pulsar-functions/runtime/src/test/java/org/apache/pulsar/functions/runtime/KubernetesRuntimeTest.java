@@ -42,6 +42,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
@@ -175,7 +176,8 @@ public class KubernetesRuntimeTest {
             null,
             null,
             null,
-                null, new TestSecretProviderConfigurator(), false));
+                null, new TestSecretProviderConfigurator(), false,
+                Optional.empty()));
         doNothing().when(factory).setupClient();
         return factory;
     }

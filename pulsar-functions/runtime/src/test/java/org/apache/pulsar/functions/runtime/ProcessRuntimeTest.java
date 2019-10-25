@@ -35,6 +35,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
@@ -146,7 +147,7 @@ public class ProcessRuntimeTest {
             pythonInstanceFile,
             logDirectory,
             extraDependenciesDir, /* extra dependencies dir */
-            new TestSecretsProviderConfigurator(), false);
+            new TestSecretsProviderConfigurator(), false, Optional.empty());
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {

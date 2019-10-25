@@ -31,7 +31,7 @@ extern "C" {
 
 typedef struct _pulsar_producer pulsar_producer_t;
 
-typedef void (*pulsar_send_callback)(pulsar_result, pulsar_message_t *msg, void *ctx);
+typedef void (*pulsar_send_callback)(pulsar_result, pulsar_message_id_t *msgId, void *ctx);
 typedef void (*pulsar_close_callback)(pulsar_result, void *ctx);
 typedef void (*pulsar_flush_callback)(pulsar_result, void *ctx);
 

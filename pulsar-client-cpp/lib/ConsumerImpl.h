@@ -95,6 +95,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
 
     virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
+    virtual bool isCumulativeAcknowledgementAllowed(ConsumerType consumerType);
 
     virtual void redeliverMessages(const std::set<MessageId>& messageIds);
     virtual void negativeAcknowledge(const MessageId& msgId);
@@ -120,7 +121,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void handleCreateConsumer(const ClientConnectionPtr& cnx, Result result);
 
     void internalListener();
-    void handleClose(Result result, ResultCallback callback);
+    void handleClose(Result result, ResultCallback callback, ConsumerImplPtr consumer);
     virtual HandlerBaseWeakPtr get_weak_from_this() { return shared_from_this(); }
     virtual const std::string& getName() const;
     virtual int getNumOfPrefetchedMessages() const;

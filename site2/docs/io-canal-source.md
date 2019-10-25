@@ -1,18 +1,16 @@
 ---
-id: io-cdc-canal
+id: io-canal-source
 title: Canal source connector
 sidebar_label: Canal source connector
 ---
 
 The Canal source connector pulls messages from MySQL to Pulsar topics.
 
-This guide explains how to congifure and use Canal source connector.
-
 ## Configuration
 
-The configuration of Canal source connector has the following parameters.
+The configuration of Canal source connector has the following properties.
 
-### Parameter
+### Property
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
@@ -51,13 +49,13 @@ Before using the Canal connector, you can create a configuration file through on
     ```yaml
     configs:
         zkServers: "127.0.0.1:2181"
-        batchSize: "5120"
+        batchSize: 5120
         destination: "example"
         username: ""
         password: ""
         cluster: false
         singleHostname: "127.0.0.1"
-        singlePort: "11111"
+        singlePort: 11111
     ```
 
 ## Usage

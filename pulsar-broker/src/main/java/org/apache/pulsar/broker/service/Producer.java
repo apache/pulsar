@@ -307,7 +307,6 @@ public class Producer {
 
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
-                producer.topic.recordAddLatency(TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTimeNs));
                 producer.cnx.ctx().channel().eventLoop().execute(this);
             }
         }
@@ -324,6 +323,7 @@ public class Producer {
 
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
+            producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             producer.cnx.ctx().writeAndFlush(
                     Commands.newSendReceipt(producer.producerId, sequenceId, ledgerId, entryId),
                     producer.cnx.ctx().voidPromise());

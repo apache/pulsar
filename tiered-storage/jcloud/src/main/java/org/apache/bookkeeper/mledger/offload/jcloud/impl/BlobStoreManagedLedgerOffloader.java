@@ -382,8 +382,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public Map<String, String> getOffloadDriverMetadata() {
         return ImmutableMap.of(
             METADATA_FIELD_BUCKET, writeBucket,
-            METADATA_FIELD_REGION, writeRegion,
-            METADATA_FIELD_ENDPOINT, writeEndpoint
+            METADATA_FIELD_REGION, Strings.nullToEmpty(writeRegion),
+            METADATA_FIELD_ENDPOINT, Strings.nullToEmpty(writeEndpoint)
         );
     }
 

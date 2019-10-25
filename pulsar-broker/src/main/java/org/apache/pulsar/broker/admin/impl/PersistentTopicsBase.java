@@ -42,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -115,7 +116,7 @@ import org.slf4j.LoggerFactory;
 public class PersistentTopicsBase extends AdminResource {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicsBase.class);
 
-    protected static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
+    public static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
@@ -965,28 +966,32 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             validateAdminAccessForSubscriber(subName, authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
+                if (ex != null) {
+                    asyncResponse.resume(new RestException(ex));
+                    log.error("[{}] Failed to skip all messages {} {}", clientAppId(), topicName, subName, ex);
+                } else {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
+                }
+            };
             try {
                 if (subName.startsWith(topic.getReplicatorPrefix())) {
                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                     PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                     checkNotNull(repl);
-                    repl.clearBacklog().get();
+                    repl.clearBacklog().whenComplete(biConsumer);
                 } else {
                     PersistentSubscription sub = topic.getSubscription(subName);
                     checkNotNull(sub);
-                    sub.clearBacklog().get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(),
-                            TimeUnit.SECONDS);
+                    sub.clearBacklog().whenComplete(biConsumer);
                 }
-                log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
-                asyncResponse.resume(Response.noContent().build());
-                return;
-            } catch (NullPointerException npe) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                return;
-            } catch (Exception exception) {
-                log.error("[{}] Failed to skip all messages {} {}", clientAppId(), topicName, subName, exception);
-                asyncResponse.resume(new RestException(exception));
-                return;
+            } catch (Exception e) {
+                if (e instanceof NullPointerException) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                } else {
+                    asyncResponse.resume(new RestException(e));
+                }
             }
         }
     }
@@ -1630,6 +1635,7 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (AlreadyRunningException e) {
             throw new RestException(Status.CONFLICT, e.getMessage());
         } catch (Exception e) {
+            log.warn("Unexpected error triggering offload", e);
             throw new RestException(e);
         }
     }
@@ -1670,7 +1676,8 @@ public class PersistentTopicsBase extends AdminResource {
             // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
             // producer/consumer
             checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
-                    .thenCompose(res -> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(pulsar, path, topicName))
+                    .thenCompose(res -> pulsar.getBrokerService()
+                            .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
                     .thenAccept(metadata -> {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, topicName,
@@ -1786,7 +1793,7 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getPersistenceNamingEncoding());
         CompletableFuture<Void> result = new CompletableFuture<>();
-        fetchPartitionedTopicMetadataAsync(pulsar(), path).thenAccept(partitionMetadata -> {
+        pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions <= 1) {
                 result.completeExceptionally(new RestException(Status.CONFLICT, "Topic is not partitioned topic"));
                 return;

@@ -155,10 +155,10 @@ stringProducer.send("My message");
 > Close operations can also be asynchronous:
 > ```java
 > producer.closeAsync()
->    .thenRun(() -> System.out.println("Producer closed"));
+>    .thenRun(() -> System.out.println("Producer closed"))
 >    .exceptionally((ex) -> {
 >        System.err.println("Failed to close producer: " + ex);
->        return ex;
+>        return null;
 >    });
 > ```
 

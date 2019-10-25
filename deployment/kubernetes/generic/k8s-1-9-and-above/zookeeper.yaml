@@ -101,6 +101,10 @@ spec:
                                   - key: "app"
                                     operator: In
                                     values:
+                                      - pulsar
+                                  - key: "component"
+                                    operator: In
+                                    values:
                                       - zookeeper
                             topologyKey: "kubernetes.io/hostname"
             containers:

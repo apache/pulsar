@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions;
+package org.apache.pulsar.tests.integration.cli;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -24,19 +24,19 @@ import static org.testng.Assert.assertTrue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
 import org.apache.pulsar.tests.integration.functions.utils.UploadDownloadCommandGenerator;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class FunctionsCLITest extends PulsarTestSuite {
+public class FunctionsCLITest extends PulsarFunctionsTestBase {
 
     //
     // Tests on uploading/downloading function packages.
     //
 
-    public String checkUpload() throws Exception {
+    public String uploadFunction() throws Exception {
         String bkPkgPath = String.format("%s/%s/%s",
             "tenant-" + randomName(8),
             "ns-" + randomName(8),
@@ -59,8 +59,8 @@ public class FunctionsCLITest extends PulsarTestSuite {
     }
 
     @Test
-    public void checkDownload() throws Exception {
-        String bkPkgPath = checkUpload();
+    public void testUploadDownload() throws Exception {
+        String bkPkgPath = uploadFunction();
         String localPkgFile = "/tmp/checkdownload-" + randomName(16);
 
         UploadDownloadCommandGenerator generator = UploadDownloadCommandGenerator.createDownloader(

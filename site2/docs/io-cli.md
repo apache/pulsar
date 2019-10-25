@@ -1,7 +1,7 @@
 ---
-id: reference-connector-admin
+id: io-cli
 title: Connector Admin CLI
-sidebar_label: Connector Admin CLI
+sidebar_label: CLI
 ---
 
 The `pulsar-admin` tool helps you manage Pulsar connectors.

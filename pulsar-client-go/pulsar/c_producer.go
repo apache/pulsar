@@ -230,7 +230,7 @@ func (p *producer) LastSequenceID() int64 {
 }
 
 func (p *producer) Send(ctx context.Context, msg ProducerMessage) error {
-	c := make(chan error)
+	c := make(chan error, 1)
 	p.SendAsync(ctx, msg, func(msg ProducerMessage, err error) { c <- err; close(c) })
 
 	select {
@@ -242,9 +242,41 @@ func (p *producer) Send(ctx context.Context, msg ProducerMessage) error {
 	}
 }
 
+type msgID struct {
+	err error
+	id  MessageID
+}
+
+func (p *producer) SendAndGetMsgID(ctx context.Context, msg ProducerMessage) (MessageID, error) {
+	c := make(chan msgID, 10)
+
+	p.SendAndGetMsgIDAsync(ctx, msg, func(id MessageID, err error) {
+		tmpMsgID := msgID{
+			err: err,
+			id:  id,
+		}
+		c <- tmpMsgID
+		close(c)
+	})
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+
+	case cm := <-c:
+		return cm.id, cm.err
+	}
+}
+
+
 type sendCallback struct {
 	message  ProducerMessage
 	callback func(ProducerMessage, error)
+}
+
+type sendCallbackWithMsgID struct {
+	message  ProducerMessage
+	callback func(MessageID, error)
 }
 
 //export pulsarProducerSendCallbackProxy
@@ -255,6 +287,17 @@ func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_mess
 		sendCallback.callback(sendCallback.message, newError(res, "Failed to send message"))
 	} else {
 		sendCallback.callback(sendCallback.message, nil)
+	}
+}
+
+//export pulsarProducerSendCallbackProxyWithMsgID
+func pulsarProducerSendCallbackProxyWithMsgID(res C.pulsar_result, messageId *C.pulsar_message_id_t, ctx unsafe.Pointer) {
+	sendCallback := restorePointer(ctx).(sendCallbackWithMsgID)
+
+	if res != C.pulsar_result_Ok {
+		sendCallback.callback(getMessageId(messageId), newError(res, "Failed to send message"))
+	} else {
+		sendCallback.callback(getMessageId(messageId), nil)
 	}
 }
 
@@ -282,8 +325,32 @@ func (p *producer) SendAsync(ctx context.Context, msg ProducerMessage, callback 
 	C._pulsar_producer_send_async(p.ptr, cMsg, savePointer(sendCallback{message: msg, callback: callback}))
 }
 
+func (p *producer) SendAndGetMsgIDAsync(ctx context.Context, msg ProducerMessage, callback func(MessageID, error)) {
+	if p.schema != nil {
+		if msg.Value == nil {
+			callback(nil, errors.New("message value is nil, please check"))
+			return
+		}
+		payLoad, err := p.schema.Encode(msg.Value)
+		if err != nil {
+			callback(nil, errors.New("serialize message value error, please check"))
+			return
+		}
+		msg.Payload = payLoad
+	} else {
+		if msg.Value != nil {
+			callback(nil, errors.New("message value is set but no schema is provided, please check"))
+			return
+		}
+	}
+	cMsg := buildMessage(msg)
+	defer C.pulsar_message_free(cMsg)
+
+	C._pulsar_producer_send_async_msg_id(p.ptr, cMsg, savePointer(sendCallbackWithMsgID{message: msg, callback: callback}))
+}
+
 func (p *producer) Close() error {
-	c := make(chan error)
+	c := make(chan error, 1)
 	p.CloseAsync(func(err error) { c <- err; close(c) })
 	return <-c
 }
@@ -304,7 +371,7 @@ func pulsarProducerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 }
 
 func (p *producer) Flush() error {
-	f := make(chan error)
+	f := make(chan error, 1)
 	p.FlushAsync(func(err error) {
 		f <- err
 		close(f)

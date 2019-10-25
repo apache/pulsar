@@ -595,7 +595,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
-        return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on topics consumer"));
+        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
+        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(timestamp)));
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override

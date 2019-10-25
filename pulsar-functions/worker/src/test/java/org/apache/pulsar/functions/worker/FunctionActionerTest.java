@@ -37,6 +37,9 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.testng.annotations.Test;
+
+import java.util.Optional;
+
 import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -193,7 +196,7 @@ public class FunctionActionerTest {
 
         RuntimeFactory runtimeFactory = mock(RuntimeFactory.class);
 
-        FunctionAuthProvider functionAuthProvider = mock(FunctionAuthProvider.class);
+        Optional<FunctionAuthProvider> functionAuthProvider = Optional.of(mock(FunctionAuthProvider.class));
         doReturn(functionAuthProvider).when(runtimeFactory).getAuthProvider();
 
         doReturn(runtimeFactory).when(runtimeSpawner).getRuntimeFactory();
@@ -203,7 +206,7 @@ public class FunctionActionerTest {
         actioner.terminateFunction(functionRuntimeInfo);
 
         // make sure cache
-        verify(functionAuthProvider, times(0)).cleanUpAuthData(any(), any(), any(), any());
+        verify(functionAuthProvider.get(), times(0)).cleanUpAuthData(any(), any(), any(), any());
     }
 
 }

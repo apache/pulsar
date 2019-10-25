@@ -45,7 +45,7 @@
       "io-connectors",
       "io-cdc",
       "io-develop",
-      "reference-connector-admin"
+      "io-cli"
     ],
     "Pulsar SQL": [
       "sql-overview",

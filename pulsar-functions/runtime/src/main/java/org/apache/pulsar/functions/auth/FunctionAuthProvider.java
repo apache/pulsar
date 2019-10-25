@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.auth;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.utils.Reflections;
 
 import java.util.Optional;
 
@@ -61,4 +62,8 @@ public interface FunctionAuthProvider {
      * @throws Exception
      */
     void cleanUpAuthData(String tenant, String namespace, String name, Optional<FunctionAuthData> functionAuthData) throws Exception;
+
+    static FunctionAuthProvider getAuthProvider(String className) {
+        return Reflections.createInstance(className, FunctionAuthProvider.class, Thread.currentThread().getContextClassLoader());
+    }
 }

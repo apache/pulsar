@@ -63,7 +63,7 @@ spec:
               - key: "app"
                 operator: In
                 values:
-                - "{{ template "pulsar.name" . }}-{{ .Values.proxy.component }}"
+                - "{{ template "pulsar.name" . }}"
               - key: "release"
                 operator: In
                 values:

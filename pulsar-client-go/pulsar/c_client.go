@@ -194,7 +194,7 @@ func (client *client) CreateProducer(options ProducerOptions) (Producer, error) 
 	c := make(chan struct {
 		Producer
 		error
-	})
+	}, 1)
 
 	client.CreateProducerAsync(options, nil, func(producer Producer, err error) {
 		c <- struct {
@@ -214,7 +214,7 @@ func (client *client) CreateProducerWithSchema(options ProducerOptions, schema S
 	c := make(chan struct {
 		Producer
 		error
-	})
+	}, 1)
 
 	client.CreateProducerAsync(options, schema, func(producer Producer, err error) {
 		c <- struct {
@@ -236,7 +236,7 @@ func (client *client) Subscribe(options ConsumerOptions) (Consumer, error) {
 	c := make(chan struct {
 		Consumer
 		error
-	})
+	}, 1)
 
 	client.SubscribeAsync(options, nil, func(consumer Consumer, err error) {
 		c <- struct {
@@ -254,7 +254,7 @@ func (client *client) SubscribeWithSchema(options ConsumerOptions, schema Schema
 	c := make(chan struct {
 		Consumer
 		error
-	})
+	}, 1)
 
 	client.SubscribeAsync(options, schema, func(consumer Consumer, err error) {
 		c <- struct {
@@ -276,7 +276,7 @@ func (client *client) CreateReader(options ReaderOptions) (Reader, error) {
 	c := make(chan struct {
 		Reader
 		error
-	})
+	}, 1)
 
 	client.CreateReaderAsync(options, nil, func(reader Reader, err error) {
 		c <- struct {
@@ -294,7 +294,7 @@ func (client *client) CreateReaderWithSchema(options ReaderOptions, schema Schem
 	c := make(chan struct {
 		Reader
 		error
-	})
+	}, 1)
 
 	client.CreateReaderAsync(options, schema, func(reader Reader, err error) {
 		c <- struct {
@@ -335,7 +335,7 @@ func (client *client) TopicPartitions(topic string) ([]string, error) {
 	c := make(chan struct {
 		partitions []string
 		err        error
-	})
+	}, 1)
 
 	topicPartitionsAsync(client, topic, func(partitions []string, err error) {
 		c <- struct {
