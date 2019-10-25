@@ -464,17 +464,17 @@ public class Commands {
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, int priorityLevel, String consumerName) {
+            SubType subType, int priorityLevel, String consumerName, long resetStartMessageBackInSeconds) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false,
-                false /* isReplicated */, InitialPosition.Earliest, null,
+                false /* isReplicated */, InitialPosition.Earliest, resetStartMessageBackInSeconds, null,
                 true /* createTopicIfDoesNotExist */);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
             Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
-            InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo,
+            InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
             boolean createTopicIfDoesNotExist) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
@@ -492,6 +492,9 @@ public class Commands {
 
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
+        }
+        if (startMessageRollbackDurationInSec > 0) {
+            subscribeBuilder.setStartMessageRollbackDurationSec(startMessageRollbackDurationInSec);
         }
         subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 

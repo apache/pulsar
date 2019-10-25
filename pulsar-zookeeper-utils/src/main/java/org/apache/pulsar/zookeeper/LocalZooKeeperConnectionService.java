@@ -76,16 +76,16 @@ public class LocalZooKeeperConnectionService implements Closeable {
     }
 
     public void close() throws IOException {
+        if (localZooKeeperSessionWatcher != null) {
+            localZooKeeperSessionWatcher.close();
+        }
+
         if (localZooKeeper != null) {
             try {
                 localZooKeeper.close();
             } catch (InterruptedException e) {
                 throw new IOException(e);
             }
-        }
-
-        if (localZooKeeperSessionWatcher != null) {
-            localZooKeeperSessionWatcher.close();
         }
     }
 

@@ -32,11 +32,16 @@ public class BooleanSchema extends AbstractSchema<Boolean> {
         return INSTANCE;
     }
 
-    private static final BooleanSchema INSTANCE = new BooleanSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-            .setName("Boolean")
-            .setType(SchemaType.BOOLEAN)
-            .setSchema(new byte[0]);
+    private static final BooleanSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+                .setName("Boolean")
+                .setType(SchemaType.BOOLEAN)
+                .setSchema(new byte[0]);
+        INSTANCE = new BooleanSchema();
+    }
 
     @Override
     public void validate(byte[] message) {
