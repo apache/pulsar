@@ -56,7 +56,7 @@
 
     <dependency>
       <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
+      <artifactId>netty-transport</artifactId>
     </dependency>
 
     <dependency>

@@ -64,6 +64,12 @@
             <artifactId>hadoop-minicluster</artifactId>
             <version>${hdfs-offload-version3}</version>
             <scope>test</scope>
+            <exclusions>
+              <exclusion>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+              </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
