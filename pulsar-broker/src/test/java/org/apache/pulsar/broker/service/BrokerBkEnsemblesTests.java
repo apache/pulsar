@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.StringUtils;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -107,6 +108,7 @@ public class BrokerBkEnsemblesTests {
             config.setAllowAutoTopicCreationType("non-partitioned");
 
             pulsar = new PulsarService(config);
+            pulsar.setShutdownService(new NoOpShutdownService());
             pulsar.start();
 
             adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
@@ -354,7 +356,7 @@ public class BrokerBkEnsemblesTests {
         } catch (Exception e) {
 
         }
-        
+
         final String topic1 = "persistent://"+ns1+"/`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-30e04524";
         final String subName1 = "c1";
         final byte[] content = "test".getBytes();

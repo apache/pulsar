@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -535,6 +536,30 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         }
     }
 
+    @Override
+    public void setPublishRate(String namespace, PublishRate publishMsgRate) throws PulsarAdminException {
+
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "publishRate");
+            request(path).post(Entity.entity(publishMsgRate, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    
+    }
+
+    @Override
+    public PublishRate getPublishRate(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "publishRate");
+            return request(path).get(PublishRate.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
     @Override
     public void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
         try {

@@ -11,9 +11,9 @@ This guide explains how to configure and use the Kafka source connector.
 
 ## Configuration
 
-The configuration of the Kafka source connector has the following parameters.
+The configuration of the Kafka source connector has the following properties.
 
-### Parameter
+### Property
 
 | Name | Type| Required | Default | Description 
 |------|----------|---------|-------------|-------------|

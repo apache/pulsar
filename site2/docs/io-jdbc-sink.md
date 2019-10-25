@@ -53,4 +53,4 @@ Before using the JDBC sink connector, you need to create a configuration file th
 
 ## Usage
 
-For more information about **how to use JDBC sink connector**, see [connect Pulsar to MySQL](io-quickstart.md#connect-pulsar-to-mysql).
+For more information about **how to use a JDBC sink connector**, see [connect Pulsar to MySQL](io-quickstart.md#connect-pulsar-to-mysql).

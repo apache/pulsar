@@ -32,11 +32,16 @@ public class FloatSchema extends AbstractSchema<Float> {
         return INSTANCE;
     }
 
-    private static final FloatSchema INSTANCE = new FloatSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("Float")
-        .setType(SchemaType.FLOAT)
-        .setSchema(new byte[0]);
+    private static final FloatSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+                .setName("Float")
+                .setType(SchemaType.FLOAT)
+                .setSchema(new byte[0]);
+        INSTANCE = new FloatSchema();
+    }
 
     @Override
     public void validate(byte[] message) {
