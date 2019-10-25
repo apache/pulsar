@@ -775,6 +775,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.prometheus</groupId>
+        <artifactId>simpleclient_caffeine</artifactId>
+        <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.carrotsearch</groupId>
         <artifactId>hppc</artifactId>
         <version>0.7.3</version>
@@ -1139,14 +1145,15 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine> -Xmx2G
+          <argLine> -Xmx1G -XX:+UseG1GC
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
             -Dlog4j.configurationFile=log4j2.xml
           </argLine>
-          <reuseForks>false</reuseForks>
-          <forkCount>1</forkCount>
+          <reuseForks>true</reuseForks>
+          <forkCount>4</forkCount>
+          <shutdown>kill</shutdown>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
           <properties>

@@ -70,6 +70,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
+import org.apache.bookkeeper.api.StorageClient;
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
@@ -366,7 +369,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         if (tlsPort.isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new PulsarChannelInitializer(pulsar, true));
-            tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort.get())).sync();
+            try {
+                tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort.get())).sync();
+            } catch (Exception e) {
+                throw new IOException(String.format("Failed to start Pulsar Broker TLS service on %s:%d",
+                        pulsar.getBindAddress(), port.get()), e);
+            }
             log.info("Started Pulsar Broker TLS service on port {} - TLS provider: {}", tlsPort.get(),
                     SslContext.defaultServerProvider());
         }
