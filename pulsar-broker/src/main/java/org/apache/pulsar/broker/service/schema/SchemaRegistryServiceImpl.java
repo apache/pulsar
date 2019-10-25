@@ -27,14 +27,10 @@ import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -47,11 +43,11 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
-    private static HashFunction hashFunction = Hashing.sha256();
     private final Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks;
     private final SchemaStorage schemaStorage;
     private final Clock clock;
@@ -142,7 +138,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     return maxDeleteVersionFuture;
                 }
             ).thenCompose(maxDeleteVersion -> {
-                byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
+                byte[] context = SchemaHash.of(schema).asBytes();
                 SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
                         .setType(Functions.convertFromDomainType(schema.getType()))
                         .setSchema(ByteString.copyFrom(schema.getData()))
@@ -216,8 +212,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     private void checkCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
                                  SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
-        HashCode existingHash = hashFunction.hashBytes(existingSchema.schema.getData());
-        HashCode newHash = hashFunction.hashBytes(newSchema.getData());
+        SchemaHash existingHash = SchemaHash.of(existingSchema.schema);
+        SchemaHash newHash = SchemaHash.of(newSchema);
         SchemaData existingSchemaData = existingSchema.schema;
         if (existingSchemaData.getType().isPrimitive()) {
             if (newSchema.getType() != existingSchemaData.getType()) {
@@ -234,9 +230,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     public CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData) {
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList -> {
-            HashCode newHash = hashFunction.hashBytes(schemaData.getData());
+            SchemaHash newHash = SchemaHash.of(schemaData);
             for (SchemaAndMetadata schemaAndMetadata:schemaAndMetadataList) {
-                if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(), newHash.asBytes())) {
+                if (newHash.equals(SchemaHash.of(schemaAndMetadata.schema))) {
                     return completedFuture(((LongSchemaVersion)schemaStorage
                             .versionFromBytes(schemaAndMetadata.version.bytes())).getVersion());
                 }
