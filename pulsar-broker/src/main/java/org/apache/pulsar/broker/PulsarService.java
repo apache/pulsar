@@ -1091,4 +1091,20 @@ public class PulsarService implements AutoCloseable {
             LOG.info("Function worker service started");
         }
     }
+
+    public Optional<Integer> getListenPortHTTP() {
+        return webService.getListenPortHTTP();
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        return webService.getListenPortHTTPS();
+    }
+
+    public Optional<Integer> getListenPort() {
+        return brokerService.getListenPort();
+    }
+
+    public Optional<Integer> getListenPortTls() {
+        return brokerService.getListenPortTls();
+    }
 }

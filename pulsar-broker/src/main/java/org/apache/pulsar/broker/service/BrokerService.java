@@ -215,6 +215,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
 
+    private Channel listenChannel;
+    private Channel listenChannelTls;
+
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
@@ -356,13 +359,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // Bind and start to accept incoming connections.
             InetSocketAddress addr = new InetSocketAddress(pulsar.getBindAddress(), port.get());
             try {
-                Channel channel = bootstrap.bind(addr).sync().channel();
-                log.info("Started Pulsar Broker service on {}", channel.localAddress());
-
-                if (port.get() == 0) {
-                    // Set the config with the real port that the service is bound on
-                    serviceConfig.setBrokerServicePort(Optional.of(((InetSocketAddress) channel.localAddress()).getPort()));
-                }
+                listenChannel = bootstrap.bind(addr).sync().channel();
+                log.info("Started Pulsar Broker service on {}", listenChannel.localAddress());
             } catch (Exception e) {
                 throw new IOException("Failed to bind Pulsar broker on " + addr, e);
             }
@@ -519,6 +517,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 log.warn("Error shutting down repl admin for cluster {}", cluster, e);
             }
         });
+
+        if (listenChannel != null) {
+            listenChannel.close();
+        }
+
+        if (listenChannelTls != null) {
+            listenChannelTls.close();
+        }
 
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
@@ -1878,6 +1884,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public static Optional<Topic> extractTopic(CompletableFuture<Optional<Topic>> topicFuture) {
         if (topicFuture.isDone() && !topicFuture.isCompletedExceptionally()) {
             return topicFuture.join();
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPort() {
+        if (listenChannel != null) {
+            return Optional.of(((InetSocketAddress) listenChannel.localAddress()).getPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortTls() {
+        if (listenChannelTls != null) {
+            return Optional.of(((InetSocketAddress) listenChannelTls.localAddress()).getPort());
         } else {
             return Optional.empty();
         }

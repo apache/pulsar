@@ -224,5 +224,21 @@ public class WebService implements AutoCloseable {
         }
     }
 
+    public Optional<Integer> getListenPortHTTP() {
+        if (httpConnector != null) {
+            return Optional.of(httpConnector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        if (httpsConnector != null) {
+            return Optional.of(httpsConnector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(WebService.class);
 }
