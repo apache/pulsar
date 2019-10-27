@@ -467,19 +467,18 @@ public class PulsarService implements AutoCloseable {
 
             this.metricsGenerator = new MetricsGenerator(this);
 
-            // start the protocol handlers only after the broker is ready and before starting
-            // the load manager service. so that the protocol handlers can access broker service
-            // properly and advertise the protocol data together with Pulsar protocol data.
-            this.protocolHandlers.start(brokerService);
-
-            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
-                this.protocolHandlers.newChannelInitializers();
-            this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
-
             // By starting the Load manager service, the broker will also become visible
             // to the rest of the broker by creating the registration z-node. This needs
             // to be done only when the broker is fully operative.
             this.startLoadManagementService();
+
+            // Initialize the message protocol handlers.
+            // start the protocol handlers only after the broker is ready,
+            // so that the protocol handlers can access broker service properly.
+            this.protocolHandlers.start(brokerService);
+            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
+                this.protocolHandlers.newChannelInitializers();
+            this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
 
             state = State.Started;
 
