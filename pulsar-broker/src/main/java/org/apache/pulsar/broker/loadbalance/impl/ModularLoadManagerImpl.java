@@ -270,16 +270,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         lastData.setProtocols(protocolData);
-        localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        lastData.setProtocols(protocolData);
-        localData.setBrokerVersionString(pulsar.getBrokerVersion());
         // configure broker-topic mode
         lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+
+        localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+        localData.setProtocols(protocolData);
+        localData.setBrokerVersionString(pulsar.getBrokerVersion());
+        // configure broker-topic mode
         localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-
 
         placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
