@@ -106,6 +106,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @EqualsAndHashCode.Exclude
     private Optional<KubernetesFunctionAuthProvider> authProvider;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private byte[] serverCaBytes;
+
     @Override
     public boolean externallyManaged() {
         return true;
@@ -176,6 +180,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.authenticationEnabled = workerConfig.isAuthenticationEnabled();
         this.javaInstanceJarFile = this.pulsarRootDir + "/instances/java-instance.jar";
         this.pythonInstanceFile = this.pulsarRootDir + "/instances/python-instance/python_instance_main.py";
+        this.serverCaBytes = workerConfig.getTlsTrustChainBytes();
         try {
             setupClient();
         } catch (Exception e) {
@@ -189,7 +194,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                         + functionAuthProvider.get().getClass().getName() + " must implement KubernetesFunctionAuthProvider");
             } else {
                 KubernetesFunctionAuthProvider kubernetesFunctionAuthProvider = (KubernetesFunctionAuthProvider) functionAuthProvider.get();
-                kubernetesFunctionAuthProvider.initialize(coreClient, factoryConfig.getJobNamespace());
+                kubernetesFunctionAuthProvider.initialize(coreClient, factoryConfig.getJobNamespace(), serverCaBytes);
                 this.authProvider = Optional.of(kubernetesFunctionAuthProvider);
             }
         } else {

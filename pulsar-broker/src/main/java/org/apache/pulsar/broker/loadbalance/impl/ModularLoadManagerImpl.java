@@ -265,22 +265,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        Map<String, String> protocolData = pulsar.getProtocolDataToAdvertise();
-
-        lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        lastData.setProtocols(protocolData);
-        localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        lastData.setProtocols(protocolData);
-        localData.setBrokerVersionString(pulsar.getBrokerVersion());
-        // configure broker-topic mode
-        lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-        lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-        localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-        localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-
-
         placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
         zkClient = pulsar.getZkClient();
@@ -790,6 +774,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public void start() throws PulsarServerException {
         try {
+            // At this point, the ports will be updated with the real port number that the server was assigned
+            Map<String, String> protocolData = pulsar.getProtocolDataToAdvertise();
+
+            lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+            lastData.setProtocols(protocolData);
+            // configure broker-topic mode
+            lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+            lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+
+            localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+            localData.setProtocols(protocolData);
+            localData.setBrokerVersionString(pulsar.getBrokerVersion());
+            // configure broker-topic mode
+            localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+            localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+
             // Register the brokers in zk list
             createZPathIfNotExists(zkClient, LoadManager.LOADBALANCE_BROKERS_ROOT);
 
@@ -974,7 +976,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             log.warn("Failed to get domain-list for cluster {}", e.getMessage());
         }
     }
-    
+
     @Override
     public LocalBrokerData getBrokerLocalData(String broker) {
         String key = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker);

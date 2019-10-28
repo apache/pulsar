@@ -119,6 +119,14 @@ public interface Topic {
 
     void checkMessageDeduplicationInfo();
 
+    void checkPublishThrottlingRate();
+    
+    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
+    
+    void resetPublishCountAndEnableReadIfRequired();
+    
+    boolean isPublishRateExceeded();
+
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
     boolean isBacklogQuotaExceeded(String producerName);

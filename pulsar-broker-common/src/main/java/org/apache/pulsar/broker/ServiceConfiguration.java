@@ -366,6 +366,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " until that subscription acks back `limit/2` messages")
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Tick time to schedule task that checks publish rate limiting across all topics  "
+                    + "Reducing to lower value can give more accuracy while throttling publish but "
+                    + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)" 
+        )
+    private int publisherThrottlingTickTimeMillis = 5;
+    @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "Too many subscribe requests from a consumer can cause broker rewinding consumer cursors "

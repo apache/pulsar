@@ -272,15 +272,6 @@ public class PulsarStandalone implements AutoCloseable {
                 workerConfig = WorkerConfig.load(this.getFnWorkerConfigFile());
             }
             // worker talks to local broker
-            boolean useTls = workerConfig.isUseTls();
-            String pulsarServiceUrl = useTls
-                    ? PulsarService.brokerUrlTls(config)
-                    : PulsarService.brokerUrl(config);
-            String webServiceUrl = useTls
-                    ? PulsarService.webAddressTls(config)
-                    : PulsarService.webAddress(config);
-            workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
-            workerConfig.setPulsarWebServiceUrl(webServiceUrl);
             if (this.isNoStreamStorage()) {
                 // only set the state storage service url when state is enabled.
                 workerConfig.setStateStorageServiceUrl(null);
@@ -306,7 +297,6 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
 
-            workerConfig.setUseTls(useTls);
             workerConfig.setTlsHostnameVerificationEnable(false);
 
             workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());

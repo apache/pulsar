@@ -290,7 +290,7 @@ public class KubernetesRuntimeFactoryTest {
             }
 
             @Override
-            public void initialize(CoreV1Api coreClient, String kubeNamespace) {
+            public void initialize(CoreV1Api coreClient, String kubeNamespace, byte[] caBytes) {
 
             }
 

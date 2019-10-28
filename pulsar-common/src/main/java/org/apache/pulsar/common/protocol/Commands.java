@@ -67,6 +67,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
@@ -1071,6 +1073,44 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newGetOrCreateSchema(long requestId, String topic, SchemaInfo schemaInfo) {
+        CommandGetOrCreateSchema getOrCreateSchema =
+                CommandGetOrCreateSchema.newBuilder()
+                                        .setRequestId(requestId)
+                                        .setTopic(topic)
+                                        .setSchema(getSchema(schemaInfo)).build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+                                                   .setType(Type.GET_OR_CREATE_SCHEMA)
+                                                   .setGetOrCreateSchema(getOrCreateSchema));
+        getOrCreateSchema.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetOrCreateSchemaResponse(long requestId, SchemaVersion schemaVersion) {
+        CommandGetOrCreateSchemaResponse.Builder schemaResponse =
+                CommandGetOrCreateSchemaResponse.newBuilder()
+                                                .setRequestId(requestId)
+                                                .setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+                                                   .setType(Type.GET_OR_CREATE_SCHEMA_RESPONSE)
+                                                   .setGetOrCreateSchemaResponse(schemaResponse.build()));
+        schemaResponse.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetOrCreateSchemaResponseError(long requestId, ServerError error, String errorMessage) {
+        CommandGetOrCreateSchemaResponse.Builder schemaResponse =
+                CommandGetOrCreateSchemaResponse.newBuilder()
+                                                .setRequestId(requestId)
+                                                .setErrorCode(error)
+                                                .setErrorMessage(errorMessage);
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+                                                   .setType(Type.GET_OR_CREATE_SCHEMA_RESPONSE)
+                                                   .setGetOrCreateSchemaResponse(schemaResponse.build()));
+        schemaResponse.recycle();
+        return res;
+    }
+
     // ---- transaction related ----
 
     public static ByteBuf newTxn(long requestId, long ttlSeconds) {
@@ -1615,5 +1655,9 @@ public class Commands {
 
     public static boolean peerSupportJsonSchemaAvroFormat(int peerVersion) {
         return peerVersion >= ProtocolVersion.v13.getNumber();
+    }
+
+    public static boolean peerSupportsGetOrCreateSchema(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v15.getNumber();
     }
 }
