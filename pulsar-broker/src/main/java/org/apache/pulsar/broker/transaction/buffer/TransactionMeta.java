@@ -23,7 +23,7 @@ import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 
 /**
  * The metadata for the transaction in the transaction buffer.

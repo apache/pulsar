@@ -23,6 +23,9 @@ import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
 import java.util.Set;
+
+import org.apache.pulsar.transaction.util.TransactionUtil;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -103,13 +106,13 @@ public class TxnStatusTest {
                                         Set<TxnStatus> statusesCanNotTransactionTo) {
         statusesCanTransitionTo.forEach(newStatus -> {
             assertTrue(
-                status.canTransitionTo(newStatus),
+                    TransactionUtil.canTransitionTo(status, newStatus),
                 "Status `" + status + "` should be able to transition to `" + newStatus + "`"
             );
         });
         statusesCanNotTransactionTo.forEach(newStatus -> {
             assertFalse(
-                status.canTransitionTo(newStatus),
+                    TransactionUtil.canTransitionTo(status, newStatus),
                 "Status `" + status + "` should NOT be able to transition to `" + newStatus + "`"
             );
         });

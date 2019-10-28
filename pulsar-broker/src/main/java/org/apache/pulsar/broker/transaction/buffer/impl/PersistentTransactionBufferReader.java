@@ -38,7 +38,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 
 /**
  * A persistent transaction buffer reader implementation.

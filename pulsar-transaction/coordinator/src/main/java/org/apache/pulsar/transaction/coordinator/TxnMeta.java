@@ -20,15 +20,19 @@ package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
 import java.util.List;
+
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+
 
 /**
  * An interface represents the metadata of a transaction in {@link TransactionMetadataStore}.
  */
 @Beta
 public interface TxnMeta {
+
+
 
     /**
      * Return the transaction id.
@@ -92,4 +96,5 @@ public interface TxnMeta {
      */
     TxnMeta updateTxnStatus(TxnStatus newStatus,
                             TxnStatus expectedStatus) throws InvalidTxnStatusException;
+
 }

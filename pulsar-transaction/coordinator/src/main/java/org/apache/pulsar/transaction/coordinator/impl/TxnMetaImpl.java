@@ -23,11 +23,14 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.util.TransactionUtil;
 
 /**
  * A class represents the metadata of a transaction stored in
@@ -39,10 +42,12 @@ class TxnMetaImpl implements TxnMeta {
     private final Set<String> producedPartitions = new HashSet<>();
     private final Set<String> ackedPartitions = new HashSet<>();
     private TxnStatus txnStatus;
+    private final TransactionMetadataEntry transactionMetadataEntry;
 
     TxnMetaImpl(TxnID txnID) {
         this.txnID = txnID;
         this.txnStatus = TxnStatus.OPEN;
+        TransactionMetadataEntry.newBuilder().
     }
 
     @Override
@@ -139,7 +144,7 @@ class TxnMetaImpl implements TxnMeta {
                                                     TxnStatus expectedStatus)
         throws InvalidTxnStatusException {
         checkTxnStatus(expectedStatus);
-        if (!txnStatus.canTransitionTo(newStatus)) {
+        if (!TransactionUtil.canTransitionTo(txnStatus,newStatus)) {
             throw new InvalidTxnStatusException(
                 "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
         }

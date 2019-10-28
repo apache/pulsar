@@ -40,11 +40,20 @@
             <artifactId>protobuf-java</artifactId>
             <version>${protobuf3.version}</version>
         </dependency>
-
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java-util</artifactId>
             <version>${protobuf3.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>pulsar-common</artifactId>
+            <version>${project.parent.version}</version>
         </dependency>
 
     </dependencies>

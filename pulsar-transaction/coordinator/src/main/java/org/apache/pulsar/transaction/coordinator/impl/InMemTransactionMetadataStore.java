@@ -29,7 +29,7 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 
 /**
  * An in-memory implementation of {@link TransactionMetadataStore}.
