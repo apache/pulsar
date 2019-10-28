@@ -36,16 +36,22 @@ pulsar_result pulsar_producer_send(pulsar_producer_t *producer, pulsar_message_t
     return (pulsar_result)producer->producer.send(msg->message);
 }
 
-static void handle_producer_send(pulsar::Result result, pulsar_message_t *msg, pulsar_send_callback callback,
-                                 void *ctx) {
-    callback((pulsar_result)result, msg, ctx);
+static void handle_producer_send(pulsar::Result result, pulsar::MessageId messageId,
+                                 pulsar_send_callback callback, void *ctx) {
+    if (result == pulsar::ResultOk) {
+        pulsar_message_id_t *c_message_id = new pulsar_message_id_t;
+        c_message_id->messageId = messageId;
+        callback(pulsar_result_Ok, c_message_id, ctx);
+    } else {
+        callback((pulsar_result)result, NULL, ctx);
+    }
 }
 
 void pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *msg,
                                 pulsar_send_callback callback, void *ctx) {
     msg->message = msg->builder.build();
-    producer->producer.sendAsync(msg->message,
-                                 std::bind(&handle_producer_send, std::placeholders::_1, msg, callback, ctx));
+    producer->producer.sendAsync(msg->message, std::bind(&handle_producer_send, std::placeholders::_1,
+                                                         std::placeholders::_2, callback, ctx));
 }
 
 int64_t pulsar_producer_get_last_sequence_id(pulsar_producer_t *producer) {

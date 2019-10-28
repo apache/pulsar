@@ -64,6 +64,13 @@ window.addEventListener('load', function() {
     }
   });
 
+  const href = document.querySelector('a[href="/en/versions"]');
+  let version = href.textContent;
+
+  if (version === 'next') {
+    version = 'master'
+  }
+
   // setup rest api menu items in nav bar
   const restapis = document.querySelector("a[href='#restapis']").parentNode;
   const restapisMenu =
@@ -71,10 +78,10 @@ window.addEventListener('load', function() {
     '<a id="restapis-menu" href="#">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
     '<div id="restapis-dropdown" class="hide">' +
       '<ul id="restapis-dropdown-items">' +
-        '<li><a href="/admin-rest-api">Admin REST API </a></li>' +
-        '<li><a href="/functions-rest-api">Functions </a></li>' +
-        '<li><a href="/source-rest-api">Sources </a></li>' +
-        '<li><a href="/sink-rest-api">Sinks </a></li>' +
+        '<li><a href="/admin-rest-api?version=' + version + '">Admin REST API </a></li>' +
+        '<li><a href="/functions-rest-api?version=' + version + '">Functions </a></li>' +
+        '<li><a href="/source-rest-api?version=' + version + '">Sources </a></li>' +
+        '<li><a href="/sink-rest-api?version=' + version + '">Sinks </a></li>' +
       '</ul>' +
     '</div>' +
     '</li>';

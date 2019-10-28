@@ -113,7 +113,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     }
 
-    public void socketTest() throws Exception {
+    public void checkSocket() throws Exception {
         final String topic = "my-property/my-ns/my-topic1";
         final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic + "/my-sub";
         final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic;
@@ -144,19 +144,19 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     @Test(timeOut=10000)
     public void authenticatedSocketTest() throws Exception {
-        socketTest();
+        checkSocket();
     }
 
     @Test(timeOut=10000)
     public void anonymousSocketTest() throws Exception {
-        socketTest();
+        checkSocket();
     }
 
     @Test(timeOut=10000)
     public void unauthenticatedSocketTest() throws Exception{
         Exception exception = null;
         try {
-            socketTest();
+            checkSocket();
         } catch (Exception e) {
             exception = e;
         }

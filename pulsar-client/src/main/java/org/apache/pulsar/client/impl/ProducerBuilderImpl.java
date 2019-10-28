@@ -117,7 +117,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> topic(String topicName) {
         checkArgument(StringUtils.isNotBlank(topicName), "topicName cannot be blank");
-        conf.setTopicName(topicName);
+        conf.setTopicName(StringUtils.trim(topicName));
         return this;
     }
 
@@ -257,6 +257,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ProducerBuilder<T> enableMultiSchema(boolean multiSchema) {
+        conf.setMultiSchema(multiSchema);
+        return this;
+    }
+
     private void setMessageRoutingMode() throws PulsarClientException {
         if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
@@ -269,5 +275,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " +
                     "should be set as " + MessageRoutingMode.CustomPartition);
         }
+    }
+
+    @Override
+    public String toString() {
+        return conf != null ? conf.toString() : null;
     }
 }

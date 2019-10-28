@@ -245,7 +245,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            boolean replicateSubscriptionState) {
+            long resetStartMessageBackInSec, boolean replicateSubscriptionState) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -706,9 +706,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());
                 if (subscription.getDispatcher() != null) {
-                    subscription.getDispatcher().getMesssageDropRate().calculateRate();
+                    subscription.getDispatcher().getMessageDropRate().calculateRate();
                     topicStatsStream.writePair("msgDropRate",
-                            subscription.getDispatcher().getMesssageDropRate().getValueRate());
+                            subscription.getDispatcher().getMessageDropRate().getValueRate());
                 }
 
                 // Close consumers
@@ -782,21 +782,21 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
 
         replicators.forEach((cluster, replicator) -> {
-            NonPersistentReplicatorStats ReplicatorStats = replicator.getStats();
+            NonPersistentReplicatorStats replicatorStats = replicator.getStats();
 
             // Add incoming msg rates
             PublisherStats pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
-                ReplicatorStats.msgRateIn = pubStats.msgRateIn;
-                ReplicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                ReplicatorStats.inboundConnection = pubStats.getAddress();
-                ReplicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
+                replicatorStats.msgRateIn = pubStats.msgRateIn;
+                replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
+                replicatorStats.inboundConnection = pubStats.getAddress();
+                replicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
-            stats.msgRateOut += ReplicatorStats.msgRateOut;
-            stats.msgThroughputOut += ReplicatorStats.msgThroughputOut;
+            stats.msgRateOut += replicatorStats.msgRateOut;
+            stats.msgThroughputOut += replicatorStats.msgThroughputOut;
 
-            stats.getReplication().put(replicator.getRemoteCluster(), ReplicatorStats);
+            stats.getReplication().put(replicator.getRemoteCluster(), replicatorStats);
         });
 
         return stats;

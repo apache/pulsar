@@ -71,44 +71,44 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void registerSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of source")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String sourcePkgUrl,
             @ApiParam(
-                    value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
-                            "classname  \n" +
-                            "  The source's class name if archive is file-url-path (file://).  \n" +
-                            "topicName  \n" +
+                    value = "A JSON value presenting configuration payload of a Pulsar Source. An example of the expected functions can be found here.  \n" +
+                            "- **classname**  \n" +
+                            "  The class name of a Pulsar Source if archive is file-url-path (file://).  \n" +
+                            "- **topicName**  \n" +
                             "  The Pulsar topic to which data is sent.  \n" +
-                            "serdeClassName  \n" +
-                            "  The SerDe classname for the source.  \n" +
-                            "schemaType  \n" +
+                            "- **serdeClassName**  \n" +
+                            "  The SerDe classname for the Pulsar Source.  \n" +
+                            "- **schemaType**  \n" +
                             "  The schema type (either a builtin schema like 'avro', 'json', etc.. or  " +
-                            "  custom Schema class name to be used to encode messages emitted from the source  \n" +
-                            "configs  \n" +
+                            "  custom Schema class name to be used to encode messages emitted from the Pulsar Source  \n" +
+                            "- **configs**  \n" +
                             "  Source config key/values  \n" +
-                            "secrets  \n" +
+                            "- **secrets**  \n" +
                             "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
                             "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
-                            "parallelism  \n" +
-                            "  The source's parallelism factor (i.e. the number of source instances to run).  \n" +
-                            "processingGuarantees  \n" +
-                            "  The processing guarantees (aka delivery semantics) applied to the source  " +
+                            "- **parallelism**  \n" +
+                            "  The parallelism factor of a Pulsar Source (i.e. the number of a Pulsar Source instances to run).  \n" +
+                            "- **processingGuarantees**  \n" +
+                            "  The processing guarantees (aka delivery semantics) applied to the Pulsar Source.  " +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
-                            "resources  \n" +
-                            "  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \n" +
-                            "archive  \n" +
-                            "  The path to the NAR archive for the Source. It also supports url-path " +
+                            "- **resources**  \n" +
+                            "  The size of the system resources allowed by the Pulsar Source runtime. The resources include: cpu, ram, disk.  \n" +
+                            "- **archive**  \n" +
+                            "  The path to the NAR archive for the Pulsar Source. It also supports url-path " +
                             "  [http/https/file (file protocol assumes that file already exists on worker host)] " +
                             "  from which worker can download the package.  \n" +
-                            "runtimeFlags  \n" +
+                            "- **runtimeFlags**  \n" +
                             "  Any flags that you want to pass to the runtime.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
@@ -138,52 +138,51 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             @ApiResponse(code = 400, message = "Invalid request (Function already exists or Tenant, Namespace or Name is not provided, etc.)"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
             @ApiResponse(code = 200, message = "Pulsar Function successfully updated"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal Server Error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void updateSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of source")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
-            @ApiParam(value = "URL of sources' archive")
             final @FormDataParam("url") String sourcePkgUrl,
             @ApiParam(
-                    value = "A JSON value presenting source configuration payload. An example of the expected functions can be found here.  \n" +
-                            "classname  \n" +
-                            "  The source's class name if archive is file-url-path (file://).  \n" +
-                            "topicName  \n" +
+                    value = "A JSON value presenting configuration payload of a Pulsar Source. An example of the expected functions can be found here.  \n" +
+                            "- **classname**  \n" +
+                            "  The class name of a Pulsar Source if archive is file-url-path (file://).  \n" +
+                            "- **topicName**  \n" +
                             "  The Pulsar topic to which data is sent.  \n" +
-                            "serdeClassName  \n" +
-                            "  The SerDe classname for the source.  \n" +
-                            "schemaType  \n" +
+                            "- **serdeClassName**  \n" +
+                            "  The SerDe classname for the Pulsar Source.  \n" +
+                            "- **schemaType**  \n" +
                             "  The schema type (either a builtin schema like 'avro', 'json', etc.. or  " +
-                            "  custom Schema class name to be used to encode messages emitted from the source  \n" +
-                            "configs  \n" +
-                            "  Source config key/values  \n" +
-                            "secrets  \n" +
+                            "  custom Schema class name to be used to encode messages emitted from the Pulsar Source  \n" +
+                            "- **configs**  \n" +
+                            "  Pulsar Source config key/values  \n" +
+                            "- **secrets**  \n" +
                             "  This is a map of secretName(that is how the secret is going to be accessed in the function via context) to an object that" +
                             "  encapsulates how the secret is fetched by the underlying secrets provider. The type of an value here can be found by the" +
                             "  SecretProviderConfigurator.getSecretObjectType() method. \n" +
-                            "parallelism  \n" +
-                            "  The source's parallelism factor (i.e. the number of source instances to run).  \n" +
-                            "processingGuarantees  \n" +
-                            "  The processing guarantees (aka delivery semantics) applied to the source  " +
+                            "- **parallelism**  \n" +
+                            "  The parallelism factor of a Pulsar Source (i.e. the number of a Pulsar Source instances to run).  \n" +
+                            "- **processingGuarantees**  \n" +
+                            "  The processing guarantees (aka delivery semantics) applied to the Pulsar Source.  " +
                             "  Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]  \n" +
-                            "resources  \n" +
-                            "  The size of the system resources allowed by the source runtime. The resources include: cpu, ram, disk.  \n" +
-                            "archive  \n" +
-                            "  The path to the NAR archive for the Source. It also supports url-path " +
+                            "- **resources**  \n" +
+                            "  The size of the system resources allowed by the Pulsar Source runtime. The resources include: cpu, ram, disk.  \n" +
+                            "- **archive**  \n" +
+                            "  The path to the NAR archive for the Pulsar Source. It also supports url-path " +
                             "  [http/https/file (file protocol assumes that file already exists on worker host)] " +
                             "  from which worker can download the package.  \n" +
-                            "runtimeFlags  \n" +
+                            "- **runtimeFlags**  \n" +
                             "  Any flags that you want to pass to the runtime.  \n",
                     examples = @Example(
                             value = @ExampleProperty(
@@ -202,7 +201,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
                     )
             )
             final @FormDataParam("sourceConfig") SourceConfig sourceConfig,
-            @ApiParam(value = "Update options for source")
+            @ApiParam(value = "Update options for Pulsar Source")
             final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
         source.updateSource(tenant, namespace, sourceName, uploadedInputStream, fileDetail,
             sourcePkgUrl, sourceConfig, clientAppId(), clientAuthData(), updateOptions);
@@ -214,7 +213,7 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 408, message = "Request timeout"),
             @ApiResponse(code = 200, message = "The function was successfully deleted"),
             @ApiResponse(code = 500, message = "Internal Server Error"),
@@ -222,11 +221,11 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     public void deregisterSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
         source.deregisterFunction(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
@@ -238,16 +237,16 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}")
     public SourceConfig getSourceInfo(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) throws IOException {
         return source.getSourceInfo(tenant, namespace, sourceName);
     }
@@ -264,13 +263,13 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/status")
     public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceInstanceStatus(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName,
-            @ApiParam(value = "The source instanceId (if instance-id is not provided, the stats of all instances is returned).")
+            @ApiParam(value = "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return source.getSourceInstanceStatus(
             tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
@@ -288,11 +287,11 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/status")
     public SourceStatus getSourceStatus(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) throws IOException {
         return source.getSourceStatus(tenant, namespace, sourceName, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
@@ -312,141 +311,141 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}")
     public List<String> listSources(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace) {
         return source.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Restart source instance", response = Void.class)
+    @ApiOperation(value = "Restart an instance of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName,
-            @ApiParam(value = "The source instanceId (if instance-id is not provided, the stats of all instances is returned).")
+            @ApiParam(value = "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).")
             final @PathParam("instanceId") String instanceId) {
         source.restartFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Restart all source instances", response = Void.class)
+    @ApiOperation(value = "Restart all instances of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
         source.restartFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Stop source instance", response = Void.class)
+    @ApiOperation(value = "Stop instance of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName,
-            @ApiParam(value = "The source instanceId (if instance-id is not provided, the stats of all instances is returned).")
+            @ApiParam(value = "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).")
             final @PathParam("instanceId") String instanceId) {
         source.stopFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Stop all source instances", response = Void.class)
+    @ApiOperation(value = "Stop all instances of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
         source.stopFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Start source instance", response = Void.class)
+    @ApiOperation(value = "Start an instance of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName,
-            @ApiParam(value = "The source instanceId (if instance-id is not provided, the stats of all instances is returned).")
+            @ApiParam(value = "The instanceId of a Pulsar Source (if instance-id is not provided, the stats of all instances is returned).")
             final @PathParam("instanceId") String instanceId) {
         source.startFunctionInstance(tenant, namespace, sourceName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 
     @POST
-    @ApiOperation(value = "Start all source instances", response = Void.class)
+    @ApiOperation(value = "Start all instances of a Pulsar Source", response = Void.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 401, message = "Client is not authorize to perform operation"),
-            @ApiResponse(code = 404, message = "Not Found(The source doesn't exist)"),
+            @ApiResponse(code = 404, message = "Not Found(The Pulsar Source doesn't exist)"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
     })
     @Path("/{tenant}/{namespace}/{sourceName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startSource(
-            @ApiParam(value = "The name of tenant")
+            @ApiParam(value = "The tenant of a Pulsar Source")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The name of namespace")
+            @ApiParam(value = "The namespace of a Pulsar Source")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of name")
+            @ApiParam(value = "The name of a Pulsar Source")
             final @PathParam("sourceName") String sourceName) {
         source.startFunctionInstances(tenant, namespace, sourceName, clientAppId(), clientAuthData());
     }
@@ -473,5 +472,20 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
             }
         }
         return retval;
+    }
+
+    @POST
+    @ApiOperation(
+            value = "Reload the available built-in connectors, include Source and Sink",
+            response = Void.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/reloadBuiltInSources")
+    public void reloadSources() {
+        source.reloadConnectors(clientAppId());
     }
 }

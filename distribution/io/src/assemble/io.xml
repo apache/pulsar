@@ -67,5 +67,8 @@
     <file><source>${basedir}/../../pulsar-io/debezium/mysql/target/pulsar-io-debezium-mysql-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/debezium/postgres/target/pulsar-io-debezium-postgres-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/influxdb/target/pulsar-io-influxdb-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/redis/target/pulsar-io-redis-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/flume/target/pulsar-io-flume-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/solr/target/pulsar-io-solr-${project.version}.nar</source></file>
   </files>
 </assembly>

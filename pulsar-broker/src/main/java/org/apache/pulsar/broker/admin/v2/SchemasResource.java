@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -58,6 +59,7 @@ import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -310,17 +312,28 @@ public class SchemasResource extends AdminResource {
     ) {
         validateDestinationAndAdminOperation(tenant, namespace, topic, authoritative);
 
+        NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+        getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
+            SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+        byte[] data;
+        if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
+            data = DefaultImplementation
+                    .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
+        } else {
+            data = payload.getSchema().getBytes(Charsets.UTF_8);
+        }
         pulsar().getSchemaRegistryService().putSchemaIfAbsent(
             buildSchemaId(tenant, namespace, topic),
             SchemaData.builder()
-                .data(payload.getSchema().getBytes(Charsets.UTF_8))
+                .data(data)
                 .isDeleted(false)
                 .timestamp(clock.millis())
                 .type(SchemaType.valueOf(payload.getType()))
                 .user(defaultIfEmpty(clientAppId(), ""))
                 .props(payload.getProperties())
                 .build(),
-            SchemaCompatibilityStrategy.FULL
+                schemaCompatibilityStrategy
         ).thenAccept(version ->
             response.resume(
                 Response.accepted().entity(
@@ -330,11 +343,25 @@ public class SchemasResource extends AdminResource {
                 ).build()
             )
         ).exceptionally(error -> {
-            if (error instanceof IncompatibleSchemaException) {
-                response.resume(Response.status(Response.Status.CONFLICT).build());
+            if (error.getCause() instanceof IncompatibleSchemaException) {
+                response.resume(Response.status(Response.Status.CONFLICT.getStatusCode(),
+                        error.getCause().getMessage()).build());
             } else if (error instanceof InvalidSchemaDataException) {
                 response.resume(Response.status(
-                    422, /* Unprocessable Entity */
+                        422, /* Unprocessable Entity */
+                        error.getMessage()
+                ).build());
+            } else {
+                response.resume(
+                        Response.serverError().build()
+                );
+            }
+            return null;
+        });
+        }).exceptionally(error -> {
+            if (error.getCause() instanceof RestException) {
+                response.resume(Response.status(
+                        ((RestException) error.getCause()).getResponse().getStatus(), /* Unprocessable Entity */
                     error.getMessage()
                 ).build());
             } else {
@@ -461,11 +488,19 @@ public class SchemasResource extends AdminResource {
     }
 
     private static GetSchemaResponse convertSchemaAndMetadataToGetSchemaResponse(SchemaAndMetadata schemaAndMetadata) {
+        String schemaData;
+        if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
+            schemaData = DefaultImplementation
+                    .convertKeyValueSchemaInfoDataToString(DefaultImplementation.decodeKeyValueSchemaInfo
+                            (schemaAndMetadata.schema.toSchemaInfo()));
+        } else {
+            schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+        }
         return GetSchemaResponse.builder()
                 .version(getLongSchemaVersion(schemaAndMetadata.version))
                 .type(schemaAndMetadata.schema.getType())
                 .timestamp(schemaAndMetadata.schema.getTimestamp())
-                .data(new String(schemaAndMetadata.schema.getData(), UTF_8))
+                .data(schemaData)
                 .properties(schemaAndMetadata.schema.getProps())
                 .build();
     }

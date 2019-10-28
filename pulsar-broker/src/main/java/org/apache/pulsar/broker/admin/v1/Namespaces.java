@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
@@ -113,21 +114,25 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the list of all the topics under a certain namespace.", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public List<String> getTopics(@PathParam("property") String property,
+    public void getTopics(@PathParam("property") String property,
                                   @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-                                  @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode) {
+                                  @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode,
+                                  @Suspended AsyncResponse asyncResponse) {
         validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         getNamespacePolicies(namespaceName);
 
-        try {
-            return pulsar().getNamespaceService().getListOfTopics(namespaceName, mode);
-        } catch (Exception e) {
-            log.error("Failed to get topics list for namespace {}/{}/{}", property, cluster, namespace, e);
-            throw new RestException(e);
-        }
+        pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
+                .thenAccept(topics -> {
+                    asyncResponse.resume(topics);
+                })
+                .exceptionally(ex -> {
+                    log.error("Failed to get topics list for namespace {}", namespaceName, ex);
+                    asyncResponse.resume(ex);
+                    return null;
+                });
     }
 
     @GET
@@ -444,6 +449,27 @@ public class Namespaces extends NamespacesBase {
         internalSplitNamespaceBundle(bundleRange, authoritative, unload);
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setPublishRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, PublishRate publishRate) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetPublishRate(publishRate);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Get publish-rate configured for the namespace, -1 represents not configured yet")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public PublishRate getPublishRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetPublishRate();
+    }
+    
     @POST
     @Path("/{property}/{cluster}/{namespace}/dispatchRate")
     @ApiOperation(hidden = true, value = "Set dispatch-rate throttling for all topics of the namespace")

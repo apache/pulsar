@@ -347,4 +347,13 @@ public interface Sources {
      *
      */
     List<ConnectorDefinition> getBuiltInSources() throws PulsarAdminException;
+
+
+    /**
+     * Reload the available built-in connectors, include Source and Sink
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void reloadBuiltInSources() throws PulsarAdminException;
 }

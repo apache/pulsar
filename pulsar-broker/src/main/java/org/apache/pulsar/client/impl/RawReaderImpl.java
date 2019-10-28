@@ -79,7 +79,7 @@ public class RawReaderImpl implements RawReader {
 
     @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String,Long> properties) {
-        return consumer.doAcknowledge(messageId, AckType.Cumulative, properties);
+        return consumer.doAcknowledgeWithTxn(messageId, AckType.Cumulative, properties, null);
     }
 
     @Override
@@ -112,9 +112,10 @@ public class RawReaderImpl implements RawReader {
                 consumerFuture,
                 SubscriptionMode.Durable,
                 MessageId.earliest,
+                0 /* startMessageRollbackDurationInSec */,
                 Schema.BYTES, null,
-                client.getConfiguration().getDefaultBackoffIntervalNanos(),
-                client.getConfiguration().getMaxBackoffIntervalNanos());
+                true
+            );
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
         }

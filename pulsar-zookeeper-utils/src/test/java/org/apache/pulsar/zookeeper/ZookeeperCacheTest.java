@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -25,6 +29,14 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+
+import java.util.Collections;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -34,27 +46,24 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.AsyncCallback.DataCallback;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.MoreExecutors;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 @Test
 public class ZookeeperCacheTest {
@@ -194,12 +203,7 @@ public class ZookeeperCacheTest {
         cache.unregisterListener(counter);
 
         assertEquals(notificationCount.get(), 0);
-        try {
-            cache.get();
-            fail("Expect this to fail");
-        } catch (KeeperException.NoNodeException nne) {
-            // correct
-        }
+        assertEquals(cache.get(), Collections.emptySet());
 
         zkClient.create("/test", new byte[0], null, null);
         zkClient.create("/test/z1", new byte[0], null, null);
@@ -231,8 +235,6 @@ public class ZookeeperCacheTest {
         } catch (Exception e) {
             // Ok
         }
-
-        assertEquals(notificationCount.get(), (recvNotifications + 1));
     }
 
     @Test(timeOut = 10000)
@@ -498,5 +500,61 @@ public class ZookeeperCacheTest {
         // (6) now, cache should be invalidate failed-future and should refetch the data
         assertEquals(zkCache.getAsync(key1).get().get(), value);
         zkExecutor.shutdown();
+    }
+    
+    /**
+     * This tests verifies that {{@link ZooKeeperDataCache} invalidates the cache if the get-operation time-out on that
+     * path.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testTimedOutZKCacheRequestInvalidates() throws Exception {
+
+        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
+        ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
+        ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
+        MockZooKeeper zkSession = spy(MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService()));
+
+        String path = "test";
+        doNothing().when(zkSession).getData(anyString(), any(Watcher.class), any(DataCallback.class), any());
+        zkClient.create("/test", new byte[0], null, null);
+
+        // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
+        // callback-result process
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkSession, 1, executor);
+        ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
+            @Override
+            public String deserialize(String key, byte[] content) throws Exception {
+                return new String(content);
+            }
+        };
+
+        // try to do get on the path which will time-out and async-cache will have non-completed Future
+        try {
+            zkCache.get(path);
+        } catch (Exception e) {
+            // Ok
+        }
+
+        retryStrategically((test) -> {
+            return zkCacheService.dataCache.getIfPresent(path) == null;
+        }, 5, 1000);
+
+        assertNull(zkCacheService.dataCache.getIfPresent(path));
+
+        executor.shutdown();
+        zkExecutor.shutdown();
+        scheduledExecutor.shutdown();
+    }
+
+    private static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+            throws Exception {
+        for (int i = 0; i < retryCount; i++) {
+            if (predicate.test(null) || i == (retryCount - 1)) {
+                break;
+            }
+            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
+        }
     }
 }

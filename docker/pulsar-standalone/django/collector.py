@@ -315,7 +315,7 @@ if __name__ == "__main__":
     parser.add_argument(action="store", dest="serviceUrl", help='Service URL of one cluster in the Pulsar instance')
 
     parser.add_argument('--proxy', action='store',
-                            help="Connect using a HTTP proxy", dest="proxy")
+                            help="Connect using an HTTP proxy", dest="proxy")
     parser.add_argument('--header', action="append", dest="header",
                             help='Add an additional HTTP header to all requests')
     parser.add_argument('--purge', action="store", dest="purge", type=int, default=60,

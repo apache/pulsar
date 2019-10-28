@@ -36,7 +36,7 @@ public class LocalZooKeeperCache extends ZooKeeperCache {
     private static final Logger LOG = LoggerFactory.getLogger(LocalZooKeeperCache.class);
 
     public LocalZooKeeperCache(final ZooKeeper zk, int zkOperationTimeoutSeconds, final OrderedExecutor executor) {
-        super(zk, zkOperationTimeoutSeconds, executor);
+        super("local-zk", zk, zkOperationTimeoutSeconds, executor);
     }
 
     @Override
@@ -51,7 +51,7 @@ public class LocalZooKeeperCache extends ZooKeeperCache {
                 // in case of expired, the zkSession is no longer good
                 LOG.warn("Lost connection from local ZK. Invalidating the whole cache.");
                 dataCache.synchronous().invalidateAll();
-                childrenCache.invalidateAll();
+                childrenCache.synchronous().invalidateAll();
                 return;
             default:
                 break;

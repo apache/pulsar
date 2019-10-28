@@ -897,6 +897,23 @@ public abstract class ComponentImpl {
         return this.worker().getConnectorsManager().getConnectors();
     }
 
+    public void reloadConnectors(String clientRole) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            // Only superuser has permission to do this operation.
+            if (!isSuperUser(clientRole)) {
+                throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
+            }
+        }
+        try {
+            this.worker().getConnectorsManager().reloadConnectors(worker().getWorkerConfig());
+        } catch (IOException e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
     public String triggerFunction(final String tenant,
                                   final String namespace,
                                   final String functionName,

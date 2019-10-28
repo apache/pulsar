@@ -20,7 +20,6 @@ package org.apache.pulsar.policies.data.loadbalancer;
 
 /**
  * POJO used to represents any system specific resource usage this is the format that load manager expects it in.
- *
  */
 public class ResourceUsage {
     public double usage;
@@ -45,8 +44,8 @@ public class ResourceUsage {
     }
 
     /**
-     * this may be wrong since we are comparing available and not the usage
-     * 
+     * this may be wrong since we are comparing available and not the usage.
+     *
      * @param o
      * @return
      */

@@ -129,6 +129,12 @@ processContainerFactory:
 #  extraFunctionDependenciesDir:
 #  # Additional memory padding added on top of the memory requested by the function per on a per instance basis
 #  percentMemoryPadding: 10
+#  # The ratio cpu request and cpu limit to be set for a function/source/sink.
+#  # The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio
+#  cpuOverCommitRatio: 1.0
+#  # The ratio memory request and memory limit to be set for a function/source/sink.
+#  # The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio
+#  memoryOverCommitRatio: 1.0
 
 ## A set of the minimum amount of resources functions must request.
 ## Support for this depends on function runtime.

@@ -23,6 +23,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.facebook.presto.spi.PrestoException;
 import java.util.List;
+
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 class PulsarSchemaHandlers {
@@ -50,4 +52,7 @@ class PulsarSchemaHandlers {
         }
     }
 
+    static SchemaInfo defaultSchema() {
+        return Schema.BYTES.getSchemaInfo();
+    }
 }

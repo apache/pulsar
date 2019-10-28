@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
-
 import com.google.common.base.MoreObjects;
+import java.util.Objects;
 
 /**
  * Unit of a backlog quota configuration for a scoped resource in a Pulsar instance.
- * <p>
- * A scoped resource is identified by a {@link BacklogQuotaType} enumeration type which is containing two attributes:
+ *
+ * <p>A scoped resource is identified by a {@link BacklogQuotaType} enumeration type which is containing two attributes:
  * <code>limit</code> representing a quota limit in bytes and <code>policy</code> for backlog retention policy.
  */
 public class BacklogQuota {
@@ -33,7 +32,7 @@ public class BacklogQuota {
     private RetentionPolicy policy;
 
     /**
-     * Gets quota limit in bytes
+     * Gets quota limit in bytes.
      *
      * @return quota limit in bytes
      */
@@ -46,7 +45,7 @@ public class BacklogQuota {
     }
 
     /**
-     * Sets quota limit in bytes
+     * Sets quota limit in bytes.
      *
      * @param limit
      *            quota limit in bytes
@@ -89,21 +88,21 @@ public class BacklogQuota {
     /**
      * Identifier to a backlog quota configuration (an instance of {@link BacklogQuota}).
      */
-    public static enum BacklogQuotaType {
+    public enum BacklogQuotaType {
         destination_storage;
     }
 
     /**
      * Enumeration type determines how to retain backlog against the resource shortages.
      */
-    public static enum RetentionPolicy {
-        /** Policy which holds producer's send request until the resource becomes available (or holding times out) */
+    public enum RetentionPolicy {
+        /** Policy which holds producer's send request until the resource becomes available (or holding times out). */
         producer_request_hold,
 
-        /** Policy which throws javax.jms.ResourceAllocationException to the producer */
+        /** Policy which throws javax.jms.ResourceAllocationException to the producer. */
         producer_exception,
 
-        /** Policy which evicts the oldest message from the slowest consumer's backlog */
+        /** Policy which evicts the oldest message from the slowest consumer's backlog. */
         consumer_backlog_eviction,
     }
 }

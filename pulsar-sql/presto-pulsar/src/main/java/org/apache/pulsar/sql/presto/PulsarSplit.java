@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static java.util.Objects.requireNonNull;
+
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.HostAddress;
@@ -25,15 +27,15 @@ import com.facebook.presto.spi.predicate.TupleDomain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import java.util.List;
+import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.util.List;
-import java.util.Map;
-
-import static java.util.Objects.requireNonNull;
-
+/**
+ * This class represents information for a split.
+ */
 public class PulsarSplit implements ConnectorSplit {
 
     private final long splitId;
@@ -176,19 +178,19 @@ public class PulsarSplit implements ConnectorSplit {
 
     @Override
     public String toString() {
-        return "PulsarSplit{" +
-                "splitId=" + splitId +
-                ", connectorId='" + connectorId + '\'' +
-                ", schemaName='" + schemaName + '\'' +
-                ", tableName='" + tableName + '\'' +
-                ", splitSize=" + splitSize +
-                ", schema='" + schema + '\'' +
-                ", schemaType=" + schemaType +
-                ", startPositionEntryId=" + startPositionEntryId +
-                ", endPositionEntryId=" + endPositionEntryId +
-                ", startPositionLedgerId=" + startPositionLedgerId +
-                ", endPositionLedgerId=" + endPositionLedgerId +
-                '}';
+        return "PulsarSplit{"
+            + "splitId=" + splitId
+            + ", connectorId='" + connectorId + '\''
+            + ", schemaName='" + schemaName + '\''
+            + ", tableName='" + tableName + '\''
+            + ", splitSize=" + splitSize
+            + ", schema='" + schema + '\''
+            + ", schemaType=" + schemaType
+            + ", startPositionEntryId=" + startPositionEntryId
+            + ", endPositionEntryId=" + endPositionEntryId
+            + ", startPositionLedgerId=" + startPositionLedgerId
+            + ", endPositionLedgerId=" + endPositionLedgerId
+            + '}';
     }
 
     public SchemaInfo getSchemaInfo() {

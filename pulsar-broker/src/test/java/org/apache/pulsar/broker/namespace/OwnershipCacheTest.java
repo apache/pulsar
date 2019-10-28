@@ -68,6 +68,7 @@ public class OwnershipCacheTest {
     private NamespaceService nsService;
     private BrokerService brokerService;
     private OrderedScheduler executor;
+    private MockZooKeeper zkc;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -76,7 +77,8 @@ public class OwnershipCacheTest {
         pulsar = mock(PulsarService.class);
         config = mock(ServiceConfiguration.class);
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), 30, executor);
+        zkc = MockZooKeeper.newInstance();
+        zkCache = new LocalZooKeeperCache(zkc, 30, executor);
         localCache = spy(new LocalZooKeeperCacheService(zkCache, null));
         ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
         when(pulsar.getLocalZkCacheService()).thenReturn(localCache);
@@ -102,6 +104,8 @@ public class OwnershipCacheTest {
     @AfterMethod
     public void teardown() throws Exception {
         executor.shutdown();
+        zkCache.stop();
+        zkc.shutdown();
     }
 
     @Test

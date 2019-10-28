@@ -32,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.naming.AuthenticationException;
 
+import lombok.Cleanup;
+
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
@@ -105,7 +107,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         setup();
 
         Authentication adminAuthentication = new ClientAuthentication("superUser");
-        admin = spy(
+
+        @Cleanup
+        PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
         String lookupUrl;
@@ -114,7 +118,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         Authentication authentication = new ClientAuthentication(clientRole);
         Authentication authenticationInvalidRole = new ClientAuthentication("test-role");
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+
+        @Cleanup
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
                 .authentication(authenticationInvalidRole).build();
 
@@ -167,14 +174,17 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         clientAuthProviderSupportedRoles.add(subscriptionRole);
 
+        @Cleanup
         PulsarAdmin superAdmin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
         Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        @Cleanup
         PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(tenantAdminAuthentication).build());
 
         Authentication subAdminAuthentication = new ClientAuthentication(subscriptionRole);
+        @Cleanup
         PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(subAdminAuthentication).build());
 
@@ -211,12 +221,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         // subscriptionRole has namespace-level authorization
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
-        
+
         // grant subscription access to specific different role and only that role can access the subscription
         String otherPrincipal = "Principal-1-to-access-sub";
         superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Collections.singleton(otherPrincipal));
-        
+
         // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription
         try {
             sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
@@ -237,17 +247,17 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
         superAdmin.namespaces().revokePermissionOnSubscription(namespace, subscriptionName, subscriptionRole);
-        
+
         try {
             sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
             fail("should have fail with authorization exception");
         } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException e) {
             // Ok
         }
-        
+
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
     @Test
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -256,7 +266,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         setup();
 
         Authentication adminAuthentication = new ClientAuthentication("superUser");
-        admin = spy(
+        @Cleanup
+        PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
         String lookupUrl;

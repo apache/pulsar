@@ -20,20 +20,21 @@ package org.apache.pulsar.sql.presto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.configuration.Config;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.bookkeeper.stats.NullStatsProvider;
-import org.apache.pulsar.common.naming.NamedEntity;
-import org.apache.pulsar.common.protocol.Commands;
-
-import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
+import javax.validation.constraints.NotNull;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.protocol.Commands;
 
+/**
+ * This object handles configuration of the Pulsar connector for the Presto engine.
+ */
 public class PulsarConnectorConfig implements AutoCloseable {
 
     private String brokerServiceUrl = "http://localhost:8080";
@@ -55,7 +56,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private boolean namespaceDelimiterRewriteEnable = false;
     private String rewriteNamespaceDelimiter = "/";
 
-    /**** --- Ledger Offloading --- ****/
+    // --- Ledger Offloading ---
     private String managedLedgerOffloadDriver = null;
     private int managedLedgerOffloadMaxThreads = 2;
     private String offloadersDirectory = "./offloaders";
@@ -188,14 +189,15 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
-    /**** --- Ledger Offloading --- ****/
+    // --- Ledger Offloading ---
 
     public int getManagedLedgerOffloadMaxThreads() {
         return this.managedLedgerOffloadMaxThreads;
     }
 
     @Config("pulsar.managed-ledger-offload-max-threads")
-    public PulsarConnectorConfig setManagedLedgerOffloadMaxThreads(int managedLedgerOffloadMaxThreads) throws IOException {
+    public PulsarConnectorConfig setManagedLedgerOffloadMaxThreads(int managedLedgerOffloadMaxThreads)
+        throws IOException {
         this.managedLedgerOffloadMaxThreads = managedLedgerOffloadMaxThreads;
         return this;
     }
@@ -231,7 +233,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
-    /**** --- Authentication --- ****/
+    // --- Authentication ---
 
     public String getAuthPlugin() {
         return this.authPluginClassName;
@@ -316,8 +318,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     @Override
     public String toString() {
-        return "PulsarConnectorConfig{" +
-                "brokerServiceUrl='" + brokerServiceUrl + '\'' +
-                '}';
+        return "PulsarConnectorConfig{"
+            + "brokerServiceUrl='" + brokerServiceUrl + '\''
+            + '}';
     }
 }

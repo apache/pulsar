@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -70,7 +71,7 @@ public class PulsarWorkerAssignmentTest {
     BrokerStats brokerStatsClient;
     WorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
-    final String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
+    final String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
     String workerId;
 
@@ -106,6 +107,7 @@ public class PulsarWorkerAssignmentTest {
         functionsWorkerService = createPulsarFunctionWorker(config);
         final Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
         pulsar = new PulsarService(config, functionWorkerService);
+        pulsar.setShutdownService(new NoOpShutdownService());
         pulsar.start();
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerWeServiceUrl).build());

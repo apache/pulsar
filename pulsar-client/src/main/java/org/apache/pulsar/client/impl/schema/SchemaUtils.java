@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -29,7 +30,10 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
+
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -39,15 +43,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 
 /**
  * Utils for schemas.
  */
 public final class SchemaUtils {
+
+    private static final byte[] KEY_VALUE_SCHEMA_IS_PRIMITIVE = new byte[0];
+
+    private static final String KEY_VALUE_SCHEMA_NULL_STRING = "\"\"";
 
     private SchemaUtils() {}
 
@@ -199,6 +213,21 @@ public final class SchemaUtils {
         return gsonBuilder.create().toJson(schemaInfo);
     }
 
+    /**
+     * Jsonify the schema info with verison.
+     *
+     * @param schemaInfoWithVersion the schema info
+     * @return the jsonified schema info with version
+     */
+    public static String jsonifySchemaInfoWithVersion(SchemaInfoWithVersion schemaInfoWithVersion) {
+        GsonBuilder gsonBuilder = new GsonBuilder()
+                .setPrettyPrinting()
+                .registerTypeHierarchyAdapter(SchemaInfo.class, SCHEMAINFO_ADAPTER)
+                .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
+
+        return gsonBuilder.create().toJson(schemaInfoWithVersion);
+    }
+
     private static class SchemaPropertiesSerializer implements JsonSerializer<Map<String, String>> {
 
         @Override
@@ -271,7 +300,7 @@ public final class SchemaUtils {
         }
     }
 
-    private static JsonObject toJsonObject(String json) {
+    public static JsonObject toJsonObject(String json) {
         JsonParser parser = new JsonParser();
         return parser.parse(json).getAsJsonObject();
     }
@@ -299,6 +328,44 @@ public final class SchemaUtils {
             .registerTypeHierarchyAdapter(SchemaInfo.class, SCHEMAINFO_ADAPTER)
             .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
         return gsonBuilder.create().toJson(kvSchemaInfo);
+    }
+
+    /**
+     * convert the key/value schema info data to string
+     *
+     * @param kvSchemaInfo the key/value schema info
+     * @return the convert schema info data string
+     */
+    public static String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
+        ObjectMapper objectMapper = ObjectMapperFactory.create();
+        KeyValue<Object, Object> keyValue = new KeyValue<>(SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
+                : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()), SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ?
+                "" : objectMapper.readTree(kvSchemaInfo.getValue().getSchema()));
+        return objectMapper.writeValueAsString(keyValue);
+    }
+
+    private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {
+        return KEY_VALUE_SCHEMA_NULL_STRING.equals(jsonElement.toString()) ?
+                KEY_VALUE_SCHEMA_IS_PRIMITIVE : jsonElement.toString().getBytes(UTF_8);
+    }
+
+    /**
+     * convert the key/value schema info data json bytes to key/value schema info data bytes
+     *
+     * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
+     * @return the key/value schema info data bytes
+     */
+    public static byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
+        JsonObject jsonObject = toJsonObject(new String(keyValueSchemaInfoDataJsonBytes, UTF_8));
+        byte[] keyBytes = getKeyOrValueSchemaBytes(jsonObject.get("key"));
+        byte[] valueBytes = getKeyOrValueSchemaBytes(jsonObject.get("value"));
+        int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
+        byte[] schema = new byte[dataLength];
+        //record the key value schema respective length
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer(dataLength);
+        byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
+        byteBuf.readBytes(schema);
+        return schema;
     }
 
     /**

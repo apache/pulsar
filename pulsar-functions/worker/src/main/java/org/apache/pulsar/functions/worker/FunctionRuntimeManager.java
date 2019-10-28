@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
@@ -58,6 +59,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -120,7 +122,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
         secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
 
-
+        Optional<FunctionAuthProvider> functionAuthProvider  = Optional.empty();
         AuthenticationConfig authConfig = null;
         if (workerConfig.isAuthenticationEnabled()) {
             authConfig = AuthenticationConfig.builder()
@@ -131,6 +133,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
                     .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable())
                     .build();
+
+            //initialize function authentication provider
+            if (!StringUtils.isEmpty(workerConfig.getFunctionAuthProviderClassName())) {
+                functionAuthProvider = Optional.of(FunctionAuthProvider.getAuthProvider(workerConfig.getFunctionAuthProviderClassName()));
+            }
         }
 
         if (workerConfig.getThreadContainerFactory() != null) {
@@ -151,7 +158,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getProcessContainerFactory().getLogDirectory(),
                     workerConfig.getProcessContainerFactory().getExtraFunctionDependenciesDir(),
                     secretsProviderConfigurator,
-                    workerConfig.isAuthenticationEnabled());
+                    workerConfig.isAuthenticationEnabled(),
+                    functionAuthProvider);
         } else if (workerConfig.getKubernetesContainerFactory() != null){
             this.runtimeFactory = new KubernetesRuntimeFactory(
                     workerConfig.getKubernetesContainerFactory().getK8Uri(),
@@ -166,6 +174,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getKubernetesContainerFactory().getExtraFunctionDependenciesDir(),
                     workerConfig.getKubernetesContainerFactory().getCustomLabels(),
                     workerConfig.getKubernetesContainerFactory().getPercentMemoryPadding(),
+                    workerConfig.getKubernetesContainerFactory().getCpuOverCommitRatio(),
+                    workerConfig.getKubernetesContainerFactory().getMemoryOverCommitRatio(),
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl()) ? workerConfig.getPulsarServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl(),
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl()) ? workerConfig.getPulsarWebServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl(),
                     workerConfig.getStateStorageServiceUrl(),
@@ -175,7 +185,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     workerConfig.getKubernetesContainerFactory().getChangeConfigMapNamespace(),
                     workerConfig.getFunctionInstanceMinResources(),
                     secretsProviderConfigurator,
-                    workerConfig.isAuthenticationEnabled());
+                    workerConfig.isAuthenticationEnabled(),
+                    functionAuthProvider);
         } else {
             throw new RuntimeException("Either Thread, Process or Kubernetes Container Factory need to be set");
         }
@@ -215,9 +226,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     }
                 }
             }
-            // start assignment tailer
-            this.functionAssignmentTailer.start();
-
         } catch (Exception e) {
             log.error("Failed to initialize function runtime manager: ", e.getMessage(), e);
             throw new RuntimeException(e);
@@ -229,7 +237,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public void start() {
         log.info("/** Starting Function Runtime Manager **/");
-        log.info("Initialize metrics sink...");
         log.info("Starting function assignment tailer...");
         this.functionAssignmentTailer.start();
     }
@@ -629,7 +636,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
             // changes to the function meta data of the instance
 
             if (runtimeFactory.externallyManaged()) {
-
                 // change in metadata thus need to potentially restart
                 if (!assignment.getInstance().equals(existingAssignment.getInstance())) {
                     //stop function
@@ -657,6 +663,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         RuntimeSpawner runtimeSpawner = functionActioner.getRuntimeSpawner(
                                 assignment.getInstance(),
                                 assignment.getInstance().getFunctionMetaData().getPackageLocation().getPackagePath());
+                        // re-initialize if necessary
+                        runtimeSpawner.getRuntime().reinitialize();
                         newFunctionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
                         this.functionRuntimeInfoMap.put(fullyQualifiedInstanceId, newFunctionRuntimeInfo);

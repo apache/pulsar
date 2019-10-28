@@ -19,23 +19,13 @@
       "concepts-schema-registry"
     ],
     "Pulsar Schema": [
-      "schema-get-started"
+      "schema-get-started",
+      "schema-understand",
+      "schema-evolution-compatibility",
+      "schema-manage"
     ],
     "Pulsar Functions": [
       "functions-overview",
-      "functions-quickstart",
-      "functions-api",
-      "functions-deploying",
-      "functions-guarantees",
-      "functions-state",
-      "functions-metrics",
-      "functions-worker",
-      "functions-runtime",
-      "functions-deploying",
-      "functions-debugging"
-    ],
-    "Pulsar Functions（New）": [
-      "functions-overview-new",
       "functions-worker",
       "functions-runtime",
       "functions-develop",
@@ -44,15 +34,18 @@
       "functions-configure",
       "functions-monitor",
       "functions-secure",
-      "functions-troubleshoot"
+      "functions-troubleshoot",
+      "functions-cli"
     ],
     "Pulsar IO": [
       "io-overview",
       "io-quickstart",
-      "io-managing",
+      "io-use",
+      "io-debug",
       "io-connectors",
+      "io-cdc",
       "io-develop",
-      "io-cdc"
+      "io-cli"
     ],
     "Pulsar SQL": [
       "sql-overview",
@@ -80,8 +73,7 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
-      "security-token-client",
-      "security-token-admin",
+      "security-jwt",
       "security-athenz",
       "security-kerberos",
       "security-authorization",
@@ -93,6 +85,7 @@
       "client-libraries-go",
       "client-libraries-python",
       "client-libraries-cpp",
+      "client-libraries-node",
       "client-libraries-websocket"
     ],
     "Admin API": [
@@ -105,6 +98,7 @@
       "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics",
+      "admin-api-non-partitioned-topics",
       "admin-api-schemas"
     ],
     "Adaptors": [
@@ -134,7 +128,8 @@
       "reference-terminology",
       "reference-cli-tools",
       "pulsar-admin",
-      "reference-configuration"
+      "reference-configuration",
+      "reference-metrics"
     ]
   },
   "docs-other": {

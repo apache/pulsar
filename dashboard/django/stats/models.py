@@ -73,6 +73,9 @@ class Namespace(Model):
     def is_global(self):
         return self.name.split('/', 2)[1] == 'global'
 
+    def is_v2(self):
+        return len(self.name.split('/', 2)) == 2
+
     def __str__(self):
         return self.name
 
@@ -129,6 +132,9 @@ class Topic(Model):
 
     def is_global(self):
         return self.namespace.is_global()
+
+    def is_v2(self):
+        return self.namespace.is_v2()
 
     def url_name(self):
         return '/'.join(self.name.split('://', 1))

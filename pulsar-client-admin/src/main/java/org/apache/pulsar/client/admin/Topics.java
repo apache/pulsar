@@ -174,12 +174,9 @@ public interface Topics {
      *            Topic url
      * @param role
      *            Client role to which remove permission
-     * @throws UniformInterfaceException
-     *             if the operations was not successful
-     *
      * @throws NotAuthorizedException
      *             Don't have admin permission
-     * @throws NotFound
+     * @throws NotFoundException
      *             Namespace does not exist
      * @throws PreconditionFailedException
      *             Permissions are not set at the topic level
@@ -267,6 +264,24 @@ public interface Topics {
      * @return a future that can be used to track when the partitioned topic is updated
      */
     CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions);
+    
+    /**
+     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * <p>
+     * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
+     * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
+     * <p>
+     *
+     * @param topic
+     *            Topic name
+     * @param numPartitions
+     *            Number of new partitions of already exist partitioned-topic
+     * @param updateLocalTopicOnly
+     *            Used by broker for global topic with multiple replicated clusters
+     *
+     * @return a future that can be used to track when the partitioned topic is updated
+     */
+    CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions, boolean updateLocalTopicOnly);
 
     /**
      * Get metadata of a partitioned topic.
@@ -517,7 +532,7 @@ public interface Topics {
      *       "msgRateIn" : 100.0,
      *       "msgThroughputIn" : 10240.0,
      *       "msgRateOut" : 100.0,
-     *       "msghroughputOut" : 10240.0,
+     *       "msgThroughputOut" : 10240.0,
      *       "replicationBacklog" : 0,
      *       "connected" : true,
      *     }
@@ -698,7 +713,7 @@ public interface Topics {
      * Get the stats for the partitioned topic
      * 
      * @param topic
-     * @param perPartition
+     *            topic name
      * @return
      * @throws PulsarAdminException
      */
@@ -822,7 +837,7 @@ public interface Topics {
      *
      * @param topic
      *            topic name
-     * @param subName
+     * @param subscriptionName
      *            Subscription name
      * @param expireTimeInSeconds
      *            Expire messages older than time in seconds
@@ -837,7 +852,7 @@ public interface Topics {
      *
      * @param topic
      *            topic name
-     * @param subName
+     * @param subscriptionName
      *            Subscription name
      * @param expireTimeInSeconds
      *            Expire messages older than time in seconds
@@ -1000,7 +1015,7 @@ public interface Topics {
      *            topic name
      * @param subName
      *            Subscription name
-     * @param MessageId
+     * @param messageId
      *            reset subscription to messageId (or previous nearest messageId if given messageId is not valid)
      */
     CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId);

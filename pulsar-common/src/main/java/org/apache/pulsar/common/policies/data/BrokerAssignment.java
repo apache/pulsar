@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+/**
+ * Definition of possible broker assignments.
+ */
 public enum BrokerAssignment {
     primary, secondary, shared
 }

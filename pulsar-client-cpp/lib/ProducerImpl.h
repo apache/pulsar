@@ -30,6 +30,7 @@
 #include "MessageCrypto.h"
 #include "stats/ProducerStatsDisabled.h"
 #include "stats/ProducerStatsImpl.h"
+#include "PulsarApi.pb.h"
 
 using namespace pulsar;
 
@@ -42,6 +43,8 @@ typedef std::shared_ptr<BatchMessageContainer> BatchMessageContainerPtr;
 typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
 
 class PulsarFriend;
+
+class Producer;
 
 struct OpSendMsg {
     Message msg_;
@@ -75,7 +78,7 @@ class ProducerImpl : public HandlerBase,
 
     bool removeCorruptMessage(uint64_t sequenceId);
 
-    bool ackReceived(uint64_t sequenceId);
+    bool ackReceived(uint64_t sequenceId, MessageId& messageId);
 
     virtual void disconnectProducer();
 
@@ -110,6 +113,8 @@ class ProducerImpl : public HandlerBase,
 
     friend class PulsarFriend;
 
+    friend class Producer;
+
     friend class BatchMessageContainer;
 
     virtual void connectionOpened(const ClientConnectionPtr& connection);
@@ -125,15 +130,17 @@ class ProducerImpl : public HandlerBase,
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                               const ResponseData& responseData);
 
-    void statsCallBackHandler(Result, const Message&, SendCallback, boost::posix_time::ptime);
+    void statsCallBackHandler(Result, const MessageId&, SendCallback, boost::posix_time::ptime);
 
-    void handleClose(Result result, ResultCallback callback);
+    void handleClose(Result result, ResultCallback callback, ProducerImplPtr producer);
 
     void resendMessages(ClientConnectionPtr cnx);
 
     void refreshEncryptionKey(const boost::system::error_code& ec);
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
+
+    void cancelTimers();
 
     typedef std::unique_lock<std::mutex> Lock;
 

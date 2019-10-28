@@ -256,7 +256,7 @@ func (c *consumer) Subscription() string {
 }
 
 func (c *consumer) Unsubscribe() error {
-	channel := make(chan error)
+	channel := make(chan error, 1)
 	c.UnsubscribeAsync(func(err error) {
 		channel <- err
 		close(channel)
@@ -320,7 +320,7 @@ func (c *consumer) NackID(msgId MessageID) error {
 }
 
 func (c *consumer) Close() error {
-	channel := make(chan error)
+	channel := make(chan error, 1)
 	c.CloseAsync(func(err error) { channel <- err; close(channel) })
 	return <-channel
 }
@@ -349,7 +349,7 @@ func (c *consumer) RedeliverUnackedMessages() {
 }
 
 func (c *consumer) Seek(msgID MessageID) error {
-	channel := make(chan error)
+	channel := make(chan error, 1)
 	c.SeekAsync(msgID, func(err error) {
 		channel <- err
 		close(channel)

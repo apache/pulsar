@@ -35,6 +35,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -132,7 +133,9 @@ public class ReplicatorTestBase {
         config1.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         config1.setDefaultNumberOfNamespaceBundles(1);
+        config1.setAllowAutoTopicCreationType("non-partitioned");
         pulsar1 = new PulsarService(config1);
+        pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
 
@@ -165,7 +168,9 @@ public class ReplicatorTestBase {
         config2.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         config2.setDefaultNumberOfNamespaceBundles(1);
+        config2.setAllowAutoTopicCreationType("non-partitioned");
         pulsar2 = new PulsarService(config2);
+        pulsar2.setShutdownService(new NoOpShutdownService());
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();
 
@@ -198,7 +203,9 @@ public class ReplicatorTestBase {
         config3.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config3.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config3.setDefaultNumberOfNamespaceBundles(1);
+        config3.setAllowAutoTopicCreationType("non-partitioned");
         pulsar3 = new PulsarService(config3);
+        pulsar3.setShutdownService(new NoOpShutdownService());
         pulsar3.start();
         ns3 = pulsar3.getBrokerService();
 

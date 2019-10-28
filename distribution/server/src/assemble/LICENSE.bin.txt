@@ -314,14 +314,14 @@ The Apache Software License, Version 2.0
  * Jackson
      - org.codehaus.jackson-jackson-core-asl-1.9.13.jar
      - org.codehaus.jackson-jackson-mapper-asl-1.9.13.jar
-     - com.fasterxml.jackson.core-jackson-annotations-2.9.8.jar
-     - com.fasterxml.jackson.core-jackson-core-2.9.8.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.9.8.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.8.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.8.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.8.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.8.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.8.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.9.9.jar
+     - com.fasterxml.jackson.core-jackson-core-2.9.9.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.9.9.3.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.9.9.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.9.9.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.9.9.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.9.9.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.9.9.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
@@ -346,9 +346,23 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.15.jar
     - org.apache.commons-commons-lang3-3.4.jar
  * Netty
-    - io.netty-netty-3.10.1.Final.jar
-    - io.netty-netty-all-4.1.32.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.20.Final.jar
+    - io.netty-netty-buffer-4.1.43.Final.jar
+    - io.netty-netty-codec-4.1.43.Final.jar
+    - io.netty-netty-codec-dns-4.1.43.Final.jar
+    - io.netty-netty-codec-http-4.1.43.Final.jar
+    - io.netty-netty-codec-http2-4.1.43.Final.jar
+    - io.netty-netty-codec-socks-4.1.43.Final.jar
+    - io.netty-netty-common-4.1.43.Final.jar
+    - io.netty-netty-handler-4.1.43.Final.jar
+    - io.netty-netty-handler-proxy-4.1.43.Final.jar
+    - io.netty-netty-resolver-4.1.43.Final.jar
+    - io.netty-netty-resolver-dns-4.1.43.Final.jar
+    - io.netty-netty-transport-4.1.43.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.43.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.43.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.43.Final.jar
+    - io.netty-netty-3.10.6.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.26.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -356,6 +370,7 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_servlet-0.5.0.jar
     - io.prometheus-simpleclient_log4j2-0.5.0.jar
     - io.prometheus-simpleclient_jetty-0.5.0.jar
+    - io.prometheus-simpleclient_caffeine-0.5.0.jar
  * Bean Validation API -- javax.validation-validation-api-1.1.0.Final.jar
  * Log4J
     - log4j-log4j-1.2.17.jar

@@ -52,6 +52,7 @@ import io.kubernetes.client.models.V1StatefulSetSpec;
 import io.kubernetes.client.models.V1Toleration;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -83,6 +84,7 @@ import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 
 /**
  * Kubernetes based runtime for running functions.
@@ -135,7 +137,9 @@ public class KubernetesRuntime implements Runtime {
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private int percentMemoryPadding;
-    private final KubernetesFunctionAuthProvider functionAuthDataCacheProvider;
+    private double cpuOverCommitRatio;
+    private double memoryOverCommitRatio;
+    private final Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider;
     private final AuthenticationConfig authConfig;
 
     KubernetesRuntime(AppsV1Api appsClient,
@@ -161,7 +165,9 @@ public class KubernetesRuntime implements Runtime {
                       SecretsProviderConfigurator secretsProviderConfigurator,
                       Integer expectedMetricsCollectionInterval,
                       int percentMemoryPadding,
-                      KubernetesFunctionAuthProvider functionAuthDataCacheProvider,
+                      double cpuOverCommitRatio,
+                      double memoryOverCommitRatio,
+                      Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
                       boolean authenticationEnabled) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
@@ -176,6 +182,8 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
+        this.cpuOverCommitRatio = cpuOverCommitRatio;
+        this.memoryOverCommitRatio = memoryOverCommitRatio;
         this.authenticationEnabled = authenticationEnabled;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
@@ -247,9 +255,19 @@ public class KubernetesRuntime implements Runtime {
             throw e;
         }
 
-        if (channel == null && stub == null) {
+        setupGrpcChannelIfNeeded();
+    }
+
+    @Override
+    public void reinitialize() {
+        setupGrpcChannelIfNeeded();
+    }
+
+    private synchronized void setupGrpcChannelIfNeeded() {
+        if (channel == null || stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
             stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails().getParallelism()];
+
             String jobName = createJobName(instanceConfig.getFunctionDetails());
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
                 String address = getServiceUrl(jobName, jobNamespace, i);
@@ -332,16 +350,16 @@ public class KubernetesRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
-        if (instanceId < 0 || instanceId >= stub.length) {
-            if (stub == null) {
-                retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
-                return retval;
-            }
-        }
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
+
+        if (instanceId < 0 || instanceId >= stub.length) {
+            retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
+            return retval;
+        }
+
         ListenableFuture<InstanceCommunication.MetricsData> response = stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getMetrics(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
             @Override
@@ -445,8 +463,8 @@ public class KubernetesRuntime implements Runtime {
         final V1StatefulSet statefulSet = createStatefulSet();
         // Configure function authentication if needed
         if (authenticationEnabled) {
-            functionAuthDataCacheProvider.configureAuthDataStatefulSet(
-                    statefulSet, Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec()))));
+            functionAuthDataCacheProvider.ifPresent(kubernetesFunctionAuthProvider -> kubernetesFunctionAuthProvider.configureAuthDataStatefulSet(
+                    statefulSet, Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
         }
 
         log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));
@@ -945,18 +963,33 @@ public class KubernetesRuntime implements Runtime {
 
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
-        final Map<String, Quantity> requests = new HashMap<>();
+        final Map<String, Quantity> resourceLimit = new HashMap<>();
+        final Map<String, Quantity> resourceRequest = new HashMap<>();
+
 
         long ram = resource != null && resource.getRam() != 0 ? resource.getRam() : 1073741824;
 
         // add memory padding
         long padding = Math.round(ram * (percentMemoryPadding / 100.0));
         long ramWithPadding = ram + padding;
+        long ramRequest =  (long) (ramWithPadding / memoryOverCommitRatio);
 
-        requests.put("memory", Quantity.fromString(Long.toString(ramWithPadding)));
-        requests.put("cpu", Quantity.fromString(Double.toString(resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1)));
-        resourceRequirements.setRequests(requests);
-        resourceRequirements.setLimits(requests);
+        // set resource limits
+        double cpuLimit = resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1;
+        // for cpu overcommiting
+        double cpuRequest = cpuLimit / cpuOverCommitRatio;
+
+        // round cpu to 3 decimal places as it is the finest cpu precision allowed
+        resourceLimit.put("cpu", Quantity.fromString(Double.toString(roundDecimal(cpuLimit, 3))));
+        resourceLimit.put("memory", Quantity.fromString(Long.toString(ramWithPadding)));
+
+        // set resource requests
+        // round cpu to 3 decimal places as it is the finest cpu precision allowed
+        resourceRequest.put("cpu", Quantity.fromString(Double.toString(roundDecimal(cpuRequest, 3))));
+        resourceRequest.put("memory", Quantity.fromString(Long.toString(ramRequest)));
+
+        resourceRequirements.setRequests(resourceRequest);
+        resourceRequirements.setLimits(resourceLimit);
         container.setResources(resourceRequirements);
 
         // set container ports
@@ -983,14 +1016,26 @@ public class KubernetesRuntime implements Runtime {
         return ports;
     }
 
-    private static String createJobName(Function.FunctionDetails functionDetails) {
+    public static String createJobName(Function.FunctionDetails functionDetails) {
         return createJobName(functionDetails.getTenant(),
                 functionDetails.getNamespace(),
                 functionDetails.getName());
     }
 
+    private static String toValidPodName(String ori) {
+        return ori.toLowerCase().replaceAll("[^a-z0-9-\\.]", "-");
+    }
+
     private static String createJobName(String tenant, String namespace, String functionName) {
-        return "pf-" + tenant + "-" + namespace + "-" + functionName;
+        final String jobNameContent = String.format("%s-%s-%s", tenant, namespace,functionName);
+        final String jobName = "pf-" + jobNameContent;
+        final String convertedJobName = toValidPodName(jobName);
+        if (jobName.equals(convertedJobName)) {
+            return jobName;
+        }
+        // toValidPodName may cause naming collisions, add a short hash here to avoid it
+        final String shortHash = DigestUtils.sha1Hex(jobNameContent).toLowerCase().substring(0, 8);
+        return convertedJobName + "-" + shortHash;
     }
 
     private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
