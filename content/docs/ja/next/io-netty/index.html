@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Netty source connector · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The Netty source connector opens a port that accepts incoming data via the configured network protocol and publish it to user-defined Pulsar topics."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Netty source connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="The Netty source connector opens a port that accepts incoming data via the configured network protocol and publish it to user-defined Pulsar topics."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="ja"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Netty Tcp or Udp Connector · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Source"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="ja"/><meta property="og:title" content="Netty Tcp or Udp Connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="## Source"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -18,148 +18,21 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Netty source connector</h1></header><article><div><span><p>The Netty source connector opens a port that accepts incoming data via the configured network protocol and publish it to user-defined Pulsar topics.</p>
-<p>This connector can be used in a containerized (for example, k8s) deployment. Otherwise, if the connector is running in process or thread mode, the instance may be conflicting on listening to ports.</p>
-<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
-<p>The configuration of the Netty source connector has the following properties.</p>
-<h3><a class="anchor" aria-hidden="true" id="property"></a><a href="#property" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Property</h3>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ja" target="_blank" rel="noreferrer noopener">Translate</a><h1 class="postHeaderTitle">Netty Tcp or Udp Connector</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h2>
+<p>The Netty Source connector opens a port that accept incoming data via the configured network protocol and publish it to a user-defined Pulsar topic. Also, this connector is suggested to be used in a containerized (e.g. k8s) deployment. Otherwise, if the connector is running in process or thread mode, the instances may be conflicting on listening to ports.</p>
+<h3><a class="anchor" aria-hidden="true" id="source-configuration-options"></a><a href="#source-configuration-options" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source Configuration Options</h3>
 <table>
 <thead>
-<tr><th>Name</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>Required</th><th>Default</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>type</code></td><td>String</td><td>true</td><td>tcp</td><td>The network protocol over which data is transmitted to netty. <br /><br />Below are the available options:<br /><li>tcp<li>http<li>udp</td></tr>
-<tr><td><code>host</code></td><td>String</td><td>true</td><td>127.0.0.1</td><td>The host name or address on which the source instance listen.</td></tr>
-<tr><td><code>port</code></td><td>int</td><td>true</td><td>10999</td><td>The port on which the source instance listen.</td></tr>
-<tr><td><code>numberOfThreads</code></td><td>int</td><td>true</td><td>1</td><td>The number of threads of Netty TCP server to accept incoming connections and handle the traffic of accepted connections.</td></tr>
+<tr><td><code>type</code></td><td><code>false</code></td><td><code>tcp</code></td><td>The network protocol over which data is trasmitted to netty. Valid values include HTTP, TCP, and UDP</td></tr>
+<tr><td><code>host</code></td><td><code>false</code></td><td><code>127.0.0.1</code></td><td>The host name or address that the source instance to listen on.</td></tr>
+<tr><td><code>port</code></td><td><code>false</code></td><td><code>10999</code></td><td>The port that the source instance to listen on.</td></tr>
+<tr><td><code>numberOfThreads</code></td><td><code>false</code></td><td><code>1</code></td><td>The number of threads of Netty Tcp Server to accept incoming connections and handle the traffic of the accepted connections.</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
-<p>Before using the Netty source connector, you need to create a configuration file through one of the following methods.</p>
-<ul>
-<li><p>JSON</p>
-<pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"type"</span>: <span class="hljs-string">"tcp"</span>,
-    <span class="hljs-attr">"host"</span>: <span class="hljs-string">"127.0.0.1"</span>,
-    <span class="hljs-attr">"port"</span>: <span class="hljs-string">"10911"</span>,
-    <span class="hljs-attr">"numberOfThreads"</span>: <span class="hljs-string">"1"</span>
-}
-</code></pre></li>
-<li><p>YAML</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
-<span class="hljs-attr">    type:</span> <span class="hljs-string">"tcp"</span>
-<span class="hljs-attr">    host:</span> <span class="hljs-string">"127.0.0.1"</span>
-<span class="hljs-attr">    port:</span> <span class="hljs-number">10999</span>
-<span class="hljs-attr">    numberOfThreads:</span> <span class="hljs-number">1</span>
-</code></pre></li>
-</ul>
-<h2><a class="anchor" aria-hidden="true" id="使い方"></a><a href="#使い方" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使い方</h2>
-<p>The following examples show how to use the Netty source connector with TCP and HTTP.</p>
-<h3><a class="anchor" aria-hidden="true" id="tcp"></a><a href="#tcp" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TCP</h3>
-<ol>
-<li><p>Start Pulsar standalone.</p>
-<pre><code class="hljs css language-bash">$ docker pull apachepulsar/pulsar:{version}
-
-$ docker run -d -it -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
-</code></pre></li>
-<li><p>Create a configuration file <em>netty-source-config.yaml</em>.</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
-<span class="hljs-attr">    type:</span> <span class="hljs-string">"tcp"</span>
-<span class="hljs-attr">    host:</span> <span class="hljs-string">"127.0.0.1"</span>
-<span class="hljs-attr">    port:</span> <span class="hljs-number">10999</span>
-<span class="hljs-attr">    numberOfThreads:</span> <span class="hljs-number">1</span>
-</code></pre></li>
-<li><p>Copy the configuration file <em>netty-source-config.yaml</em> to Pulsar server.</p>
-<pre><code class="hljs css language-bash">$ docker cp netty-source-config.yaml pulsar-netty-standalone:/pulsar/conf/
-</code></pre></li>
-<li><p>Download the Netty source connector.</p>
-<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-netty-standalone /bin/bash
-curl -O http://mirror-hk.koddos.net/apache/pulsar/pulsar-{version}/connectors/pulsar-io-netty-{version}.nar
-</code></pre></li>
-<li><p>Start the Netty source connector.</p>
-<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin sources localrun \
---archive pulsar-io-2.4.1.nar \
---tenant public \
---namespace default \
---name netty \
---destination-topic-name netty-topic \
---<span class="hljs-built_in">source</span>-config-file netty-source-config.yaml \
---parallelism 1
-</code></pre></li>
-<li><p>Consume data.</p>
-<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-netty-standalone /bin/bash
-
-$ ./bin/pulsar-client consume -t Exclusive -s netty-sub netty-topic -n 0
-</code></pre></li>
-<li><p>Open another terminal window to send data to the Netty source.</p>
-<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-netty-standalone /bin/bash
-
-$ apt-get update
-
-$ apt-get -y install telnet
-
-$ root@1d19327b2c67:/pulsar<span class="hljs-comment"># telnet 127.0.0.1 10999</span>
-Trying 127.0.0.1...
-Connected to 127.0.0.1.
-Escape character is <span class="hljs-string">'^]'</span>.
-hello
-world
-</code></pre></li>
-<li><p>The following information appears on the consumer terminal window.</p>
-<pre><code class="hljs css language-bash">----- got message -----
-hello
-
------ got message -----
-world
-</code></pre></li>
-</ol>
-<h3><a class="anchor" aria-hidden="true" id="http"></a><a href="#http" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>HTTP</h3>
-<ol>
-<li><p>Start Pulsar standalone.</p>
-<pre><code class="hljs css language-bash">$ docker pull apachepulsar/pulsar:{version}
-
-$ docker run -d -it -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
-</code></pre></li>
-<li><p>Create a configuration file <em>netty-source-config.yaml</em>.</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
-<span class="hljs-attr">    type:</span> <span class="hljs-string">"http"</span>
-<span class="hljs-attr">    host:</span> <span class="hljs-string">"127.0.0.1"</span>
-<span class="hljs-attr">    port:</span> <span class="hljs-number">10999</span>
-<span class="hljs-attr">    numberOfThreads:</span> <span class="hljs-number">1</span>
-</code></pre></li>
-<li><p>Copy the configuration file <em>netty-source-config.yaml</em> to Pulsar server.</p>
-<pre><code class="hljs css language-bash">$ docker cp netty-source-config.yaml pulsar-netty-standalone:/pulsar/conf/
-</code></pre></li>
-<li><p>Download the Netty source connector.</p>
-<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-netty-standalone /bin/bash
-curl -O http://mirror-hk.koddos.net/apache/pulsar/pulsar-{version}/connectors/pulsar-io-netty-{version}.nar
-</code></pre></li>
-<li><p>Start the Netty source connector.</p>
-<pre><code class="hljs css language-bash">$ ./bin/pulsar-admin sources localrun \
---archive pulsar-io-2.4.1.nar \
---tenant public \
---namespace default \
---name netty \
---destination-topic-name netty-topic \
---<span class="hljs-built_in">source</span>-config-file netty-source-config.yaml \
---parallelism 1
-</code></pre></li>
-<li><p>Consume data.</p>
-<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-netty-standalone /bin/bash
-
-$ ./bin/pulsar-client consume -t Exclusive -s netty-sub netty-topic -n 0
-</code></pre></li>
-<li><p>Open another terminal window to send data to the Netty source.</p>
-<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-netty-standalone /bin/bash
-
-$ curl -X POST --data <span class="hljs-string">'hello, world!'</span> http://127.0.0.1:10999/
-</code></pre></li>
-<li><p>The following information appears on the consumer terminal window.</p>
-<pre><code class="hljs css language-bash">----- got message -----
-hello, world!
-</code></pre></li>
-</ol>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#property">Property</a></li><li><a href="#example">Example</a></li></ul></li><li><a href="#使い方">使い方</a><ul class="toc-headings"><li><a href="#tcp">TCP</a></li><li><a href="#http">HTTP</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#source">Source</a><ul class="toc-headings"><li><a href="#source-configuration-options">Source Configuration Options</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

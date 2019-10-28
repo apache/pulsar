@@ -8908,41 +8908,41 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
         "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
         },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
         },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -9523,6 +9523,12 @@
         "deduplicationEnabled" : {
           "type" : "boolean"
         },
+        "publishMaxMessageRate" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/PublishRate"
+          }
+        },
         "latency_stats_sample_rate" : {
           "type" : "object",
           "additionalProperties" : {
@@ -9760,6 +9766,19 @@
         }
       }
     },
+    "PublishRate" : {
+      "type" : "object",
+      "properties" : {
+        "publishThrottlingRateInMsg" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "publishThrottlingRateInByte" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      }
+    },
     "PublisherStats" : {
       "type" : "object",
       "properties" : {
@@ -9893,11 +9912,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },

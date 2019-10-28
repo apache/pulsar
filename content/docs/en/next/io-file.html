@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>File source connector · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="The File source connector pulls messages from files in directories and persists the messages to Pulsar topics."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="File source connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="The File source connector pulls messages from files in directories and persists the messages to Pulsar topics."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>File Connector · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Source"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="File Connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="## Source"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -18,104 +18,30 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/incubator-pulsar/edit/master/site2/docs/io-file-source.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 class="postHeaderTitle">File source connector</h1></header><article><div><span><p>The File source connector pulls messages from files in directories and persists the messages to Pulsar topics.</p>
-<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
-<p>The configuration of the File source connector has the following properties.</p>
-<h3><a class="anchor" aria-hidden="true" id="property"></a><a href="#property" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Property</h3>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/incubator-pulsar/edit/master/site2/docs/io-file.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 class="postHeaderTitle">File Connector</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h2>
+<p>The File Source Connector is used to pull messages from files in a directory and persist the messages
+to a Pulsar topic.</p>
+<h3><a class="anchor" aria-hidden="true" id="source-configuration-options"></a><a href="#source-configuration-options" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source Configuration Options</h3>
 <table>
 <thead>
-<tr><th>Name</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>Required</th><th>Default</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>inputDirectory</code></td><td>String</td><td>true</td><td>No default value</td><td>The input directory to pull files.</td></tr>
-<tr><td><code>recurse</code></td><td>Boolean</td><td>false</td><td>true</td><td>Whether to pull files from subdirectory or not.</td></tr>
-<tr><td><code>keepFile</code></td><td>Boolean</td><td>false</td><td>false</td><td>If set to true, the file is not deleted after it is processed, which means the file can be picked up continually.</td></tr>
-<tr><td><code>fileFilter</code></td><td>String</td><td>false</td><td>[^\.].*</td><td>The file whose name matches the given regular expression is picked up.</td></tr>
-<tr><td><code>pathFilter</code></td><td>String</td><td>false</td><td>NULL</td><td>If <code>recurse</code> is set to true, the subdirectory whose path matches the given regular expression is scanned.</td></tr>
-<tr><td><code>minimumFileAge</code></td><td>Integer</td><td>false</td><td>0</td><td>The minimum age that a file can be processed. <br><br>Any file younger than <code>minimumFileAge</code> (according to the last modification date) is ignored.</td></tr>
-<tr><td><code>maximumFileAge</code></td><td>Long</td><td>false</td><td>Long.MAX_VALUE</td><td>The maximum age that a file can be processed. <br><br>Any file older than <code>maximumFileAge</code> (according to last modification date) is ignored.</td></tr>
-<tr><td><code>minimumSize</code></td><td>Integer</td><td>false</td><td>1</td><td>The minimum size (in bytes) that a file can be processed.</td></tr>
-<tr><td><code>maximumSize</code></td><td>Double</td><td>false</td><td>Double.MAX_VALUE</td><td>The maximum size (in bytes) that a file can be processed.</td></tr>
-<tr><td><code>ignoreHiddenFiles</code></td><td>Boolean</td><td>false</td><td>true</td><td>Whether the hidden files should be ignored or not.</td></tr>
-<tr><td><code>pollingInterval</code></td><td>Long</td><td>false</td><td>10000L</td><td>Indicates how long to wait before performing a directory listing.</td></tr>
-<tr><td><code>numWorkers</code></td><td>Integer</td><td>false</td><td>1</td><td>The number of worker threads that process files.<br><br> This allows you to process a larger number of files concurrently. <br><br>However, setting this to a value greater than 1 makes the data from multiple files mixed in the target topic.</td></tr>
+<tr><td>inputDirectory</td><td><code>true</code></td><td><code>null</code></td><td>The input directory from which to pull files.</td></tr>
+<tr><td>recurse</td><td><code>false</code></td><td><code>true</code></td><td>Indicates whether or not to pull files from sub-directories.</td></tr>
+<tr><td>keepFile</td><td><code>false</code></td><td><code>false</code></td><td>If true, the file is not deleted after it has been processed and causes the file to be picked up continually.</td></tr>
+<tr><td>fileFilter</td><td><code>false</code></td><td><code>[^\\.].*</code></td><td>Only files whose names match the given regular expression will be picked up.</td></tr>
+<tr><td>pathFilter</td><td><code>false</code></td><td><code>null</code></td><td>When 'recurse' property is true, then only sub-directories whose path matches the given regular expression will be scanned.</td></tr>
+<tr><td>minimumFileAge</td><td><code>false</code></td><td><code>0</code></td><td>The minimum age that a file must be in order to be processed; any file younger than this amount of time (according to last modification date) will be ignored.</td></tr>
+<tr><td>maximumFileAge</td><td><code>false</code></td><td><code>Long.MAX_VALUE</code></td><td>The maximum age that a file must be in order to be processed; any file older than this amount of time (according to last modification date) will be ignored.</td></tr>
+<tr><td>minimumSize</td><td><code>false</code></td><td><code>1</code></td><td>The minimum size (in bytes) that a file must be in order to be processed.</td></tr>
+<tr><td>maximumSize</td><td><code>false</code></td><td><code>Double.MAX_VALUE</code></td><td>The maximum size (in bytes) that a file can be in order to be processed.</td></tr>
+<tr><td>ignoreHiddenFiles</td><td><code>false</code></td><td><code>true</code></td><td>Indicates whether or not hidden files should be ignored or not.</td></tr>
+<tr><td>pollingInterval</td><td><code>false</code></td><td><code>10000</code></td><td>Indicates how long to wait before performing a directory listing.</td></tr>
+<tr><td>numWorkers</td><td><code>false</code></td><td><code>1</code></td><td>The number of worker threads that will be processing the files. This allows you to process a larger number of files concurrently. However, setting this to a value greater than 1 will result in the data from multiple files being &quot;intermingled&quot; in the target topic.</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
-<p>Before using the File source connector, you need to create a configuration file through one of the following methods.</p>
-<ul>
-<li><p>JSON</p>
-<pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"inputDirectory"</span>: <span class="hljs-string">"/Users/david"</span>,
-    <span class="hljs-attr">"recurse"</span>: <span class="hljs-literal">true</span>,
-    <span class="hljs-attr">"keepFile"</span>: <span class="hljs-literal">true</span>,
-    <span class="hljs-attr">"fileFilter"</span>: <span class="hljs-string">"[^\\.].*"</span>,
-    <span class="hljs-attr">"pathFilter"</span>: <span class="hljs-string">"*"</span>,
-    <span class="hljs-attr">"minimumFileAge"</span>: <span class="hljs-number">0</span>,
-    <span class="hljs-attr">"maximumFileAge"</span>: <span class="hljs-number">9999999999</span>,
-    <span class="hljs-attr">"minimumSize"</span>: <span class="hljs-number">1</span>,
-    <span class="hljs-attr">"maximumSize"</span>: <span class="hljs-number">5000000</span>,
-    <span class="hljs-attr">"ignoreHiddenFiles"</span>: <span class="hljs-literal">true</span>,
-    <span class="hljs-attr">"pollingInterval"</span>: <span class="hljs-number">5000</span>,
-    <span class="hljs-attr">"numWorkers"</span>: <span class="hljs-number">1</span>
-}
-</code></pre></li>
-<li><p>YAML</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
-<span class="hljs-attr">    inputDirectory:</span> <span class="hljs-string">"/Users/david"</span>
-<span class="hljs-attr">    recurse:</span> <span class="hljs-literal">true</span>
-<span class="hljs-attr">    keepFile:</span> <span class="hljs-literal">true</span>
-<span class="hljs-attr">    fileFilter:</span> <span class="hljs-string">"[^\\.].*"</span>
-<span class="hljs-attr">    pathFilter:</span> <span class="hljs-string">"*"</span>
-<span class="hljs-attr">    minimumFileAge:</span> <span class="hljs-number">0</span>
-<span class="hljs-attr">    maximumFileAge:</span> <span class="hljs-number">9999999999</span>
-<span class="hljs-attr">    minimumSize:</span> <span class="hljs-number">1</span>
-<span class="hljs-attr">    maximumSize:</span> <span class="hljs-number">5000000</span>
-<span class="hljs-attr">    ignoreHiddenFiles:</span> <span class="hljs-literal">true</span>
-<span class="hljs-attr">    pollingInterval:</span> <span class="hljs-number">5000</span>
-<span class="hljs-attr">    numWorkers:</span> <span class="hljs-number">1</span>
-</code></pre></li>
-</ul>
-<h2><a class="anchor" aria-hidden="true" id="usage"></a><a href="#usage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h2>
-<p>Here is an example of using the File source connecter.</p>
-<ol>
-<li><p>Pull a Pulsar image.</p>
-<pre><code class="hljs css language-bash">$ docker pull apachepulsar/pulsar:{version}
-</code></pre></li>
-<li><p>Start Pulsar standalone.</p>
-<pre><code class="hljs css language-bash">$ docker run -d -it -p 6650:6650 -p 8080:8080 -v <span class="hljs-variable">$PWD</span>/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
-</code></pre></li>
-<li><p>Create a configuration file <em>file-connector.yaml</em>.</p>
-<pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
-<span class="hljs-attr">    inputDirectory:</span> <span class="hljs-string">"/opt"</span>
-</code></pre></li>
-<li><p>Copy the configuration file <em>file-connector.yaml</em> to the container.</p>
-<pre><code class="hljs css language-bash">$ docker cp connectors/file-connector.yaml pulsar-standalone:/pulsar/
-</code></pre></li>
-<li><p>Download the File source connector.</p>
-<pre><code class="hljs css language-bash">$ curl -O https://mirrors.tuna.tsinghua.edu.cn/apache/pulsar/pulsar-{version}/connectors/pulsar-io-file-{version}.nar
-</code></pre></li>
-<li><p>Start the File source connector.</p>
-<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-standalone /bin/bash
-
-$ ./bin/pulsar-admin sources localrun \
---archive /pulsar/pulsar-io-file-{version}.nar \
---name file-test \
---destination-topic-name  pulsar-file-test \
---<span class="hljs-built_in">source</span>-config-file /pulsar/file-connector.yaml
-</code></pre></li>
-<li><p>Start a consumer.</p>
-<pre><code class="hljs css language-bash">./bin/pulsar-client consume -s file-test -n 0 pulsar-file-test
-</code></pre></li>
-<li><p>Write the message to the file <em>test.txt</em>.</p>
-<pre><code class="hljs css language-bash"><span class="hljs-built_in">echo</span> <span class="hljs-string">"hello world!"</span> &gt; /opt/test.txt
-</code></pre>
-<p>The following information appears on the consumer terminal window.</p>
-<pre><code class="hljs css language-bash">----- got message -----
-hello world!
-</code></pre></li>
-</ol>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#property">Property</a></li><li><a href="#example">Example</a></li></ul></li><li><a href="#usage">Usage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#source">Source</a><ul class="toc-headings"><li><a href="#source-configuration-options">Source Configuration Options</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
