@@ -372,17 +372,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             tlsBootstrap.childHandler(new PulsarChannelInitializer(pulsar, true));
             try {
                 tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort.get())).sync();
-                Channel channel = tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort.get())).sync()
+                listenChannelTls = tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort.get())).sync()
                         .channel();
-                log.info("Started Pulsar Broker TLS service on {} - TLS provider: {}", channel.localAddress(),
+                log.info("Started Pulsar Broker TLS service on {} - TLS provider: {}", listenChannelTls.localAddress(),
                         SslContext.defaultServerProvider());
-                if (tlsPort.get() == 0) {
-                    // Set the config with the real port that the service is bound on
-                    serviceConfig.setBrokerServicePortTls(Optional.of(((InetSocketAddress) channel.localAddress()).getPort()));
-                }
             } catch (Exception e) {
                 throw new IOException(String.format("Failed to start Pulsar Broker TLS service on %s:%d",
-                        pulsar.getBindAddress(), port.get()), e);
+                        pulsar.getBindAddress(), tlsPort.get()), e);
             }
         }
 

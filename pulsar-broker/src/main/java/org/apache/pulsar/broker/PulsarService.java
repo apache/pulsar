@@ -203,10 +203,6 @@ public class PulsarService implements AutoCloseable {
         state = State.Init;
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.advertisedAddress = advertisedAddress(config);
-        this.webServiceAddress = webAddress(config);
-        this.webServiceAddressTls = webAddressTls(config);
-        this.brokerServiceUrl = brokerUrl(config);
-        this.brokerServiceUrlTls = brokerUrlTls(config);
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this);
@@ -887,7 +883,7 @@ public class PulsarService implements AutoCloseable {
         if (this.adminClient == null) {
             try {
                 ServiceConfiguration conf = this.getConfiguration();
-                String adminApiUrl = conf.isBrokerClientTlsEnabled() ? webAddressTls(config) : webAddress(config);
+                String adminApiUrl = conf.isBrokerClientTlsEnabled() ? webServiceAddressTls : webServiceAddress;
                 PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
                         .authentication( //
                                 conf.getBrokerClientAuthenticationPlugin(), //
@@ -933,9 +929,9 @@ public class PulsarService implements AutoCloseable {
         return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
     }
 
-    public static String brokerUrl(ServiceConfiguration config) {
+    private String brokerUrl(ServiceConfiguration config) {
         if (config.getBrokerServicePort().isPresent()) {
-            return brokerUrl(advertisedAddress(config), config.getBrokerServicePort().get());
+            return brokerUrl(advertisedAddress(config), getBrokerListenPort().get());
         } else {
             return null;
         }
@@ -945,9 +941,9 @@ public class PulsarService implements AutoCloseable {
         return String.format("pulsar://%s:%d", host, port);
     }
 
-    public static String brokerUrlTls(ServiceConfiguration config) {
+    public String brokerUrlTls(ServiceConfiguration config) {
         if (config.getBrokerServicePortTls().isPresent()) {
-            return brokerUrlTls(advertisedAddress(config), config.getBrokerServicePortTls().get());
+            return brokerUrlTls(advertisedAddress(config), getBrokerListenPortTls().get());
         } else {
             return null;
         }
@@ -957,9 +953,9 @@ public class PulsarService implements AutoCloseable {
         return String.format("pulsar+ssl://%s:%d", host, port);
     }
 
-    public static String webAddress(ServiceConfiguration config) {
+    public String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
-            return webAddress(advertisedAddress(config), config.getWebServicePort().get());
+            return webAddress(advertisedAddress(config), getListenPortHTTP().get());
         } else {
             return null;
         }
@@ -969,9 +965,9 @@ public class PulsarService implements AutoCloseable {
         return String.format("http://%s:%d", host, port);
     }
 
-    public static String webAddressTls(ServiceConfiguration config) {
+    public String webAddressTls(ServiceConfiguration config) {
         if (config.getWebServicePortTls().isPresent()) {
-            return webAddressTls(advertisedAddress(config), config.getWebServicePortTls().get());
+            return webAddressTls(advertisedAddress(config), getListenPortHTTPS().get());
         } else {
             return null;
         }
@@ -994,6 +990,15 @@ public class PulsarService implements AutoCloseable {
             throws InterruptedException, IOException, KeeperException {
         if (functionWorkerService.isPresent()) {
             LOG.info("Starting function worker service");
+
+            WorkerConfig workerConfig = functionWorkerService.get().getWorkerConfig();
+            if (workerConfig.isUseTls()) {
+                workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
+                workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
+            } else {
+                workerConfig.setPulsarServiceUrl(brokerServiceUrl);
+                workerConfig.setPulsarWebServiceUrl(webServiceAddress);
+            }
             String namespace = functionWorkerService.get()
                     .getWorkerConfig().getPulsarFunctionsNamespace();
             String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
