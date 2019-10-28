@@ -180,6 +180,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl()) ? workerConfig.getPulsarWebServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl(),
                     workerConfig.getStateStorageServiceUrl(),
                     authConfig,
+                    workerConfig.getTlsTrustChainBytes(),
                     workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval() == null ? -1 : workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval(),
                     workerConfig.getKubernetesContainerFactory().getChangeConfigMap(),
                     workerConfig.getKubernetesContainerFactory().getChangeConfigMapNamespace(),

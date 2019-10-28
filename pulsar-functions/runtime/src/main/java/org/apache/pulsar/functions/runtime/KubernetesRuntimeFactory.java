@@ -97,6 +97,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private Resources functionInstanceMinResources;
     private final boolean authenticationEnabled;
     private Optional<KubernetesFunctionAuthProvider> authProvider;
+    private final byte[] serverCaBytes;
 
     @VisibleForTesting
     public KubernetesRuntimeFactory(String k8Uri,
@@ -117,6 +118,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                     String pulsarAdminUri,
                                     String stateStorageServiceUri,
                                     AuthenticationConfig authConfig,
+                                    byte[] serverCaBytes,
                                     Integer expectedMetricsCollectionInterval,
                                     String changeConfigMap,
                                     String changeConfigMapNamespace,
@@ -171,6 +173,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.customLabels = customLabels;
         this.stateStorageServiceUri = stateStorageServiceUri;
         this.authConfig = authConfig;
+        this.serverCaBytes = serverCaBytes;
         this.javaInstanceJarFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/java-instance.jar";
         this.pythonInstanceFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/python-instance/python_instance_main.py";
         this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
@@ -190,7 +193,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                         + functionAuthProvider.get().getClass().getName() + " must implement KubernetesFunctionAuthProvider");
             } else {
                 KubernetesFunctionAuthProvider kubernetesFunctionAuthProvider = (KubernetesFunctionAuthProvider) functionAuthProvider.get();
-                kubernetesFunctionAuthProvider.initialize(coreClient, jobNamespace);
+                kubernetesFunctionAuthProvider.initialize(coreClient, jobNamespace, serverCaBytes);
                 this.authProvider = Optional.of(kubernetesFunctionAuthProvider);
             }
         } else {

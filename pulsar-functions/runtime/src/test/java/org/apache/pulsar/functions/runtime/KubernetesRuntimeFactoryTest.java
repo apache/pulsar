@@ -158,6 +158,7 @@ public class KubernetesRuntimeFactoryTest {
             null,
             null,
             null,
+            null,
                 minResources,
                 new TestSecretProviderConfigurator(), false, functionAuthProvider));
         doNothing().when(factory).setupClient();
@@ -274,7 +275,7 @@ public class KubernetesRuntimeFactoryTest {
             }
 
             @Override
-            public void initialize(CoreV1Api coreClient, String kubeNamespace) {
+            public void initialize(CoreV1Api coreClient, String kubeNamespace, byte[] caBytes) {
 
             }
 
