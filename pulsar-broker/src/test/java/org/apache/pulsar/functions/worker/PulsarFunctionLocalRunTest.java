@@ -18,11 +18,36 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpServer;
-import org.apache.bookkeeper.test.PortManager;
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.OutputStream;
+import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+import java.net.URL;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -62,31 +87,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.OutputStream;
-import java.lang.reflect.Method;
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
-import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 /**
  * Test Pulsar sink on function
  *
@@ -109,13 +109,6 @@ public class PulsarFunctionLocalRunTest {
 
     private static final String CLUSTER = "local";
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int brokerWebServicePort = PortManager.nextFreePort();
-    private final int brokerWebServiceTlsPort = PortManager.nextFreePort();
-    private final int brokerServicePort = PortManager.nextFreePort();
-    private final int brokerServiceTlsPort = PortManager.nextFreePort();
-    private final int workerServicePort = PortManager.nextFreePort();
-
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
@@ -124,7 +117,6 @@ public class PulsarFunctionLocalRunTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionLocalRunTest.class);
     private Thread fileServerThread;
-    private static final int fileServerPort = PortManager.nextFreePort();
     private HttpServer fileServer;
 
     @DataProvider(name = "validRoleName")
@@ -146,20 +138,18 @@ public class PulsarFunctionLocalRunTest {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
-
-        String brokerServiceUrl = "https://127.0.0.1:" + brokerWebServiceTlsPort;
 
         config = spy(new ServiceConfiguration());
         config.setClusterName(CLUSTER);
         Set<String> superUsers = Sets.newHashSet("superUser");
         config.setSuperUserRoles(superUsers);
-        config.setWebServicePort(Optional.ofNullable(brokerWebServicePort));
-        config.setWebServicePortTls(Optional.ofNullable(brokerWebServiceTlsPort));
-        config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(Optional.ofNullable(brokerServicePort));
-        config.setBrokerServicePortTls(Optional.ofNullable(brokerServiceTlsPort));
+        config.setWebServicePort(Optional.of(0));
+        config.setWebServicePortTls(Optional.of(0));
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerServicePort(Optional.of(0));
+        config.setBrokerServicePortTls(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
@@ -184,11 +174,14 @@ public class PulsarFunctionLocalRunTest {
         config.setAllowAutoTopicCreationType("non-partitioned");
 
         functionsWorkerService = createPulsarFunctionWorker(config);
-        urlTls = new URL(brokerServiceUrl);
+
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
         pulsar = new PulsarService(config, functionWorkerService);
         pulsar.setShutdownService(new NoOpShutdownService());
         pulsar.start();
+
+        String brokerServiceUrl = pulsar.getWebServiceAddressTls();
+        urlTls = new URL(brokerServiceUrl);
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
@@ -201,19 +194,21 @@ public class PulsarFunctionLocalRunTest {
                         .allowTlsInsecureConnection(true).authentication(authTls).build());
 
         brokerStatsClient = admin.brokerStats();
-        primaryHost = String.format("http://%s:%d", "localhost", brokerWebServicePort);
+        primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
         ClusterData clusterData = new ClusterData(urlTls.toString());
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl());
         if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
                 && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
             clientBuilder.enableTls(workerConfig.isUseTls());
             clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
             clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
                     workerConfig.getClientAuthenticationParameters());
+            clientBuilder.serviceUrl(pulsar.getBrokerServiceUrlTls());
         }
         pulsarClient = clientBuilder.build();
 
@@ -225,7 +220,7 @@ public class PulsarFunctionLocalRunTest {
         // setting up simple web sever to test submitting function via URL
         fileServerThread = new Thread(() -> {
             try {
-                fileServer = HttpServer.create(new InetSocketAddress(fileServerPort), 0);
+                fileServer = HttpServer.create(new InetSocketAddress(0), 0);
                 fileServer.createContext("/pulsar-io-data-generator.nar", he -> {
                     try {
 
@@ -313,7 +308,7 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setFunctionAssignmentTopicName("assignment");
         workerConfig.setFunctionMetadataTopicName("metadata");
         workerConfig.setInstanceLivenessCheckFreqMs(100);
-        workerConfig.setWorkerPort(workerServicePort);
+        workerConfig.setWorkerPort(0);
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
         this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
@@ -410,7 +405,7 @@ public class PulsarFunctionLocalRunTest {
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
-                .brokerServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get()).build();
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
         retryStrategically((test) -> {
@@ -503,7 +498,7 @@ public class PulsarFunctionLocalRunTest {
 
     @Test(timeOut = 40000)
     public void testE2EPulsarFunctionLocalRunURL() throws Exception {
-        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-functions-api-examples.jar", fileServerPort);
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-functions-api-examples.jar", fileServer.getAddress().getPort());
         testE2EPulsarFunctionLocalRun(jarFilePathUrl);
     }
 
@@ -530,7 +525,7 @@ public class PulsarFunctionLocalRunTest {
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
-                .brokerServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get()).build();
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
 
         localRunner.start(false);
 
@@ -590,7 +585,7 @@ public class PulsarFunctionLocalRunTest {
     }
 
 
-    @Test(timeOut = 20000)
+    @Test// (timeOut = 20000)
     public void testPulsarSourceLocalRunNoArchive() throws Exception {
         testPulsarSourceLocalRun(null);
     }
@@ -603,7 +598,7 @@ public class PulsarFunctionLocalRunTest {
 
     @Test(timeOut = 40000)
     public void testPulsarSourceLocalRunWithUrl() throws Exception {
-        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar", fileServerPort);
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar", fileServer.getAddress().getPort());
         testPulsarSourceLocalRun(jarFilePathUrl);
     }
 
@@ -639,7 +634,7 @@ public class PulsarFunctionLocalRunTest {
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
-                .brokerServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get()).build();
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
 
         localRunner.start(false);
 
@@ -708,7 +703,7 @@ public class PulsarFunctionLocalRunTest {
 
     @Test(timeOut = 40000)
     public void testPulsarSinkStatsWithUrl() throws Exception {
-        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar", fileServerPort);
+        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar", fileServer.getAddress().getPort());
         testPulsarSinkStats(jarFilePathUrl);
     }
 }

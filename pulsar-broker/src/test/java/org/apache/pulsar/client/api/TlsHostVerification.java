@@ -34,7 +34,7 @@ public class TlsHostVerification extends TlsProducerConsumerBase {
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
         PulsarAdmin adminClientTls = PulsarAdmin.builder()
-                .serviceHttpUrl("https://127.0.0.1:" + BROKER_WEBSERVICE_PORT_TLS)
+                .serviceHttpUrl(pulsar.getWebServiceAddressTls())
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).enableTlsHostnameVerification(true)
                 .build();
@@ -53,7 +53,7 @@ public class TlsHostVerification extends TlsProducerConsumerBase {
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
         PulsarAdmin adminClient = PulsarAdmin.builder()
-                .serviceHttpUrl("https://127.0.0.1:" + BROKER_WEBSERVICE_PORT_TLS)
+                .serviceHttpUrl(pulsar.getWebServiceAddressTls())
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).enableTlsHostnameVerification(false)
                 .build();

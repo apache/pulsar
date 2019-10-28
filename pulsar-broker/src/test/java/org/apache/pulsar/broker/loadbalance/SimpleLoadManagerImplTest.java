@@ -29,8 +29,11 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
 import java.lang.reflect.Field;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,7 +47,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.bookkeeper.test.PortManager;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.NoOpShutdownService;
@@ -82,18 +86,13 @@ import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
 /**
  */
+@Slf4j
 public class SimpleLoadManagerImplTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -113,57 +112,49 @@ public class SimpleLoadManagerImplTest {
 
     ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_PORT = PortManager.nextFreePort();
-    private static final Logger log = LoggerFactory.getLogger(SimpleLoadManagerImplTest.class);
-
     @BeforeMethod
     void setup() throws Exception {
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
         // Start broker 1
         ServiceConfiguration config1 = spy(new ServiceConfiguration());
         config1.setClusterName("use");
-        config1.setWebServicePort(Optional.ofNullable(PRIMARY_BROKER_WEBSERVICE_PORT));
-        config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config1.setBrokerServicePort(Optional.ofNullable(PRIMARY_BROKER_PORT));
+        config1.setWebServicePort(Optional.of(0));
+        config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setBrokerServicePort(Optional.of(0));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-        config1.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
-        config1.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
+        config1.setBrokerServicePortTls(Optional.of(0));
+        config1.setWebServicePortTls(Optional.of(0));
+        config1.setAdvertisedAddress("localhost");
         pulsar1 = new PulsarService(config1);
         pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
 
-        url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
+        url1 = new URL(pulsar1.getWebServiceAddress());
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         brokerStatsClient1 = admin1.brokerStats();
-        primaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(),
-                PRIMARY_BROKER_WEBSERVICE_PORT);
+        primaryHost = pulsar1.getWebServiceAddress();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setClusterName("use");
-        config2.setWebServicePort(Optional.ofNullable(SECONDARY_BROKER_WEBSERVICE_PORT));
-        config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
+        config2.setWebServicePort(Optional.of(0));
+        config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setBrokerServicePort(Optional.of(0));
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-        config2.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
-        config2.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
+        config2.setBrokerServicePortTls(Optional.of(0));
+        config2.setWebServicePortTls(Optional.of(0));
         pulsar2 = new PulsarService(config2);
         pulsar2.setShutdownService(new NoOpShutdownService());
         pulsar2.start();
 
-        url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
+        url2 = new URL(pulsar2.getWebServiceAddress());
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
         brokerStatsClient2 = admin2.brokerStats();
-        secondaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(),
-                SECONDARY_BROKER_WEBSERVICE_PORT);
+        secondaryHost = pulsar2.getWebServiceAddress();
         Thread.sleep(100);
     }
 

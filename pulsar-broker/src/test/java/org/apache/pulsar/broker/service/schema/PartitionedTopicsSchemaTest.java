@@ -49,7 +49,7 @@ public class PartitionedTopicsSchemaTest extends BrokerBkEnsemblesTests {
 
         int N = 10;
 
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + BROKER_SERVICE_PORT).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
 
         CompletableFuture<Producer<String>> producerFuture = client.newProducer(Schema.STRING).topic(topicName)
                 .createAsync();
