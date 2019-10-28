@@ -79,6 +79,11 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCEPTION_JAVA_CLASS =
             "org.apache.pulsar.tests.integration.functions.ExceptionFunction";
 
+    public static final String Serde_JAVA_CLASS =
+            "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
+
+    public static final String Serde_OUTPUT_CLASS =
+            "org.apache.pulsar.functions.api.examples.CustomBaseSerde";
 
     public static final String EXCLAMATION_PYTHON_CLASS =
         "exclamation_function.ExclamationFunction";
