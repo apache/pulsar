@@ -44,6 +44,15 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
     boolean haveEnoughSpace(MessageImpl<?> msg);
 
     /**
+     * Check the batch message container has same schema with the message want to add.
+     *
+     * @param msg the message want to add
+     * @return return true if the container has same schema with the specific message,
+     *         otherwise return false.
+     */
+    boolean hasSameSchema(MessageImpl<?> msg);
+
+    /**
      * Set producer of the message batch container.
      *
      * @param producer producer

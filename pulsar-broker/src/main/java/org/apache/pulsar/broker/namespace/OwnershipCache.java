@@ -32,6 +32,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.CreateMode;
@@ -159,8 +160,11 @@ public class OwnershipCache {
         this.localZkCache = pulsar.getLocalZkCache();
         this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
-        this.ownedBundlesCache = Caffeine.newBuilder().executor(MoreExecutors.directExecutor())
+        this.ownedBundlesCache = Caffeine.newBuilder()
+                .executor(MoreExecutors.directExecutor())
+                .recordStats()
                 .buildAsync(new OwnedServiceUnitCacheLoader());
+        CacheMetricsCollector.CAFFEINE.addCache("owned-bundles", this.ownedBundlesCache);
     }
 
     /**
@@ -283,7 +287,7 @@ public class OwnershipCache {
         }
         return FutureUtil.waitForAll(allFutures);
     }
-    
+
 
     /**
      * Method to access the map of all <code>ServiceUnit</code> objects owned by the local broker
@@ -322,7 +326,7 @@ public class OwnershipCache {
 
     /**
      * Disable bundle in local cache and on zk
-     * 
+     *
      * @param bundle
      * @throws Exception
      */
@@ -332,10 +336,10 @@ public class OwnershipCache {
         localZkCache.getZooKeeper().setData(path, jsonMapper.writeValueAsBytes(selfOwnerInfoDisabled), -1);
         ownershipReadOnlyCache.invalidate(path);
     }
-    
+
     /**
      * Update bundle state in a local cache
-     * 
+     *
      * @param bundle
      * @throws Exception
      */

@@ -53,6 +53,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
@@ -351,6 +352,26 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("unload") @DefaultValue("false") boolean unload) {
         validateNamespaceName(tenant, namespace);
         internalSplitNamespaceBundle(bundleRange, authoritative, unload);
+    }
+
+    @POST
+    @Path("/{property}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setPublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace,
+            PublishRate publishRate) {
+        validateNamespaceName(property, namespace);
+        internalSetPublishRate(publishRate);
+    }
+
+    @GET
+    @Path("/{property}/{namespace}/publishRate")
+    @ApiOperation(hidden = true, value = "Get publish-rate configured for the namespace, -1 represents not configured yet")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public PublishRate getPublishRate(@PathParam("property") String property, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return internalGetPublishRate();
     }
 
     @POST

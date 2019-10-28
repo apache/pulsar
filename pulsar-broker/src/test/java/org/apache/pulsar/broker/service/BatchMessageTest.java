@@ -215,7 +215,10 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/testBatchProducerWithLargeMessage-" + UUID.randomUUID();
         final String subscriptionName = "large-message-sub-1" + compressionType.toString();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+
                 .subscribe();
         consumer.close();
 
@@ -247,7 +250,11 @@ public class BatchMessageTest extends BrokerTestBase {
         // we expect 3 messages in the backlog since the large message in the middle should
         // close out the batch and be sent in a batch of its own
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 3);
-        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+        consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
 
         for (int i = 0; i <= numMsgs; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);

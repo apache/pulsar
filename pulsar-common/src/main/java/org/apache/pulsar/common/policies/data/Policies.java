@@ -47,6 +47,7 @@ public class Policies {
 
     // If set, it will override the broker settings for enabling deduplication
     public Boolean deduplicationEnabled = null;
+    public Map<String, PublishRate> publishMaxMessageRate = Maps.newHashMap();
 
     @SuppressWarnings("checkstyle:MemberName")
     public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
@@ -96,7 +97,7 @@ public class Policies {
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
-                backlog_quota_map,
+                backlog_quota_map, publishMaxMessageRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
                 clusterSubscribeRate, deduplicationEnabled, persistence,
                 bundles, latency_stats_sample_rate,
@@ -123,6 +124,7 @@ public class Policies {
                     && Objects.equals(subscriptionDispatchRate, other.subscriptionDispatchRate)
                     && Objects.equals(replicatorDispatchRate, other.replicatorDispatchRate)
                     && Objects.equals(clusterSubscribeRate, other.clusterSubscribeRate)
+                    && Objects.equals(publishMaxMessageRate, other.publishMaxMessageRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
@@ -173,6 +175,7 @@ public class Policies {
                 .add("subscriptionDispatchRate", subscriptionDispatchRate)
                 .add("replicatorDispatchRate", replicatorDispatchRate)
                 .add("clusterSubscribeRate", clusterSubscribeRate)
+                .add("publishMaxMessageRate", publishMaxMessageRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("antiAffinityGroup", antiAffinityGroup)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)

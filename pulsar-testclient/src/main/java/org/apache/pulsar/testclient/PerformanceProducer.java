@@ -65,6 +65,9 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,10 +129,10 @@ public class PerformanceProducer {
         public String authParams;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
-        public int maxOutstanding = 1000;
+        public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
 
         @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
-        public int maxPendingMessagesAcrossPartitions = 50000;
+        public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -156,6 +159,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
+        
+        @Parameter(names = { "-bn",
+                "--batch-max-msgs" }, description = "Number of max messages in batch.")
+        public int batchMaxMsgs = DEFAULT_BATCHING_MAX_MESSAGES;
 
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
@@ -401,12 +408,14 @@ public class PerformanceProducer {
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-            if (arguments.batchTimeMillis == 0.0) {
+            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMsgs == 0) {
                 producerBuilder.enableBatching(false);
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
-                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS)
-                        .enableBatching(true);
+                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS).enableBatching(true);
+            }
+            if (arguments.batchMaxMsgs > 0) {
+                producerBuilder.batchingMaxMessages(arguments.batchMaxMsgs);
             }
 
             // Block if queue is full else we will start seeing errors in sendAsync
