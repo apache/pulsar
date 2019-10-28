@@ -118,6 +118,7 @@ import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
+import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -154,8 +155,7 @@ public class PulsarService implements AutoCloseable {
             new DefaultThreadFactory("pulsar"));
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
             new DefaultThreadFactory("zk-cache-callback"));
-    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("pulsar-ordered")
-            .build();
+    private OrderedExecutor orderedExecutor;
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
@@ -179,7 +179,7 @@ public class PulsarService implements AutoCloseable {
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
 
-    private final MessagingServiceShutdownHook shutdownService;
+    private ShutdownService shutdownService;
 
     private MetricsGenerator metricsGenerator;
 
@@ -295,7 +295,9 @@ public class PulsarService implements AutoCloseable {
                 executor.shutdown();
             }
 
-            orderedExecutor.shutdown();
+            if (orderedExecutor != null) {
+                orderedExecutor.shutdown();
+            }
             cacheExecutor.shutdown();
 
             LoadManager loadManager = this.loadManager.get();
@@ -373,6 +375,9 @@ public class PulsarService implements AutoCloseable {
             if (!config.getBrokerServicePort().isPresent() && !config.getBrokerServicePortTls().isPresent()) {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
             }
+
+            orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("pulsar-ordered")
+                    .build();
 
             // Initialize the message protocol handlers
             protocolHandlers = ProtocolHandlers.load(config);
@@ -467,19 +472,18 @@ public class PulsarService implements AutoCloseable {
 
             this.metricsGenerator = new MetricsGenerator(this);
 
-            // start the protocol handlers only after the broker is ready and before starting
-            // the load manager service. so that the protocol handlers can access broker service
-            // properly and advertise the protocol data together with Pulsar protocol data.
-            this.protocolHandlers.start(brokerService);
-
-            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
-                this.protocolHandlers.newChannelInitializers();
-            this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
-
             // By starting the Load manager service, the broker will also become visible
             // to the rest of the broker by creating the registration z-node. This needs
             // to be done only when the broker is fully operative.
             this.startLoadManagementService();
+
+            // Initialize the message protocol handlers.
+            // start the protocol handlers only after the broker is ready,
+            // so that the protocol handlers can access broker service properly.
+            this.protocolHandlers.start(brokerService);
+            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
+                this.protocolHandlers.newChannelInitializers();
+            this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
 
             state = State.Started;
 
@@ -905,7 +909,11 @@ public class PulsarService implements AutoCloseable {
         return metricsGenerator;
     }
 
-    public MessagingServiceShutdownHook getShutdownService() {
+    public void setShutdownService(ShutdownService shutdownService) {
+        this.shutdownService = shutdownService;
+    }
+
+    public ShutdownService getShutdownService() {
         return shutdownService;
     }
 

@@ -293,6 +293,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
+        executor.shutdownNow();
     }
 
     @Test(timeOut = testTimeout)
