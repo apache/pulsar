@@ -74,7 +74,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testLookup() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort().get())
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .connectionsPerBroker(5).ioThreads(5).build();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
@@ -84,6 +84,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
                 .create();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
         try {
+            @Cleanup
             Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                     .create();
             Assert.fail("Should have failed since can't acquire LookupRequestSemaphore");
@@ -93,6 +94,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 1.0d);
         proxyService.getLookupRequestSemaphore().release();
         try {
+            @Cleanup
             Producer<byte[]> producer3 = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
                     .create();
         } catch (Exception ex) {

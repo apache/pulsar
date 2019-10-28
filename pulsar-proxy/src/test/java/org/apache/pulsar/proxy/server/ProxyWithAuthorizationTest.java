@@ -224,9 +224,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, PulsarClient.builder());
+        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
@@ -277,9 +276,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl,
+        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
                 PulsarClient.builder().enableTlsHostnameVerification(hostnameVerificationEnabled));
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -329,9 +327,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
         startProxy();
         createAdminClient();
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl,
+        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
                 PulsarClient.builder().operationTimeout(1, TimeUnit.SECONDS));
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -432,8 +429,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         }, 3, 1000);
         try {
 
-            final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
-            PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, PulsarClient.builder());
+            PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + proxyService.getListenPortTls().get(), PulsarClient.builder());
             Consumer<byte[]> consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();

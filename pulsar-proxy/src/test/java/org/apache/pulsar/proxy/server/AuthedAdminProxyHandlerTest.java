@@ -130,7 +130,7 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
     PulsarAdmin getAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
-            .serviceHttpUrl("https://localhost:" + proxyConfig.getWebServicePortTls().get())
+            .serviceHttpUrl("https://localhost:" + webServer.getListenPortHTTPS().get())
             .tlsTrustCertsFilePath(getTlsFile("ca.cert"))
             .allowTlsInsecureConnection(false)
             .authentication(AuthenticationTls.class.getName(),
