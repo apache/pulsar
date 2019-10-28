@@ -146,8 +146,6 @@ public class NamespaceService {
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
 
-    private final List<TopicOwnershipListener> topicOwnershipListeners;
-
     /**
      * Default constructor.
      *
@@ -163,7 +161,6 @@ public class NamespaceService {
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
         this.namespaceClients = new ConcurrentOpenHashMap<>();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
-        this.topicOwnershipListeners = new CopyOnWriteArrayList<>();
     }
 
     public CompletableFuture<Optional<LookupResult>> getBrokerServiceUrlAsync(TopicName topic,
@@ -869,65 +866,19 @@ public class NamespaceService {
 
     protected void onNamespaceBundleOwned(NamespaceBundle bundle) {
         for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
-            try {
-                if (bundleOwnedListener.getFilter().test(bundle)) {
-                    bundleOwnedListener.onLoad(bundle);
-                }
-            } catch (Throwable t) {
-                LOG.error("Call bundle {} ownership lister error", bundle, t);
-            }
-        }
-        if (!CollectionUtils.isEmpty(topicOwnershipListeners)) {
-            getOwnedTopicListForNamespaceBundle(bundle).whenComplete((topics, ex) -> {
-                if (ex == null) {
-                    for (String topic : topics) {
-                        TopicName topicName = TopicName.get(topic);
-                        for (TopicOwnershipListener topicOwnershipListener : topicOwnershipListeners) {
-                            if (topicOwnershipListener.getFilter().test(topicName)) {
-                                try {
-                                    topicOwnershipListener.onLoad(topicName);
-                                } catch (Throwable t) {
-                                    LOG.error("Call topic {} ownership lister error", topic, t);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    LOG.error("Get owned topic list for namespace bundle {} error.", bundle, ex);
-                }
-            });
+            notifyNamespaceBundleOwnershipListener(bundle, bundleOwnedListener);
         }
     }
 
     protected void onNamespaceBundleUnload(NamespaceBundle bundle) {
         for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
             try {
-                if (bundleOwnedListener.getFilter().test(bundle)) {
+                if (bundleOwnedListener.test(bundle)) {
                     bundleOwnedListener.unLoad(bundle);
                 }
             } catch (Throwable t) {
                 LOG.error("Call bundle {} ownership lister error", bundle, t);
             }
-        }
-        if (!CollectionUtils.isEmpty(topicOwnershipListeners)) {
-            getOwnedTopicListForNamespaceBundle(bundle).whenComplete((topics, ex) -> {
-                if (ex == null) {
-                    for (String topic : topics) {
-                        TopicName topicName = TopicName.get(topic);
-                        for (TopicOwnershipListener topicOwnershipListener : topicOwnershipListeners) {
-                            if (topicOwnershipListener.getFilter().test(topicName)) {
-                                try {
-                                    topicOwnershipListener.unLoad(topicName);
-                                } catch (Throwable t) {
-                                    LOG.error("Call topic {} ownership lister error", topic, t);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    LOG.error("Get owned topic list for namespace bundle {} error.", bundle, ex);
-                }
-            });
         }
     }
 
@@ -938,14 +889,20 @@ public class NamespaceService {
                 bundleOwnershipListeners.add(listener);
             }
         }
-        getOwnedServiceUnits().forEach(this::onNamespaceBundleOwned);
+        getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
     }
 
-    public void addTopicOwnershipListener(TopicOwnershipListener... listeners) {
-        checkNotNull(listeners);
-        for (TopicOwnershipListener listener : listeners) {
-            if (listener != null) {
-                topicOwnershipListeners.add(listener);
+    private void notifyNamespaceBundleOwnershipListener(NamespaceBundle bundle,
+                    NamespaceBundleOwnershipListener... listeners) {
+        if (listeners != null) {
+            for (NamespaceBundleOwnershipListener listener : listeners) {
+                try {
+                    if (listener.test(bundle)) {
+                        listener.onLoad(bundle);
+                    }
+                } catch (Throwable t) {
+                    LOG.error("Call bundle {} ownership lister error", bundle, t);
+                }
             }
         }
     }

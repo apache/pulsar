@@ -25,7 +25,7 @@ import java.util.function.Predicate;
 /**
  * Listener for <code>NamespaceBundle</code> ownership changes
  */
-public interface NamespaceBundleOwnershipListener {
+public interface NamespaceBundleOwnershipListener extends Predicate<NamespaceBundle> {
 
     /**
      * Will be call after a <code>NamespaceBundle</code> owned by broker
@@ -38,8 +38,4 @@ public interface NamespaceBundleOwnershipListener {
      * @param bundle owned bundle
      */
     void unLoad(NamespaceBundle bundle);
-
-    default Predicate<NamespaceBundle> getFilter() {
-        return null;
-    }
 }

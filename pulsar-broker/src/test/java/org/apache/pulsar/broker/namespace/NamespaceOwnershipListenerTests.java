@@ -67,6 +67,11 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         pulsar.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
 
             @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle.getNamespaceObject().getLocalName().equals("ns-test-1");
+            }
+
+            @Override
             public void onLoad(NamespaceBundle bundle) {
                 countDownLatch.countDown();
                 onLoad.set(true);
@@ -76,11 +81,6 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
             public void unLoad(NamespaceBundle bundle) {
                 countDownLatch.countDown();
                 unLoad.set(true);
-            }
-
-            @Override
-            public Predicate<NamespaceBundle> getFilter() {
-                return namespaceBundle -> namespaceBundle.getNamespaceObject().getLocalName().equals("ns-test-1");
             }
         });
 
@@ -103,58 +103,6 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         Assert.assertTrue(unLoad.get());
         admin.topics().delete(topic);
         admin.namespaces().deleteNamespace(namespace);
-    }
-
-    @Test
-    public void testTopicOwnershipListener() throws PulsarAdminException, InterruptedException, PulsarClientException {
-
-        final CountDownLatch countDownLatch = new CountDownLatch(4);
-        final AtomicInteger onLoad = new AtomicInteger(0);
-        final AtomicInteger unLoad = new AtomicInteger(0);
-
-        final String namespace = "prop/ns-test-2";
-
-        pulsar.getNamespaceService().addTopicOwnershipListener(new TopicOwnershipListener() {
-            @Override
-            public void onLoad(TopicName topic) {
-                countDownLatch.countDown();
-                onLoad.incrementAndGet();
-            }
-
-            @Override
-            public void unLoad(TopicName topic) {
-                countDownLatch.countDown();
-                unLoad.incrementAndGet();
-            }
-
-            @Override
-            public Predicate<TopicName> getFilter() {
-                return topicName -> topicName.getLocalName().contains("os-partition-0")
-                        || topicName.getLocalName().contains("os-partition-1");
-            }
-        });
-
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
-
-        String topicName = "persistent://" + namespace + "/os";
-        admin.topics().createPartitionedTopic(topicName, 6);
-
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
-        producer.close();
-
-        admin.namespaces().unload(namespace);
-
-        countDownLatch.await();
-
-        Assert.assertEquals(onLoad.get(), 2);
-        Assert.assertEquals(unLoad.get(), 2);
-
-        admin.topics().deletePartitionedTopic(topicName);
-        admin.namespaces().deleteNamespace(namespace);
-
     }
 
     @Test
