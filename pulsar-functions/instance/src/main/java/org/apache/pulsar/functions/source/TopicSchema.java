@@ -207,38 +207,6 @@ public class TopicSchema {
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
-        // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
-        // class name.
-
-        if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)) {
-            // No preferred schema was provided, auto-discover schema or fallback to defaults
-            return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz));
-        }
-
-        SchemaType schemaType = null;
-        try {
-            schemaType = SchemaType.valueOf(schemaTypeOrClassName.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            // schemaType is not referring to builtin type
-        }
-
-        if (schemaType != null) {
-            // The parameter passed was indeed a valid builtin schema type
-            return newSchemaInstance(clazz, schemaType);
-        }
-
-        // At this point, the string can represent either a schema or serde class name. Create an instance and
-        // check if it complies with either interface
-
-        // First try with Schema
-        try {
-            return (Schema<T>) InstanceUtils.initializeCustomSchema(schemaTypeOrClassName,
-                    Thread.currentThread().getContextClassLoader(), clazz, input);
-        } catch (Throwable t) {
-            // Now try with Serde or just fail
-            SerDe<T> serDe = (SerDe<T>) InstanceUtils.initializeSerDe(schemaTypeOrClassName,
-                    Thread.currentThread().getContextClassLoader(), clazz, input);
-            return new SerDeSchema<>(serDe);
-        }
+        return newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, Thread.currentThread().getContextClassLoader());
     }
 }
