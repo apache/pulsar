@@ -37,7 +37,9 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.MockZooKeeper;
+import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -49,12 +51,14 @@ public class ResourceQuotaCacheTest {
     private LocalZooKeeperCacheService localCache;
     private NamespaceBundleFactory bundleFactory;
     private OrderedScheduler executor;
+    private MockZooKeeper zkc;
 
     @BeforeMethod
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), 30, executor);
+        zkc = MockZooKeeper.newInstance();
+        zkCache = new LocalZooKeeperCache(zkc, 30, executor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
 
         // set mock pulsar localzkcache
@@ -70,8 +74,10 @@ public class ResourceQuotaCacheTest {
     }
 
     @AfterMethod
-    public void teardown() {
+    public void teardown() throws Exception{
         executor.shutdown();
+        zkCache.stop();
+        zkc.shutdown();
     }
 
     @Test

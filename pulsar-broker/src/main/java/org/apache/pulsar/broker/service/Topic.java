@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -82,18 +83,16 @@ public interface Topic {
     void addProducer(Producer producer) throws BrokerServiceException;
 
     void removeProducer(Producer producer);
-    
+
     /**
-     * record add-latency in micro-seconds.
-     * 
-     * @param latencyUSec
+     * record add-latency
      */
-    void recordAddLatency(long latencyUSec);
+    void recordAddLatency(long latency, TimeUnit unit);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            boolean replicateSubscriptionState);
+            long startMessageRollbackDurationSec, boolean replicateSubscriptionState);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);
@@ -119,6 +118,14 @@ public interface Topic {
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
+
+    void checkPublishThrottlingRate();
+    
+    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
+    
+    void resetPublishCountAndEnableReadIfRequired();
+    
+    boolean isPublishRateExceeded();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 

@@ -46,6 +46,7 @@ import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -187,7 +188,7 @@ public class PulsarBrokerStarter {
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
-                workerConfig.setUseTls(brokerConfig.isTlsEnabled());
+                workerConfig.setUseTls(useTls);
                 workerConfig.setTlsHostnameVerificationEnable(false);
 
                 workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
@@ -277,6 +278,12 @@ public class PulsarBrokerStarter {
         public void join() throws InterruptedException {
             pulsarService.waitUntilClosed();
 
+            try {
+                pulsarService.close();
+            } catch (PulsarServerException e) {
+                throw new RuntimeException();
+            }
+
             if (bookieServer != null) {
                 bookieServer.join();
             }
@@ -333,9 +340,9 @@ public class PulsarBrokerStarter {
         } catch (Exception e) {
             log.error("Failed to start pulsar service.", e);
             Runtime.getRuntime().halt(1);
+        } finally {
+            starter.join();
         }
-
-        starter.join();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarBrokerStarter.class);

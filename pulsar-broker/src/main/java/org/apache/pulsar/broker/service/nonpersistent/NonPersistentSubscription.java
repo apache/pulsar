@@ -89,14 +89,18 @@ public class NonPersistentSubscription implements Subscription {
         }
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
+            Dispatcher previousDispatcher = null;
+
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
+                    previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
+                    previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this);
                 }
                 break;
@@ -108,17 +112,28 @@ public class NonPersistentSubscription implements Subscription {
                 }
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
+                    previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partitionIndex,
                             topic, this);
                 }
                 break;
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                    previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this);
                 }
                 break;
             default:
                 throw new ServerMetadataException("Unsupported subscription type");
+            }
+
+            if (previousDispatcher != null) {
+                previousDispatcher.close().thenRun(() -> {
+                    log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
+                }).exceptionally(ex -> {
+                    log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
+                    return null;
+                });
             }
         } else {
             if (consumer.subType() != dispatcher.getType()) {
@@ -249,7 +264,9 @@ public class NonPersistentSubscription implements Subscription {
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
-                    dispatcher.reset();
+                    if (dispatcher != null) {
+                        dispatcher.reset();
+                    }
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
                     disconnectFuture.completeExceptionally(exception);
@@ -272,13 +289,27 @@ public class NonPersistentSubscription implements Subscription {
         log.info("[{}][{}] Unsubscribing", topicName, subName);
 
         // cursor close handles pending delete (ack) operations
-        this.close().thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> deleteFuture.complete(null))
-                .exceptionally(exception -> {
+        this.close().thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> {
+            synchronized (this) {
+                (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenRun(() -> {
+                    log.info("[{}][{}] Successfully deleted subscription", topicName, subName);
+                    deleteFuture.complete(null);
+                }).exceptionally(ex -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
-                    log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
-                    deleteFuture.completeExceptionally(exception);
+                    if (dispatcher != null) {
+                        dispatcher.reset();
+                    }
+                    log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
+                    deleteFuture.completeExceptionally(ex);
                     return null;
                 });
+            }
+        }).exceptionally(exception -> {
+            IS_FENCED_UPDATER.set(this, FALSE);
+            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+            deleteFuture.completeExceptionally(exception);
+            return null;
+        });
 
         return deleteFuture;
     }

@@ -24,6 +24,7 @@ import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import org.apache.pulsar.common.util.NamespaceBundleStatsComparator;
@@ -54,6 +55,7 @@ public class LoadReport implements LoadManagerReport {
     private int numConsumers;
     private int numProducers;
     private int numBundles;
+    private Map<String, String> protocols;
     // This place-holder requires to identify correct LoadManagerReport type while deserializing
     @SuppressWarnings("checkstyle:ConstantName")
     public static final String loadReportType = LoadReport.class.getSimpleName();
@@ -68,6 +70,7 @@ public class LoadReport implements LoadManagerReport {
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.pulsarServiceUrlTls = pulsarServiceUrlTls;
+        this.protocols = new HashMap<>();
         bundleLosses = new HashSet<>();
         bundleGains = new HashSet<>();
         isUnderLoaded = false;
@@ -457,5 +460,19 @@ public class LoadReport implements LoadManagerReport {
     @Override
     public double getMsgThroughputOut() {
         return msgRateOut;
+    }
+
+    @Override
+    public Map<String, String> getProtocols() {
+        return protocols;
+    }
+
+    public void setProtocols(Map<String, String> protocols) {
+        this.protocols = protocols;
+    }
+
+    @Override
+    public Optional<String> getProtocol(String protocol) {
+        return Optional.ofNullable(protocols.get(protocol));
     }
 }

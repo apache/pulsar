@@ -2309,7 +2309,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // (1) simple consumers
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/failAsyncReceive").subscriptionName("my-subscriber-name")
+                .topic("persistent://my-property/my-ns/failAsyncReceive-1").subscriptionName("my-subscriber-name")
                 .subscribe();
         consumer.close();
         // receive messages
@@ -2322,7 +2322,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // (2) Partitioned-consumer
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/failAsyncReceive");
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/failAsyncReceive-2");
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
         Consumer<byte[]> partitionedConsumer = pulsarClient.newConsumer().topic(topicName.toString())
                 .subscriptionName("my-partitioned-subscriber").subscribe();
@@ -3197,4 +3197,5 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
+    
 }

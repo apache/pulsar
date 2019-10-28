@@ -19,8 +19,7 @@
 package org.apache.pulsar.common.schema;
 
 /**
- * Types of supported schema for Pulsar messages
- *
+ * Types of supported schema for Pulsar messages.
  *
  * <p>Ideally we should have just one single set of enum definitions
  * for schema type. but we have 3 locations of defining schema types.
@@ -32,32 +31,32 @@ package org.apache.pulsar.common.schema;
  */
 public enum SchemaType {
     /**
-     * No schema defined
+     * No schema defined.
      */
     NONE(0),
 
     /**
-     * Simple String encoding with UTF-8
+     * Simple String encoding with UTF-8.
      */
     STRING(1),
 
     /**
-     * JSON object encoding and validation
+     * JSON object encoding and validation.
      */
     JSON(2),
 
     /**
-     * Protobuf message encoding and decoding
+     * Protobuf message encoding and decoding.
      */
     PROTOBUF(3),
 
     /**
-     * Serialize and deserialize via avro
+     * Serialize and deserialize via avro.
      */
     AVRO(4),
 
     /**
-     * boolean schema defined
+     * boolean schema defined.
      * @since 2.3.0
      */
     BOOLEAN(5),
@@ -88,24 +87,24 @@ public enum SchemaType {
     FLOAT(10),
 
     /**
-     * A double number
+     * A double number.
      */
     DOUBLE(11),
 
     /**
-     * Date
+     * Date.
      * @since 2.4.0
      */
     DATE(12),
 
     /**
-     * Time
+     * Time.
      * @since 2.4.0
      */
     TIME(13),
 
     /**
-     * Timestamp
+     * Timestamp.
      * @since 2.4.0
      */
     TIMESTAMP(14),

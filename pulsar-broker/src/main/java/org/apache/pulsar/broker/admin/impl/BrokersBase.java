@@ -262,6 +262,13 @@ public class BrokersBase extends AdminResource {
         PulsarClient client = pulsar().getClient();
 
         String messageStr = UUID.randomUUID().toString();
+        // create non-partitioned topic manually
+        try {
+            pulsar().getBrokerService().getTopic(topic, true).get();
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
         CompletableFuture<Producer<String>> producerFuture =
             client.newProducer(Schema.STRING).topic(topic).createAsync();
         CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)

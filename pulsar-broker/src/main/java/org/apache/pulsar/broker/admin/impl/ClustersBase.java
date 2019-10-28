@@ -631,18 +631,8 @@ public class ClustersBase extends AdminResource {
         validateSuperUserAccess();
         validateClusterExists(cluster);
 
-        Set<String> availableBrokers;
         final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
         Map<String, NamespaceIsolationData> nsPolicies;
-        try {
-            availableBrokers = pulsar().getLoadManager().get().getAvailableBrokers();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get list of brokers in cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        if (availableBrokers == null || !availableBrokers.contains(broker)) {
-            throw new RestException(Status.NOT_FOUND, "Broker is not part of active broker list " + broker);
-        }
         try {
             Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPoliciesCache()
                     .get(nsIsolationPoliciesPath);
@@ -659,11 +649,14 @@ public class ClustersBase extends AdminResource {
         if (nsPolicies != null) {
             nsPolicies.forEach((name, policyData) -> {
                 NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
-                if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
+                boolean isPrimary = nsPolicyImpl.isPrimaryBroker(broker);
+                if (isPrimary || nsPolicyImpl.isSecondaryBroker(broker)) {
                     if (brokerIsolationData.namespaceRegex == null) {
                         brokerIsolationData.namespaceRegex = Lists.newArrayList();
                     }
                     brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
+                    brokerIsolationData.isPrimary = isPrimary;
+                    brokerIsolationData.policyName = name;
                 }
             });
         }

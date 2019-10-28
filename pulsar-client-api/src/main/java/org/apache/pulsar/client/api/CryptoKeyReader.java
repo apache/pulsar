@@ -27,12 +27,11 @@ import java.util.Map;
 public interface CryptoKeyReader extends Serializable {
 
     /**
-     * Return the encryption key corresponding to the key name in the argument
-     * <p>
-     * This method should be implemented to return the EncryptionKeyInfo. This method will be called at the time of
+     * Return the encryption key corresponding to the key name in the argument.
+     *
+     * <p>This method should be implemented to return the EncryptionKeyInfo. This method will be called at the time of
      * producer creation as well as consumer receiving messages. Hence, application should not make any blocking calls
      * within the implementation.
-     * <p>
      *
      * @param keyName
      *            Unique name to identify the key

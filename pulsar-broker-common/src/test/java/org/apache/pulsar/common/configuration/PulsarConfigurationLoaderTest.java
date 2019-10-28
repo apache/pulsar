@@ -108,6 +108,7 @@ public class PulsarConfigurationLoaderTest {
         printWriter.println("managedLedgerDefaultMarkDeleteRateLimit=5.0");
         printWriter.println("managedLedgerDigestType=CRC32C");
         printWriter.println("managedLedgerCacheSizeMB=");
+        printWriter.println("bookkeeperDiskWeightBasedPlacementEnabled=true");
         printWriter.close();
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -124,6 +125,7 @@ public class PulsarConfigurationLoaderTest {
         assertFalse(serviceConfig.getWebServicePortTls().isPresent());
         assertEquals(serviceConfig.getManagedLedgerDigestType(), DigestType.CRC32C);
         assertTrue(serviceConfig.getManagedLedgerCacheSizeMB() > 0);
+        assertTrue(serviceConfig.isBookkeeperDiskWeightBasedPlacementEnabled());
     }
 
     @Test

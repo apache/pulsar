@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -72,7 +73,7 @@ public class PulsarFunctionAdminTest {
     WorkerServer functionsWorkerServer;
     WorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
-    String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
+    String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
 
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
@@ -125,6 +126,7 @@ public class PulsarFunctionAdminTest {
         urlTls = new URL(brokerServiceUrl);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
         pulsar = new PulsarService(config, functionWorkerService);
+        pulsar.setShutdownService(new NoOpShutdownService());
         pulsar.start();
 
         Map<String, String> authParams = new HashMap<>();

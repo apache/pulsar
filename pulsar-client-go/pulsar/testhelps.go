@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	log "github.com/apache/pulsar/pulsar-client-go/logutil"
 	"net/http"
+	"reflect"
 )
 
 func httpPut(url string, body interface{}) {
@@ -43,4 +44,13 @@ func httpPut(url string, body interface{}) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// IsNil check if the interface is nil
+func IsNil(i interface{}) bool {
+	vi := reflect.ValueOf(i)
+	if vi.Kind() == reflect.Ptr {
+		return vi.IsNil()
+	}
+	return false
 }

@@ -52,6 +52,8 @@ public final class AuthenticationFactory {
         return DefaultImplementation.newAuthenticationToken(tokenSupplier);
     }
 
+    // CHECKSTYLE.OFF: MethodName
+
     /**
      * Create an authentication provider for TLS based authentication.
      *
@@ -64,6 +66,8 @@ public final class AuthenticationFactory {
     public static Authentication TLS(String certFilePath, String keyFilePath) {
         return DefaultImplementation.newAuthenticationTLS(certFilePath, keyFilePath);
     }
+
+    // CHECKSTYLE.ON: MethodName
 
     /**
      * Create an instance of the {@link Authentication} object by using
@@ -86,14 +90,14 @@ public final class AuthenticationFactory {
     }
 
     /**
-     * Create an instance of the Authentication-Plugin
+     * Create an instance of the Authentication-Plugin.
      *
      * @param authPluginClassName name of the Authentication-Plugin you want to use
      * @param authParams          map which represents parameters for the Authentication-Plugin
      * @return instance of the Authentication-Plugin
      * @throws UnsupportedAuthenticationException
      */
-    public static final Authentication create(String authPluginClassName, Map<String, String> authParams)
+    public static Authentication create(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
         try {
             return DefaultImplementation.createAuthentication(authPluginClassName, authParams);

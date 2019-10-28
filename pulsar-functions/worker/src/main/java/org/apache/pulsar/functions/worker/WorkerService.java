@@ -148,6 +148,9 @@ public class WorkerService {
             }
             log.info("Created Pulsar client");
 
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
             this.schedulerManager = new SchedulerManager(this.workerConfig, this.client, this.brokerAdmin,
                     this.executor);
@@ -249,7 +252,7 @@ public class WorkerService {
         if (null != this.brokerAdmin) {
             this.brokerAdmin.close();
         }
-        
+
         if (null != this.functionAdmin) {
             this.functionAdmin.close();
         }
@@ -261,9 +264,13 @@ public class WorkerService {
         if (null != this.dlogNamespace) {
             this.dlogNamespace.close();
         }
-        
+
         if(this.executor != null) {
             this.executor.shutdown();
+        }
+
+        if (this.statsUpdater != null) {
+            statsUpdater.shutdownNow();
         }
     }
 

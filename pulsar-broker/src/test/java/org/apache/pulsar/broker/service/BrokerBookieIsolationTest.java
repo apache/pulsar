@@ -42,6 +42,7 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
@@ -84,9 +85,9 @@ public class BrokerBookieIsolationTest {
     private LocalBookkeeperEnsemble bkEnsemble;
     private PulsarService pulsarService;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_PORT = PortManager.nextFreePort();
+    private int ZOOKEEPER_PORT;
+    private int PRIMARY_BROKER_WEBSERVICE_PORT;
+    private int PRIMARY_BROKER_PORT;
 
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
 
@@ -94,6 +95,10 @@ public class BrokerBookieIsolationTest {
 
     @BeforeMethod
     protected void setup() throws Exception {
+        ZOOKEEPER_PORT = PortManager.nextFreePort();
+        PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+        PRIMARY_BROKER_PORT = PortManager.nextFreePort();
+
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(4, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
@@ -109,15 +114,15 @@ public class BrokerBookieIsolationTest {
 
     /**
      * Validate that broker can support tenant based bookie isolation.
-     * 
+     *
      * <pre>
      * 1. create two bookie-info group : default-group and isolated-group
-     * 2. namespace ns1 : uses default-group 
-     *    validate: bookie-ensemble for ns1-topics's ledger will be from default-group 
+     * 2. namespace ns1 : uses default-group
+     *    validate: bookie-ensemble for ns1-topics's ledger will be from default-group
      * 3. namespace ns2,ns3,ns4: uses isolated-group
      *    validate: bookie-ensemble for above namespace-topics's ledger will be from isolated-group
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -158,11 +163,14 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
 
+        config.setAllowAutoTopicCreationType("non-partitioned");
+
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
         config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
+        pulsarService.setShutdownService(new NoOpShutdownService());
         pulsarService.start();
 
         URL brokerUrl = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
@@ -244,7 +252,7 @@ public class BrokerBookieIsolationTest {
     /**
      * It verifies that "ZkIsolatedBookieEnsemblePlacementPolicy" considers secondary affinity-group if primary group
      * doesn't have enough non-faulty bookies.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -288,12 +296,14 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
+        config.setAllowAutoTopicCreationType("non-partitioned");
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
         config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
+        pulsarService.setShutdownService(new NoOpShutdownService());
         pulsarService.start();
 
         URL brokerUrl = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
@@ -410,9 +420,11 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
+        config.setAllowAutoTopicCreationType("non-partitioned");
 
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
+        pulsarService.setShutdownService(new NoOpShutdownService());
         pulsarService.start();
 
         URL brokerUrl = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
@@ -451,7 +463,7 @@ public class BrokerBookieIsolationTest {
                 tenantNamespaceIsolationGroupsPrimary, tenantNamespaceIsolationGroupsSecondary));
 
     }
-    
+
     private void assertAffinityBookies(LedgerManager ledgerManager, List<LedgerInfo> ledgers1,
             Set<BookieSocketAddress> defaultBookies) throws Exception {
         for (LedgerInfo lInfo : ledgers1) {

@@ -240,9 +240,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void updatePartitionedTopic(String topic, int numPartitions) throws PulsarAdminException {
+    public void updatePartitionedTopic(String topic, int numPartitions)
+            throws PulsarAdminException {
         try {
-            updatePartitionedTopicAsync(topic, numPartitions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            updatePartitionedTopicAsync(topic, numPartitions).get(this.readTimeoutMs,
+                    TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -255,9 +257,16 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions) {
+        return updatePartitionedTopicAsync(topic, numPartitions, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
+            boolean updateLocalTopicOnly) {
         checkArgument(numPartitions > 0, "Number of partitions must be more than 0");
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
+        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly));
         return asyncPostRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 

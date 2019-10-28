@@ -21,4 +21,3 @@ You can get the OAuth credentials from [Twitter Developers Portal](https://devel
 | clientHosts | false | `https://stream.twitter.com` | Twitter Firehose hosts that client connects to |
 | clientBufferSize | false | `50000` | The buffer size for buffering tweets fetched from Twitter Firehose |
 
-
