@@ -72,6 +72,7 @@ public class BookKeeperClientFactoryImplTest {
             bkConf.getProperty(REPP_DNS_RESOLVER_CLASS),
             ZkBookieRackAffinityMapping.class.getName());
 
+        ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
     }
 
     @Test
@@ -106,6 +107,7 @@ public class BookKeeperClientFactoryImplTest {
             bkConf.getProperty(REPP_DNS_RESOLVER_CLASS),
             ZkBookieRackAffinityMapping.class.getName());
 
+        ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
     }
 
     @Test
@@ -145,6 +147,16 @@ public class BookKeeperClientFactoryImplTest {
             bkConf.getProperty(REPP_DNS_RESOLVER_CLASS),
             CachedDNSToSwitchMapping.class.getName());
 
+        ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
+    }
+
+    @Test
+    public void testSetDiskWeightBasedPlacementEnabled() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertFalse(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
+        conf.setBookkeeperDiskWeightBasedPlacementEnabled(true);
+        assertTrue(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
     }
 
 }

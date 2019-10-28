@@ -112,9 +112,10 @@ public class RawReaderImpl implements RawReader {
                 consumerFuture,
                 SubscriptionMode.Durable,
                 MessageId.earliest,
+                0 /* startMessageRollbackDurationInSec */,
                 Schema.BYTES, null,
-                client.getConfiguration().getDefaultBackoffIntervalNanos(),
-                client.getConfiguration().getMaxBackoffIntervalNanos());
+                true
+            );
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
         }

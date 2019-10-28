@@ -37,6 +37,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
+
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -146,6 +148,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 startPartitions);
 
         // create consumer and subscriptions : check subscriptions
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -751,6 +754,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
                 .subscriptionType(SubscriptionType.Shared).subscribe();

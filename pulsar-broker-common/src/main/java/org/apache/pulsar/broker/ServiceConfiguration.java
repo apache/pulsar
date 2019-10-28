@@ -366,6 +366,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " until that subscription acks back `limit/2` messages")
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Tick time to schedule task that checks publish rate limiting across all topics  "
+                    + "Reducing to lower value can give more accuracy while throttling publish but "
+                    + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)" 
+        )
+    private int publisherThrottlingTickTimeMillis = 5;
+    @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "Too many subscribe requests from a consumer can cause broker rewinding consumer cursors "
@@ -785,7 +793,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
             "preference) to read all entries for a ledger.")
-    private boolean bookkeeperEnableStickyReads = true;
+    private boolean bookkeeperEnableStickyReads = false;
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the client security provider factory class name. "
             + "Default: org.apache.bookkeeper.tls.TLSContextFactory")
@@ -816,6 +824,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
     private String bookkeeperTLSTrustCertsFilePath;
+
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
+    private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -902,7 +913,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
-    private String allowAutoTopicCreationType = "partitioned";
+    private String allowAutoTopicCreationType = "non-partitioned";
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "The number of partitioned topics that is allowed to be automatically created"
@@ -1378,5 +1389,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public Optional<Integer> getWebServicePortTls() {
         return webServicePortTls;
+    }
+
+    public boolean isDefaultTopicTypePartitioned() {
+        return TopicType.PARTITIONED.toString().equals(allowAutoTopicCreationType);
+    }
+
+    enum TopicType {
+        PARTITIONED("partitioned"),
+        NON_PARTITIONED("non-partitioned");
+        private String type;
+
+        TopicType(String type) {
+            this.type = type;
+        }
+
+        public String toString() {
+            return type;
+        }
     }
 }

@@ -11,7 +11,7 @@ sidebar_label: Kubernetes
 
 You can easily deploy Pulsar in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
-The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/reference/). The {@inject: github:`kubernetes`:/kubernetes} subdirectory of the [Pulsar package](pulsar:download_page_url) holds resource definitions for:
+The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/reference/). The {@inject: github:`deployment/kubernetes`:/deployment/kubernetes} subdirectory of the [Pulsar package](pulsar:download_page_url) holds resource definitions for:
 
 * A two-bookie BookKeeper cluster
 * A three-node ZooKeeper cluster
@@ -100,8 +100,9 @@ The easiest way to run a Kubernetes cluster is to do so locally. To install a mi
 1. Create a kubernetes cluster on Minikube.
     ```shell
     minikube start --memory=8192 --cpus=4 \
-        --kubernetes-version=v1.10.5
+        --kubernetes-version=<version>
     ```
+    `<version>` can be any [Kubernetes version supported by your minikube installation](https://minikube.sigs.k8s.io/docs/reference/configuration/kubernetes/). Example: `v1.16.1`
 1. Set `kubectl` to use Minikube.
     ```shell
     kubectl config use-context minikube

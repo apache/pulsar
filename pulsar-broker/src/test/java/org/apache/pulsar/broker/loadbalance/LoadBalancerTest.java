@@ -55,6 +55,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -109,7 +110,7 @@ public class LoadBalancerTest {
 
     private static final int MAX_RETRIES = 10;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
+    private int ZOOKEEPER_PORT;
 
     private static final int BROKER_COUNT = 5;
     private int[] brokerWebServicePorts = new int[BROKER_COUNT];
@@ -122,6 +123,8 @@ public class LoadBalancerTest {
     @BeforeMethod
     void setup() throws Exception {
         // Start local bookkeeper ensemble
+        ZOOKEEPER_PORT = PortManager.nextFreePort();
+
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
         ZkUtils.createFullPathOptimistic(bkEnsemble.getZkClient(),
@@ -141,6 +144,8 @@ public class LoadBalancerTest {
             config.setAdvertisedAddress(localhost);
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.ofNullable(brokerWebServicePorts[i]));
+            config.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
+            config.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
             config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -148,6 +153,7 @@ public class LoadBalancerTest {
             config.setLoadBalancerEnabled(false);
 
             pulsarServices[i] = new PulsarService(config);
+            pulsarServices[i].setShutdownService(new NoOpShutdownService());
             pulsarServices[i].start();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
@@ -839,6 +845,7 @@ public class LoadBalancerTest {
 
         zkCacheField.set(pulsarServices[0], originalLZK1);
         zkCacheField.set(pulsarServices[1], originalLZK2);
+        loadManager.stop();
     }
 
     /*

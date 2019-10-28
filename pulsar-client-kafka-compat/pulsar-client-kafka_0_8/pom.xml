@@ -30,7 +30,7 @@
     <version>2.5.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
-  
+
   <properties>
      <kafka_0_8.version>0.8.1.1</kafka_0_8.version>
   </properties>
@@ -41,22 +41,22 @@
   <description>Kafka client library that publishes and consumes messages on Pulsar topics</description>
 
   <dependencies>
-    
+
      <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-    
-    
+
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
@@ -64,33 +64,33 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger-original</artifactId>
+      <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-    
-    
+
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
+
     <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
     </dependency>
-    
+
     <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>

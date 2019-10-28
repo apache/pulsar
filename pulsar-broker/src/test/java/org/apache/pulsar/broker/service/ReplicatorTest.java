@@ -32,7 +32,10 @@ import io.netty.buffer.ByteBuf;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
@@ -51,9 +54,14 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -68,8 +76,10 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -851,6 +861,62 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
+    /**
+     * This validates that broker supports update-partition api for global topics.
+     * <pre>
+     *  1. Create global topic with 4 partitions
+     *  2. Update partition with 8 partitions
+     *  3. Create producer on the partition topic which loads all new partitions
+     *  4. Check subscriptions are created on all new partitions. 
+     * </pre>
+     * @throws Exception
+     */
+    @Test
+    public void testUpdateGlobalTopicPartition() throws Exception {
+        log.info("--- Starting ReplicatorTest::testUpdateGlobalTopicPartition ---");
+
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String namespace = "pulsar/global/ns3";
+        final String topicName = "persistent://" + namespace + "/topic1";
+        int startPartitions = 4;
+        int newPartitions = 8;
+        final String subscriberName = "sub1";
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.topics().createPartitionedTopic(topicName, startPartitions);
+
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subscriberName)
+                .subscribe();
+        Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subscriberName)
+                .subscribe();
+
+        admin1.topics().updatePartitionedTopic(topicName, newPartitions);
+
+        assertEquals(admin1.topics().getPartitionedTopicMetadata(topicName).partitions, newPartitions);
+
+        // create producers to load all the partition topics
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
+        Producer<byte[]> producer2 = client2.newProducer().topic(topicName).create();
+
+        for (int i = startPartitions; i < newPartitions; i++) {
+            String partitionedTopic = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX + i;
+            assertEquals(admin1.topics().getSubscriptions(partitionedTopic).size(), 1);
+            assertEquals(admin2.topics().getSubscriptions(partitionedTopic).size(), 1);
+        }
+
+        producer1.close();
+        producer2.close();
+        consumer1.close();
+        consumer2.close();
+
+        client1.close();
+        client2.close();
+    }
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
 }
