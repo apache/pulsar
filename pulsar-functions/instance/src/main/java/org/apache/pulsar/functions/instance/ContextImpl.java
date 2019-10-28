@@ -311,6 +311,22 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
+    public CompletableFuture<Void> deleteStateAsync(String key) {
+        ensureStateEnabled();
+        return stateContext.delete(key);
+    }
+
+    @Override
+    public void deleteState(String key) {
+        ensureStateEnabled();
+        try {
+            result(stateContext.delete(key));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete the state value for key '" + key + "'");
+        }
+    }
+
+    @Override
     public CompletableFuture<ByteBuffer> getStateAsync(String key) {
         ensureStateEnabled();
         return stateContext.get(key);

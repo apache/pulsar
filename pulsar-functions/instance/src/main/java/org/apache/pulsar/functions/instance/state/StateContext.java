@@ -48,9 +48,16 @@ public interface StateContext {
      * instead.
      *
      * @param key key to update.
-     * @param value value to update
+     * @param value value to update; if null the key is deleted
      */
     CompletableFuture<Void> put(String key, ByteBuffer value) throws Exception;
+
+    /**
+     * Deletes the <i>value</i> at the given <i>key</i>
+     *
+     * @param key to delete
+     */
+    CompletableFuture<Void> delete(String key);
 
     /**
      * Get the value of a given <i>key</i>.
