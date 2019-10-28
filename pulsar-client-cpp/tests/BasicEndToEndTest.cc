@@ -3130,4 +3130,3 @@ TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
     }
     client.shutdown();
 }
-
