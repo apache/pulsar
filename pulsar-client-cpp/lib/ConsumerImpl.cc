@@ -20,6 +20,7 @@
 #include "MessageImpl.h"
 #include "Commands.h"
 #include "LogUtils.h"
+#include "TimeUtils.h"
 #include <lib/TopicName.h>
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
@@ -205,7 +206,7 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
             scheduleReconnection(shared_from_this());
         } else {
             // Consumer was not yet created, retry to connect to broker if it's possible
-            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < now())) {
+            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < TimeUtils::now())) {
                 LOG_WARN(getName() << "Temporary error in creating consumer : " << strResult(result));
                 scheduleReconnection(shared_from_this());
             } else {

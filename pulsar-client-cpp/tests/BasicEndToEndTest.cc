@@ -27,6 +27,7 @@
 #include <mutex>
 #include <lib/TopicName.h>
 #include "PulsarFriend.h"
+#include "lib/TimeUtils.h"
 #include "HttpHelper.h"
 #include <set>
 #include <vector>
@@ -3044,5 +3045,90 @@ TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
 
     res = consumer2.receive(msg, 100);
     ASSERT_EQ(ResultTimeout, res);
+    client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testDelayedMessages) {
+    std::string topicName = "testDelayedMessages-" + std::to_string(TimeUtils::currentTimeMillis());
+    Client client(lookupUrl);
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+    result = client.subscribe(topicName, "my-sub-name", consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message msg1 =
+        MessageBuilder().setContent("msg-1").setDeliverAfter(std::chrono::milliseconds(5000)).build();
+    ASSERT_EQ(ResultOk, producer.send(msg1));
+
+    // 2nd message without delay
+    Message msg2 = MessageBuilder().setContent("msg-2").build();
+    ASSERT_EQ(ResultOk, producer.send(msg2));
+
+    Message msgReceived;
+    result = consumer.receive(msgReceived);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ("msg-2", msgReceived.getDataAsString());
+
+    ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "testCumulativeAcknowledgeNotAllowed";
+    std::string subsName = topicName + "-sub-";
+
+    Consumer consumer1;
+    ConsumerConfiguration consumerConfiguration1;
+    consumerConfiguration1.setConsumerType(ConsumerShared);
+
+    Result result = client.subscribe(topicName, subsName + "1", consumerConfiguration1, consumer1);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer2;
+    ConsumerConfiguration consumerConfiguration2;
+    consumerConfiguration2.setConsumerType(ConsumerKeyShared);
+
+    result = client.subscribe(topicName, subsName + "2", consumerConfiguration2, consumer2);
+    ASSERT_EQ(ResultOk, result);
+
+    Producer producer;
+    result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    // publish messages
+    int numMessages = 10;
+    for (int i = 0; i < numMessages; i++) {
+        Message msg = MessageBuilder().setContent("test-producer-" + topicName + std::to_string(i)).build();
+        producer.send(msg);
+    }
+
+    // test cannot use acknowledgeCumulative on Shared subscription
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        Result res = consumer1.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        if (i == 9) {
+            res = consumer1.acknowledgeCumulative(msg);
+            ASSERT_EQ(ResultCumulativeAcknowledgementNotAllowedError, res);
+        }
+    }
+
+    // test cannot use acknowledgeCumulative on Key_Shared subscription
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        Result res = consumer2.receive(msg, 100);
+        ASSERT_EQ(ResultOk, res);
+        if (i == 9) {
+            res = consumer2.acknowledgeCumulative(msg);
+            ASSERT_EQ(ResultCumulativeAcknowledgementNotAllowedError, res);
+        }
+    }
     client.shutdown();
 }
