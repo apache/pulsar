@@ -1,14 +1,8 @@
----
-title: Coding Guide
----
-
-These guidelines are meant to encourage consistency and best practices among people working on _Apache Pulsar_ code base.
-They should be observed unless there is compelling reason to ignore them. We are also using checkstyle to enforce coding style.
-Please refer to our [checkstyle rules](https://github.com/apache/pulsar/blob/master/buildtools/src/main/resources/pulsar/checkstyle.xml) for all enforced checkstyle rules.
+The guidelines help to encourage consistency and best practices among people working on _Apache Pulsar_ code base. You should observe the guidelines unless there is compelling reason to ignore them. We use checkstyle to enforce coding style, refer to our [checkstyle rules](https://github.com/apache/pulsar/blob/master/buildtools/src/main/resources/pulsar/checkstyle.xml) for all enforced checkstyle rules.
 
 ## Java
 
-Apache Pulsar code should follow the [Sun Java Coding Convention](http://www.oracle.com/technetwork/java/javase/documentation/codeconvtoc-136057.html), with the following additions.
+Apache Pulsar code follows the [Sun Java Coding Convention](http://www.oracle.com/technetwork/java/javase/documentation/codeconvtoc-136057.html), with the following additions.
 
 * Lines can not be longer than 120 characters.
 * Indentation should be **4 spaces**. Tabs should never be used.
@@ -24,17 +18,17 @@ Apache Pulsar uses the following libraries a lot:
 * [Guava](https://github.com/google/guava): as a fundamental core library
 * [Netty](http://netty.io/): for network communications and memory buffer management.
 
-Please use these libraries whenever possible rather than introducing more dependencies. 
+Use these libraries whenever possible rather than introducing more dependencies. 
 
-Dependencies are bundled with our binary distributions, so we need to attach the relevant licenses. See [Third party dependencies and licensing](/community/licensing) for a guide on how to do this correctly.
+Dependencies are bundled with our binary distributions, so we need to attach the relevant licenses. See [Third party dependencies and licensing](/community/licensing) for a guide on how to do it correctly.
 
 ## Future
 
-We prefer Java 8 Future over Guava's Listenable Future. Please use Java-8 Future whenever possible.
+Java-8 Future is preferred over Guava's Listenable Future. Use Java-8 Future whenever possible.
 
 ## Memory
 
-We prefer using netty _ByteBuf_ over java nio _ByteBuffer_ for internal usage. As we are using Netty Buffer for memory management.
+Use netty _ByteBuf_ over java nio _ByteBuffer_ for internal usage. As we are using Netty Buffer for memory management.
 
 ## Logging
 
@@ -48,7 +42,7 @@ We prefer using netty _ByteBuf_ over java nio _ByteBuffer_ for internal usage. A
 - _TRACE_ and _DEBUG_ are both things you turn on when something is wrong and you want to figure out what is going on. _DEBUG_ should not be so fine grained that it will seriously affect performance of the program. _TRACE_ can be anything. Both _DEBUG_ and _TRACE_ statements should be considered to be wrapped in an _if (logger.isDebugEnabled)_ or _if (logger.isTraceEnabled)_ check to avoid performance degradation.
 - _WARN_ and _ERROR_ indicate something that is **BAD**. Use _WARN_ if you aren't totally sure it is bad, and _ERROR_ if you are.
 
-Please log the _stack traces_ at **ERROR** level, but never at **INFO** level or below. They can be logged at **WARN** level when they are interesting for debugging.
+Log the _stack traces_ at **ERROR** level, but never at **INFO** level or below. You can log at **WARN** level if you are interested in debugging.
 
 ## Monitoring
 
@@ -67,12 +61,12 @@ Please log the _stack traces_ at **ERROR** level, but never at **INFO** level or
 ## Configuration
 
 * When you use the config files, think of the names from the very beginning.
-* For people running the program without tuning parameters, use the default values.
+* If you run the program without tuning parameters, use the default values.
 * All configuration settings should be added to [default configuration file](https://github.com/apache/pulsar/tree/master/conf) and documented accordingly.
 
 ## Concurrency
 
-Apache Pulsar is a low latency system, it is implemented as a purely asynchronous service. It is accomplished as follows:
+Apache Pulsar is a low latency system, it is implemented as a purely asynchronous service, which is accomplished as follows:
 
 * All public classes should be **thread-safe**.
 * We prefer using [xxx]() for executing any asynchronous actions. The mutations to same instance should be submitted to same thread to execute.
