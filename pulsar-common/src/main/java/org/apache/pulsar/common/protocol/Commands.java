@@ -443,8 +443,8 @@ public class Commands {
         return newSend(producerId, sequenceId, numMessaegs, 0, 0, checksumType, messageMetadata, payload);
     }
 
-    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs, ChecksumType checksumType,
-                                      MessageMetadata messageMetadata, ByteBuf payload) {
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
+              ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
         return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs, 0, 0,
                 checksumType, messageMetadata, payload);
     }
