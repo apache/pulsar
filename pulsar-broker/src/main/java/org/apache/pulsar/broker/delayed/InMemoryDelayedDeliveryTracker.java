@@ -21,21 +21,21 @@ package org.apache.pulsar.broker.delayed;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-
-import java.time.Clock;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
-
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
+import java.time.Clock;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+
 @Slf4j
 public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, TimerTask {
 
+    @Getter
     private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
 
     private final PersistentDispatcherMultipleConsumers dispatcher;
@@ -65,13 +65,17 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     }
 
     @Override
-    public boolean addMessage(long ledgerId, long entryId, long deliveryAt) {
+    public boolean tryAddMessage(long ledgerId, long entryId, long deliveryAt) {
+
         long now = clock.millis();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
                     deliveryAt - now);
         }
-        if (deliveryAt < now) {
+
+        // now + tickTimeMillis so that message does get unnecessarily added back
+        // since in getScheduledMessages we get messages with deadline <= now + tickTimeMillis
+        if (deliveryAt < now + tickTimeMillis) {
             // It's already about time to deliver this message
             return false;
         }
@@ -79,6 +83,12 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         priorityQueue.add(deliveryAt, ledgerId, entryId);
         updateTimer();
         return true;
+    }
+
+    @Override
+    public void addMessage(long ledgerId, long entryId, long deliveryAt) {
+        priorityQueue.add(deliveryAt, ledgerId, entryId);
+        updateTimer();
     }
 
     /**
@@ -93,9 +103,9 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      * Get a set of position of messages that have already reached
      */
     @Override
-    public Set<PositionImpl> getScheduledMessages(int maxMessages) {
+    public Map<PositionImpl, Long> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
-        Set<PositionImpl> positions = new TreeSet<>();
+        Map<PositionImpl, Long> positions = new TreeMap<>();
         long now = clock.millis();
         // Pick all the messages that will be ready within the tick time period.
         // This is to avoid keeping rescheduling the timer for each message at
@@ -110,7 +120,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
             long ledgerId = priorityQueue.peekN2();
             long entryId = priorityQueue.peekN3();
-            positions.add(new PositionImpl(ledgerId, entryId));
+            positions.put(new PositionImpl(ledgerId, entryId), timestamp);
 
             priorityQueue.pop();
             --n;
@@ -120,6 +130,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
             log.debug("[{}] Get scheduled messags - found {}", dispatcher.getName(), positions.size());
         }
         updateTimer();
+
         return positions;
     }
 

@@ -34,6 +34,7 @@ import io.netty.util.TimerTask;
 
 import java.time.Clock;
 import java.util.Collections;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
@@ -63,26 +64,26 @@ public class InMemoryDeliveryTrackerTest {
 
         assertFalse(tracker.hasMessageAvailable());
 
-        assertTrue(tracker.addMessage(2, 2, 20));
-        assertTrue(tracker.addMessage(1, 1, 10));
-        assertTrue(tracker.addMessage(3, 3, 30));
-        assertTrue(tracker.addMessage(5, 5, 50));
-        assertTrue(tracker.addMessage(4, 4, 40));
+        assertTrue(tracker.tryAddMessage(2, 2, 20));
+        assertTrue(tracker.tryAddMessage(1, 1, 10));
+        assertTrue(tracker.tryAddMessage(3, 3, 30));
+        assertTrue(tracker.tryAddMessage(5, 5, 50));
+        assertTrue(tracker.tryAddMessage(4, 4, 40));
 
         assertFalse(tracker.hasMessageAvailable());
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
 
-        assertEquals(tracker.getScheduledMessages(10), Collections.emptySet());
+        assertEquals(tracker.getScheduledMessages(10), Collections.emptyMap());
 
         // Move time forward
         clockTime.set(15);
 
         // Message is rejected by tracker since it's already ready to send
-        assertFalse(tracker.addMessage(6, 6, 10));
+        assertFalse(tracker.tryAddMessage(6, 6, 10));
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
         assertTrue(tracker.hasMessageAvailable());
-        Set<PositionImpl> scheduled = tracker.getScheduledMessages(10);
+        Map<PositionImpl, Long> scheduled = tracker.getScheduledMessages(10);
         assertEquals(scheduled.size(), 1);
 
         // Move time forward
@@ -100,7 +101,7 @@ public class InMemoryDeliveryTrackerTest {
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 0);
         assertFalse(tracker.hasMessageAvailable());
-        assertEquals(tracker.getScheduledMessages(10), Collections.emptySet());
+        assertEquals(tracker.getScheduledMessages(10), Collections.emptyMap());
     }
 
     @Test
@@ -133,15 +134,15 @@ public class InMemoryDeliveryTrackerTest {
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock);
 
         assertTrue(tasks.isEmpty());
-        assertTrue(tracker.addMessage(2, 2, 20));
+        assertTrue(tracker.tryAddMessage(2, 2, 20));
         assertEquals(tasks.size(), 1);
         assertEquals(tasks.firstKey().longValue(), 20);
 
-        assertTrue(tracker.addMessage(1, 1, 10));
+        assertTrue(tracker.tryAddMessage(1, 1, 10));
         assertEquals(tasks.size(), 1);
         assertEquals(tasks.firstKey().longValue(), 10);
 
-        assertTrue(tracker.addMessage(3, 3, 30));
+        assertTrue(tracker.tryAddMessage(3, 3, 30));
         assertEquals(tasks.size(), 1);
         assertEquals(tasks.firstKey().longValue(), 10);
 

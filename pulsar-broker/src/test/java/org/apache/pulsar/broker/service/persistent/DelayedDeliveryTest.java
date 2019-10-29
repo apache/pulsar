@@ -28,16 +28,19 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Override
@@ -51,6 +54,47 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @AfterClass
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void test() throws Exception {
+
+        String topic = "testNegativeAcks-" + System.nanoTime();
+
+        @Cleanup
+        Consumer<String> sharedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(true) {
+                    try {
+                        log.info("recv: {}", sharedConsumer.receive());
+                    } catch (PulsarClientException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            log.info("sending: {}", i);
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(10, TimeUnit.SECONDS)
+                    .sendAsync();
+        }
+
+        Thread.sleep(100000);
     }
 
     @Test

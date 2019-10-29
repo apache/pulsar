@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
 
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -33,7 +34,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 public interface DelayedDeliveryTracker extends AutoCloseable {
 
     /**
-     * Add a message to the tracker
+     * Add a message to the tracker if necessary
      *
      * @param ledgerId
      *            the ledgerId
@@ -43,7 +44,19 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
      *            the absolute timestamp at which the message should be tracked
      * @return true if the message was added to the tracker or false if it should be delivered immediately
      */
-    boolean addMessage(long ledgerId, long entryId, long deliveryAt);
+    boolean tryAddMessage(long ledgerId, long entryId, long deliveryAt);
+
+    /**
+     * Add a message to tracker
+     *
+     * @param ledgerId
+     *            the ledgerId
+     * @param entryId
+     *            the entryId
+     * @param deliveryAt
+     *            the absolute timestamp at which the message should be tracked
+     */
+    void addMessage(long ledgerId, long entryId, long deliveryAt);
 
     /**
      * Return true if there's at least a message that is scheduled to be delivered already
@@ -58,7 +71,7 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     /**
      * Get a set of position of messages that have already reached the delivery time
      */
-    Set<PositionImpl> getScheduledMessages(int maxMessages);
+    Map<PositionImpl, Long> getScheduledMessages(int maxMessages);
 
     /**
      * Close the subscription tracker and release all resources.

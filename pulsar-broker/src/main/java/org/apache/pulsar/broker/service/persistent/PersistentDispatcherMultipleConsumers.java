@@ -25,7 +25,9 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -297,31 +299,52 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         }
                     }
                 }
-
             }
 
+            Set<PositionImpl> messagesToSend = null;
+            Map<PositionImpl, Long> delayedMessagesToSendNow = null;
             Set<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
+            if (messagesToReplayNow != null) {
+                messagesToSend = messagesToReplayNow;
+            } else {
+                delayedMessagesToSendNow = getDelayedMessagesToSendNow(messagesToRead);
+                if (delayedMessagesToSendNow != null) {
+                    messagesToSend = new HashSet<>();
+                    messagesToSend.addAll(delayedMessagesToSendNow.keySet());
+                } else {
+                    messagesToSend = Collections.emptySet();
+                }
+            }
 
-            if (!messagesToReplayNow.isEmpty()) {
+            if (!messagesToSend.isEmpty()) {
                 if (havePendingReplayRead) {
                     log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
+
+                    // add delayed messages back to the tracker to be delivered later
+                    if (delayedMessagesToSendNow != null) {
+                        delayedMessagesToSendNow.entrySet().forEach(entry -> {
+                            PositionImpl position = entry.getKey();
+                            long deliverAt = entry.getValue();
+                            delayedDeliveryTracker.get().addMessage(position.getLedgerId(), position.getEntryId(), deliverAt);
+                        });
+                    }
                     return;
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
+                    log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToSend.size(),
                             consumerList.size());
                 }
 
                 havePendingReplayRead = true;
-                Set<? extends Position> deletedMessages = asyncReplayEntries(messagesToReplayNow);
+                Set<? extends Position> deletedMessages = asyncReplayEntries(messagesToSend);
                 // clear already acked positions from replay bucket
 
                 deletedMessages.forEach(position -> messagesToRedeliver.remove(((PositionImpl) position).getLedgerId(),
                         ((PositionImpl) position).getEntryId()));
                 // if all the entries are acked-entries and cleared up from messagesToRedeliver, try to read
                 // next entries as readCompletedEntries-callback was never called
-                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
+                if ((messagesToSend.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
                     readMoreEntries();
                 }
@@ -497,6 +520,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), redeliveryTracker);
+
 
                 long msgSent = sendMessageInfo.getTotalMessages();
                 start += messagesForC;
@@ -726,18 +750,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             delayedDeliveryTracker = Optional.of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
         }
 
-        return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
+        return delayedDeliveryTracker.get().tryAddMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
     }
 
     private synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
         if (!messagesToRedeliver.isEmpty()) {
             return messagesToRedeliver.items(maxMessagesToRead,
                     (ledgerId, entryId) -> new PositionImpl(ledgerId, entryId));
-        } else if (delayedDeliveryTracker.isPresent()) {
-            return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
-        } else {
-            return Collections.emptySet();
         }
+        return null;
+    }
+
+    private synchronized Map<PositionImpl, Long> getDelayedMessagesToSendNow(int maxMessagesToRead) {
+        if (delayedDeliveryTracker.isPresent()) {
+            return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
+        }
+        return null;
     }
 
     public synchronized long getNumberOfDelayedMessages() {
