@@ -132,6 +132,10 @@ message MessageMetadata {
     // transaction related message info
     optional uint64 txnid_least_bits = 22 [default = 0];
     optional uint64 txnid_most_bits = 23 [default = 0];
+
+    /// Add lowest and highest sequence id to support external sequence id
+    optional uint64 lowest_sequence_id = 24 [default = 0];
+    optional uint64 highest_sequence_id = 25 [default = 0];
 }
 
 message SingleMessageMetadata {
@@ -411,6 +415,10 @@ message CommandSend {
     optional int32 num_messages = 3 [default = 1];
     optional uint64 txnid_least_bits = 4 [default = 0];
     optional uint64 txnid_most_bits = 5 [default = 0];
+
+    /// Add lowest and highest sequence id to support external sequence id
+    optional uint64 lowest_sequence_id = 6 [default = 0];
+    optional uint64 highest_sequence_id = 7 [default = 0];
 }
 
 message CommandSendReceipt {

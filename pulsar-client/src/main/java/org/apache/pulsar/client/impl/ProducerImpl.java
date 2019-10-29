@@ -110,6 +110,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final CompressionCodec compressor;
 
     private volatile long lastSequenceIdPublished;
+    protected volatile long lastSequenceIdPushed;
+
     private MessageCrypto msgCrypto = null;
 
     private ScheduledFuture<?> keyGeneratorTask = null;
@@ -140,9 +142,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (conf.getInitialSequenceId() != null) {
             long initialSequenceId = conf.getInitialSequenceId();
             this.lastSequenceIdPublished = initialSequenceId;
+            this.lastSequenceIdPushed = initialSequenceId;
             this.msgIdGenerator = initialSequenceId + 1;
         } else {
             this.lastSequenceIdPublished = -1;
+            this.lastSequenceIdPushed = -1;
             this.msgIdGenerator = 0;
         }
 
@@ -368,6 +372,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 } else {
                     sequenceId = msgMetadataBuilder.getSequenceId();
                 }
+
+                if (sequenceId <= lastSequenceIdPushed) {
+                    if (sequenceId <= lastSequenceIdPublished) {
+                        callback.sendComplete(new PulsarClientException
+                                .InvalidMessageException("Message is definitely a duplicate"));
+                        return;
+                    } else {
+                        callback.sendComplete(new PulsarClientException
+                                .InvalidMessageException("Message is a definitely a duplicate or not cannot be " +
+                                "determined at this time"));
+                        return;
+                    }
+                }
                 if (!msgMetadataBuilder.hasPublishTime()) {
                     msgMetadataBuilder.setPublishTime(client.getClientClock().millis());
 
@@ -534,15 +551,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
             ByteBuf compressedPayload) {
-        ChecksumType checksumType;
+        return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
+    }
 
+    protected ByteBufPair sendMessage(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages, MessageMetadata msgMetadata,
+                                      ByteBuf compressedPayload) {
+        return Commands.newSend(producerId, lowestSequenceId, highestSequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
+    }
+
+    private ChecksumType getChecksumType() {
         if (connectionHandler.getClientCnx() == null
                 || connectionHandler.getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
-            checksumType = ChecksumType.Crc32c;
+            return ChecksumType.Crc32c;
         } else {
-            checksumType = ChecksumType.None;
+            return ChecksumType.None;
         }
-        return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
     }
 
     private boolean canAddToBatch(MessageImpl<?> msg) {
@@ -776,8 +799,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
                 return;
             }
-
-            long expectedSequenceId = op.sequenceId;
+            long expectedSequenceId = op.highestSequenceId > 0 ? op.highestSequenceId : op.sequenceId;
             if (sequenceId > expectedSequenceId) {
                 log.warn("[{}] [{}] Got ack for msg. expecting: {} - got: {} - queue-size: {}", topic, producerName,
                         expectedSequenceId, sequenceId, pendingMessages.size());
@@ -803,7 +825,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (callback) {
             op = pendingCallbacks.poll();
             if (op != null) {
-                lastSequenceIdPublished = op.sequenceId + op.numMessagesInBatch - 1;
+                lastSequenceIdPublished = sequenceId;
                 op.setMessageId(ledgerId, entryId, partitionIndex);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -839,7 +861,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 log.debug("[{}] [{}] Got send failure for timed out msg {}", topic, producerName, sequenceId);
             }
         } else {
-            long expectedSequenceId = op.sequenceId;
+            long expectedSequenceId = op.highestSequenceId > 0 ? op.highestSequenceId : op.sequenceId;
             if (sequenceId == expectedSequenceId) {
                 boolean corrupted = !verifyLocalBufferIsNotCorrupted(op);
                 if (corrupted) {
@@ -923,6 +945,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long createdAt;
         long batchSizeByte = 0;
         int numMessagesInBatch = 1;
+        long lowestSequenceId;
+        long highestSequenceId;
 
         static OpSendMsg create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
@@ -940,6 +964,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             op.cmd = cmd;
             op.callback = callback;
             op.sequenceId = sequenceId;
+            op.createdAt = System.currentTimeMillis();
+            return op;
+        }
+
+        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
+                                long highestSequenceId,  SendCallback callback) {
+            OpSendMsg op = RECYCLER.get();
+            op.msgs = msgs;
+            op.cmd = cmd;
+            op.callback = callback;
+            op.lowestSequenceId = lowestSequenceId;
+            op.highestSequenceId = highestSequenceId;
+            op.sequenceId = lowestSequenceId;
             op.createdAt = System.currentTimeMillis();
             return op;
         }
@@ -1391,6 +1428,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 batchMessageAndSend();
             }
             pendingMessages.put(op);
+            if (op.msg != null) {
+                lastSequenceIdPushed = op.sequenceId;
+            }
             ClientCnx cnx = cnx();
             if (isConnected()) {
                 if (op.msg != null && op.msg.getSchemaState() == None) {

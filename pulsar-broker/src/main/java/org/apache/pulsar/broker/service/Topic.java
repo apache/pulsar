@@ -77,6 +77,14 @@ public interface Topic {
         }
 
         void completed(Exception e, long ledgerId, long entryId);
+
+        default long getLowestSequenceId() {
+            return -1;
+        }
+
+        default long getHighestSequenceId() {
+            return  -1;
+        }
     }
 
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
