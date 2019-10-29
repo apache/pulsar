@@ -15,6 +15,8 @@ var searchData=
   ['setconcurrentlookuprequest',['setConcurrentLookupRequest',['../classpulsar_1_1_client_configuration.html#a0b9226918b57122b0ceb446657746e1c',1,'pulsar::ClientConfiguration']]],
   ['setconsumertype',['setConsumerType',['../classpulsar_1_1_consumer_configuration.html#ace6b2f1da486fcffacc4e877e5533268',1,'pulsar::ConsumerConfiguration']]],
   ['setcontent',['setContent',['../classpulsar_1_1_message_builder.html#ab88fc9caf6c2406ba7b34a1770484df8',1,'pulsar::MessageBuilder']]],
+  ['setdeliverafter',['setDeliverAfter',['../classpulsar_1_1_message_builder.html#a07e1f9b3bde32334ddc54c230c851155',1,'pulsar::MessageBuilder']]],
+  ['setdeliverat',['setDeliverAt',['../classpulsar_1_1_message_builder.html#aed86cebe1662c5f917ee87f63b3c375f',1,'pulsar::MessageBuilder']]],
   ['seteventtimestamp',['setEventTimestamp',['../classpulsar_1_1_message_builder.html#a445ac7f5cac5282ef8248df399995338',1,'pulsar::MessageBuilder']]],
   ['setiothreads',['setIOThreads',['../classpulsar_1_1_client_configuration.html#a5081ce72cb0eb615fc209decdea7ca7a',1,'pulsar::ClientConfiguration']]],
   ['setlogconffilepath',['setLogConfFilePath',['../classpulsar_1_1_client_configuration.html#afffc25fc6be9f26221a206c49154b4cf',1,'pulsar::ClientConfiguration']]],

@@ -123,6 +123,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a44d4f29591490129f10e370fc379fc55"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a88fa0cdb4ecd0c7d7c3aad076e968006"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#a88fa0cdb4ecd0c7d7c3aad076e968006">setOrderingKey</a> (const std::string &amp;orderingKey)</td></tr>
 <tr class="separator:a88fa0cdb4ecd0c7d7c3aad076e968006"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a07e1f9b3bde32334ddc54c230c851155"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#a07e1f9b3bde32334ddc54c230c851155">setDeliverAfter</a> (const std::chrono::milliseconds delay)</td></tr>
+<tr class="separator:a07e1f9b3bde32334ddc54c230c851155"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aed86cebe1662c5f917ee87f63b3c375f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#aed86cebe1662c5f917ee87f63b3c375f">setDeliverAt</a> (uint64_t deliveryTimestamp)</td></tr>
+<tr class="separator:aed86cebe1662c5f917ee87f63b3c375f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a445ac7f5cac5282ef8248df399995338"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#a445ac7f5cac5282ef8248df399995338">setEventTimestamp</a> (uint64_t eventTimestamp)</td></tr>
 <tr class="separator:a445ac7f5cac5282ef8248df399995338"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae1c62a5fb7a064714b615be585d5bf92"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_builder.html#ae1c62a5fb7a064714b615be585d5bf92">setSequenceId</a> (int64_t sequenceId)</td></tr>
@@ -246,6 +250,52 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <p>Set content of the message. The message contents will be managed by the system. </p>
+
+</div>
+</div>
+<a class="anchor" id="a07e1f9b3bde32334ddc54c230c851155"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a>&amp; pulsar::MessageBuilder::setDeliverAfter </td>
+          <td>(</td>
+          <td class="paramtype">const std::chrono::milliseconds&#160;</td>
+          <td class="paramname"><em>delay</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Specify a delay for the delivery of the messages.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">delay</td><td>the delay in milliseconds </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="aed86cebe1662c5f917ee87f63b3c375f"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_message_builder.html">MessageBuilder</a>&amp; pulsar::MessageBuilder::setDeliverAt </td>
+          <td>(</td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>deliveryTimestamp</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Specify the this message should not be delivered earlier than the specified timestamp.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">deliveryTimestamp</td><td>UTC based timestamp in milliseconds </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

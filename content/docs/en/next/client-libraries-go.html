@@ -329,7 +329,7 @@ consumer, err := client.Subscribe(consumerOpts)
     consumer, err := client.Subscribe(pulsar.ConsumerOptions{
         Topic:            <span class="hljs-string">"my-golang-topic"</span>,
         SubscriptionName: <span class="hljs-string">"sub-1"</span>,
-        SubscriptionType: pulsar.Exclusive,
+        Type: pulsar.Exclusive,
     })
 
     <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatal(err) }
@@ -367,7 +367,7 @@ consumer, err := client.Subscribe(consumerOpts)
 <tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">The name of the consumer</td></tr>
 <tr><td style="text-align:left"><code>AckTimeout</code></td><td style="text-align:left"></td><td style="text-align:left">0</td></tr>
 <tr><td style="text-align:left"><code>NackRedeliveryDelay</code></td><td style="text-align:left">The delay after which to redeliver the messages that failed to be processed. Default is 1min. (See <code>Consumer.Nack()</code>)</td><td style="text-align:left">1 minute</td></tr>
-<tr><td style="text-align:left"><code>SubscriptionType</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, and <code>Failover</code></td><td style="text-align:left"><code>Exclusive</code></td></tr>
+<tr><td style="text-align:left"><code>Type</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, and <code>Failover</code></td><td style="text-align:left"><code>Exclusive</code></td></tr>
 <tr><td style="text-align:left"><code>MessageChannel</code></td><td style="text-align:left">The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel.</td></tr>
 <tr><td style="text-align:left"><code>ReceiverQueueSize</code></td><td style="text-align:left">Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls <code>Receive</code>. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
 <tr><td style="text-align:left"><code>MaxTotalReceiverQueueSizeAcrossPartitions</code></td><td style="text-align:left">Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value</td><td style="text-align:left">50000</td></tr>
