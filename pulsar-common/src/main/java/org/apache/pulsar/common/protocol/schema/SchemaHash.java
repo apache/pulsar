@@ -16,34 +16,45 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.schema;
+package org.apache.pulsar.common.protocol.schema;
 
+import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-
+import java.util.Optional;
 import lombok.EqualsAndHashCode;
-
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
-import java.util.Optional;
-
-// TODO(yittg): use same hash function with broker,
-//  move it to pulsar-common and provide it to broker also.
+/**
+ * Schema hash wrapper with a HashCode inner type.
+ */
 @EqualsAndHashCode
 public class SchemaHash {
+
     private static HashFunction hashFunction = Hashing.sha256();
 
-    private final byte[] value;
+    private final HashCode hash;
 
-    private SchemaHash(byte[] value) {
-        this.value = value;
+    private SchemaHash(HashCode hash) {
+        this.hash = hash;
     }
 
     public static SchemaHash of(Schema schema) {
-        byte[] schemaBytes = Optional.ofNullable(schema)
-                                     .map(Schema::getSchemaInfo)
-                                     .map(SchemaInfo::getSchema).orElse(new byte[0]);
-        return new SchemaHash(hashFunction.hashBytes(schemaBytes).asBytes());
+        return of(Optional.ofNullable(schema)
+                          .map(Schema::getSchemaInfo)
+                          .map(SchemaInfo::getSchema).orElse(new byte[0]));
+    }
+
+    public static SchemaHash of(SchemaData schemaData) {
+        return of(schemaData.getData());
+    }
+
+    private static SchemaHash of(byte[] schemaBytes) {
+        return new SchemaHash(hashFunction.hashBytes(schemaBytes));
+    }
+
+    public byte[] asBytes() {
+        return hash.asBytes();
     }
 }
