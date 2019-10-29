@@ -33,8 +33,6 @@ Retention policies are particularly useful if you intend to exclusively use the 
 
 When you set a size limit of, say, 10 gigabytes, then acknowledged messages in all topics in the namespace will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then acknowledged messages for all topics in the namespace will be retained for 24 hours. The retention settings apply to all messages on topics that do not have any subscriptions, or if there are subscriptions, to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions -- these are instead controlled by the backlog quota (see below).
 
-TODO: Confirm this behavior?
-
 When a retention limit is exceeded, the oldest message is marked for deletion until the set of retained messages falls within the specified limits again.
 
 It is also possible to set *unlimited* retention time or size by setting `-1` for either time or size retention.
