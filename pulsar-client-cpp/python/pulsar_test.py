@@ -651,6 +651,12 @@ class PulsarTest(TestCase):
         consumer1.acknowledge(msg0)
         consumer1.close()
 
+        # ditto for reader
+        reader1 = client.create_reader(topic, MessageId.earliest, is_read_compacted=True)
+        msg0 = reader1.read_next()
+        self.assertEqual(msg0.data(), b'hello-1')
+        reader1.close()
+
         # after compact, consumer with `is_read_compacted=False`, expected read 2 messages for same key.
         msg0 = consumer2.receive()
         self.assertEqual(msg0.data(), b'hello-0')
@@ -659,6 +665,14 @@ class PulsarTest(TestCase):
         self.assertEqual(msg1.data(), b'hello-1')
         consumer2.acknowledge(msg1)
         consumer2.close()
+
+        # ditto for reader
+        reader2 = client.create_reader(topic, MessageId.earliest, is_read_compacted=False)
+        msg0 = reader2.read_next()
+        self.assertEqual(msg0.data(), b'hello-0')
+        msg1 = reader2.read_next()
+        self.assertEqual(msg1.data(), b'hello-1')
+        reader2.close()
         client.close()
 
     def test_reader_has_message_available(self):
