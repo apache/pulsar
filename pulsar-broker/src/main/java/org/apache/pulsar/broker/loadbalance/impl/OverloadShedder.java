@@ -60,6 +60,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
      *            The service configuration.
      * @return A map from bundles to unload to the brokers on which they are loaded.
      */
+    @Override
     public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
         selectedBundlesCache.clear();
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
