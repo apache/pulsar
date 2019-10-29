@@ -510,7 +510,7 @@ Once the command is executed, Pulsar will create a sink connector named _pulsar-
 > `--name` | The name of the sink. | _pulsar-mysql-jdbc-sink_
 > `--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | _pulsar-mysql-jdbc-sink.yaml_ 
 > `--parallelism` | The parallelism factor of the sink. <br> For example, the number of sink instances to run. |  _1_
-> For more information about `pulsar-admin sinks create options`, see [here](pulsar-admin/#create-3).
+> For more information about `pulsar-admin sinks create options`, see [here](reference-pulsar-admin.md#create-3).
 
 The sink has been created successfully if the following message appears.
 
@@ -652,7 +652,7 @@ The sink instance has been started successfully if the following message disappe
 > 
 > Note that `pulsar-admin sinks localrun options` runs a sink connector locally, while `pulsar-admin sinks start options` starts a sink connector in a cluster.
 >
-> For more information about `pulsar-admin sinks localrun options`, see [here](pulsar-admin/#localrun-1).
+> For more information about `pulsar-admin sinks localrun options`, see [here](reference-pulsar-admin.md#localrun-1).
 
 ### Update a JDBC sink
 
@@ -665,7 +665,7 @@ $ bin/pulsar-admin sinks update \
 ```
 
 > #### Tip
-> For more information about `pulsar-admin sinks update options`, see [here](pulsar-admin/#update-2).
+> For more information about `pulsar-admin sinks update options`, see [here](reference-pulsar-admin.md#update-2).
 
 The sink connector has been updated successfully if the following message disappears.
 
@@ -720,7 +720,7 @@ $ bin/pulsar-admin sinks delete \
 ```
 
 > #### Tip
-> For more information about `pulsar-admin sinks delete options`, see [here](pulsar-admin/#delete-4).
+> For more information about `pulsar-admin sinks delete options`, see [here](reference-pulsar-admin.md#delete-4).
 
 The sink connector has been deleted successfully if the following message appears.
 

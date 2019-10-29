@@ -21,10 +21,10 @@ Commands
 * `ns-isolation-policy`
 * `sources`
 
-    For more information, see [here](reference-connector-admin.md#sources)
+    For more information, see [here](reference-connector-admin#sources)
 * `sinks`
   
-  For more information, see [here](reference-connector-admin.md#sinks)
+  For more information, see [here](reference-connector-admin#sinks)
 * `topics`
 * `tenants`
 * `resource-quotas`
