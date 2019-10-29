@@ -4,24 +4,24 @@ title: CDC Canal Connector
 sidebar_label: CDC Canal Connector
 ---
 
-### Source Configuration Options
+## Source configuration options
 
-The Configuration is mostly related to Canal task config.
+The configuration is mostly related to Canal task.
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `zkServers` | `false` | `127.0.0.1:2181` | `The address and port of the zookeeper . if canal server configured to cluster mode` |
-| `batchSize` | `true` | `5120` | `Take 5120 records from the canal server in batches` |
-| `username` | `false` | `` | `Canal server account, not MySQL` |
-| `password` | `false` | `` | `Canal server password, not MySQL` |
-| `cluster` | `false` | `false` | `Decide whether to open cluster mode based on canal server configuration, true: cluster mode, false: standalone mode` |
-| `singleHostname` | `false` | `127.0.0.1` | `The address of canal server` |
-| `singlePort` | `false` | `11111` | `The port of canal server` |
+| `zkServers` | `false` | `127.0.0.1:2181` | The address and port of the ZooKeeper, if canal server is configured to cluster mode.|
+| `batchSize` | `true` | `5120` | Take 5120 records from the canal server in batches.|
+| `username` | `false` | `` | Canal server account, not MySQL. |
+| `password` | `false` | `` | Canal server password, not MySQL. |
+| `cluster` | `false` | `false` | Decide whether to enable cluster mode based on canal server configuration. True: cluster mode; False: standalone mode. |
+| `singleHostname` | `false` | `127.0.0.1` | The address of canal server. |
+| `singlePort` | `false` | `11111` | The port of canal server. |
 
 
-### Configuration Example
+### Configuration example
 
-Here is a configuration Json example:
+The following is a JSON example.
 
 ```$json
 {
@@ -35,7 +35,7 @@ Here is a configuration Json example:
     "singlePort": "11111",
 }
 ```
-You could also find the yaml example in this [file](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/resources/canal-mysql-source-config.yaml), which has similar content below:
+You can find the yaml example in this [file](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/resources/canal-mysql-source-config.yaml), which has similar content below:
 
 ```$yaml
 configs:
@@ -51,7 +51,7 @@ configs:
 
 ### Usage example
 
-Here is a simple example to store MySQL change data using above example config.
+The following is a simple example to store MySQL change data using the configuration example.
 
 - Start a MySQL server
 
@@ -59,7 +59,7 @@ Here is a simple example to store MySQL change data using above example config.
 docker pull mysql:5.7
 docker run -d -it --rm --name pulsar-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=canal -e MYSQL_USER=mysqluser -e MYSQL_PASSWORD=mysqlpw mysql:5.7
 ```
-- Modify configuration files mysqld.cnf
+- Modify the mysqld.cnf configuration file 
 
 ```
 [mysqld]
@@ -76,7 +76,7 @@ binlog-format=ROW
 server_id=1
 ```
 
-- Copy file to mysql server from local and restart mysql server
+- Copy the file to mysql server from local and restart mysql server
 ```$bash
 docker cp mysqld.cnf pulsar-mysql:/etc/mysql/mysql.conf.d/
 docker restart pulsar-mysql
@@ -95,16 +95,16 @@ docker pull canal/canal-server:v1.1.2
 docker run -d -it --link pulsar-mysql -e canal.auto.scan=false -e canal.destinations=test -e canal.instance.master.address=pulsar-mysql:3306 -e canal.instance.dbUsername=root -e canal.instance.dbPassword=canal -e canal.instance.connectionCharset=UTF-8 -e canal.instance.tsdb.enable=true -e canal.instance.gtidon=false --name=pulsar-canal-server -p 8000:8000 -p 2222:2222 -p 11111:11111 -p 11112:11112 -m 4096m canal/canal-server:v1.1.2
 ```
 
-- Start pulsar standalone
+- Start Pulsar standalone
 
 ```$bash
 docker pull apachepulsar/pulsar:2.3.0
 docker run -d -it --link pulsar-canal-server -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:2.3.0 bin/pulsar standalone
 ```
 
-- Start pulsar-io in standalone
+- Start pulsar-io in standalone mode
 
-- Config file canal-mysql-source-config.yaml
+- Configure the canal-mysql-source-config.yaml file
 
 ```$yaml
 configs:
@@ -117,7 +117,8 @@ configs:
     singleHostname: "pulsar-canal-server"
     singlePort: "11111"
 ```
-- Consumer file pulsar-client.py for test
+- Test the consumer file pulsar-client.py
+
 ```
 import pulsar
 
@@ -133,7 +134,7 @@ while True:
 client.close()
 ```
 
-- Copy config file and test file to pulsar server
+- Copy the config file and test file on a Pulsar server
 
 ```$bash
 docker cp canal-mysql-source-config.yaml pulsar-standalone:/pulsar/conf/
@@ -141,13 +142,14 @@ docker cp pulsar-client.py pulsar-standalone:/pulsar/
 ```
 
 - Download canal connector and start canal connector
+
 ```$bash
 docker exec -it pulsar-standalone /bin/bash
 wget http://apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors
 ./bin/pulsar-admin sources localrun --archive ./connectors/pulsar-io-canal-2.3.0.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1
 ```
 
-- Consumption data 
+- Consume data 
 
 ```$bash
 docker exec -it pulsar-standalone /bin/bash
@@ -160,7 +162,8 @@ python pulsar-client.py
 docker exec -it pulsar-mysql /bin/bash
 mysql -h 127.0.0.1 -uroot -pcanal
 ```
-- Create table and insert, delete, update data in mysql server
+- Create a table, insert, delete, and update data in mysql server
+
 ```
 mysql> use test;
 mysql> show tables;
