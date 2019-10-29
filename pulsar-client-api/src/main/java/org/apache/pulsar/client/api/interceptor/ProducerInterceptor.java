@@ -16,7 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.api.interceptor;
+
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 
 /**
  * A plugin interface that allows you to intercept (and possibly mutate) the
@@ -28,14 +33,25 @@ package org.apache.pulsar.client.api;
  *
  * <p>ProducerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
+ *
+ * <p>Since the producer may run multiple interceptors, a particular
+ * interceptor will be called in the order specified by
+ * {@link ProducerBuilder#intercept(ProducerInterceptor...)}.
  */
-@Deprecated
-public interface ProducerInterceptor<T> extends AutoCloseable {
+public interface ProducerInterceptor extends AutoCloseable {
 
     /**
      * Close the interceptor.
      */
     void close();
+
+    /**
+     * Check whether the interceptor is eligible for this message.
+     *
+     * @param message message to send
+     * @return whether the interceptor can be applied to this particular message.
+     */
+    boolean eligible(Message message);
 
     /**
      * This is called from {@link Producer#send(Object)} and {@link
@@ -47,29 +63,20 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * <p>Any exception thrown by this method will be caught by the caller and
      * logged, but not propagated further.
      *
-     * <p>Since the producer may run multiple interceptors, a particular
-     * interceptor's {@link #beforeSend(Producer, Message)} callback will be called in the
-     * order specified by
-     * {@link ProducerBuilder#intercept(ProducerInterceptor[])}.
-     *
-     * <p>The first interceptor in the list gets the message passed from the client,
-     * the following interceptor will be passed the message returned by the
-     * previous interceptor, and so on. Since interceptors are allowed to modify
-     * messages, interceptors may potentially get the message already modified by
-     * other interceptors. However, building a pipeline of mutable interceptors
+     * <p>Each interceptor will be passed the message returned by the
+     * last successful executed interceptor or the original message if it is the first one.
+     * Since interceptors are allowed to modify messages,
+     * interceptors may potentially get the message already modified by other interceptors.
+     * However, building a pipeline of mutable interceptors
      * that depend on the output of the previous interceptor is discouraged,
      * because of potential side-effects caused by interceptors potentially
-     * failing to modify the message and throwing an exception. If one of the
-     * interceptors in the list throws an exception from
-     * {@link#beforeSend(Message)}, the exception is caught, logged, and the next
-     * interceptor is called with the message returned by the last successful
-     * interceptor in the list, or otherwise the client.
+     * failing to modify the message and throwing an exception.
      *
      * @param producer the producer which contains the interceptor.
      * @param message message to send
      * @return the intercepted message
      */
-    Message<T> beforeSend(Producer<T> producer, Message<T> message);
+    Message beforeSend(Producer producer, Message message);
 
     /**
      * This method is called when the message sent to the broker has been
@@ -88,6 +95,6 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * @param msgId the message id that assigned by the broker; null if send failed.
      * @param exception the exception on sending messages, null indicates send has succeed.
      */
-    void onSendAcknowledgement(Producer<T> producer, Message<T> message, MessageId msgId, Throwable exception);
-
+    void onSendAcknowledgement(
+            Producer producer, Message message, MessageId msgId, Throwable exception);
 }
