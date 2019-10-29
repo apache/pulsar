@@ -15,7 +15,7 @@ This tutorial guides you through every step of the installation process.
 
 ### System requirements
 
-Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
+Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install Java 8 from [Oracle download center](http://www.oracle.com/).
 
 ### Install Pulsar using binary release
 

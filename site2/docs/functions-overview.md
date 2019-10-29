@@ -87,7 +87,7 @@ If you implement the classic word count example using Pulsar Functions, it looks
 
 ![Pulsar Functions word count example](assets/pulsar-functions-word-count.png)
 
-To write the function in [Java](functions-api.md#functions-for-java) with [Pulsar Functions SDK for Java](functions-api.md#java-sdk-functions), you can write the function as follows.
+To write the function in Java with [Pulsar Functions SDK for Java](functions-develop.md#available-apis), you can write the function as follows.
 
 ```java
 package org.example.functions;
