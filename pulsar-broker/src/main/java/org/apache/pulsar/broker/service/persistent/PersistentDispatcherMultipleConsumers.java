@@ -325,7 +325,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         delayedMessagesToSendNow.entrySet().forEach(entry -> {
                             PositionImpl position = entry.getKey();
                             long deliverAt = entry.getValue();
-                            delayedDeliveryTracker.get().addMessage(position.getLedgerId(), position.getEntryId(), deliverAt);
+                            delayedDeliveryTracker.get().addMessageBack(position.getLedgerId(), position.getEntryId(), deliverAt);
                         });
                     }
                     return;

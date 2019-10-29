@@ -47,7 +47,7 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     boolean tryAddMessage(long ledgerId, long entryId, long deliveryAt);
 
     /**
-     * Add a message to tracker
+     * Add a message back to tracker in case message can not be delivered right away
      *
      * @param ledgerId
      *            the ledgerId
@@ -56,7 +56,7 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
      * @param deliveryAt
      *            the absolute timestamp at which the message should be tracked
      */
-    void addMessage(long ledgerId, long entryId, long deliveryAt);
+    void addMessageBack(long ledgerId, long entryId, long deliveryAt);
 
     /**
      * Return true if there's at least a message that is scheduled to be delivered already

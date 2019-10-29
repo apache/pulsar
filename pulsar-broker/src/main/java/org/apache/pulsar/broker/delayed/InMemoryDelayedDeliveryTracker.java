@@ -86,7 +86,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     }
 
     @Override
-    public void addMessage(long ledgerId, long entryId, long deliveryAt) {
+    public void addMessageBack(long ledgerId, long entryId, long deliveryAt) {
         priorityQueue.add(deliveryAt, ledgerId, entryId);
         updateTimer();
     }
