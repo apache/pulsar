@@ -25,6 +25,8 @@ import java.util.Optional;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Method;
+
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
@@ -78,7 +80,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerClientAuthenticationParameters(str);
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
         conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));
-        conf.setTlsAllowInsecureConnection(true); 
+        conf.setTlsAllowInsecureConnection(true);
     }
 
     @AfterMethod
@@ -99,16 +101,16 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Test case => Use Multiple Brokers 
+     * Test case => Use Multiple Brokers
      *           => Create a namespace with bundles distributed among these brokers.
      *           => Use Tls as authPlugin for everything.
      *           => Run list topics command
-     * @throws Exception 
+     * @throws Exception
      */
     @Test
     public void testPersistentList() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        
+
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
@@ -119,6 +121,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(this.conf.getClusterName());
         conf.setZookeeperServers("localhost:2181");
         buildConf(conf);
+
+        @Cleanup
         PulsarService pulsar2 = startBroker(conf);
 
         /***** Broker 2 Started *****/
@@ -141,6 +145,6 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
                 fail("Should not have thrown an exception");
             }
         }
-        
+
     }
 }

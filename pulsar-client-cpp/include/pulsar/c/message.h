@@ -84,6 +84,21 @@ PULSAR_PUBLIC void pulsar_message_set_event_timestamp(pulsar_message_t *message,
 PULSAR_PUBLIC void pulsar_message_set_sequence_id(pulsar_message_t *message, int64_t sequenceId);
 
 /**
+ * Specify a delay for the delivery of the messages.
+ *
+ * @param delay the delay in milliseconds
+ */
+PULSAR_PUBLIC void pulsar_message_set_deliver_after(pulsar_message_t *message, uint64_t delayMillis);
+
+/**
+ * Specify the this message should not be delivered earlier than the
+ * specified timestamp.
+ *
+ * @param deliveryTimestamp UTC based timestamp in milliseconds
+ */
+PULSAR_PUBLIC void pulsar_message_set_deliver_at(pulsar_message_t *message, uint64_t deliveryTimestampMillis);
+
+/**
  * override namespace replication clusters.  note that it is the
  * caller's responsibility to provide valid cluster names, and that
  * all clusters have been previously configured as topics.

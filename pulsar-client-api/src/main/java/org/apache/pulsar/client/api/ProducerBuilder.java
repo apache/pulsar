@@ -431,4 +431,19 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
+
+    /**
+     * Control whether enable the multiple schema mode for producer.
+     * If enabled, producer can send a message with different schema from that specified just when it is created,
+     * otherwise a invalid message exception would be threw
+     * if the producer want to send a message with different schema.
+     *
+     * <p>Enabled by default.
+     *
+     * @param multiSchema
+     *            indicates to enable or disable multiple schema mode
+     * @return the producer builder instance
+     * @since 2.5.0
+     */
+    ProducerBuilder<T> enableMultiSchema(boolean multiSchema);
 }

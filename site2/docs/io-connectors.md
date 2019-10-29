@@ -25,7 +25,6 @@ Name|Java class
 [Netty](io-netty-source.md)|[org.apache.pulsar.io.netty.NettySource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/netty/src/main/java/org/apache/pulsar/io/netty/NettySource.java)
 [RabbitMQ](io-rabbitmq-source.md)|[org.apache.pulsar.io.rabbitmq.RabbitMQSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/io/rabbitmq/RabbitMQSource.java)
 
-
 ## Sink connector
 
 Pulsar has various sink connectors, which are sorted alphabetically as below.

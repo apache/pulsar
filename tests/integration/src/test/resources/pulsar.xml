@@ -30,5 +30,6 @@
         <suite-file path="./tiered-jcloud-storage.xml" />
         <suite-file path="./tiered-filesystem-storage.xml"/>
         <suite-file path="./pulsar-function-state.xml" />
+        <suite-file path="./pulsar-messaging.xml" />
     </suite-files>
 </suite>

@@ -38,7 +38,8 @@ abstract class HandlerState {
         Closed, // Broker acked the close
         Terminated, // Topic associated with this handler
                     // has been terminated
-        Failed // Handler is failed
+        Failed, // Handler is failed
+        RegisteringSchema // Handler is registering schema
     };
 
     public HandlerState(PulsarClientImpl client, String topic) {
@@ -50,7 +51,12 @@ abstract class HandlerState {
     // moves the state to ready if it wasn't closed
     protected boolean changeToReadyState() {
         return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Ready)
-                || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Ready));
+                || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Ready)
+                || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Ready));
+    }
+
+    protected boolean changeToRegisteringSchemaState() {
+        return STATE_UPDATER.compareAndSet(this, State.Ready, State.RegisteringSchema);
     }
 
     protected State getState() {

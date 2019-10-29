@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -537,6 +539,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             this.workerHostname = unsafeLocalhostResolve();
         }
         return this.workerHostname;
+    }
+
+    public byte[] getTlsTrustChainBytes() {
+        if (StringUtils.isNotEmpty(getTlsTrustCertsFilePath()) && Files.exists(Paths.get(getTlsTrustCertsFilePath()))) {
+            try {
+                return Files.readAllBytes(Paths.get(getTlsTrustCertsFilePath()));
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to read CA bytes", e);
+            }
+        } else {
+            return null;
+        }
     }
 
     public String getWorkerWebAddress() {
