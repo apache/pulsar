@@ -567,12 +567,14 @@ public class BatchMessageTest extends BrokerTestBase {
             .batchingMaxMessages(numMsgsInBatch)
             .enableBatching(true)
             .batcherBuilder(builder)
+            .producerName("1")
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         // create producer to publish non batch messages
         Producer<byte[]> noBatchProducer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .producerName("2")
             .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();

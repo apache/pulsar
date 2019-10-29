@@ -81,6 +81,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         previousCallback = callback;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         messages.add(msg);
+        if (lowestSequenceId == -1) {
+            lowestSequenceId = msg.getSequenceId();
+            messageMetadata.setLowestSequenceId(lowestSequenceId);
+        }
         highestSequenceId = msg.getSequenceId();
         producer.lastSequenceIdPushed = msg.getSequenceId();
     }
@@ -187,6 +191,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
+        lowestSequenceId = -1;
         return op;
     }
 
