@@ -106,14 +106,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
                 long nextExpectedId = firstEntry;
                 try {
-                    OffloadIndexEntry entry = index.getIndexEntryForEntry(firstEntry);
-                    inputStream.seek(entry.getDataOffset());
-
                     while (entriesToRead > 0) {
                         int length = dataStream.readInt();
                         if (length < 0) { // hit padding or new block
-                            inputStream.seekForward(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            length = dataStream.readInt();
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            continue;
                         }
                         long entryId = dataStream.readLong();
 
@@ -126,6 +123,14 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                             }
                             entriesToRead--;
                             nextExpectedId++;
+                        } else if (entryId > nextExpectedId) {
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            continue;
+                        } else if (entryId < nextExpectedId
+                                   && !index.getIndexEntryForEntry(nextExpectedId).equals(
+                                           index.getIndexEntryForEntry(entryId)))  {
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            continue;
                         } else if (entryId > lastEntry) {
                             log.info("Expected to read {}, but read {}, which is greater than last entry {}",
                                      nextExpectedId, entryId, lastEntry);
