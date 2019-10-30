@@ -301,7 +301,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerForMessageSchemaOnTopicInitialWithNoSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = "my-property/my-ns/schema-test-";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
         byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
         AvroWriter<V1Data> v1Writer = new AvroWriter<>(

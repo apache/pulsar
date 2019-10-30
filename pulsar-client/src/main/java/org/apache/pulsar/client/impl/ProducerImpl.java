@@ -989,6 +989,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             rePopulate = null;
             sequenceId = -1;
             createdAt = -1;
+            lowestSequenceId = -1;
+            highestSequenceId = -1;
             recyclerHandle.recycle(this);
         }
 

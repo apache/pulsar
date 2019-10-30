@@ -371,7 +371,7 @@ public class Producer {
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            long callBackSequenceId = highestSequenceId > 0 ? highestSequenceId : sequenceId;
+            long callBackSequenceId = highestSequenceId >= 0 && highestSequenceId >= sequenceId ? highestSequenceId : sequenceId;
             producer.cnx.ctx().writeAndFlush(
                     Commands.newSendReceipt(producer.producerId, callBackSequenceId, ledgerId, entryId),
                     producer.cnx.ctx().voidPromise());
@@ -424,6 +424,8 @@ public class Producer {
         public void recycle() {
             producer = null;
             sequenceId = -1;
+            lowestSequenceId = -1;
+            highestSequenceId = -1;
             rateIn = null;
             msgSize = 0;
             ledgerId = -1;
