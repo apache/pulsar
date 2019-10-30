@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import com.google.common.collect.Range;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -697,25 +698,28 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+    public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
         if (!isDelayedDeliveryEnabled) {
             // If broker has the feature disabled, always deliver messages immediately
             return false;
         }
 
-        if (!delayedDeliveryTracker.isPresent()) {
-            // Initialize the tracker the first time we need to use it
-            delayedDeliveryTracker = Optional.of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
-        }
+        synchronized (this) {
+            if (!delayedDeliveryTracker.isPresent()) {
+                // Initialize the tracker the first time we need to use it
+                delayedDeliveryTracker = Optional
+                        .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+            }
 
-        return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
+            return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
+        }
     }
 
     private synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
         if (!messagesToRedeliver.isEmpty()) {
             return messagesToRedeliver.items(maxMessagesToRead,
                     (ledgerId, entryId) -> new PositionImpl(ledgerId, entryId));
-        } else if (delayedDeliveryTracker.isPresent()) {
+        } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
             return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
         } else {
             return Collections.emptySet();
@@ -723,11 +727,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized long getNumberOfDelayedMessages() {
-        if (delayedDeliveryTracker.isPresent()) {
-            return delayedDeliveryTracker.get().getNumberOfDelayedMessages();
-        } else {
-            return 0;
-        }
+        return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
 
     public PersistentTopic getTopic() {
