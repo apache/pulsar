@@ -21,10 +21,11 @@ package org.apache.pulsar.transaction.coordinator;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.Beta;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 
 /**
  * A provider that provides {@link TransactionMetadataStore}.

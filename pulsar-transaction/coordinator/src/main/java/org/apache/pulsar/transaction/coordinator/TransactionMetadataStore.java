@@ -94,7 +94,7 @@ public interface TransactionMetadataStore {
         TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus);
 
     /**
-     * Close the transaction metadata store
+     * Close the transaction metadata store.
      */
     CompletableFuture<Void> closeAsync();
 
