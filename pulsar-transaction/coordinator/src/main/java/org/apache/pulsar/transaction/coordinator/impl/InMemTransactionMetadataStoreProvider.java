@@ -34,6 +34,6 @@ public class InMemTransactionMetadataStoreProvider implements TransactionMetadat
     public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
          ManagedLedgerFactory managedLedgerFactory) {
         return CompletableFuture.completedFuture(
-                new InMemTransactionMetadataStore(transactionCoordinatorId));
+            new InMemTransactionMetadataStore(transactionCoordinatorId));
     }
 }

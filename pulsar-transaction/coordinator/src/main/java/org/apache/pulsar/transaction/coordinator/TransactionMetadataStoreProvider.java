@@ -63,5 +63,5 @@ public interface TransactionMetadataStoreProvider {
      *         if the operation succeeds.
      */
     CompletableFuture<TransactionMetadataStore> openStore(
-            TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory);
+        TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory);
 }
