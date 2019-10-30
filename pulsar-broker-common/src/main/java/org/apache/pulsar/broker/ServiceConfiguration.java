@@ -1329,6 +1329,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean transactionCoordinatorEnabled = true;
 
+    @FieldContext(
+        category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction metadata store provider"
+    )
+    private String transactionMetadataStoreProviderClassName;
+
     /**
      * @deprecated See {@link #getConfigurationStoreServers}
      */
