@@ -128,6 +128,7 @@
       "reference-terminology",
       "reference-cli-tools",
       "pulsar-admin",
+      "reference-connector-admin",
       "reference-configuration",
       "reference-metrics"
     ]
