@@ -301,7 +301,7 @@ public class MessageDeduplication {
             md.recycle();
         }
 
-        if (lowestSequenceId <= highestSequenceId && lowestSequenceId <= 0) {
+        if (lowestSequenceId == highestSequenceId && lowestSequenceId <= sequenceId) {
             lowestSequenceId = sequenceId;
             highestSequenceId = sequenceId;
         }
