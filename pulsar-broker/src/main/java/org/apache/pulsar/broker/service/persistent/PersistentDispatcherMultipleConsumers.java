@@ -300,14 +300,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             }
 
+            if (havePendingReplayRead) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
+                }
+                return;
+            }
+
             Set<PositionImpl> messagesToReplayNow = getMessagesToReplayNow(messagesToRead);
 
             if (!messagesToReplayNow.isEmpty()) {
-                if (havePendingReplayRead) {
-                    log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
-                    return;
-                }
-
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name, messagesToReplayNow.size(),
                             consumerList.size());
@@ -453,7 +455,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-
         if (entries == null || entries.size() == 0) {
             return;
         }
