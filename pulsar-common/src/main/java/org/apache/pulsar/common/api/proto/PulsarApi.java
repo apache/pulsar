@@ -3590,13 +3590,9 @@ public final class PulsarApi {
     boolean hasTxnidMostBits();
     long getTxnidMostBits();
     
-    // optional uint64 lowest_sequence_id = 24 [default = 0];
-    boolean hasLowestSequenceId();
-    long getLowestSequenceId();
-    
-    // optional uint64 highest_sequence_id = 25 [default = 0];
-    boolean hasHighestSequenceId();
-    long getHighestSequenceId();
+    // optional uint64 last_sequence_id = 24 [default = 0];
+    boolean hasLastSequenceId();
+    long getLastSequenceId();
   }
   public static final class MessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -3957,24 +3953,14 @@ public final class PulsarApi {
       return txnidMostBits_;
     }
     
-    // optional uint64 lowest_sequence_id = 24 [default = 0];
-    public static final int LOWEST_SEQUENCE_ID_FIELD_NUMBER = 24;
-    private long lowestSequenceId_;
-    public boolean hasLowestSequenceId() {
+    // optional uint64 last_sequence_id = 24 [default = 0];
+    public static final int LAST_SEQUENCE_ID_FIELD_NUMBER = 24;
+    private long lastSequenceId_;
+    public boolean hasLastSequenceId() {
       return ((bitField0_ & 0x00040000) == 0x00040000);
     }
-    public long getLowestSequenceId() {
-      return lowestSequenceId_;
-    }
-    
-    // optional uint64 highest_sequence_id = 25 [default = 0];
-    public static final int HIGHEST_SEQUENCE_ID_FIELD_NUMBER = 25;
-    private long highestSequenceId_;
-    public boolean hasHighestSequenceId() {
-      return ((bitField0_ & 0x00080000) == 0x00080000);
-    }
-    public long getHighestSequenceId() {
-      return highestSequenceId_;
+    public long getLastSequenceId() {
+      return lastSequenceId_;
     }
     
     private void initFields() {
@@ -3999,8 +3985,7 @@ public final class PulsarApi {
       markerType_ = 0;
       txnidLeastBits_ = 0L;
       txnidMostBits_ = 0L;
-      lowestSequenceId_ = 0L;
-      highestSequenceId_ = 0L;
+      lastSequenceId_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4107,10 +4092,7 @@ public final class PulsarApi {
         output.writeUInt64(23, txnidMostBits_);
       }
       if (((bitField0_ & 0x00040000) == 0x00040000)) {
-        output.writeUInt64(24, lowestSequenceId_);
-      }
-      if (((bitField0_ & 0x00080000) == 0x00080000)) {
-        output.writeUInt64(25, highestSequenceId_);
+        output.writeUInt64(24, lastSequenceId_);
       }
     }
     
@@ -4211,11 +4193,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00040000) == 0x00040000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(24, lowestSequenceId_);
-      }
-      if (((bitField0_ & 0x00080000) == 0x00080000)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(25, highestSequenceId_);
+          .computeUInt64Size(24, lastSequenceId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4372,10 +4350,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00080000);
         txnidMostBits_ = 0L;
         bitField0_ = (bitField0_ & ~0x00100000);
-        lowestSequenceId_ = 0L;
+        lastSequenceId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00200000);
-        highestSequenceId_ = 0L;
-        bitField0_ = (bitField0_ & ~0x00400000);
         return this;
       }
       
@@ -4500,11 +4476,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00200000) == 0x00200000)) {
           to_bitField0_ |= 0x00040000;
         }
-        result.lowestSequenceId_ = lowestSequenceId_;
-        if (((from_bitField0_ & 0x00400000) == 0x00400000)) {
-          to_bitField0_ |= 0x00080000;
-        }
-        result.highestSequenceId_ = highestSequenceId_;
+        result.lastSequenceId_ = lastSequenceId_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4595,11 +4567,8 @@ public final class PulsarApi {
         if (other.hasTxnidMostBits()) {
           setTxnidMostBits(other.getTxnidMostBits());
         }
-        if (other.hasLowestSequenceId()) {
-          setLowestSequenceId(other.getLowestSequenceId());
-        }
-        if (other.hasHighestSequenceId()) {
-          setHighestSequenceId(other.getHighestSequenceId());
+        if (other.hasLastSequenceId()) {
+          setLastSequenceId(other.getLastSequenceId());
         }
         return this;
       }
@@ -4767,12 +4736,7 @@ public final class PulsarApi {
             }
             case 192: {
               bitField0_ |= 0x00200000;
-              lowestSequenceId_ = input.readUInt64();
-              break;
-            }
-            case 200: {
-              bitField0_ |= 0x00400000;
-              highestSequenceId_ = input.readUInt64();
+              lastSequenceId_ = input.readUInt64();
               break;
             }
           }
@@ -5465,44 +5429,23 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional uint64 lowest_sequence_id = 24 [default = 0];
-      private long lowestSequenceId_ ;
-      public boolean hasLowestSequenceId() {
+      // optional uint64 last_sequence_id = 24 [default = 0];
+      private long lastSequenceId_ ;
+      public boolean hasLastSequenceId() {
         return ((bitField0_ & 0x00200000) == 0x00200000);
       }
-      public long getLowestSequenceId() {
-        return lowestSequenceId_;
+      public long getLastSequenceId() {
+        return lastSequenceId_;
       }
-      public Builder setLowestSequenceId(long value) {
+      public Builder setLastSequenceId(long value) {
         bitField0_ |= 0x00200000;
-        lowestSequenceId_ = value;
+        lastSequenceId_ = value;
         
         return this;
       }
-      public Builder clearLowestSequenceId() {
+      public Builder clearLastSequenceId() {
         bitField0_ = (bitField0_ & ~0x00200000);
-        lowestSequenceId_ = 0L;
-        
-        return this;
-      }
-      
-      // optional uint64 highest_sequence_id = 25 [default = 0];
-      private long highestSequenceId_ ;
-      public boolean hasHighestSequenceId() {
-        return ((bitField0_ & 0x00400000) == 0x00400000);
-      }
-      public long getHighestSequenceId() {
-        return highestSequenceId_;
-      }
-      public Builder setHighestSequenceId(long value) {
-        bitField0_ |= 0x00400000;
-        highestSequenceId_ = value;
-        
-        return this;
-      }
-      public Builder clearHighestSequenceId() {
-        bitField0_ = (bitField0_ & ~0x00400000);
-        highestSequenceId_ = 0L;
+        lastSequenceId_ = 0L;
         
         return this;
       }
@@ -15442,13 +15385,9 @@ public final class PulsarApi {
     boolean hasTxnidMostBits();
     long getTxnidMostBits();
     
-    // optional uint64 lowest_sequence_id = 6 [default = 0];
-    boolean hasLowestSequenceId();
-    long getLowestSequenceId();
-    
-    // optional uint64 highest_sequence_id = 7 [default = 0];
-    boolean hasHighestSequenceId();
-    long getHighestSequenceId();
+    // optional uint64 last_sequence_id = 6 [default = 0];
+    boolean hasLastSequenceId();
+    long getLastSequenceId();
   }
   public static final class CommandSend extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -15535,24 +15474,14 @@ public final class PulsarApi {
       return txnidMostBits_;
     }
     
-    // optional uint64 lowest_sequence_id = 6 [default = 0];
-    public static final int LOWEST_SEQUENCE_ID_FIELD_NUMBER = 6;
-    private long lowestSequenceId_;
-    public boolean hasLowestSequenceId() {
+    // optional uint64 last_sequence_id = 6 [default = 0];
+    public static final int LAST_SEQUENCE_ID_FIELD_NUMBER = 6;
+    private long lastSequenceId_;
+    public boolean hasLastSequenceId() {
       return ((bitField0_ & 0x00000020) == 0x00000020);
     }
-    public long getLowestSequenceId() {
-      return lowestSequenceId_;
-    }
-    
-    // optional uint64 highest_sequence_id = 7 [default = 0];
-    public static final int HIGHEST_SEQUENCE_ID_FIELD_NUMBER = 7;
-    private long highestSequenceId_;
-    public boolean hasHighestSequenceId() {
-      return ((bitField0_ & 0x00000040) == 0x00000040);
-    }
-    public long getHighestSequenceId() {
-      return highestSequenceId_;
+    public long getLastSequenceId() {
+      return lastSequenceId_;
     }
     
     private void initFields() {
@@ -15561,8 +15490,7 @@ public final class PulsarApi {
       numMessages_ = 1;
       txnidLeastBits_ = 0L;
       txnidMostBits_ = 0L;
-      lowestSequenceId_ = 0L;
-      highestSequenceId_ = 0L;
+      lastSequenceId_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -15605,10 +15533,7 @@ public final class PulsarApi {
         output.writeUInt64(5, txnidMostBits_);
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        output.writeUInt64(6, lowestSequenceId_);
-      }
-      if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        output.writeUInt64(7, highestSequenceId_);
+        output.writeUInt64(6, lastSequenceId_);
       }
     }
     
@@ -15640,11 +15565,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(6, lowestSequenceId_);
-      }
-      if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(7, highestSequenceId_);
+          .computeUInt64Size(6, lastSequenceId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -15769,10 +15690,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         txnidMostBits_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000010);
-        lowestSequenceId_ = 0L;
+        lastSequenceId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000020);
-        highestSequenceId_ = 0L;
-        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -15829,11 +15748,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
           to_bitField0_ |= 0x00000020;
         }
-        result.lowestSequenceId_ = lowestSequenceId_;
-        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
-          to_bitField0_ |= 0x00000040;
-        }
-        result.highestSequenceId_ = highestSequenceId_;
+        result.lastSequenceId_ = lastSequenceId_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -15855,11 +15770,8 @@ public final class PulsarApi {
         if (other.hasTxnidMostBits()) {
           setTxnidMostBits(other.getTxnidMostBits());
         }
-        if (other.hasLowestSequenceId()) {
-          setLowestSequenceId(other.getLowestSequenceId());
-        }
-        if (other.hasHighestSequenceId()) {
-          setHighestSequenceId(other.getHighestSequenceId());
+        if (other.hasLastSequenceId()) {
+          setLastSequenceId(other.getLastSequenceId());
         }
         return this;
       }
@@ -15925,12 +15837,7 @@ public final class PulsarApi {
             }
             case 48: {
               bitField0_ |= 0x00000020;
-              lowestSequenceId_ = input.readUInt64();
-              break;
-            }
-            case 56: {
-              bitField0_ |= 0x00000040;
-              highestSequenceId_ = input.readUInt64();
+              lastSequenceId_ = input.readUInt64();
               break;
             }
           }
@@ -16044,44 +15951,23 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional uint64 lowest_sequence_id = 6 [default = 0];
-      private long lowestSequenceId_ ;
-      public boolean hasLowestSequenceId() {
+      // optional uint64 last_sequence_id = 6 [default = 0];
+      private long lastSequenceId_ ;
+      public boolean hasLastSequenceId() {
         return ((bitField0_ & 0x00000020) == 0x00000020);
       }
-      public long getLowestSequenceId() {
-        return lowestSequenceId_;
+      public long getLastSequenceId() {
+        return lastSequenceId_;
       }
-      public Builder setLowestSequenceId(long value) {
+      public Builder setLastSequenceId(long value) {
         bitField0_ |= 0x00000020;
-        lowestSequenceId_ = value;
+        lastSequenceId_ = value;
         
         return this;
       }
-      public Builder clearLowestSequenceId() {
+      public Builder clearLastSequenceId() {
         bitField0_ = (bitField0_ & ~0x00000020);
-        lowestSequenceId_ = 0L;
-        
-        return this;
-      }
-      
-      // optional uint64 highest_sequence_id = 7 [default = 0];
-      private long highestSequenceId_ ;
-      public boolean hasHighestSequenceId() {
-        return ((bitField0_ & 0x00000040) == 0x00000040);
-      }
-      public long getHighestSequenceId() {
-        return highestSequenceId_;
-      }
-      public Builder setHighestSequenceId(long value) {
-        bitField0_ |= 0x00000040;
-        highestSequenceId_ = value;
-        
-        return this;
-      }
-      public Builder clearHighestSequenceId() {
-        bitField0_ = (bitField0_ & ~0x00000040);
-        highestSequenceId_ = 0L;
+        lastSequenceId_ = 0L;
         
         return this;
       }

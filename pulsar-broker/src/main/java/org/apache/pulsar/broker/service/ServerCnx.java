@@ -1051,8 +1051,8 @@ public class ServerCnx extends PulsarHandler {
         startSendOperation(producer);
 
         // Persist the message
-        if (send.hasLowestSequenceId() && send.hasHighestSequenceId() && send.getSequenceId() <= send.getLowestSequenceId()) {
-            producer.publishMessage(send.getProducerId(), send.getLowestSequenceId(), send.getHighestSequenceId(),
+        if (send.hasLastSequenceId() && send.getSequenceId() <= send.getLastSequenceId()) {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getLastSequenceId(),
                     headersAndPayload, send.getNumMessages());
         } else {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());

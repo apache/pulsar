@@ -478,8 +478,8 @@ public class Commands {
           MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
-        sendBuilder.setLowestSequenceId(lowestSequenceId);
-        sendBuilder.setHighestSequenceId(highestSequenceId);
+        sendBuilder.setSequenceId(lowestSequenceId);
+        sendBuilder.setLastSequenceId(highestSequenceId);
         sendBuilder.setSequenceId(lowestSequenceId);
         if (numMessages > 1) {
             sendBuilder.setNumMessages(numMessages);
@@ -1547,7 +1547,6 @@ public class Commands {
         messageMetadata.setPublishTime(builder.getPublishTime());
         messageMetadata.setProducerName(builder.getProducerName());
         messageMetadata.setSequenceId(builder.getSequenceId());
-        messageMetadata.setLowestSequenceId(builder.getSequenceId());
         if (builder.hasReplicatedFrom()) {
             messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
         }

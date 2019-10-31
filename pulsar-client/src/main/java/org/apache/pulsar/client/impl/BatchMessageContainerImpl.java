@@ -83,7 +83,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         messages.add(msg);
         if (lowestSequenceId == -1) {
             lowestSequenceId = msg.getSequenceId();
-            messageMetadata.setLowestSequenceId(lowestSequenceId);
+            messageMetadata.setSequenceId(lowestSequenceId);
         }
         highestSequenceId = msg.getSequenceId();
         producer.lastSequenceIdPushed = msg.getSequenceId();
@@ -172,12 +172,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     public OpSendMsg createOpSendMsg() throws IOException {
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
         messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
-        messageMetadata.setHighestSequenceId(highestSequenceId);
-        ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getLowestSequenceId(),
-                messageMetadata.getHighestSequenceId(), numMessagesInBatch, messageMetadata.build(), encryptedPayload);
+        messageMetadata.setLastSequenceId(highestSequenceId);
+        ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
+                messageMetadata.getLastSequenceId(), numMessagesInBatch, messageMetadata.build(), encryptedPayload);
 
-        OpSendMsg op = OpSendMsg.create(messages, cmd, messageMetadata.getLowestSequenceId(),
-                messageMetadata.getHighestSequenceId(), firstCallback);
+        OpSendMsg op = OpSendMsg.create(messages, cmd, messageMetadata.getSequenceId(),
+                messageMetadata.getLastSequenceId(), firstCallback);
 
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             cmd.release();

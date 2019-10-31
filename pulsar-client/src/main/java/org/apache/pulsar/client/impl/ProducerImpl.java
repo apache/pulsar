@@ -371,17 +371,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgMetadataBuilder.setSequenceId(sequenceId);
                 } else {
                     sequenceId = msgMetadataBuilder.getSequenceId();
-                }
-
-                if (sequenceId <= lastSequenceIdPushed) {
-                    if (sequenceId <= lastSequenceIdPublished) {
+                    if (sequenceId <= lastSequenceIdPushed) {
                         callback.sendComplete(new PulsarClientException
                                 .InvalidMessageException("Message is definitely a duplicate"));
-                        return;
-                    } else {
-                        callback.sendComplete(new PulsarClientException
-                                .InvalidMessageException("Message is a definitely a duplicate or not cannot be " +
-                                "determined at this time"));
                         return;
                     }
                 }
