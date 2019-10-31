@@ -6,103 +6,31 @@ package org.apache.pulsar.common.api.proto;
 public final class PulsarMarkers {
   private PulsarMarkers() {}
   public static void registerAllExtensions(
-      com.google.protobuf.ExtensionRegistryLite registry) {
+      org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite registry) {
   }
-  /**
-   * Protobuf enum {@code pulsar.proto.MarkerType}
-   */
   public enum MarkerType
-      implements com.google.protobuf.Internal.EnumLite {
-    /**
-     * <code>UNKNOWN_MARKER = 0;</code>
-     */
-    UNKNOWN_MARKER(0),
-    /**
-     * <pre>
-     * Replicated subscription markers
-     * </pre>
-     *
-     * <code>REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST = 10;</code>
-     */
-    REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST(10),
-    /**
-     * <code>REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE = 11;</code>
-     */
-    REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE(11),
-    /**
-     * <code>REPLICATED_SUBSCRIPTION_SNAPSHOT = 12;</code>
-     */
-    REPLICATED_SUBSCRIPTION_SNAPSHOT(12),
-    /**
-     * <code>REPLICATED_SUBSCRIPTION_UPDATE = 13;</code>
-     */
-    REPLICATED_SUBSCRIPTION_UPDATE(13),
-    /**
-     * <pre>
-     * Next markers start at 20
-     * </pre>
-     *
-     * <code>TXN_COMMIT = 20;</code>
-     */
-    TXN_COMMIT(20),
-    /**
-     * <code>TXN_ABORT = 21;</code>
-     */
-    TXN_ABORT(21),
+      implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
+    UNKNOWN_MARKER(0, 0),
+    REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST(1, 10),
+    REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE(2, 11),
+    REPLICATED_SUBSCRIPTION_SNAPSHOT(3, 12),
+    REPLICATED_SUBSCRIPTION_UPDATE(4, 13),
+    TXN_COMMIT(5, 20),
+    TXN_ABORT(6, 21),
     ;
-
-    /**
-     * <code>UNKNOWN_MARKER = 0;</code>
-     */
+    
     public static final int UNKNOWN_MARKER_VALUE = 0;
-    /**
-     * <pre>
-     * Replicated subscription markers
-     * </pre>
-     *
-     * <code>REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST = 10;</code>
-     */
     public static final int REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE = 10;
-    /**
-     * <code>REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE = 11;</code>
-     */
     public static final int REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE = 11;
-    /**
-     * <code>REPLICATED_SUBSCRIPTION_SNAPSHOT = 12;</code>
-     */
     public static final int REPLICATED_SUBSCRIPTION_SNAPSHOT_VALUE = 12;
-    /**
-     * <code>REPLICATED_SUBSCRIPTION_UPDATE = 13;</code>
-     */
     public static final int REPLICATED_SUBSCRIPTION_UPDATE_VALUE = 13;
-    /**
-     * <pre>
-     * Next markers start at 20
-     * </pre>
-     *
-     * <code>TXN_COMMIT = 20;</code>
-     */
     public static final int TXN_COMMIT_VALUE = 20;
-    /**
-     * <code>TXN_ABORT = 21;</code>
-     */
     public static final int TXN_ABORT_VALUE = 21;
-
-
-    @java.lang.Override
-    public final int getNumber() {
-      return value;
-    }
-
-    /**
-     * @deprecated Use {@link #forNumber(int)} instead.
-     */
-    @java.lang.Deprecated
+    
+    
+    public final int getNumber() { return value; }
+    
     public static MarkerType valueOf(int value) {
-      return forNumber(value);
-    }
-
-    public static MarkerType forNumber(int value) {
       switch (value) {
         case 0: return UNKNOWN_MARKER;
         case 10: return REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST;
@@ -114,3897 +42,3316 @@ public final class PulsarMarkers {
         default: return null;
       }
     }
-
-    public static com.google.protobuf.Internal.EnumLiteMap<MarkerType>
+    
+    public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<MarkerType>
         internalGetValueMap() {
       return internalValueMap;
     }
-    private static final com.google.protobuf.Internal.EnumLiteMap<
-        MarkerType> internalValueMap =
-          new com.google.protobuf.Internal.EnumLiteMap<MarkerType>() {
-            @java.lang.Override
+    private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<MarkerType>
+        internalValueMap =
+          new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<MarkerType>() {
             public MarkerType findValueByNumber(int number) {
-              return MarkerType.forNumber(number);
+              return MarkerType.valueOf(number);
             }
           };
-
-    public static com.google.protobuf.Internal.EnumVerifier 
-        internalGetVerifier() {
-      return MarkerTypeVerifier.INSTANCE;
-    }
-
-    private static final class MarkerTypeVerifier implements 
-         com.google.protobuf.Internal.EnumVerifier { 
-            static final com.google.protobuf.Internal.EnumVerifier           INSTANCE = new MarkerTypeVerifier();
-            @java.lang.Override
-            public boolean isInRange(int number) {
-              return MarkerType.forNumber(number) != null;
-            }
-          };
-
+    
     private final int value;
-
-    private MarkerType(int value) {
+    
+    private MarkerType(int index, int value) {
       this.value = value;
     }
-
+    
     // @@protoc_insertion_point(enum_scope:pulsar.proto.MarkerType)
   }
-
-  public interface ReplicatedSubscriptionsSnapshotRequestOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:pulsar.proto.ReplicatedSubscriptionsSnapshotRequest)
-      com.google.protobuf.MessageLiteOrBuilder {
-
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
+  
+  public interface ReplicatedSubscriptionsSnapshotRequestOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required string snapshot_id = 1;
     boolean hasSnapshotId();
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    java.lang.String getSnapshotId();
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    com.google.protobuf.ByteString
-        getSnapshotIdBytes();
-
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
+    String getSnapshotId();
+    
+    // optional string source_cluster = 2;
     boolean hasSourceCluster();
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
-    java.lang.String getSourceCluster();
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
-    com.google.protobuf.ByteString
-        getSourceClusterBytes();
+    String getSourceCluster();
   }
-  /**
-   * <pre>
-   * A cluster uses this message to request the current
-   * message id from all the other clusters.
-   * </pre>
-   *
-   * Protobuf type {@code pulsar.proto.ReplicatedSubscriptionsSnapshotRequest}
-   */
-  public  static final class ReplicatedSubscriptionsSnapshotRequest extends
-      com.google.protobuf.GeneratedMessageLite<
-          ReplicatedSubscriptionsSnapshotRequest, ReplicatedSubscriptionsSnapshotRequest.Builder> implements
-      // @@protoc_insertion_point(message_implements:pulsar.proto.ReplicatedSubscriptionsSnapshotRequest)
-      ReplicatedSubscriptionsSnapshotRequestOrBuilder {
-    private ReplicatedSubscriptionsSnapshotRequest() {
+  public static final class ReplicatedSubscriptionsSnapshotRequest extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements ReplicatedSubscriptionsSnapshotRequestOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use ReplicatedSubscriptionsSnapshotRequest.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private ReplicatedSubscriptionsSnapshotRequest(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<ReplicatedSubscriptionsSnapshotRequest> RECYCLER = new io.netty.util.Recycler<ReplicatedSubscriptionsSnapshotRequest>() {
+            protected ReplicatedSubscriptionsSnapshotRequest newObject(Handle handle) {
+              return new ReplicatedSubscriptionsSnapshotRequest(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private ReplicatedSubscriptionsSnapshotRequest(boolean noInit) {}
+    
+    private static final ReplicatedSubscriptionsSnapshotRequest defaultInstance;
+    public static ReplicatedSubscriptionsSnapshotRequest getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public ReplicatedSubscriptionsSnapshotRequest getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required string snapshot_id = 1;
+    public static final int SNAPSHOT_ID_FIELD_NUMBER = 1;
+    private java.lang.Object snapshotId_;
+    public boolean hasSnapshotId() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public String getSnapshotId() {
+      java.lang.Object ref = snapshotId_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          snapshotId_ = s;
+        }
+        return s;
+      }
+    }
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSnapshotIdBytes() {
+      java.lang.Object ref = snapshotId_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        snapshotId_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
+    }
+    
+    // optional string source_cluster = 2;
+    public static final int SOURCE_CLUSTER_FIELD_NUMBER = 2;
+    private java.lang.Object sourceCluster_;
+    public boolean hasSourceCluster() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public String getSourceCluster() {
+      java.lang.Object ref = sourceCluster_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          sourceCluster_ = s;
+        }
+        return s;
+      }
+    }
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSourceClusterBytes() {
+      java.lang.Object ref = sourceCluster_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        sourceCluster_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
+    }
+    
+    private void initFields() {
       snapshotId_ = "";
       sourceCluster_ = "";
     }
-    private int bitField0_;
-    public static final int SNAPSHOT_ID_FIELD_NUMBER = 1;
-    private java.lang.String snapshotId_;
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
-    public boolean hasSnapshotId() {
-      return ((bitField0_ & 0x00000001) != 0);
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasSnapshotId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
     }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
-    public java.lang.String getSnapshotId() {
-      return snapshotId_;
-    }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString
-        getSnapshotIdBytes() {
-      return com.google.protobuf.ByteString.copyFromUtf8(snapshotId_);
-    }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void setSnapshotId(
-        java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      snapshotId_ = value;
-    }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void clearSnapshotId() {
-      bitField0_ = (bitField0_ & ~0x00000001);
-      snapshotId_ = getDefaultInstance().getSnapshotId();
-    }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void setSnapshotIdBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      snapshotId_ = value.toStringUtf8();
-    }
-
-    public static final int SOURCE_CLUSTER_FIELD_NUMBER = 2;
-    private java.lang.String sourceCluster_;
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
-    @java.lang.Override
-    public boolean hasSourceCluster() {
-      return ((bitField0_ & 0x00000002) != 0);
-    }
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
-    @java.lang.Override
-    public java.lang.String getSourceCluster() {
-      return sourceCluster_;
-    }
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString
-        getSourceClusterBytes() {
-      return com.google.protobuf.ByteString.copyFromUtf8(sourceCluster_);
-    }
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
-    private void setSourceCluster(
-        java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000002;
-      sourceCluster_ = value;
-    }
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
-    private void clearSourceCluster() {
-      bitField0_ = (bitField0_ & ~0x00000002);
-      sourceCluster_ = getDefaultInstance().getSourceCluster();
-    }
-    /**
-     * <code>optional string source_cluster = 2;</code>
-     */
-    private void setSourceClusterBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000002;
-      sourceCluster_ = value.toStringUtf8();
-    }
-
-    @java.lang.Override
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
-      if (((bitField0_ & 0x00000001) != 0)) {
-        output.writeString(1, getSnapshotId());
-      }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        output.writeString(2, getSourceCluster());
-      }
-      unknownFields.writeTo(output);
+        throw new RuntimeException("Cannot use CodedOutputStream");
     }
-
-    @java.lang.Override
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getSnapshotIdBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeBytes(2, getSourceClusterBytes());
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
     public int getSerializedSize() {
       int size = memoizedSerializedSize;
       if (size != -1) return size;
-
+    
       size = 0;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(1, getSnapshotId());
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(1, getSnapshotIdBytes());
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(2, getSourceCluster());
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(2, getSourceClusterBytes());
       }
-      size += unknownFields.getSerializedSize();
       memoizedSerializedSize = size;
       return size;
     }
-
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
-        java.nio.ByteBuffer data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
-        java.nio.ByteBuffer data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
+      return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-
-    public static Builder newBuilder() {
-      return (Builder) DEFAULT_INSTANCE.createBuilder();
-    }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest prototype) {
-      return (Builder) DEFAULT_INSTANCE.createBuilder(prototype);
-    }
-
-    /**
-     * <pre>
-     * A cluster uses this message to request the current
-     * message id from all the other clusters.
-     * </pre>
-     *
-     * Protobuf type {@code pulsar.proto.ReplicatedSubscriptionsSnapshotRequest}
-     */
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest, Builder> implements
-        // @@protoc_insertion_point(builder_implements:pulsar.proto.ReplicatedSubscriptionsSnapshotRequest)
-        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequestOrBuilder {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest.newBuilder()
-      private Builder() {
-        super(DEFAULT_INSTANCE);
-      }
-
-
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public boolean hasSnapshotId() {
-        return instance.hasSnapshotId();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public java.lang.String getSnapshotId() {
-        return instance.getSnapshotId();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString
-          getSnapshotIdBytes() {
-        return instance.getSnapshotIdBytes();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder setSnapshotId(
-          java.lang.String value) {
-        copyOnWrite();
-        instance.setSnapshotId(value);
-        return this;
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder clearSnapshotId() {
-        copyOnWrite();
-        instance.clearSnapshotId();
-        return this;
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder setSnapshotIdBytes(
-          com.google.protobuf.ByteString value) {
-        copyOnWrite();
-        instance.setSnapshotIdBytes(value);
-        return this;
-      }
-
-      /**
-       * <code>optional string source_cluster = 2;</code>
-       */
-      @java.lang.Override
-      public boolean hasSourceCluster() {
-        return instance.hasSourceCluster();
-      }
-      /**
-       * <code>optional string source_cluster = 2;</code>
-       */
-      @java.lang.Override
-      public java.lang.String getSourceCluster() {
-        return instance.getSourceCluster();
-      }
-      /**
-       * <code>optional string source_cluster = 2;</code>
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString
-          getSourceClusterBytes() {
-        return instance.getSourceClusterBytes();
-      }
-      /**
-       * <code>optional string source_cluster = 2;</code>
-       */
-      public Builder setSourceCluster(
-          java.lang.String value) {
-        copyOnWrite();
-        instance.setSourceCluster(value);
-        return this;
-      }
-      /**
-       * <code>optional string source_cluster = 2;</code>
-       */
-      public Builder clearSourceCluster() {
-        copyOnWrite();
-        instance.clearSourceCluster();
-        return this;
-      }
-      /**
-       * <code>optional string source_cluster = 2;</code>
-       */
-      public Builder setSourceClusterBytes(
-          com.google.protobuf.ByteString value) {
-        copyOnWrite();
-        instance.setSourceClusterBytes(value);
-        return this;
-      }
-
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.ReplicatedSubscriptionsSnapshotRequest)
-    }
-    private byte memoizedIsInitialized = 2;
-    @java.lang.Override
-    @java.lang.SuppressWarnings({"unchecked", "fallthrough"})
-    protected final java.lang.Object dynamicMethod(
-        com.google.protobuf.GeneratedMessageLite.MethodToInvoke method,
-        java.lang.Object arg0, java.lang.Object arg1) {
-      switch (method) {
-        case NEW_MUTABLE_INSTANCE: {
-          return new org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest();
-        }
-        case NEW_BUILDER: {
-          return new Builder();
-        }
-        case IS_INITIALIZED: {
-          byte isInitialized = memoizedIsInitialized;
-          if (isInitialized == 1) return DEFAULT_INSTANCE;
-          if (isInitialized == 0) return null;
-
-          boolean shouldMemoize = ((Boolean) arg0).booleanValue();
-          if (!hasSnapshotId()) {
-            return null;
-          }
-          return DEFAULT_INSTANCE;
-
-        }
-        case MAKE_IMMUTABLE: {
-          return null;
-        }
-        case VISIT: {
-          Visitor visitor = (Visitor) arg0;
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest other = (org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest) arg1;
-          snapshotId_ = visitor.visitString(
-              hasSnapshotId(), snapshotId_,
-              other.hasSnapshotId(), other.snapshotId_);
-          sourceCluster_ = visitor.visitString(
-              hasSourceCluster(), sourceCluster_,
-              other.hasSourceCluster(), other.sourceCluster_);
-          if (visitor == com.google.protobuf.GeneratedMessageLite.MergeFromVisitor
-              .INSTANCE) {
-            bitField0_ |= other.bitField0_;
-          }
-          return this;
-        }
-        case MERGE_FROM_STREAM: {
-          com.google.protobuf.CodedInputStream input =
-              (com.google.protobuf.CodedInputStream) arg0;
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry =
-              (com.google.protobuf.ExtensionRegistryLite) arg1;
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 10: {
-                  java.lang.String s = input.readString();
-                  bitField0_ |= 0x00000001;
-                  snapshotId_ = s;
-                  break;
-                }
-                case 18: {
-                  java.lang.String s = input.readString();
-                  bitField0_ |= 0x00000002;
-                  sourceCluster_ = s;
-                  break;
-                }
-                default: {
-                  if (!parseUnknownField(tag, input)) {
-                    done = true;
-                  }
-                  break;
-                }
-              }
-            }
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw new RuntimeException(e.setUnfinishedMessage(this));
-          } catch (java.io.IOException e) {
-            throw new RuntimeException(
-                new com.google.protobuf.InvalidProtocolBufferException(
-                    e.getMessage()).setUnfinishedMessage(this));
-          } finally {
-          }
-        }
-        // fall through
-        case GET_DEFAULT_INSTANCE: {
-          return DEFAULT_INSTANCE;
-        }
-        case GET_PARSER: {
-          com.google.protobuf.Parser<org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest> parser = PARSER;
-          if (parser == null) {
-            synchronized (org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest.class) {
-              parser = PARSER;
-              if (parser == null) {
-                parser = new DefaultInstanceBasedParser(DEFAULT_INSTANCE);
-                PARSER = parser;
-              }
-            }
-          }
-          return parser;
-      }
-      case GET_MEMOIZED_IS_INITIALIZED: {
-        return memoizedIsInitialized;
-      }
-      case SET_MEMOIZED_IS_INITIALIZED: {
-        memoizedIsInitialized = (byte) (arg0 == null ? 0 : 1);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
         return null;
       }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequestOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
       }
-      throw new UnsupportedOperationException();
-    }
-
-
-    // @@protoc_insertion_point(class_scope:pulsar.proto.ReplicatedSubscriptionsSnapshotRequest)
-    private static final org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest DEFAULT_INSTANCE;
-    static {
-      // New instances are implicitly immutable so no need to make
-      // immutable.
-      DEFAULT_INSTANCE = new ReplicatedSubscriptionsSnapshotRequest();
-    }
-
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest getDefaultInstance() {
-      return DEFAULT_INSTANCE;
-    }
-
-    private static volatile com.google.protobuf.Parser<ReplicatedSubscriptionsSnapshotRequest> PARSER;
-
-    public static com.google.protobuf.Parser<ReplicatedSubscriptionsSnapshotRequest> parser() {
-      return DEFAULT_INSTANCE.getParserForType();
-    }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        snapshotId_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        sourceCluster_ = "";
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest build() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest result = org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.snapshotId_ = snapshotId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.sourceCluster_ = sourceCluster_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest.getDefaultInstance()) return this;
+        if (other.hasSnapshotId()) {
+          setSnapshotId(other.getSnapshotId());
+        }
+        if (other.hasSourceCluster()) {
+          setSourceCluster(other.getSourceCluster());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasSnapshotId()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              snapshotId_ = input.readBytes();
+              break;
+            }
+            case 18: {
+              bitField0_ |= 0x00000002;
+              sourceCluster_ = input.readBytes();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string snapshot_id = 1;
+      private java.lang.Object snapshotId_ = "";
+      public boolean hasSnapshotId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getSnapshotId() {
+        java.lang.Object ref = snapshotId_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          snapshotId_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setSnapshotId(String value) {
+        if (value == null) {
+    throw new NullPointerException();
   }
-
-  public interface ReplicatedSubscriptionsSnapshotResponseOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:pulsar.proto.ReplicatedSubscriptionsSnapshotResponse)
-      com.google.protobuf.MessageLiteOrBuilder {
-
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
+  bitField0_ |= 0x00000001;
+        snapshotId_ = value;
+        
+        return this;
+      }
+      public Builder clearSnapshotId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        snapshotId_ = getDefaultInstance().getSnapshotId();
+        
+        return this;
+      }
+      void setSnapshotId(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000001;
+        snapshotId_ = value;
+        
+      }
+      
+      // optional string source_cluster = 2;
+      private java.lang.Object sourceCluster_ = "";
+      public boolean hasSourceCluster() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public String getSourceCluster() {
+        java.lang.Object ref = sourceCluster_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          sourceCluster_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setSourceCluster(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000002;
+        sourceCluster_ = value;
+        
+        return this;
+      }
+      public Builder clearSourceCluster() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        sourceCluster_ = getDefaultInstance().getSourceCluster();
+        
+        return this;
+      }
+      void setSourceCluster(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000002;
+        sourceCluster_ = value;
+        
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.ReplicatedSubscriptionsSnapshotRequest)
+    }
+    
+    static {
+      defaultInstance = new ReplicatedSubscriptionsSnapshotRequest(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.ReplicatedSubscriptionsSnapshotRequest)
+  }
+  
+  public interface ReplicatedSubscriptionsSnapshotResponseOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required string snapshot_id = 1;
     boolean hasSnapshotId();
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    java.lang.String getSnapshotId();
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    com.google.protobuf.ByteString
-        getSnapshotIdBytes();
-
-    /**
-     * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-     */
+    String getSnapshotId();
+    
+    // optional .pulsar.proto.ClusterMessageId cluster = 2;
     boolean hasCluster();
-    /**
-     * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-     */
     org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getCluster();
   }
-  /**
-   * <pre>
-   * When a cluster receives the snapshot request, it replies
-   * by sending back the response (only to original asking cluster)
-   * </pre>
-   *
-   * Protobuf type {@code pulsar.proto.ReplicatedSubscriptionsSnapshotResponse}
-   */
-  public  static final class ReplicatedSubscriptionsSnapshotResponse extends
-      com.google.protobuf.GeneratedMessageLite<
-          ReplicatedSubscriptionsSnapshotResponse, ReplicatedSubscriptionsSnapshotResponse.Builder> implements
-      // @@protoc_insertion_point(message_implements:pulsar.proto.ReplicatedSubscriptionsSnapshotResponse)
-      ReplicatedSubscriptionsSnapshotResponseOrBuilder {
-    private ReplicatedSubscriptionsSnapshotResponse() {
-      snapshotId_ = "";
+  public static final class ReplicatedSubscriptionsSnapshotResponse extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements ReplicatedSubscriptionsSnapshotResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use ReplicatedSubscriptionsSnapshotResponse.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private ReplicatedSubscriptionsSnapshotResponse(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
     }
+    
+     private static final io.netty.util.Recycler<ReplicatedSubscriptionsSnapshotResponse> RECYCLER = new io.netty.util.Recycler<ReplicatedSubscriptionsSnapshotResponse>() {
+            protected ReplicatedSubscriptionsSnapshotResponse newObject(Handle handle) {
+              return new ReplicatedSubscriptionsSnapshotResponse(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private ReplicatedSubscriptionsSnapshotResponse(boolean noInit) {}
+    
+    private static final ReplicatedSubscriptionsSnapshotResponse defaultInstance;
+    public static ReplicatedSubscriptionsSnapshotResponse getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public ReplicatedSubscriptionsSnapshotResponse getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
     private int bitField0_;
+    // required string snapshot_id = 1;
     public static final int SNAPSHOT_ID_FIELD_NUMBER = 1;
-    private java.lang.String snapshotId_;
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
+    private java.lang.Object snapshotId_;
     public boolean hasSnapshotId() {
-      return ((bitField0_ & 0x00000001) != 0);
+      return ((bitField0_ & 0x00000001) == 0x00000001);
     }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
-    public java.lang.String getSnapshotId() {
-      return snapshotId_;
+    public String getSnapshotId() {
+      java.lang.Object ref = snapshotId_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          snapshotId_ = s;
+        }
+        return s;
+      }
     }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString
-        getSnapshotIdBytes() {
-      return com.google.protobuf.ByteString.copyFromUtf8(snapshotId_);
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSnapshotIdBytes() {
+      java.lang.Object ref = snapshotId_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        snapshotId_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
     }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void setSnapshotId(
-        java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      snapshotId_ = value;
-    }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void clearSnapshotId() {
-      bitField0_ = (bitField0_ & ~0x00000001);
-      snapshotId_ = getDefaultInstance().getSnapshotId();
-    }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void setSnapshotIdBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      snapshotId_ = value.toStringUtf8();
-    }
-
+    
+    // optional .pulsar.proto.ClusterMessageId cluster = 2;
     public static final int CLUSTER_FIELD_NUMBER = 2;
     private org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId cluster_;
-    /**
-     * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-     */
-    @java.lang.Override
     public boolean hasCluster() {
-      return ((bitField0_ & 0x00000002) != 0);
+      return ((bitField0_ & 0x00000002) == 0x00000002);
     }
-    /**
-     * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-     */
-    @java.lang.Override
     public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getCluster() {
-      return cluster_ == null ? org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance() : cluster_;
+      return cluster_;
     }
-    /**
-     * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-     */
-    private void setCluster(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-      if (value == null) {
-        throw new NullPointerException();
-      }
-      cluster_ = value;
-      bitField0_ |= 0x00000002;
-      }
-    /**
-     * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-     */
-    private void setCluster(
-        org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-      cluster_ = builderForValue.build();
-      bitField0_ |= 0x00000002;
+    
+    private void initFields() {
+      snapshotId_ = "";
+      cluster_ = org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance();
     }
-    /**
-     * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-     */
-    @java.lang.SuppressWarnings({"ReferenceEquality"})
-    private void mergeCluster(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-      if (value == null) {
-        throw new NullPointerException();
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasSnapshotId()) {
+        memoizedIsInitialized = 0;
+        return false;
       }
-      if (cluster_ != null &&
-          cluster_ != org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance()) {
-        cluster_ =
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.newBuilder(cluster_).mergeFrom(value).buildPartial();
-      } else {
-        cluster_ = value;
+      if (hasCluster()) {
+        if (!getCluster().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
-      bitField0_ |= 0x00000002;
+      memoizedIsInitialized = 1;
+      return true;
     }
-    /**
-     * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-     */
-    private void clearCluster() {  cluster_ = null;
-      bitField0_ = (bitField0_ & ~0x00000002);
-    }
-
-    @java.lang.Override
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
-      if (((bitField0_ & 0x00000001) != 0)) {
-        output.writeString(1, getSnapshotId());
-      }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        output.writeMessage(2, getCluster());
-      }
-      unknownFields.writeTo(output);
+        throw new RuntimeException("Cannot use CodedOutputStream");
     }
-
-    @java.lang.Override
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getSnapshotIdBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeMessage(2, cluster_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
     public int getSerializedSize() {
       int size = memoizedSerializedSize;
       if (size != -1) return size;
-
+    
       size = 0;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(1, getSnapshotId());
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(1, getSnapshotIdBytes());
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(2, getCluster());
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(2, cluster_);
       }
-      size += unknownFields.getSerializedSize();
       memoizedSerializedSize = size;
       return size;
     }
-
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
-        java.nio.ByteBuffer data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
-        java.nio.ByteBuffer data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
+      return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-
-    public static Builder newBuilder() {
-      return (Builder) DEFAULT_INSTANCE.createBuilder();
-    }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse prototype) {
-      return (Builder) DEFAULT_INSTANCE.createBuilder(prototype);
-    }
-
-    /**
-     * <pre>
-     * When a cluster receives the snapshot request, it replies
-     * by sending back the response (only to original asking cluster)
-     * </pre>
-     *
-     * Protobuf type {@code pulsar.proto.ReplicatedSubscriptionsSnapshotResponse}
-     */
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse, Builder> implements
-        // @@protoc_insertion_point(builder_implements:pulsar.proto.ReplicatedSubscriptionsSnapshotResponse)
-        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponseOrBuilder {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse.newBuilder()
-      private Builder() {
-        super(DEFAULT_INSTANCE);
-      }
-
-
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public boolean hasSnapshotId() {
-        return instance.hasSnapshotId();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public java.lang.String getSnapshotId() {
-        return instance.getSnapshotId();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString
-          getSnapshotIdBytes() {
-        return instance.getSnapshotIdBytes();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder setSnapshotId(
-          java.lang.String value) {
-        copyOnWrite();
-        instance.setSnapshotId(value);
-        return this;
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder clearSnapshotId() {
-        copyOnWrite();
-        instance.clearSnapshotId();
-        return this;
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder setSnapshotIdBytes(
-          com.google.protobuf.ByteString value) {
-        copyOnWrite();
-        instance.setSnapshotIdBytes(value);
-        return this;
-      }
-
-      /**
-       * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-       */
-      @java.lang.Override
-      public boolean hasCluster() {
-        return instance.hasCluster();
-      }
-      /**
-       * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-       */
-      @java.lang.Override
-      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getCluster() {
-        return instance.getCluster();
-      }
-      /**
-       * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-       */
-      public Builder setCluster(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-        copyOnWrite();
-        instance.setCluster(value);
-        return this;
-        }
-      /**
-       * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-       */
-      public Builder setCluster(
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-        copyOnWrite();
-        instance.setCluster(builderForValue);
-        return this;
-      }
-      /**
-       * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-       */
-      public Builder mergeCluster(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-        copyOnWrite();
-        instance.mergeCluster(value);
-        return this;
-      }
-      /**
-       * <code>optional .pulsar.proto.ClusterMessageId cluster = 2;</code>
-       */
-      public Builder clearCluster() {  copyOnWrite();
-        instance.clearCluster();
-        return this;
-      }
-
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.ReplicatedSubscriptionsSnapshotResponse)
-    }
-    private byte memoizedIsInitialized = 2;
-    @java.lang.Override
-    @java.lang.SuppressWarnings({"unchecked", "fallthrough"})
-    protected final java.lang.Object dynamicMethod(
-        com.google.protobuf.GeneratedMessageLite.MethodToInvoke method,
-        java.lang.Object arg0, java.lang.Object arg1) {
-      switch (method) {
-        case NEW_MUTABLE_INSTANCE: {
-          return new org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse();
-        }
-        case NEW_BUILDER: {
-          return new Builder();
-        }
-        case IS_INITIALIZED: {
-          byte isInitialized = memoizedIsInitialized;
-          if (isInitialized == 1) return DEFAULT_INSTANCE;
-          if (isInitialized == 0) return null;
-
-          boolean shouldMemoize = ((Boolean) arg0).booleanValue();
-          if (!hasSnapshotId()) {
-            return null;
-          }
-          if (hasCluster()) {
-            if (!getCluster().isInitialized()) {
-              return null;
-            }
-          }
-          return DEFAULT_INSTANCE;
-
-        }
-        case MAKE_IMMUTABLE: {
-          return null;
-        }
-        case VISIT: {
-          Visitor visitor = (Visitor) arg0;
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse other = (org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse) arg1;
-          snapshotId_ = visitor.visitString(
-              hasSnapshotId(), snapshotId_,
-              other.hasSnapshotId(), other.snapshotId_);
-          cluster_ = visitor.visitMessage(cluster_, other.cluster_);
-          if (visitor == com.google.protobuf.GeneratedMessageLite.MergeFromVisitor
-              .INSTANCE) {
-            bitField0_ |= other.bitField0_;
-          }
-          return this;
-        }
-        case MERGE_FROM_STREAM: {
-          com.google.protobuf.CodedInputStream input =
-              (com.google.protobuf.CodedInputStream) arg0;
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry =
-              (com.google.protobuf.ExtensionRegistryLite) arg1;
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 10: {
-                  java.lang.String s = input.readString();
-                  bitField0_ |= 0x00000001;
-                  snapshotId_ = s;
-                  break;
-                }
-                case 18: {
-                  org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder subBuilder = null;
-                  if (((bitField0_ & 0x00000002) != 0)) {
-                    subBuilder = cluster_.toBuilder();
-                  }
-                  cluster_ = input.readMessage(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.parser(), extensionRegistry);
-                  if (subBuilder != null) {
-                    subBuilder.mergeFrom(cluster_);
-                    cluster_ = subBuilder.buildPartial();
-                  }
-                  bitField0_ |= 0x00000002;
-                  break;
-                }
-                default: {
-                  if (!parseUnknownField(tag, input)) {
-                    done = true;
-                  }
-                  break;
-                }
-              }
-            }
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw new RuntimeException(e.setUnfinishedMessage(this));
-          } catch (java.io.IOException e) {
-            throw new RuntimeException(
-                new com.google.protobuf.InvalidProtocolBufferException(
-                    e.getMessage()).setUnfinishedMessage(this));
-          } finally {
-          }
-        }
-        // fall through
-        case GET_DEFAULT_INSTANCE: {
-          return DEFAULT_INSTANCE;
-        }
-        case GET_PARSER: {
-          com.google.protobuf.Parser<org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse> parser = PARSER;
-          if (parser == null) {
-            synchronized (org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse.class) {
-              parser = PARSER;
-              if (parser == null) {
-                parser = new DefaultInstanceBasedParser(DEFAULT_INSTANCE);
-                PARSER = parser;
-              }
-            }
-          }
-          return parser;
-      }
-      case GET_MEMOIZED_IS_INITIALIZED: {
-        return memoizedIsInitialized;
-      }
-      case SET_MEMOIZED_IS_INITIALIZED: {
-        memoizedIsInitialized = (byte) (arg0 == null ? 0 : 1);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
         return null;
       }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
       }
-      throw new UnsupportedOperationException();
-    }
-
-
-    // @@protoc_insertion_point(class_scope:pulsar.proto.ReplicatedSubscriptionsSnapshotResponse)
-    private static final org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse DEFAULT_INSTANCE;
-    static {
-      // New instances are implicitly immutable so no need to make
-      // immutable.
-      DEFAULT_INSTANCE = new ReplicatedSubscriptionsSnapshotResponse();
-    }
-
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse getDefaultInstance() {
-      return DEFAULT_INSTANCE;
-    }
-
-    private static volatile com.google.protobuf.Parser<ReplicatedSubscriptionsSnapshotResponse> PARSER;
-
-    public static com.google.protobuf.Parser<ReplicatedSubscriptionsSnapshotResponse> parser() {
-      return DEFAULT_INSTANCE.getParserForType();
-    }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        snapshotId_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        cluster_ = org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse build() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse result = org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.snapshotId_ = snapshotId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.cluster_ = cluster_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse.getDefaultInstance()) return this;
+        if (other.hasSnapshotId()) {
+          setSnapshotId(other.getSnapshotId());
+        }
+        if (other.hasCluster()) {
+          mergeCluster(other.getCluster());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasSnapshotId()) {
+          
+          return false;
+        }
+        if (hasCluster()) {
+          if (!getCluster().isInitialized()) {
+            
+            return false;
+          }
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              snapshotId_ = input.readBytes();
+              break;
+            }
+            case 18: {
+              org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.newBuilder();
+              if (hasCluster()) {
+                subBuilder.mergeFrom(getCluster());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setCluster(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string snapshot_id = 1;
+      private java.lang.Object snapshotId_ = "";
+      public boolean hasSnapshotId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getSnapshotId() {
+        java.lang.Object ref = snapshotId_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          snapshotId_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setSnapshotId(String value) {
+        if (value == null) {
+    throw new NullPointerException();
   }
-
-  public interface ReplicatedSubscriptionsSnapshotOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:pulsar.proto.ReplicatedSubscriptionsSnapshot)
-      com.google.protobuf.MessageLiteOrBuilder {
-
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
+  bitField0_ |= 0x00000001;
+        snapshotId_ = value;
+        
+        return this;
+      }
+      public Builder clearSnapshotId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        snapshotId_ = getDefaultInstance().getSnapshotId();
+        
+        return this;
+      }
+      void setSnapshotId(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000001;
+        snapshotId_ = value;
+        
+      }
+      
+      // optional .pulsar.proto.ClusterMessageId cluster = 2;
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId cluster_ = org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance();
+      public boolean hasCluster() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getCluster() {
+        return cluster_;
+      }
+      public Builder setCluster(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        cluster_ = value;
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder setCluster(
+          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
+        cluster_ = builderForValue.build();
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder mergeCluster(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
+        if (((bitField0_ & 0x00000002) == 0x00000002) &&
+            cluster_ != org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance()) {
+          cluster_ =
+            org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.newBuilder(cluster_).mergeFrom(value).buildPartial();
+        } else {
+          cluster_ = value;
+        }
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder clearCluster() {
+        cluster_ = org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.ReplicatedSubscriptionsSnapshotResponse)
+    }
+    
+    static {
+      defaultInstance = new ReplicatedSubscriptionsSnapshotResponse(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.ReplicatedSubscriptionsSnapshotResponse)
+  }
+  
+  public interface ReplicatedSubscriptionsSnapshotOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required string snapshot_id = 1;
     boolean hasSnapshotId();
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    java.lang.String getSnapshotId();
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    com.google.protobuf.ByteString
-        getSnapshotIdBytes();
-
-    /**
-     * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-     */
+    String getSnapshotId();
+    
+    // optional .pulsar.proto.MessageIdData local_message_id = 2;
     boolean hasLocalMessageId();
-    /**
-     * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-     */
     org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getLocalMessageId();
-
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
+    
+    // repeated .pulsar.proto.ClusterMessageId clusters = 3;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> 
         getClustersList();
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
     org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getClusters(int index);
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
     int getClustersCount();
   }
-  /**
-   * <pre>
-   * This message is used to store the snapshot in the
-   * local topic. It's not meant to be replicated to other
-   * clusters
-   * </pre>
-   *
-   * Protobuf type {@code pulsar.proto.ReplicatedSubscriptionsSnapshot}
-   */
-  public  static final class ReplicatedSubscriptionsSnapshot extends
-      com.google.protobuf.GeneratedMessageLite<
-          ReplicatedSubscriptionsSnapshot, ReplicatedSubscriptionsSnapshot.Builder> implements
-      // @@protoc_insertion_point(message_implements:pulsar.proto.ReplicatedSubscriptionsSnapshot)
-      ReplicatedSubscriptionsSnapshotOrBuilder {
-    private ReplicatedSubscriptionsSnapshot() {
-      snapshotId_ = "";
-      clusters_ = emptyProtobufList();
+  public static final class ReplicatedSubscriptionsSnapshot extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements ReplicatedSubscriptionsSnapshotOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use ReplicatedSubscriptionsSnapshot.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private ReplicatedSubscriptionsSnapshot(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
     }
+    
+     private static final io.netty.util.Recycler<ReplicatedSubscriptionsSnapshot> RECYCLER = new io.netty.util.Recycler<ReplicatedSubscriptionsSnapshot>() {
+            protected ReplicatedSubscriptionsSnapshot newObject(Handle handle) {
+              return new ReplicatedSubscriptionsSnapshot(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private ReplicatedSubscriptionsSnapshot(boolean noInit) {}
+    
+    private static final ReplicatedSubscriptionsSnapshot defaultInstance;
+    public static ReplicatedSubscriptionsSnapshot getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public ReplicatedSubscriptionsSnapshot getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
     private int bitField0_;
+    // required string snapshot_id = 1;
     public static final int SNAPSHOT_ID_FIELD_NUMBER = 1;
-    private java.lang.String snapshotId_;
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
+    private java.lang.Object snapshotId_;
     public boolean hasSnapshotId() {
-      return ((bitField0_ & 0x00000001) != 0);
+      return ((bitField0_ & 0x00000001) == 0x00000001);
     }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
-    public java.lang.String getSnapshotId() {
-      return snapshotId_;
+    public String getSnapshotId() {
+      java.lang.Object ref = snapshotId_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          snapshotId_ = s;
+        }
+        return s;
+      }
     }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString
-        getSnapshotIdBytes() {
-      return com.google.protobuf.ByteString.copyFromUtf8(snapshotId_);
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSnapshotIdBytes() {
+      java.lang.Object ref = snapshotId_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        snapshotId_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
     }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void setSnapshotId(
-        java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      snapshotId_ = value;
-    }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void clearSnapshotId() {
-      bitField0_ = (bitField0_ & ~0x00000001);
-      snapshotId_ = getDefaultInstance().getSnapshotId();
-    }
-    /**
-     * <code>required string snapshot_id = 1;</code>
-     */
-    private void setSnapshotIdBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      snapshotId_ = value.toStringUtf8();
-    }
-
+    
+    // optional .pulsar.proto.MessageIdData local_message_id = 2;
     public static final int LOCAL_MESSAGE_ID_FIELD_NUMBER = 2;
     private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData localMessageId_;
-    /**
-     * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-     */
-    @java.lang.Override
     public boolean hasLocalMessageId() {
-      return ((bitField0_ & 0x00000002) != 0);
+      return ((bitField0_ & 0x00000002) == 0x00000002);
     }
-    /**
-     * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-     */
-    @java.lang.Override
     public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getLocalMessageId() {
-      return localMessageId_ == null ? org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance() : localMessageId_;
+      return localMessageId_;
     }
-    /**
-     * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-     */
-    private void setLocalMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-      if (value == null) {
-        throw new NullPointerException();
-      }
-      localMessageId_ = value;
-      bitField0_ |= 0x00000002;
-      }
-    /**
-     * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-     */
-    private void setLocalMessageId(
-        org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
-      localMessageId_ = builderForValue.build();
-      bitField0_ |= 0x00000002;
-    }
-    /**
-     * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-     */
-    @java.lang.SuppressWarnings({"ReferenceEquality"})
-    private void mergeLocalMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-      if (value == null) {
-        throw new NullPointerException();
-      }
-      if (localMessageId_ != null &&
-          localMessageId_ != org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance()) {
-        localMessageId_ =
-          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder(localMessageId_).mergeFrom(value).buildPartial();
-      } else {
-        localMessageId_ = value;
-      }
-      bitField0_ |= 0x00000002;
-    }
-    /**
-     * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-     */
-    private void clearLocalMessageId() {  localMessageId_ = null;
-      bitField0_ = (bitField0_ & ~0x00000002);
-    }
-
+    
+    // repeated .pulsar.proto.ClusterMessageId clusters = 3;
     public static final int CLUSTERS_FIELD_NUMBER = 3;
-    private com.google.protobuf.Internal.ProtobufList<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> clusters_;
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    @java.lang.Override
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> clusters_;
     public java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> getClustersList() {
       return clusters_;
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
     public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageIdOrBuilder> 
         getClustersOrBuilderList() {
       return clusters_;
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    @java.lang.Override
     public int getClustersCount() {
       return clusters_.size();
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    @java.lang.Override
     public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getClusters(int index) {
       return clusters_.get(index);
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
     public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageIdOrBuilder getClustersOrBuilder(
         int index) {
       return clusters_.get(index);
     }
-    private void ensureClustersIsMutable() {
-      if (!clusters_.isModifiable()) {
-        clusters_ =
-            com.google.protobuf.GeneratedMessageLite.mutableCopy(clusters_);
-       }
+    
+    private void initFields() {
+      snapshotId_ = "";
+      localMessageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+      clusters_ = java.util.Collections.emptyList();
     }
-
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void setClusters(
-        int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-      if (value == null) {
-        throw new NullPointerException();
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasSnapshotId()) {
+        memoizedIsInitialized = 0;
+        return false;
       }
-      ensureClustersIsMutable();
-      clusters_.set(index, value);
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void setClusters(
-        int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-      ensureClustersIsMutable();
-      clusters_.set(index, builderForValue.build());
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void addClusters(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-      if (value == null) {
-        throw new NullPointerException();
+      if (hasLocalMessageId()) {
+        if (!getLocalMessageId().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
-      ensureClustersIsMutable();
-      clusters_.add(value);
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void addClusters(
-        int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-      if (value == null) {
-        throw new NullPointerException();
+      for (int i = 0; i < getClustersCount(); i++) {
+        if (!getClusters(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
-      ensureClustersIsMutable();
-      clusters_.add(index, value);
+      memoizedIsInitialized = 1;
+      return true;
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void addClusters(
-        org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-      ensureClustersIsMutable();
-      clusters_.add(builderForValue.build());
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void addClusters(
-        int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-      ensureClustersIsMutable();
-      clusters_.add(index, builderForValue.build());
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void addAllClusters(
-        java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> values) {
-      ensureClustersIsMutable();
-      com.google.protobuf.AbstractMessageLite.addAll(
-          values, clusters_);
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void clearClusters() {
-      clusters_ = emptyProtobufList();
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-     */
-    private void removeClusters(int index) {
-      ensureClustersIsMutable();
-      clusters_.remove(index);
-    }
-
-    @java.lang.Override
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
-      if (((bitField0_ & 0x00000001) != 0)) {
-        output.writeString(1, getSnapshotId());
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getSnapshotIdBytes());
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        output.writeMessage(2, getLocalMessageId());
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeMessage(2, localMessageId_);
       }
       for (int i = 0; i < clusters_.size(); i++) {
         output.writeMessage(3, clusters_.get(i));
       }
-      unknownFields.writeTo(output);
     }
-
-    @java.lang.Override
+    
+    private int memoizedSerializedSize = -1;
     public int getSerializedSize() {
       int size = memoizedSerializedSize;
       if (size != -1) return size;
-
+    
       size = 0;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(1, getSnapshotId());
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(1, getSnapshotIdBytes());
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(2, getLocalMessageId());
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(2, localMessageId_);
       }
       for (int i = 0; i < clusters_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(3, clusters_.get(i));
       }
-      size += unknownFields.getSerializedSize();
       memoizedSerializedSize = size;
       return size;
     }
-
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
-        java.nio.ByteBuffer data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
-        java.nio.ByteBuffer data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
+      return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-
-    public static Builder newBuilder() {
-      return (Builder) DEFAULT_INSTANCE.createBuilder();
-    }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot prototype) {
-      return (Builder) DEFAULT_INSTANCE.createBuilder(prototype);
-    }
-
-    /**
-     * <pre>
-     * This message is used to store the snapshot in the
-     * local topic. It's not meant to be replicated to other
-     * clusters
-     * </pre>
-     *
-     * Protobuf type {@code pulsar.proto.ReplicatedSubscriptionsSnapshot}
-     */
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot, Builder> implements
-        // @@protoc_insertion_point(builder_implements:pulsar.proto.ReplicatedSubscriptionsSnapshot)
-        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotOrBuilder {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot.newBuilder()
-      private Builder() {
-        super(DEFAULT_INSTANCE);
-      }
-
-
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public boolean hasSnapshotId() {
-        return instance.hasSnapshotId();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public java.lang.String getSnapshotId() {
-        return instance.getSnapshotId();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString
-          getSnapshotIdBytes() {
-        return instance.getSnapshotIdBytes();
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder setSnapshotId(
-          java.lang.String value) {
-        copyOnWrite();
-        instance.setSnapshotId(value);
-        return this;
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder clearSnapshotId() {
-        copyOnWrite();
-        instance.clearSnapshotId();
-        return this;
-      }
-      /**
-       * <code>required string snapshot_id = 1;</code>
-       */
-      public Builder setSnapshotIdBytes(
-          com.google.protobuf.ByteString value) {
-        copyOnWrite();
-        instance.setSnapshotIdBytes(value);
-        return this;
-      }
-
-      /**
-       * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-       */
-      @java.lang.Override
-      public boolean hasLocalMessageId() {
-        return instance.hasLocalMessageId();
-      }
-      /**
-       * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-       */
-      @java.lang.Override
-      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getLocalMessageId() {
-        return instance.getLocalMessageId();
-      }
-      /**
-       * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-       */
-      public Builder setLocalMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-        copyOnWrite();
-        instance.setLocalMessageId(value);
-        return this;
-        }
-      /**
-       * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-       */
-      public Builder setLocalMessageId(
-          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
-        copyOnWrite();
-        instance.setLocalMessageId(builderForValue);
-        return this;
-      }
-      /**
-       * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-       */
-      public Builder mergeLocalMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-        copyOnWrite();
-        instance.mergeLocalMessageId(value);
-        return this;
-      }
-      /**
-       * <code>optional .pulsar.proto.MessageIdData local_message_id = 2;</code>
-       */
-      public Builder clearLocalMessageId() {  copyOnWrite();
-        instance.clearLocalMessageId();
-        return this;
-      }
-
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      @java.lang.Override
-      public java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> getClustersList() {
-        return java.util.Collections.unmodifiableList(
-            instance.getClustersList());
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      @java.lang.Override
-      public int getClustersCount() {
-        return instance.getClustersCount();
-      }/**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      @java.lang.Override
-      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getClusters(int index) {
-        return instance.getClusters(index);
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder setClusters(
-          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-        copyOnWrite();
-        instance.setClusters(index, value);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder setClusters(
-          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-        copyOnWrite();
-        instance.setClusters(index, builderForValue);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder addClusters(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-        copyOnWrite();
-        instance.addClusters(value);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder addClusters(
-          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-        copyOnWrite();
-        instance.addClusters(index, value);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder addClusters(
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-        copyOnWrite();
-        instance.addClusters(builderForValue);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder addClusters(
-          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-        copyOnWrite();
-        instance.addClusters(index, builderForValue);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder addAllClusters(
-          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> values) {
-        copyOnWrite();
-        instance.addAllClusters(values);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder clearClusters() {
-        copyOnWrite();
-        instance.clearClusters();
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 3;</code>
-       */
-      public Builder removeClusters(int index) {
-        copyOnWrite();
-        instance.removeClusters(index);
-        return this;
-      }
-
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.ReplicatedSubscriptionsSnapshot)
-    }
-    private byte memoizedIsInitialized = 2;
-    @java.lang.Override
-    @java.lang.SuppressWarnings({"unchecked", "fallthrough"})
-    protected final java.lang.Object dynamicMethod(
-        com.google.protobuf.GeneratedMessageLite.MethodToInvoke method,
-        java.lang.Object arg0, java.lang.Object arg1) {
-      switch (method) {
-        case NEW_MUTABLE_INSTANCE: {
-          return new org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot();
-        }
-        case NEW_BUILDER: {
-          return new Builder();
-        }
-        case IS_INITIALIZED: {
-          byte isInitialized = memoizedIsInitialized;
-          if (isInitialized == 1) return DEFAULT_INSTANCE;
-          if (isInitialized == 0) return null;
-
-          boolean shouldMemoize = ((Boolean) arg0).booleanValue();
-          if (!hasSnapshotId()) {
-            return null;
-          }
-          if (hasLocalMessageId()) {
-            if (!getLocalMessageId().isInitialized()) {
-              return null;
-            }
-          }
-          for (int i = 0; i < getClustersCount(); i++) {
-            if (!getClusters(i).isInitialized()) {
-              return null;
-            }
-          }
-          return DEFAULT_INSTANCE;
-
-        }
-        case MAKE_IMMUTABLE: {
-          clusters_.makeImmutable();
-          return null;
-        }
-        case VISIT: {
-          Visitor visitor = (Visitor) arg0;
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot other = (org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot) arg1;
-          snapshotId_ = visitor.visitString(
-              hasSnapshotId(), snapshotId_,
-              other.hasSnapshotId(), other.snapshotId_);
-          localMessageId_ = visitor.visitMessage(localMessageId_, other.localMessageId_);
-          clusters_= visitor.visitList(clusters_, other.clusters_);
-          if (visitor == com.google.protobuf.GeneratedMessageLite.MergeFromVisitor
-              .INSTANCE) {
-            bitField0_ |= other.bitField0_;
-          }
-          return this;
-        }
-        case MERGE_FROM_STREAM: {
-          com.google.protobuf.CodedInputStream input =
-              (com.google.protobuf.CodedInputStream) arg0;
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry =
-              (com.google.protobuf.ExtensionRegistryLite) arg1;
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 10: {
-                  java.lang.String s = input.readString();
-                  bitField0_ |= 0x00000001;
-                  snapshotId_ = s;
-                  break;
-                }
-                case 18: {
-                  org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder subBuilder = null;
-                  if (((bitField0_ & 0x00000002) != 0)) {
-                    subBuilder = localMessageId_.toBuilder();
-                  }
-                  localMessageId_ = input.readMessage(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.parser(), extensionRegistry);
-                  if (subBuilder != null) {
-                    subBuilder.mergeFrom(localMessageId_);
-                    localMessageId_ = subBuilder.buildPartial();
-                  }
-                  bitField0_ |= 0x00000002;
-                  break;
-                }
-                case 26: {
-                  if (!clusters_.isModifiable()) {
-                    clusters_ =
-                        com.google.protobuf.GeneratedMessageLite.mutableCopy(clusters_);
-                  }
-                  clusters_.add(
-                      input.readMessage(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.parser(), extensionRegistry));
-                  break;
-                }
-                default: {
-                  if (!parseUnknownField(tag, input)) {
-                    done = true;
-                  }
-                  break;
-                }
-              }
-            }
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw new RuntimeException(e.setUnfinishedMessage(this));
-          } catch (java.io.IOException e) {
-            throw new RuntimeException(
-                new com.google.protobuf.InvalidProtocolBufferException(
-                    e.getMessage()).setUnfinishedMessage(this));
-          } finally {
-          }
-        }
-        // fall through
-        case GET_DEFAULT_INSTANCE: {
-          return DEFAULT_INSTANCE;
-        }
-        case GET_PARSER: {
-          com.google.protobuf.Parser<org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot> parser = PARSER;
-          if (parser == null) {
-            synchronized (org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot.class) {
-              parser = PARSER;
-              if (parser == null) {
-                parser = new DefaultInstanceBasedParser(DEFAULT_INSTANCE);
-                PARSER = parser;
-              }
-            }
-          }
-          return parser;
-      }
-      case GET_MEMOIZED_IS_INITIALIZED: {
-        return memoizedIsInitialized;
-      }
-      case SET_MEMOIZED_IS_INITIALIZED: {
-        memoizedIsInitialized = (byte) (arg0 == null ? 0 : 1);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
         return null;
       }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
       }
-      throw new UnsupportedOperationException();
-    }
-
-
-    // @@protoc_insertion_point(class_scope:pulsar.proto.ReplicatedSubscriptionsSnapshot)
-    private static final org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot DEFAULT_INSTANCE;
-    static {
-      // New instances are implicitly immutable so no need to make
-      // immutable.
-      DEFAULT_INSTANCE = new ReplicatedSubscriptionsSnapshot();
-    }
-
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot getDefaultInstance() {
-      return DEFAULT_INSTANCE;
-    }
-
-    private static volatile com.google.protobuf.Parser<ReplicatedSubscriptionsSnapshot> PARSER;
-
-    public static com.google.protobuf.Parser<ReplicatedSubscriptionsSnapshot> parser() {
-      return DEFAULT_INSTANCE.getParserForType();
-    }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        snapshotId_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        localMessageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        clusters_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot build() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot result = org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.snapshotId_ = snapshotId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.localMessageId_ = localMessageId_;
+        if (((bitField0_ & 0x00000004) == 0x00000004)) {
+          clusters_ = java.util.Collections.unmodifiableList(clusters_);
+          bitField0_ = (bitField0_ & ~0x00000004);
+        }
+        result.clusters_ = clusters_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot.getDefaultInstance()) return this;
+        if (other.hasSnapshotId()) {
+          setSnapshotId(other.getSnapshotId());
+        }
+        if (other.hasLocalMessageId()) {
+          mergeLocalMessageId(other.getLocalMessageId());
+        }
+        if (!other.clusters_.isEmpty()) {
+          if (clusters_.isEmpty()) {
+            clusters_ = other.clusters_;
+            bitField0_ = (bitField0_ & ~0x00000004);
+          } else {
+            ensureClustersIsMutable();
+            clusters_.addAll(other.clusters_);
+          }
+          
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasSnapshotId()) {
+          
+          return false;
+        }
+        if (hasLocalMessageId()) {
+          if (!getLocalMessageId().isInitialized()) {
+            
+            return false;
+          }
+        }
+        for (int i = 0; i < getClustersCount(); i++) {
+          if (!getClusters(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              snapshotId_ = input.readBytes();
+              break;
+            }
+            case 18: {
+              org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder();
+              if (hasLocalMessageId()) {
+                subBuilder.mergeFrom(getLocalMessageId());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setLocalMessageId(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+            case 26: {
+              org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addClusters(subBuilder.buildPartial());
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string snapshot_id = 1;
+      private java.lang.Object snapshotId_ = "";
+      public boolean hasSnapshotId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getSnapshotId() {
+        java.lang.Object ref = snapshotId_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          snapshotId_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setSnapshotId(String value) {
+        if (value == null) {
+    throw new NullPointerException();
   }
-
-  public interface ReplicatedSubscriptionsUpdateOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:pulsar.proto.ReplicatedSubscriptionsUpdate)
-      com.google.protobuf.MessageLiteOrBuilder {
-
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
+  bitField0_ |= 0x00000001;
+        snapshotId_ = value;
+        
+        return this;
+      }
+      public Builder clearSnapshotId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        snapshotId_ = getDefaultInstance().getSnapshotId();
+        
+        return this;
+      }
+      void setSnapshotId(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000001;
+        snapshotId_ = value;
+        
+      }
+      
+      // optional .pulsar.proto.MessageIdData local_message_id = 2;
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData localMessageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+      public boolean hasLocalMessageId() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getLocalMessageId() {
+        return localMessageId_;
+      }
+      public Builder setLocalMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        localMessageId_ = value;
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder setLocalMessageId(
+          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
+        localMessageId_ = builderForValue.build();
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder mergeLocalMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
+        if (((bitField0_ & 0x00000002) == 0x00000002) &&
+            localMessageId_ != org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance()) {
+          localMessageId_ =
+            org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder(localMessageId_).mergeFrom(value).buildPartial();
+        } else {
+          localMessageId_ = value;
+        }
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder clearLocalMessageId() {
+        localMessageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      // repeated .pulsar.proto.ClusterMessageId clusters = 3;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> clusters_ =
+        java.util.Collections.emptyList();
+      private void ensureClustersIsMutable() {
+        if (!((bitField0_ & 0x00000004) == 0x00000004)) {
+          clusters_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId>(clusters_);
+          bitField0_ |= 0x00000004;
+         }
+      }
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> getClustersList() {
+        return java.util.Collections.unmodifiableList(clusters_);
+      }
+      public int getClustersCount() {
+        return clusters_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getClusters(int index) {
+        return clusters_.get(index);
+      }
+      public Builder setClusters(
+          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureClustersIsMutable();
+        clusters_.set(index, value);
+        
+        return this;
+      }
+      public Builder setClusters(
+          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
+        ensureClustersIsMutable();
+        clusters_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addClusters(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureClustersIsMutable();
+        clusters_.add(value);
+        
+        return this;
+      }
+      public Builder addClusters(
+          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureClustersIsMutable();
+        clusters_.add(index, value);
+        
+        return this;
+      }
+      public Builder addClusters(
+          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
+        ensureClustersIsMutable();
+        clusters_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addClusters(
+          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
+        ensureClustersIsMutable();
+        clusters_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllClusters(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> values) {
+        ensureClustersIsMutable();
+        super.addAll(values, clusters_);
+        
+        return this;
+      }
+      public Builder clearClusters() {
+        clusters_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        
+        return this;
+      }
+      public Builder removeClusters(int index) {
+        ensureClustersIsMutable();
+        clusters_.remove(index);
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.ReplicatedSubscriptionsSnapshot)
+    }
+    
+    static {
+      defaultInstance = new ReplicatedSubscriptionsSnapshot(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.ReplicatedSubscriptionsSnapshot)
+  }
+  
+  public interface ReplicatedSubscriptionsUpdateOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required string subscription_name = 1;
     boolean hasSubscriptionName();
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
-    java.lang.String getSubscriptionName();
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
-    com.google.protobuf.ByteString
-        getSubscriptionNameBytes();
-
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
+    String getSubscriptionName();
+    
+    // repeated .pulsar.proto.ClusterMessageId clusters = 2;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> 
         getClustersList();
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
     org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getClusters(int index);
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
     int getClustersCount();
   }
-  /**
-   * <pre>
-   * When the replicated subscription mark-delete position
-   * is updated in the source cluster, this message will be
-   * sent to all clusters to updated the mirrored subscriptions
-   * </pre>
-   *
-   * Protobuf type {@code pulsar.proto.ReplicatedSubscriptionsUpdate}
-   */
-  public  static final class ReplicatedSubscriptionsUpdate extends
-      com.google.protobuf.GeneratedMessageLite<
-          ReplicatedSubscriptionsUpdate, ReplicatedSubscriptionsUpdate.Builder> implements
-      // @@protoc_insertion_point(message_implements:pulsar.proto.ReplicatedSubscriptionsUpdate)
-      ReplicatedSubscriptionsUpdateOrBuilder {
-    private ReplicatedSubscriptionsUpdate() {
-      subscriptionName_ = "";
-      clusters_ = emptyProtobufList();
+  public static final class ReplicatedSubscriptionsUpdate extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements ReplicatedSubscriptionsUpdateOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use ReplicatedSubscriptionsUpdate.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private ReplicatedSubscriptionsUpdate(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
     }
+    
+     private static final io.netty.util.Recycler<ReplicatedSubscriptionsUpdate> RECYCLER = new io.netty.util.Recycler<ReplicatedSubscriptionsUpdate>() {
+            protected ReplicatedSubscriptionsUpdate newObject(Handle handle) {
+              return new ReplicatedSubscriptionsUpdate(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private ReplicatedSubscriptionsUpdate(boolean noInit) {}
+    
+    private static final ReplicatedSubscriptionsUpdate defaultInstance;
+    public static ReplicatedSubscriptionsUpdate getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public ReplicatedSubscriptionsUpdate getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
     private int bitField0_;
+    // required string subscription_name = 1;
     public static final int SUBSCRIPTION_NAME_FIELD_NUMBER = 1;
-    private java.lang.String subscriptionName_;
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
-    @java.lang.Override
+    private java.lang.Object subscriptionName_;
     public boolean hasSubscriptionName() {
-      return ((bitField0_ & 0x00000001) != 0);
+      return ((bitField0_ & 0x00000001) == 0x00000001);
     }
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
-    @java.lang.Override
-    public java.lang.String getSubscriptionName() {
-      return subscriptionName_;
+    public String getSubscriptionName() {
+      java.lang.Object ref = subscriptionName_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          subscriptionName_ = s;
+        }
+        return s;
+      }
     }
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString
-        getSubscriptionNameBytes() {
-      return com.google.protobuf.ByteString.copyFromUtf8(subscriptionName_);
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSubscriptionNameBytes() {
+      java.lang.Object ref = subscriptionName_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        subscriptionName_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
     }
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
-    private void setSubscriptionName(
-        java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      subscriptionName_ = value;
-    }
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
-    private void clearSubscriptionName() {
-      bitField0_ = (bitField0_ & ~0x00000001);
-      subscriptionName_ = getDefaultInstance().getSubscriptionName();
-    }
-    /**
-     * <code>required string subscription_name = 1;</code>
-     */
-    private void setSubscriptionNameBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      subscriptionName_ = value.toStringUtf8();
-    }
-
+    
+    // repeated .pulsar.proto.ClusterMessageId clusters = 2;
     public static final int CLUSTERS_FIELD_NUMBER = 2;
-    private com.google.protobuf.Internal.ProtobufList<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> clusters_;
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    @java.lang.Override
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> clusters_;
     public java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> getClustersList() {
       return clusters_;
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
     public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageIdOrBuilder> 
         getClustersOrBuilderList() {
       return clusters_;
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    @java.lang.Override
     public int getClustersCount() {
       return clusters_.size();
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    @java.lang.Override
     public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getClusters(int index) {
       return clusters_.get(index);
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
     public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageIdOrBuilder getClustersOrBuilder(
         int index) {
       return clusters_.get(index);
     }
-    private void ensureClustersIsMutable() {
-      if (!clusters_.isModifiable()) {
-        clusters_ =
-            com.google.protobuf.GeneratedMessageLite.mutableCopy(clusters_);
-       }
+    
+    private void initFields() {
+      subscriptionName_ = "";
+      clusters_ = java.util.Collections.emptyList();
     }
-
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void setClusters(
-        int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-      if (value == null) {
-        throw new NullPointerException();
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasSubscriptionName()) {
+        memoizedIsInitialized = 0;
+        return false;
       }
-      ensureClustersIsMutable();
-      clusters_.set(index, value);
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void setClusters(
-        int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-      ensureClustersIsMutable();
-      clusters_.set(index, builderForValue.build());
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void addClusters(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-      if (value == null) {
-        throw new NullPointerException();
+      for (int i = 0; i < getClustersCount(); i++) {
+        if (!getClusters(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
-      ensureClustersIsMutable();
-      clusters_.add(value);
+      memoizedIsInitialized = 1;
+      return true;
     }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void addClusters(
-        int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-      if (value == null) {
-        throw new NullPointerException();
-      }
-      ensureClustersIsMutable();
-      clusters_.add(index, value);
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void addClusters(
-        org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-      ensureClustersIsMutable();
-      clusters_.add(builderForValue.build());
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void addClusters(
-        int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-      ensureClustersIsMutable();
-      clusters_.add(index, builderForValue.build());
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void addAllClusters(
-        java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> values) {
-      ensureClustersIsMutable();
-      com.google.protobuf.AbstractMessageLite.addAll(
-          values, clusters_);
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void clearClusters() {
-      clusters_ = emptyProtobufList();
-    }
-    /**
-     * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-     */
-    private void removeClusters(int index) {
-      ensureClustersIsMutable();
-      clusters_.remove(index);
-    }
-
-    @java.lang.Override
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
-      if (((bitField0_ & 0x00000001) != 0)) {
-        output.writeString(1, getSubscriptionName());
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getSubscriptionNameBytes());
       }
       for (int i = 0; i < clusters_.size(); i++) {
         output.writeMessage(2, clusters_.get(i));
       }
-      unknownFields.writeTo(output);
     }
-
-    @java.lang.Override
+    
+    private int memoizedSerializedSize = -1;
     public int getSerializedSize() {
       int size = memoizedSerializedSize;
       if (size != -1) return size;
-
+    
       size = 0;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(1, getSubscriptionName());
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(1, getSubscriptionNameBytes());
       }
       for (int i = 0; i < clusters_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(2, clusters_.get(i));
       }
-      size += unknownFields.getSerializedSize();
       memoizedSerializedSize = size;
       return size;
     }
-
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
-        java.nio.ByteBuffer data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
-        java.nio.ByteBuffer data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
+      return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-
-    public static Builder newBuilder() {
-      return (Builder) DEFAULT_INSTANCE.createBuilder();
-    }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate prototype) {
-      return (Builder) DEFAULT_INSTANCE.createBuilder(prototype);
-    }
-
-    /**
-     * <pre>
-     * When the replicated subscription mark-delete position
-     * is updated in the source cluster, this message will be
-     * sent to all clusters to updated the mirrored subscriptions
-     * </pre>
-     *
-     * Protobuf type {@code pulsar.proto.ReplicatedSubscriptionsUpdate}
-     */
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate, Builder> implements
-        // @@protoc_insertion_point(builder_implements:pulsar.proto.ReplicatedSubscriptionsUpdate)
-        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdateOrBuilder {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate.newBuilder()
-      private Builder() {
-        super(DEFAULT_INSTANCE);
-      }
-
-
-      /**
-       * <code>required string subscription_name = 1;</code>
-       */
-      @java.lang.Override
-      public boolean hasSubscriptionName() {
-        return instance.hasSubscriptionName();
-      }
-      /**
-       * <code>required string subscription_name = 1;</code>
-       */
-      @java.lang.Override
-      public java.lang.String getSubscriptionName() {
-        return instance.getSubscriptionName();
-      }
-      /**
-       * <code>required string subscription_name = 1;</code>
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString
-          getSubscriptionNameBytes() {
-        return instance.getSubscriptionNameBytes();
-      }
-      /**
-       * <code>required string subscription_name = 1;</code>
-       */
-      public Builder setSubscriptionName(
-          java.lang.String value) {
-        copyOnWrite();
-        instance.setSubscriptionName(value);
-        return this;
-      }
-      /**
-       * <code>required string subscription_name = 1;</code>
-       */
-      public Builder clearSubscriptionName() {
-        copyOnWrite();
-        instance.clearSubscriptionName();
-        return this;
-      }
-      /**
-       * <code>required string subscription_name = 1;</code>
-       */
-      public Builder setSubscriptionNameBytes(
-          com.google.protobuf.ByteString value) {
-        copyOnWrite();
-        instance.setSubscriptionNameBytes(value);
-        return this;
-      }
-
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      @java.lang.Override
-      public java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> getClustersList() {
-        return java.util.Collections.unmodifiableList(
-            instance.getClustersList());
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      @java.lang.Override
-      public int getClustersCount() {
-        return instance.getClustersCount();
-      }/**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      @java.lang.Override
-      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getClusters(int index) {
-        return instance.getClusters(index);
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder setClusters(
-          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-        copyOnWrite();
-        instance.setClusters(index, value);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder setClusters(
-          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-        copyOnWrite();
-        instance.setClusters(index, builderForValue);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder addClusters(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-        copyOnWrite();
-        instance.addClusters(value);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder addClusters(
-          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
-        copyOnWrite();
-        instance.addClusters(index, value);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder addClusters(
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-        copyOnWrite();
-        instance.addClusters(builderForValue);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder addClusters(
-          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
-        copyOnWrite();
-        instance.addClusters(index, builderForValue);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder addAllClusters(
-          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> values) {
-        copyOnWrite();
-        instance.addAllClusters(values);
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder clearClusters() {
-        copyOnWrite();
-        instance.clearClusters();
-        return this;
-      }
-      /**
-       * <code>repeated .pulsar.proto.ClusterMessageId clusters = 2;</code>
-       */
-      public Builder removeClusters(int index) {
-        copyOnWrite();
-        instance.removeClusters(index);
-        return this;
-      }
-
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.ReplicatedSubscriptionsUpdate)
-    }
-    private byte memoizedIsInitialized = 2;
-    @java.lang.Override
-    @java.lang.SuppressWarnings({"unchecked", "fallthrough"})
-    protected final java.lang.Object dynamicMethod(
-        com.google.protobuf.GeneratedMessageLite.MethodToInvoke method,
-        java.lang.Object arg0, java.lang.Object arg1) {
-      switch (method) {
-        case NEW_MUTABLE_INSTANCE: {
-          return new org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate();
-        }
-        case NEW_BUILDER: {
-          return new Builder();
-        }
-        case IS_INITIALIZED: {
-          byte isInitialized = memoizedIsInitialized;
-          if (isInitialized == 1) return DEFAULT_INSTANCE;
-          if (isInitialized == 0) return null;
-
-          boolean shouldMemoize = ((Boolean) arg0).booleanValue();
-          if (!hasSubscriptionName()) {
-            return null;
-          }
-          for (int i = 0; i < getClustersCount(); i++) {
-            if (!getClusters(i).isInitialized()) {
-              return null;
-            }
-          }
-          return DEFAULT_INSTANCE;
-
-        }
-        case MAKE_IMMUTABLE: {
-          clusters_.makeImmutable();
-          return null;
-        }
-        case VISIT: {
-          Visitor visitor = (Visitor) arg0;
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate other = (org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate) arg1;
-          subscriptionName_ = visitor.visitString(
-              hasSubscriptionName(), subscriptionName_,
-              other.hasSubscriptionName(), other.subscriptionName_);
-          clusters_= visitor.visitList(clusters_, other.clusters_);
-          if (visitor == com.google.protobuf.GeneratedMessageLite.MergeFromVisitor
-              .INSTANCE) {
-            bitField0_ |= other.bitField0_;
-          }
-          return this;
-        }
-        case MERGE_FROM_STREAM: {
-          com.google.protobuf.CodedInputStream input =
-              (com.google.protobuf.CodedInputStream) arg0;
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry =
-              (com.google.protobuf.ExtensionRegistryLite) arg1;
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 10: {
-                  java.lang.String s = input.readString();
-                  bitField0_ |= 0x00000001;
-                  subscriptionName_ = s;
-                  break;
-                }
-                case 18: {
-                  if (!clusters_.isModifiable()) {
-                    clusters_ =
-                        com.google.protobuf.GeneratedMessageLite.mutableCopy(clusters_);
-                  }
-                  clusters_.add(
-                      input.readMessage(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.parser(), extensionRegistry));
-                  break;
-                }
-                default: {
-                  if (!parseUnknownField(tag, input)) {
-                    done = true;
-                  }
-                  break;
-                }
-              }
-            }
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw new RuntimeException(e.setUnfinishedMessage(this));
-          } catch (java.io.IOException e) {
-            throw new RuntimeException(
-                new com.google.protobuf.InvalidProtocolBufferException(
-                    e.getMessage()).setUnfinishedMessage(this));
-          } finally {
-          }
-        }
-        // fall through
-        case GET_DEFAULT_INSTANCE: {
-          return DEFAULT_INSTANCE;
-        }
-        case GET_PARSER: {
-          com.google.protobuf.Parser<org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate> parser = PARSER;
-          if (parser == null) {
-            synchronized (org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate.class) {
-              parser = PARSER;
-              if (parser == null) {
-                parser = new DefaultInstanceBasedParser(DEFAULT_INSTANCE);
-                PARSER = parser;
-              }
-            }
-          }
-          return parser;
-      }
-      case GET_MEMOIZED_IS_INITIALIZED: {
-        return memoizedIsInitialized;
-      }
-      case SET_MEMOIZED_IS_INITIALIZED: {
-        memoizedIsInitialized = (byte) (arg0 == null ? 0 : 1);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
         return null;
       }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdateOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
       }
-      throw new UnsupportedOperationException();
-    }
-
-
-    // @@protoc_insertion_point(class_scope:pulsar.proto.ReplicatedSubscriptionsUpdate)
-    private static final org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate DEFAULT_INSTANCE;
-    static {
-      // New instances are implicitly immutable so no need to make
-      // immutable.
-      DEFAULT_INSTANCE = new ReplicatedSubscriptionsUpdate();
-    }
-
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate getDefaultInstance() {
-      return DEFAULT_INSTANCE;
-    }
-
-    private static volatile com.google.protobuf.Parser<ReplicatedSubscriptionsUpdate> PARSER;
-
-    public static com.google.protobuf.Parser<ReplicatedSubscriptionsUpdate> parser() {
-      return DEFAULT_INSTANCE.getParserForType();
-    }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        subscriptionName_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        clusters_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate build() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate result = org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.subscriptionName_ = subscriptionName_;
+        if (((bitField0_ & 0x00000002) == 0x00000002)) {
+          clusters_ = java.util.Collections.unmodifiableList(clusters_);
+          bitField0_ = (bitField0_ & ~0x00000002);
+        }
+        result.clusters_ = clusters_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsUpdate.getDefaultInstance()) return this;
+        if (other.hasSubscriptionName()) {
+          setSubscriptionName(other.getSubscriptionName());
+        }
+        if (!other.clusters_.isEmpty()) {
+          if (clusters_.isEmpty()) {
+            clusters_ = other.clusters_;
+            bitField0_ = (bitField0_ & ~0x00000002);
+          } else {
+            ensureClustersIsMutable();
+            clusters_.addAll(other.clusters_);
+          }
+          
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasSubscriptionName()) {
+          
+          return false;
+        }
+        for (int i = 0; i < getClustersCount(); i++) {
+          if (!getClusters(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              subscriptionName_ = input.readBytes();
+              break;
+            }
+            case 18: {
+              org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addClusters(subBuilder.buildPartial());
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string subscription_name = 1;
+      private java.lang.Object subscriptionName_ = "";
+      public boolean hasSubscriptionName() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getSubscriptionName() {
+        java.lang.Object ref = subscriptionName_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          subscriptionName_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setSubscriptionName(String value) {
+        if (value == null) {
+    throw new NullPointerException();
   }
-
-  public interface ClusterMessageIdOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:pulsar.proto.ClusterMessageId)
-      com.google.protobuf.MessageLiteOrBuilder {
-
-    /**
-     * <code>required string cluster = 1;</code>
-     */
+  bitField0_ |= 0x00000001;
+        subscriptionName_ = value;
+        
+        return this;
+      }
+      public Builder clearSubscriptionName() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        subscriptionName_ = getDefaultInstance().getSubscriptionName();
+        
+        return this;
+      }
+      void setSubscriptionName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000001;
+        subscriptionName_ = value;
+        
+      }
+      
+      // repeated .pulsar.proto.ClusterMessageId clusters = 2;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> clusters_ =
+        java.util.Collections.emptyList();
+      private void ensureClustersIsMutable() {
+        if (!((bitField0_ & 0x00000002) == 0x00000002)) {
+          clusters_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId>(clusters_);
+          bitField0_ |= 0x00000002;
+         }
+      }
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> getClustersList() {
+        return java.util.Collections.unmodifiableList(clusters_);
+      }
+      public int getClustersCount() {
+        return clusters_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getClusters(int index) {
+        return clusters_.get(index);
+      }
+      public Builder setClusters(
+          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureClustersIsMutable();
+        clusters_.set(index, value);
+        
+        return this;
+      }
+      public Builder setClusters(
+          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
+        ensureClustersIsMutable();
+        clusters_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addClusters(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureClustersIsMutable();
+        clusters_.add(value);
+        
+        return this;
+      }
+      public Builder addClusters(
+          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureClustersIsMutable();
+        clusters_.add(index, value);
+        
+        return this;
+      }
+      public Builder addClusters(
+          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
+        ensureClustersIsMutable();
+        clusters_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addClusters(
+          int index, org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.Builder builderForValue) {
+        ensureClustersIsMutable();
+        clusters_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllClusters(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> values) {
+        ensureClustersIsMutable();
+        super.addAll(values, clusters_);
+        
+        return this;
+      }
+      public Builder clearClusters() {
+        clusters_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        
+        return this;
+      }
+      public Builder removeClusters(int index) {
+        ensureClustersIsMutable();
+        clusters_.remove(index);
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.ReplicatedSubscriptionsUpdate)
+    }
+    
+    static {
+      defaultInstance = new ReplicatedSubscriptionsUpdate(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.ReplicatedSubscriptionsUpdate)
+  }
+  
+  public interface ClusterMessageIdOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required string cluster = 1;
     boolean hasCluster();
-    /**
-     * <code>required string cluster = 1;</code>
-     */
-    java.lang.String getCluster();
-    /**
-     * <code>required string cluster = 1;</code>
-     */
-    com.google.protobuf.ByteString
-        getClusterBytes();
-
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-     */
+    String getCluster();
+    
+    // required .pulsar.proto.MessageIdData message_id = 2;
     boolean hasMessageId();
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-     */
     org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId();
   }
-  /**
-   * <pre>
-   * Represent one cluster and an associated message id.
-   * The message id is local to that particular cluster
-   * </pre>
-   *
-   * Protobuf type {@code pulsar.proto.ClusterMessageId}
-   */
-  public  static final class ClusterMessageId extends
-      com.google.protobuf.GeneratedMessageLite<
-          ClusterMessageId, ClusterMessageId.Builder> implements
-      // @@protoc_insertion_point(message_implements:pulsar.proto.ClusterMessageId)
-      ClusterMessageIdOrBuilder {
-    private ClusterMessageId() {
-      cluster_ = "";
+  public static final class ClusterMessageId extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements ClusterMessageIdOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use ClusterMessageId.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private ClusterMessageId(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
     }
+    
+     private static final io.netty.util.Recycler<ClusterMessageId> RECYCLER = new io.netty.util.Recycler<ClusterMessageId>() {
+            protected ClusterMessageId newObject(Handle handle) {
+              return new ClusterMessageId(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private ClusterMessageId(boolean noInit) {}
+    
+    private static final ClusterMessageId defaultInstance;
+    public static ClusterMessageId getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public ClusterMessageId getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
     private int bitField0_;
+    // required string cluster = 1;
     public static final int CLUSTER_FIELD_NUMBER = 1;
-    private java.lang.String cluster_;
-    /**
-     * <code>required string cluster = 1;</code>
-     */
-    @java.lang.Override
+    private java.lang.Object cluster_;
     public boolean hasCluster() {
-      return ((bitField0_ & 0x00000001) != 0);
+      return ((bitField0_ & 0x00000001) == 0x00000001);
     }
-    /**
-     * <code>required string cluster = 1;</code>
-     */
-    @java.lang.Override
-    public java.lang.String getCluster() {
-      return cluster_;
+    public String getCluster() {
+      java.lang.Object ref = cluster_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
+          cluster_ = s;
+        }
+        return s;
+      }
     }
-    /**
-     * <code>required string cluster = 1;</code>
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString
-        getClusterBytes() {
-      return com.google.protobuf.ByteString.copyFromUtf8(cluster_);
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getClusterBytes() {
+      java.lang.Object ref = cluster_;
+      if (ref instanceof String) {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
+        cluster_ = b;
+        return b;
+      } else {
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
+      }
     }
-    /**
-     * <code>required string cluster = 1;</code>
-     */
-    private void setCluster(
-        java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      cluster_ = value;
-    }
-    /**
-     * <code>required string cluster = 1;</code>
-     */
-    private void clearCluster() {
-      bitField0_ = (bitField0_ & ~0x00000001);
-      cluster_ = getDefaultInstance().getCluster();
-    }
-    /**
-     * <code>required string cluster = 1;</code>
-     */
-    private void setClusterBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000001;
-      cluster_ = value.toStringUtf8();
-    }
-
+    
+    // required .pulsar.proto.MessageIdData message_id = 2;
     public static final int MESSAGE_ID_FIELD_NUMBER = 2;
     private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData messageId_;
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-     */
-    @java.lang.Override
     public boolean hasMessageId() {
-      return ((bitField0_ & 0x00000002) != 0);
+      return ((bitField0_ & 0x00000002) == 0x00000002);
     }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-     */
-    @java.lang.Override
     public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId() {
-      return messageId_ == null ? org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance() : messageId_;
+      return messageId_;
     }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-     */
-    private void setMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-      if (value == null) {
-        throw new NullPointerException();
-      }
-      messageId_ = value;
-      bitField0_ |= 0x00000002;
-      }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-     */
-    private void setMessageId(
-        org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
-      messageId_ = builderForValue.build();
-      bitField0_ |= 0x00000002;
+    
+    private void initFields() {
+      cluster_ = "";
+      messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
     }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-     */
-    @java.lang.SuppressWarnings({"ReferenceEquality"})
-    private void mergeMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-      if (value == null) {
-        throw new NullPointerException();
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasCluster()) {
+        memoizedIsInitialized = 0;
+        return false;
       }
-      if (messageId_ != null &&
-          messageId_ != org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance()) {
-        messageId_ =
-          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder(messageId_).mergeFrom(value).buildPartial();
-      } else {
-        messageId_ = value;
+      if (!hasMessageId()) {
+        memoizedIsInitialized = 0;
+        return false;
       }
-      bitField0_ |= 0x00000002;
+      if (!getMessageId().isInitialized()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
     }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-     */
-    private void clearMessageId() {  messageId_ = null;
-      bitField0_ = (bitField0_ & ~0x00000002);
-    }
-
-    @java.lang.Override
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
-      if (((bitField0_ & 0x00000001) != 0)) {
-        output.writeString(1, getCluster());
-      }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        output.writeMessage(2, getMessageId());
-      }
-      unknownFields.writeTo(output);
+        throw new RuntimeException("Cannot use CodedOutputStream");
     }
-
-    @java.lang.Override
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeBytes(1, getClusterBytes());
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeMessage(2, messageId_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
     public int getSerializedSize() {
       int size = memoizedSerializedSize;
       if (size != -1) return size;
-
+    
       size = 0;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(1, getCluster());
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBytesSize(1, getClusterBytes());
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(2, getMessageId());
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(2, messageId_);
       }
-      size += unknownFields.getSerializedSize();
       memoizedSerializedSize = size;
       return size;
     }
-
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
-        java.nio.ByteBuffer data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
-        java.nio.ByteBuffer data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
+      return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-
-    public static Builder newBuilder() {
-      return (Builder) DEFAULT_INSTANCE.createBuilder();
-    }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId prototype) {
-      return (Builder) DEFAULT_INSTANCE.createBuilder(prototype);
-    }
-
-    /**
-     * <pre>
-     * Represent one cluster and an associated message id.
-     * The message id is local to that particular cluster
-     * </pre>
-     *
-     * Protobuf type {@code pulsar.proto.ClusterMessageId}
-     */
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId, Builder> implements
-        // @@protoc_insertion_point(builder_implements:pulsar.proto.ClusterMessageId)
-        org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageIdOrBuilder {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.newBuilder()
-      private Builder() {
-        super(DEFAULT_INSTANCE);
-      }
-
-
-      /**
-       * <code>required string cluster = 1;</code>
-       */
-      @java.lang.Override
-      public boolean hasCluster() {
-        return instance.hasCluster();
-      }
-      /**
-       * <code>required string cluster = 1;</code>
-       */
-      @java.lang.Override
-      public java.lang.String getCluster() {
-        return instance.getCluster();
-      }
-      /**
-       * <code>required string cluster = 1;</code>
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString
-          getClusterBytes() {
-        return instance.getClusterBytes();
-      }
-      /**
-       * <code>required string cluster = 1;</code>
-       */
-      public Builder setCluster(
-          java.lang.String value) {
-        copyOnWrite();
-        instance.setCluster(value);
-        return this;
-      }
-      /**
-       * <code>required string cluster = 1;</code>
-       */
-      public Builder clearCluster() {
-        copyOnWrite();
-        instance.clearCluster();
-        return this;
-      }
-      /**
-       * <code>required string cluster = 1;</code>
-       */
-      public Builder setClusterBytes(
-          com.google.protobuf.ByteString value) {
-        copyOnWrite();
-        instance.setClusterBytes(value);
-        return this;
-      }
-
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-       */
-      @java.lang.Override
-      public boolean hasMessageId() {
-        return instance.hasMessageId();
-      }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-       */
-      @java.lang.Override
-      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId() {
-        return instance.getMessageId();
-      }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-       */
-      public Builder setMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-        copyOnWrite();
-        instance.setMessageId(value);
-        return this;
-        }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-       */
-      public Builder setMessageId(
-          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
-        copyOnWrite();
-        instance.setMessageId(builderForValue);
-        return this;
-      }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-       */
-      public Builder mergeMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-        copyOnWrite();
-        instance.mergeMessageId(value);
-        return this;
-      }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 2;</code>
-       */
-      public Builder clearMessageId() {  copyOnWrite();
-        instance.clearMessageId();
-        return this;
-      }
-
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.ClusterMessageId)
-    }
-    private byte memoizedIsInitialized = 2;
-    @java.lang.Override
-    @java.lang.SuppressWarnings({"unchecked", "fallthrough"})
-    protected final java.lang.Object dynamicMethod(
-        com.google.protobuf.GeneratedMessageLite.MethodToInvoke method,
-        java.lang.Object arg0, java.lang.Object arg1) {
-      switch (method) {
-        case NEW_MUTABLE_INSTANCE: {
-          return new org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId();
-        }
-        case NEW_BUILDER: {
-          return new Builder();
-        }
-        case IS_INITIALIZED: {
-          byte isInitialized = memoizedIsInitialized;
-          if (isInitialized == 1) return DEFAULT_INSTANCE;
-          if (isInitialized == 0) return null;
-
-          boolean shouldMemoize = ((Boolean) arg0).booleanValue();
-          if (!hasCluster()) {
-            return null;
-          }
-          if (!hasMessageId()) {
-            return null;
-          }
-          if (!getMessageId().isInitialized()) {
-            return null;
-          }
-          return DEFAULT_INSTANCE;
-
-        }
-        case MAKE_IMMUTABLE: {
-          return null;
-        }
-        case VISIT: {
-          Visitor visitor = (Visitor) arg0;
-          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId other = (org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId) arg1;
-          cluster_ = visitor.visitString(
-              hasCluster(), cluster_,
-              other.hasCluster(), other.cluster_);
-          messageId_ = visitor.visitMessage(messageId_, other.messageId_);
-          if (visitor == com.google.protobuf.GeneratedMessageLite.MergeFromVisitor
-              .INSTANCE) {
-            bitField0_ |= other.bitField0_;
-          }
-          return this;
-        }
-        case MERGE_FROM_STREAM: {
-          com.google.protobuf.CodedInputStream input =
-              (com.google.protobuf.CodedInputStream) arg0;
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry =
-              (com.google.protobuf.ExtensionRegistryLite) arg1;
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 10: {
-                  java.lang.String s = input.readString();
-                  bitField0_ |= 0x00000001;
-                  cluster_ = s;
-                  break;
-                }
-                case 18: {
-                  org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder subBuilder = null;
-                  if (((bitField0_ & 0x00000002) != 0)) {
-                    subBuilder = messageId_.toBuilder();
-                  }
-                  messageId_ = input.readMessage(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.parser(), extensionRegistry);
-                  if (subBuilder != null) {
-                    subBuilder.mergeFrom(messageId_);
-                    messageId_ = subBuilder.buildPartial();
-                  }
-                  bitField0_ |= 0x00000002;
-                  break;
-                }
-                default: {
-                  if (!parseUnknownField(tag, input)) {
-                    done = true;
-                  }
-                  break;
-                }
-              }
-            }
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw new RuntimeException(e.setUnfinishedMessage(this));
-          } catch (java.io.IOException e) {
-            throw new RuntimeException(
-                new com.google.protobuf.InvalidProtocolBufferException(
-                    e.getMessage()).setUnfinishedMessage(this));
-          } finally {
-          }
-        }
-        // fall through
-        case GET_DEFAULT_INSTANCE: {
-          return DEFAULT_INSTANCE;
-        }
-        case GET_PARSER: {
-          com.google.protobuf.Parser<org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId> parser = PARSER;
-          if (parser == null) {
-            synchronized (org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.class) {
-              parser = PARSER;
-              if (parser == null) {
-                parser = new DefaultInstanceBasedParser(DEFAULT_INSTANCE);
-                PARSER = parser;
-              }
-            }
-          }
-          return parser;
-      }
-      case GET_MEMOIZED_IS_INITIALIZED: {
-        return memoizedIsInitialized;
-      }
-      case SET_MEMOIZED_IS_INITIALIZED: {
-        memoizedIsInitialized = (byte) (arg0 == null ? 0 : 1);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
         return null;
       }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageIdOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
       }
-      throw new UnsupportedOperationException();
-    }
-
-
-    // @@protoc_insertion_point(class_scope:pulsar.proto.ClusterMessageId)
-    private static final org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId DEFAULT_INSTANCE;
-    static {
-      // New instances are implicitly immutable so no need to make
-      // immutable.
-      DEFAULT_INSTANCE = new ClusterMessageId();
-    }
-
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getDefaultInstance() {
-      return DEFAULT_INSTANCE;
-    }
-
-    private static volatile com.google.protobuf.Parser<ClusterMessageId> PARSER;
-
-    public static com.google.protobuf.Parser<ClusterMessageId> parser() {
-      return DEFAULT_INSTANCE.getParserForType();
-    }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        cluster_ = "";
+        bitField0_ = (bitField0_ & ~0x00000001);
+        messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId build() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId result = org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.cluster_ = cluster_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.messageId_ = messageId_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId.getDefaultInstance()) return this;
+        if (other.hasCluster()) {
+          setCluster(other.getCluster());
+        }
+        if (other.hasMessageId()) {
+          mergeMessageId(other.getMessageId());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasCluster()) {
+          
+          return false;
+        }
+        if (!hasMessageId()) {
+          
+          return false;
+        }
+        if (!getMessageId().isInitialized()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              bitField0_ |= 0x00000001;
+              cluster_ = input.readBytes();
+              break;
+            }
+            case 18: {
+              org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder();
+              if (hasMessageId()) {
+                subBuilder.mergeFrom(getMessageId());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setMessageId(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required string cluster = 1;
+      private java.lang.Object cluster_ = "";
+      public boolean hasCluster() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public String getCluster() {
+        java.lang.Object ref = cluster_;
+        if (!(ref instanceof String)) {
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
+          cluster_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setCluster(String value) {
+        if (value == null) {
+    throw new NullPointerException();
   }
-
-  public interface MessageIdDataOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:pulsar.proto.MessageIdData)
-      com.google.protobuf.MessageLiteOrBuilder {
-
-    /**
-     * <code>required uint64 ledger_id = 1;</code>
-     */
+  bitField0_ |= 0x00000001;
+        cluster_ = value;
+        
+        return this;
+      }
+      public Builder clearCluster() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        cluster_ = getDefaultInstance().getCluster();
+        
+        return this;
+      }
+      void setCluster(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
+        bitField0_ |= 0x00000001;
+        cluster_ = value;
+        
+      }
+      
+      // required .pulsar.proto.MessageIdData message_id = 2;
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+      public boolean hasMessageId() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId() {
+        return messageId_;
+      }
+      public Builder setMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        messageId_ = value;
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder setMessageId(
+          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
+        messageId_ = builderForValue.build();
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder mergeMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
+        if (((bitField0_ & 0x00000002) == 0x00000002) &&
+            messageId_ != org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance()) {
+          messageId_ =
+            org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder(messageId_).mergeFrom(value).buildPartial();
+        } else {
+          messageId_ = value;
+        }
+        
+        bitField0_ |= 0x00000002;
+        return this;
+      }
+      public Builder clearMessageId() {
+        messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.ClusterMessageId)
+    }
+    
+    static {
+      defaultInstance = new ClusterMessageId(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.ClusterMessageId)
+  }
+  
+  public interface MessageIdDataOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required uint64 ledger_id = 1;
     boolean hasLedgerId();
-    /**
-     * <code>required uint64 ledger_id = 1;</code>
-     */
     long getLedgerId();
-
-    /**
-     * <code>required uint64 entry_id = 2;</code>
-     */
+    
+    // required uint64 entry_id = 2;
     boolean hasEntryId();
-    /**
-     * <code>required uint64 entry_id = 2;</code>
-     */
     long getEntryId();
   }
-  /**
-   * Protobuf type {@code pulsar.proto.MessageIdData}
-   */
-  public  static final class MessageIdData extends
-      com.google.protobuf.GeneratedMessageLite<
-          MessageIdData, MessageIdData.Builder> implements
-      // @@protoc_insertion_point(message_implements:pulsar.proto.MessageIdData)
-      MessageIdDataOrBuilder {
-    private MessageIdData() {
+  public static final class MessageIdData extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements MessageIdDataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use MessageIdData.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private MessageIdData(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
     }
+    
+     private static final io.netty.util.Recycler<MessageIdData> RECYCLER = new io.netty.util.Recycler<MessageIdData>() {
+            protected MessageIdData newObject(Handle handle) {
+              return new MessageIdData(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private MessageIdData(boolean noInit) {}
+    
+    private static final MessageIdData defaultInstance;
+    public static MessageIdData getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public MessageIdData getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
     private int bitField0_;
+    // required uint64 ledger_id = 1;
     public static final int LEDGER_ID_FIELD_NUMBER = 1;
     private long ledgerId_;
-    /**
-     * <code>required uint64 ledger_id = 1;</code>
-     */
-    @java.lang.Override
     public boolean hasLedgerId() {
-      return ((bitField0_ & 0x00000001) != 0);
+      return ((bitField0_ & 0x00000001) == 0x00000001);
     }
-    /**
-     * <code>required uint64 ledger_id = 1;</code>
-     */
-    @java.lang.Override
     public long getLedgerId() {
       return ledgerId_;
     }
-    /**
-     * <code>required uint64 ledger_id = 1;</code>
-     */
-    private void setLedgerId(long value) {
-      bitField0_ |= 0x00000001;
-      ledgerId_ = value;
-    }
-    /**
-     * <code>required uint64 ledger_id = 1;</code>
-     */
-    private void clearLedgerId() {
-      bitField0_ = (bitField0_ & ~0x00000001);
-      ledgerId_ = 0L;
-    }
-
+    
+    // required uint64 entry_id = 2;
     public static final int ENTRY_ID_FIELD_NUMBER = 2;
     private long entryId_;
-    /**
-     * <code>required uint64 entry_id = 2;</code>
-     */
-    @java.lang.Override
     public boolean hasEntryId() {
-      return ((bitField0_ & 0x00000002) != 0);
+      return ((bitField0_ & 0x00000002) == 0x00000002);
     }
-    /**
-     * <code>required uint64 entry_id = 2;</code>
-     */
-    @java.lang.Override
     public long getEntryId() {
       return entryId_;
     }
-    /**
-     * <code>required uint64 entry_id = 2;</code>
-     */
-    private void setEntryId(long value) {
-      bitField0_ |= 0x00000002;
-      entryId_ = value;
-    }
-    /**
-     * <code>required uint64 entry_id = 2;</code>
-     */
-    private void clearEntryId() {
-      bitField0_ = (bitField0_ & ~0x00000002);
+    
+    private void initFields() {
+      ledgerId_ = 0L;
       entryId_ = 0L;
     }
-
-    @java.lang.Override
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasLedgerId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasEntryId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
-      if (((bitField0_ & 0x00000001) != 0)) {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
         output.writeUInt64(1, ledgerId_);
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeUInt64(2, entryId_);
       }
-      unknownFields.writeTo(output);
     }
-
-    @java.lang.Override
+    
+    private int memoizedSerializedSize = -1;
     public int getSerializedSize() {
       int size = memoizedSerializedSize;
       if (size != -1) return size;
-
+    
       size = 0;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, ledgerId_);
       }
-      if (((bitField0_ & 0x00000002) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, entryId_);
       }
-      size += unknownFields.getSerializedSize();
       memoizedSerializedSize = size;
       return size;
     }
-
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
-        java.nio.ByteBuffer data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
-        java.nio.ByteBuffer data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
+      return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-
-    public static Builder newBuilder() {
-      return (Builder) DEFAULT_INSTANCE.createBuilder();
-    }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData prototype) {
-      return (Builder) DEFAULT_INSTANCE.createBuilder(prototype);
-    }
-
-    /**
-     * Protobuf type {@code pulsar.proto.MessageIdData}
-     */
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData, Builder> implements
-        // @@protoc_insertion_point(builder_implements:pulsar.proto.MessageIdData)
-        org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdDataOrBuilder {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder()
-      private Builder() {
-        super(DEFAULT_INSTANCE);
-      }
-
-
-      /**
-       * <code>required uint64 ledger_id = 1;</code>
-       */
-      @java.lang.Override
-      public boolean hasLedgerId() {
-        return instance.hasLedgerId();
-      }
-      /**
-       * <code>required uint64 ledger_id = 1;</code>
-       */
-      @java.lang.Override
-      public long getLedgerId() {
-        return instance.getLedgerId();
-      }
-      /**
-       * <code>required uint64 ledger_id = 1;</code>
-       */
-      public Builder setLedgerId(long value) {
-        copyOnWrite();
-        instance.setLedgerId(value);
-        return this;
-      }
-      /**
-       * <code>required uint64 ledger_id = 1;</code>
-       */
-      public Builder clearLedgerId() {
-        copyOnWrite();
-        instance.clearLedgerId();
-        return this;
-      }
-
-      /**
-       * <code>required uint64 entry_id = 2;</code>
-       */
-      @java.lang.Override
-      public boolean hasEntryId() {
-        return instance.hasEntryId();
-      }
-      /**
-       * <code>required uint64 entry_id = 2;</code>
-       */
-      @java.lang.Override
-      public long getEntryId() {
-        return instance.getEntryId();
-      }
-      /**
-       * <code>required uint64 entry_id = 2;</code>
-       */
-      public Builder setEntryId(long value) {
-        copyOnWrite();
-        instance.setEntryId(value);
-        return this;
-      }
-      /**
-       * <code>required uint64 entry_id = 2;</code>
-       */
-      public Builder clearEntryId() {
-        copyOnWrite();
-        instance.clearEntryId();
-        return this;
-      }
-
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageIdData)
-    }
-    private byte memoizedIsInitialized = 2;
-    @java.lang.Override
-    @java.lang.SuppressWarnings({"unchecked", "fallthrough"})
-    protected final java.lang.Object dynamicMethod(
-        com.google.protobuf.GeneratedMessageLite.MethodToInvoke method,
-        java.lang.Object arg0, java.lang.Object arg1) {
-      switch (method) {
-        case NEW_MUTABLE_INSTANCE: {
-          return new org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData();
-        }
-        case NEW_BUILDER: {
-          return new Builder();
-        }
-        case IS_INITIALIZED: {
-          byte isInitialized = memoizedIsInitialized;
-          if (isInitialized == 1) return DEFAULT_INSTANCE;
-          if (isInitialized == 0) return null;
-
-          boolean shouldMemoize = ((Boolean) arg0).booleanValue();
-          if (!hasLedgerId()) {
-            return null;
-          }
-          if (!hasEntryId()) {
-            return null;
-          }
-          return DEFAULT_INSTANCE;
-
-        }
-        case MAKE_IMMUTABLE: {
-          return null;
-        }
-        case VISIT: {
-          Visitor visitor = (Visitor) arg0;
-          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData other = (org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData) arg1;
-          ledgerId_ = visitor.visitLong(
-              hasLedgerId(), ledgerId_,
-              other.hasLedgerId(), other.ledgerId_);
-          entryId_ = visitor.visitLong(
-              hasEntryId(), entryId_,
-              other.hasEntryId(), other.entryId_);
-          if (visitor == com.google.protobuf.GeneratedMessageLite.MergeFromVisitor
-              .INSTANCE) {
-            bitField0_ |= other.bitField0_;
-          }
-          return this;
-        }
-        case MERGE_FROM_STREAM: {
-          com.google.protobuf.CodedInputStream input =
-              (com.google.protobuf.CodedInputStream) arg0;
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry =
-              (com.google.protobuf.ExtensionRegistryLite) arg1;
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 8: {
-                  bitField0_ |= 0x00000001;
-                  ledgerId_ = input.readUInt64();
-                  break;
-                }
-                case 16: {
-                  bitField0_ |= 0x00000002;
-                  entryId_ = input.readUInt64();
-                  break;
-                }
-                default: {
-                  if (!parseUnknownField(tag, input)) {
-                    done = true;
-                  }
-                  break;
-                }
-              }
-            }
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw new RuntimeException(e.setUnfinishedMessage(this));
-          } catch (java.io.IOException e) {
-            throw new RuntimeException(
-                new com.google.protobuf.InvalidProtocolBufferException(
-                    e.getMessage()).setUnfinishedMessage(this));
-          } finally {
-          }
-        }
-        // fall through
-        case GET_DEFAULT_INSTANCE: {
-          return DEFAULT_INSTANCE;
-        }
-        case GET_PARSER: {
-          com.google.protobuf.Parser<org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData> parser = PARSER;
-          if (parser == null) {
-            synchronized (org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.class) {
-              parser = PARSER;
-              if (parser == null) {
-                parser = new DefaultInstanceBasedParser(DEFAULT_INSTANCE);
-                PARSER = parser;
-              }
-            }
-          }
-          return parser;
-      }
-      case GET_MEMOIZED_IS_INITIALIZED: {
-        return memoizedIsInitialized;
-      }
-      case SET_MEMOIZED_IS_INITIALIZED: {
-        memoizedIsInitialized = (byte) (arg0 == null ? 0 : 1);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
         return null;
       }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdDataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
       }
-      throw new UnsupportedOperationException();
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        ledgerId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        entryId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData build() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData result = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.ledgerId_ = ledgerId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.entryId_ = entryId_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance()) return this;
+        if (other.hasLedgerId()) {
+          setLedgerId(other.getLedgerId());
+        }
+        if (other.hasEntryId()) {
+          setEntryId(other.getEntryId());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasLedgerId()) {
+          
+          return false;
+        }
+        if (!hasEntryId()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              ledgerId_ = input.readUInt64();
+              break;
+            }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              entryId_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required uint64 ledger_id = 1;
+      private long ledgerId_ ;
+      public boolean hasLedgerId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public long getLedgerId() {
+        return ledgerId_;
+      }
+      public Builder setLedgerId(long value) {
+        bitField0_ |= 0x00000001;
+        ledgerId_ = value;
+        
+        return this;
+      }
+      public Builder clearLedgerId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        ledgerId_ = 0L;
+        
+        return this;
+      }
+      
+      // required uint64 entry_id = 2;
+      private long entryId_ ;
+      public boolean hasEntryId() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public long getEntryId() {
+        return entryId_;
+      }
+      public Builder setEntryId(long value) {
+        bitField0_ |= 0x00000002;
+        entryId_ = value;
+        
+        return this;
+      }
+      public Builder clearEntryId() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        entryId_ = 0L;
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.MessageIdData)
     }
-
-
-    // @@protoc_insertion_point(class_scope:pulsar.proto.MessageIdData)
-    private static final org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData DEFAULT_INSTANCE;
+    
     static {
-      // New instances are implicitly immutable so no need to make
-      // immutable.
-      DEFAULT_INSTANCE = new MessageIdData();
+      defaultInstance = new MessageIdData(true);
+      defaultInstance.initFields();
     }
-
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getDefaultInstance() {
-      return DEFAULT_INSTANCE;
-    }
-
-    private static volatile com.google.protobuf.Parser<MessageIdData> PARSER;
-
-    public static com.google.protobuf.Parser<MessageIdData> parser() {
-      return DEFAULT_INSTANCE.getParserForType();
-    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.MessageIdData)
   }
-
-  public interface TxnCommitMarkerOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:pulsar.proto.TxnCommitMarker)
-      com.google.protobuf.MessageLiteOrBuilder {
-
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-     */
+  
+  public interface TxnCommitMarkerOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required .pulsar.proto.MessageIdData message_id = 1;
     boolean hasMessageId();
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-     */
     org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId();
   }
-  /**
-   * <pre>
-   *&#47; --- Transaction marker ---
-   * </pre>
-   *
-   * Protobuf type {@code pulsar.proto.TxnCommitMarker}
-   */
-  public  static final class TxnCommitMarker extends
-      com.google.protobuf.GeneratedMessageLite<
-          TxnCommitMarker, TxnCommitMarker.Builder> implements
-      // @@protoc_insertion_point(message_implements:pulsar.proto.TxnCommitMarker)
-      TxnCommitMarkerOrBuilder {
-    private TxnCommitMarker() {
+  public static final class TxnCommitMarker extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements TxnCommitMarkerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use TxnCommitMarker.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private TxnCommitMarker(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
     }
+    
+     private static final io.netty.util.Recycler<TxnCommitMarker> RECYCLER = new io.netty.util.Recycler<TxnCommitMarker>() {
+            protected TxnCommitMarker newObject(Handle handle) {
+              return new TxnCommitMarker(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private TxnCommitMarker(boolean noInit) {}
+    
+    private static final TxnCommitMarker defaultInstance;
+    public static TxnCommitMarker getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public TxnCommitMarker getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
     private int bitField0_;
+    // required .pulsar.proto.MessageIdData message_id = 1;
     public static final int MESSAGE_ID_FIELD_NUMBER = 1;
     private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData messageId_;
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-     */
-    @java.lang.Override
     public boolean hasMessageId() {
-      return ((bitField0_ & 0x00000001) != 0);
+      return ((bitField0_ & 0x00000001) == 0x00000001);
     }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-     */
-    @java.lang.Override
     public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId() {
-      return messageId_ == null ? org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance() : messageId_;
+      return messageId_;
     }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-     */
-    private void setMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-      if (value == null) {
-        throw new NullPointerException();
-      }
-      messageId_ = value;
-      bitField0_ |= 0x00000001;
-      }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-     */
-    private void setMessageId(
-        org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
-      messageId_ = builderForValue.build();
-      bitField0_ |= 0x00000001;
+    
+    private void initFields() {
+      messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
     }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-     */
-    @java.lang.SuppressWarnings({"ReferenceEquality"})
-    private void mergeMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-      if (value == null) {
-        throw new NullPointerException();
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasMessageId()) {
+        memoizedIsInitialized = 0;
+        return false;
       }
-      if (messageId_ != null &&
-          messageId_ != org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance()) {
-        messageId_ =
-          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder(messageId_).mergeFrom(value).buildPartial();
-      } else {
-        messageId_ = value;
+      if (!getMessageId().isInitialized()) {
+        memoizedIsInitialized = 0;
+        return false;
       }
-      bitField0_ |= 0x00000001;
+      memoizedIsInitialized = 1;
+      return true;
     }
-    /**
-     * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-     */
-    private void clearMessageId() {  messageId_ = null;
-      bitField0_ = (bitField0_ & ~0x00000001);
-    }
-
-    @java.lang.Override
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
-      if (((bitField0_ & 0x00000001) != 0)) {
-        output.writeMessage(1, getMessageId());
-      }
-      unknownFields.writeTo(output);
+        throw new RuntimeException("Cannot use CodedOutputStream");
     }
-
-    @java.lang.Override
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeMessage(1, messageId_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
     public int getSerializedSize() {
       int size = memoizedSerializedSize;
       if (size != -1) return size;
-
+    
       size = 0;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(1, getMessageId());
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(1, messageId_);
       }
-      size += unknownFields.getSerializedSize();
       memoizedSerializedSize = size;
       return size;
     }
-
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
-        java.nio.ByteBuffer data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
-        java.nio.ByteBuffer data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data);
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, data, extensionRegistry);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
+      return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
     }
     public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      return parseDelimitedFrom(DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input);
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageLite.parseFrom(
-          DEFAULT_INSTANCE, input, extensionRegistry);
-    }
-
-    public static Builder newBuilder() {
-      return (Builder) DEFAULT_INSTANCE.createBuilder();
-    }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker prototype) {
-      return (Builder) DEFAULT_INSTANCE.createBuilder(prototype);
-    }
-
-    /**
-     * <pre>
-     *&#47; --- Transaction marker ---
-     * </pre>
-     *
-     * Protobuf type {@code pulsar.proto.TxnCommitMarker}
-     */
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker, Builder> implements
-        // @@protoc_insertion_point(builder_implements:pulsar.proto.TxnCommitMarker)
-        org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarkerOrBuilder {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker.newBuilder()
-      private Builder() {
-        super(DEFAULT_INSTANCE);
-      }
-
-
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-       */
-      @java.lang.Override
-      public boolean hasMessageId() {
-        return instance.hasMessageId();
-      }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-       */
-      @java.lang.Override
-      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId() {
-        return instance.getMessageId();
-      }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-       */
-      public Builder setMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-        copyOnWrite();
-        instance.setMessageId(value);
-        return this;
-        }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-       */
-      public Builder setMessageId(
-          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
-        copyOnWrite();
-        instance.setMessageId(builderForValue);
-        return this;
-      }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-       */
-      public Builder mergeMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
-        copyOnWrite();
-        instance.mergeMessageId(value);
-        return this;
-      }
-      /**
-       * <code>required .pulsar.proto.MessageIdData message_id = 1;</code>
-       */
-      public Builder clearMessageId() {  copyOnWrite();
-        instance.clearMessageId();
-        return this;
-      }
-
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.TxnCommitMarker)
-    }
-    private byte memoizedIsInitialized = 2;
-    @java.lang.Override
-    @java.lang.SuppressWarnings({"unchecked", "fallthrough"})
-    protected final java.lang.Object dynamicMethod(
-        com.google.protobuf.GeneratedMessageLite.MethodToInvoke method,
-        java.lang.Object arg0, java.lang.Object arg1) {
-      switch (method) {
-        case NEW_MUTABLE_INSTANCE: {
-          return new org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker();
-        }
-        case NEW_BUILDER: {
-          return new Builder();
-        }
-        case IS_INITIALIZED: {
-          byte isInitialized = memoizedIsInitialized;
-          if (isInitialized == 1) return DEFAULT_INSTANCE;
-          if (isInitialized == 0) return null;
-
-          boolean shouldMemoize = ((Boolean) arg0).booleanValue();
-          if (!hasMessageId()) {
-            return null;
-          }
-          if (!getMessageId().isInitialized()) {
-            return null;
-          }
-          return DEFAULT_INSTANCE;
-
-        }
-        case MAKE_IMMUTABLE: {
-          return null;
-        }
-        case VISIT: {
-          Visitor visitor = (Visitor) arg0;
-          org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker other = (org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker) arg1;
-          messageId_ = visitor.visitMessage(messageId_, other.messageId_);
-          if (visitor == com.google.protobuf.GeneratedMessageLite.MergeFromVisitor
-              .INSTANCE) {
-            bitField0_ |= other.bitField0_;
-          }
-          return this;
-        }
-        case MERGE_FROM_STREAM: {
-          com.google.protobuf.CodedInputStream input =
-              (com.google.protobuf.CodedInputStream) arg0;
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry =
-              (com.google.protobuf.ExtensionRegistryLite) arg1;
-          if (extensionRegistry == null) {
-            throw new java.lang.NullPointerException();
-          }
-          try {
-            boolean done = false;
-            while (!done) {
-              int tag = input.readTag();
-              switch (tag) {
-                case 0:
-                  done = true;
-                  break;
-                case 10: {
-                  org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder subBuilder = null;
-                  if (((bitField0_ & 0x00000001) != 0)) {
-                    subBuilder = messageId_.toBuilder();
-                  }
-                  messageId_ = input.readMessage(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.parser(), extensionRegistry);
-                  if (subBuilder != null) {
-                    subBuilder.mergeFrom(messageId_);
-                    messageId_ = subBuilder.buildPartial();
-                  }
-                  bitField0_ |= 0x00000001;
-                  break;
-                }
-                default: {
-                  if (!parseUnknownField(tag, input)) {
-                    done = true;
-                  }
-                  break;
-                }
-              }
-            }
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            throw new RuntimeException(e.setUnfinishedMessage(this));
-          } catch (java.io.IOException e) {
-            throw new RuntimeException(
-                new com.google.protobuf.InvalidProtocolBufferException(
-                    e.getMessage()).setUnfinishedMessage(this));
-          } finally {
-          }
-        }
-        // fall through
-        case GET_DEFAULT_INSTANCE: {
-          return DEFAULT_INSTANCE;
-        }
-        case GET_PARSER: {
-          com.google.protobuf.Parser<org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker> parser = PARSER;
-          if (parser == null) {
-            synchronized (org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker.class) {
-              parser = PARSER;
-              if (parser == null) {
-                parser = new DefaultInstanceBasedParser(DEFAULT_INSTANCE);
-                PARSER = parser;
-              }
-            }
-          }
-          return parser;
-      }
-      case GET_MEMOIZED_IS_INITIALIZED: {
-        return memoizedIsInitialized;
-      }
-      case SET_MEMOIZED_IS_INITIALIZED: {
-        memoizedIsInitialized = (byte) (arg0 == null ? 0 : 1);
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
         return null;
       }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarkerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
       }
-      throw new UnsupportedOperationException();
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker build() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker result = org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.messageId_ = messageId_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker.getDefaultInstance()) return this;
+        if (other.hasMessageId()) {
+          mergeMessageId(other.getMessageId());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasMessageId()) {
+          
+          return false;
+        }
+        if (!getMessageId().isInitialized()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 10: {
+              org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder();
+              if (hasMessageId()) {
+                subBuilder.mergeFrom(getMessageId());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setMessageId(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required .pulsar.proto.MessageIdData message_id = 1;
+      private org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+      public boolean hasMessageId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData getMessageId() {
+        return messageId_;
+      }
+      public Builder setMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        messageId_ = value;
+        
+        bitField0_ |= 0x00000001;
+        return this;
+      }
+      public Builder setMessageId(
+          org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.Builder builderForValue) {
+        messageId_ = builderForValue.build();
+        
+        bitField0_ |= 0x00000001;
+        return this;
+      }
+      public Builder mergeMessageId(org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData value) {
+        if (((bitField0_ & 0x00000001) == 0x00000001) &&
+            messageId_ != org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance()) {
+          messageId_ =
+            org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.newBuilder(messageId_).mergeFrom(value).buildPartial();
+        } else {
+          messageId_ = value;
+        }
+        
+        bitField0_ |= 0x00000001;
+        return this;
+      }
+      public Builder clearMessageId() {
+        messageId_ = org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x00000001);
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.TxnCommitMarker)
     }
-
-
-    // @@protoc_insertion_point(class_scope:pulsar.proto.TxnCommitMarker)
-    private static final org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker DEFAULT_INSTANCE;
+    
     static {
-      // New instances are implicitly immutable so no need to make
-      // immutable.
-      DEFAULT_INSTANCE = new TxnCommitMarker();
+      defaultInstance = new TxnCommitMarker(true);
+      defaultInstance.initFields();
     }
-
-    public static org.apache.pulsar.common.api.proto.PulsarMarkers.TxnCommitMarker getDefaultInstance() {
-      return DEFAULT_INSTANCE;
-    }
-
-    private static volatile com.google.protobuf.Parser<TxnCommitMarker> PARSER;
-
-    public static com.google.protobuf.Parser<TxnCommitMarker> parser() {
-      return DEFAULT_INSTANCE.getParserForType();
-    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.TxnCommitMarker)
   }
-
-
+  
+  
   static {
   }
-
+  
   // @@protoc_insertion_point(outer_class_scope)
 }

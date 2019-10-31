@@ -59,6 +59,8 @@ public interface TransactionMetadataStore {
      */
     CompletableFuture<TxnID> newTransaction();
 
+    CompletableFuture<TxnID> newTransaction(long timeOut);
+
     /**
      * Add the produced partitions to transaction identified by <tt>txnid</tt>.
      *

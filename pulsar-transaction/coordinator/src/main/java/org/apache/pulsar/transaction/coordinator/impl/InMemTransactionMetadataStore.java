@@ -23,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
@@ -57,6 +59,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
             getFuture.complete(txn);
         }
         return getFuture;
+    }
+
+    @Override
+    public CompletableFuture<TxnID> newTransaction(long timeOut) {
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     @Override

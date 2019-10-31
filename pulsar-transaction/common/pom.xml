@@ -47,12 +47,12 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-client</artifactId>
-            <version>${project.version}</version>
+            <artifactId>pulsar-common</artifactId>
+            <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-common</artifactId>
+            <artifactId>pulsar-broker</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
 

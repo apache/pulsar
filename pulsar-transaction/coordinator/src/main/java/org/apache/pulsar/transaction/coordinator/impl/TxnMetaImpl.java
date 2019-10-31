@@ -24,12 +24,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
+
 import org.apache.pulsar.transaction.util.TransactionUtil;
 
 /**
@@ -41,13 +42,12 @@ class TxnMetaImpl implements TxnMeta {
     private final TxnID txnID;
     private final Set<String> producedPartitions = new HashSet<>();
     private final Set<String> ackedPartitions = new HashSet<>();
+    private final Set<TxnSubscription> subscriptions = new HashSet<>();
     private TxnStatus txnStatus;
-    private final TransactionMetadataEntry transactionMetadataEntry;
 
     TxnMetaImpl(TxnID txnID) {
         this.txnID = txnID;
         this.txnStatus = TxnStatus.OPEN;
-        TransactionMetadataEntry.newBuilder().
     }
 
     @Override
@@ -74,6 +74,16 @@ class TxnMetaImpl implements TxnMeta {
         }
         Collections.sort(returnedPartitions);
         return returnedPartitions;
+    }
+
+    @Override
+    public List<TxnSubscription> txnSubscription() {
+        List<TxnSubscription> returnedSubscriptions;
+        synchronized (this) {
+            returnedSubscriptions = new ArrayList<>(subscriptions.size());
+            returnedSubscriptions.addAll(subscriptions);
+        }
+        return returnedSubscriptions;
     }
 
     @Override
@@ -115,6 +125,14 @@ class TxnMetaImpl implements TxnMeta {
         return this;
     }
 
+    @Override
+    public TxnMeta addTxnSubscription(List<TxnSubscription> subscriptions) throws InvalidTxnStatusException {
+        checkTxnStatus(TxnStatus.OPEN);
+
+        this.subscriptions.addAll(subscriptions);
+        return this;
+    }
+
     /**
      * Remove the list partitions that the transaction acknowledges to.
      *
@@ -151,5 +169,7 @@ class TxnMetaImpl implements TxnMeta {
         this.txnStatus = newStatus;
         return this;
     }
+
+
 
 }

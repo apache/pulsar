@@ -25,14 +25,11 @@ import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
-
 /**
  * An interface represents the metadata of a transaction in {@link TransactionMetadataStore}.
  */
 @Beta
 public interface TxnMeta {
-
-
 
     /**
      * Return the transaction id.
@@ -57,6 +54,14 @@ public interface TxnMeta {
     List<String> producedPartitions();
 
     /**
+     * Return the the list of partitions that this transaction produces to.
+     *
+     * @return the list of partitions that this transaction produced to.
+     *         the returned list is sorted by partition name.
+     */
+    List<TxnSubscription> txnSubscription();
+
+    /**
      * Return the the list of partitions that this transaction acknowledges to.
      *
      * @return the list of partitions that this transaction acknowledges to.
@@ -73,6 +78,16 @@ public interface TxnMeta {
      */
     TxnMeta addProducedPartitions(List<String> partitions)
         throws InvalidTxnStatusException;
+
+    /**
+     * Add the list of produced partitions to the transaction.
+     *
+     * @return transaction meta
+     * @throws InvalidTxnStatusException if the transaction is not in
+     *         {@link TxnStatus#OPEN}
+     */
+    TxnMeta addTxnSubscription(List<TxnSubscription> subscriptions)
+            throws InvalidTxnStatusException;
 
     /**
      * Add the list of acked partitions to the transaction.
@@ -96,5 +111,4 @@ public interface TxnMeta {
      */
     TxnMeta updateTxnStatus(TxnStatus newStatus,
                             TxnStatus expectedStatus) throws InvalidTxnStatusException;
-
 }
