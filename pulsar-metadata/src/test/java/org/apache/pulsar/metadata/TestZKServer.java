@@ -46,10 +46,14 @@ public class TestZKServer implements AutoCloseable {
     public TestZKServer() throws Exception {
         this.zkDataDir = Files.newTemporaryFolder();
         this.zkDataDir.deleteOnExit();
+        // Allow all commands on ZK control port
+        System.setProperty("zookeeper.4lw.commands.whitelist", "*");
+        // disable the admin server as to not have any port conflicts
+        System.setProperty("zookeeper.admin.enableServer", "false");
         this.zks = new ZooKeeperServer(zkDataDir, zkDataDir, ZooKeeperServer.DEFAULT_TICK_TIME);
         this.serverFactory = new NIOServerCnxnFactory();
         this.serverFactory.configure(new InetSocketAddress(0), 1000);
-        this.serverFactory.startup(zks);
+        this.serverFactory.startup(zks, true);
 
         log.info("Started test ZK server on port {}", getPort());
 
