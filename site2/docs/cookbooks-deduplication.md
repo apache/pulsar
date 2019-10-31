@@ -14,8 +14,8 @@ To use message deduplication in Pulsar, you have to [configure](#configure-messa
 
 You can enable or disable message deduplication on a per-namespace basis. By default, it is *disabled* on all namespaces. You can enable it in the following ways:
 
-* Using the `pulsar-admin namespaces` interface
-* As a broker-level [default](#default) for all namespaces
+* Enable for all namespaces at the broker-level
+* Enable for specific namespaces with the `pulsar-admin namespaces` interface
 
 ## Configure message deduplication
 
@@ -32,11 +32,11 @@ Parameter | Description | Default
 
 By default, message deduplication is *disabled* on all Pulsar namespaces. To enable it by default on all namespaces, set the `brokerDeduplicationEnabled` parameter to `true` and re-start the broker.
 
-Even if you set the value of `brokerDeduplicationEnabled`, enabling or disabling via the CLI will override the broker-level default.
+Even if you set the value for `brokerDeduplicationEnabled`, enabling or disabling via Pulsar admin CLI will override the default settings at the broker-level.
 
 ### Enable message deduplication
 
-Though message deduplication is disabled by default at broker-level, you can enable message deduplication on specific namespaces using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. The following is an example with <tenant>/<namespace>:
+Though message deduplication is disabled by default at broker-level, you can enable message deduplication for specific namespaces using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. The following is an example with `<tenant>/<namespace>`:
 
 ```bash
 $ bin/pulsar-admin namespaces set-deduplication \
@@ -46,7 +46,7 @@ $ bin/pulsar-admin namespaces set-deduplication \
 
 ### Disable message deduplication
 
-Even if you enable message deduplication at broker-level, you can disable message deduplication on a specific namespace using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. Use the `--disable`/`-d` flag and specify the namespace. The following is an example with <tenant>/<namespace>:
+Even if you enable message deduplication at broker-level, you can disable message deduplication for a specific namespace using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) command. Use the `--disable`/`-d` flag and specify the namespace. The following is an example with `<tenant>/<namespace>`:
 
 ```bash
 $ bin/pulsar-admin namespaces set-deduplication \
