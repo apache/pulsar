@@ -572,7 +572,11 @@ The [`Context`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/p
 Method | What it provides
 :------|:----------------
 `get_message_id` | The message ID of the message being processed
+`get_message_key` | The key of the message being processed
+`get_message_eventtime` | The eventtime of the message being processed
+`get_message_properties` | The properties hash of the message being processed
 `get_current_message_topic_name` | The topic of the message being currently being processed
+`get_partition_key` | The partition key of the message being processed
 `get_function_tenant` | The tenant under which the current Pulsar Function runs under
 `get_function_namespace` | The namespace under which the current Pulsar Function runs under
 `get_function_name` | The name of the current Pulsar Function
@@ -584,8 +588,14 @@ Method | What it provides
 `get_user_config_map` | Returns the entire user-defined config as a dict
 `record_metric` | Records a per-key [metric](#python-metrics)
 `publish` | Publishes a message to the specified Pulsar topic
+`get_output_topic` | The name of the output topic
 `get_output_serde_class_name` | The name of the output [SerDe](#python-serde) class
 `ack` | [Acks](reference-terminology.md#acknowledgment-ack) the message being processed to Pulsar
+`incr_counter` | Increment counter by N in BookKeeper table service
+`get_counter` | Get counter value
+`del_counter` | Delete counter
+`put_state` | Put value into BookKeeper table service
+`get_state` | Get value from BookKeeper table service
 
 ### Python SerDe
 
