@@ -108,7 +108,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     @VisibleForTesting
-    FunctionRuntimeInfos functionRuntimeInfos = new FunctionRuntimeInfos();
+    final FunctionRuntimeInfos functionRuntimeInfos = new FunctionRuntimeInfos();
 
     @VisibleForTesting
     @Getter
