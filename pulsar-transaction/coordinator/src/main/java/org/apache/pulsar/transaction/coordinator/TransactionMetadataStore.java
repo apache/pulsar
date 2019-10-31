@@ -59,6 +59,14 @@ public interface TransactionMetadataStore {
      */
     CompletableFuture<TxnID> newTransaction();
 
+    /**
+     * Create a new transaction in the transaction metadata store.
+     *
+     * @param timeOut the timeout time
+     * @return a future represents the result of creating a new transaction.
+     *         it returns {@link TxnID} as the identifier for identifying the
+     *         transaction.
+     */
     CompletableFuture<TxnID> newTransaction(long timeOut);
 
     /**

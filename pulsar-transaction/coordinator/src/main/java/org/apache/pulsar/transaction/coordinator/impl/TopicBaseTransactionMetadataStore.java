@@ -44,7 +44,8 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
     private final TopicBaseTransactionReader reader;
     private final TopicBaseTransactionWriter writer;
 
-    TopicBaseTransactionMetadataStore(TransactionCoordinatorID tcID, ManagedLedgerFactory managedLedgerFactory) throws Exception{
+    TopicBaseTransactionMetadataStore(TransactionCoordinatorID tcID,
+                                      ManagedLedgerFactory managedLedgerFactory) throws Exception {
         this.tcID = tcID;
         this.reader = new TopicBaseTransactionReaderImpl(tcID.toString(), managedLedgerFactory);
         this.sequenceId = new AtomicLong(reader.readSequenceId());
@@ -165,20 +166,36 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
         TxnMeta getTxnMeta(TxnID txnid);
 
         /**
-         * Query the sequenceId for new {@link TxnID}
+         * Get the last sequenceId for new {@link TxnID}
          *
-         * @return {@link Long} for generate sequenceId
+         * @return {@link Long} for lst sequenceId
          */
         Long readSequenceId();
 
+        /**
+         * Add the new {@link TxnMeta} to the cache
+         *
+         * @return void
+         */
         void addNewTxn(TxnMeta txnMeta);
 
+        /**
+         * Get the transaction status from the {@link TxnID}
+         *
+         * @return the {@link TxnID} corresponding transaction status
+         */
         TxnStatus getTxnStatus(TxnID txnID);
 
     }
 
     public interface TopicBaseTransactionWriter {
 
+        /**
+         * Write the transaction operation to the transaction log
+         *
+         * @param transactionMetadataEntry transaction metadata entry
+         * @return a future represents the result of this operation
+         */
         CompletableFuture<Void> write(TransactionMetadataEntry transactionMetadataEntry);
     }
 }
