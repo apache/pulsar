@@ -325,7 +325,9 @@ The Apache Software License, Version 2.0
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
- * Guava -- com.google.guava-guava-21.0.jar
+ * Guava
+    - com.google.guava-guava-25.1-jre.jar
+ * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.1.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.0.jar
  * Swagger
     - io.swagger-swagger-annotations-1.5.21.jar
@@ -343,7 +345,7 @@ The Apache Software License, Version 2.0
     - commons-lang-commons-lang-2.6.jar
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.1.jar
-    - org.apache.commons-commons-compress-1.15.jar
+    - org.apache.commons-commons-compress-1.19.jar
     - org.apache.commons-commons-lang3-3.4.jar
  * Netty
     - io.netty-netty-buffer-4.1.43.Final.jar
@@ -411,29 +413,29 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.7.0.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.7.0.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-http-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-io-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-security-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-server-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-util-9.4.12.v20180830.jar
-    - org.eclipse.jetty-jetty-xml-9.4.12.v20180830.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.12.v20180830.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.12.v20180830.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.12.v20180830.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.12.v20180830.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.12.v20180830.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.12.v20180830.jar
+    - org.eclipse.jetty-jetty-client-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-http-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-io-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-security-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-server-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-util-9.4.20.v20190813.jar
+    - org.eclipse.jetty-jetty-xml-9.4.20.v20190813.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.20.v20190813.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.20.v20190813.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.20.v20190813.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.20.v20190813.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.20.v20190813.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.20.v20190813.jar
  * SnakeYaml -- org.yaml-snakeyaml-1.23.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
     - org.apache.httpcomponents-httpcore-4.4.9.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.2.0.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.3.jar
  * OkHttp - com.squareup.okhttp-okhttp-2.5.0.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
@@ -469,8 +471,6 @@ The Apache Software License, Version 2.0
     - org.inferred-freebuilder-1.14.9.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.1.3.jar
-  * Objenesis
-    - org.objenesis-objenesis-2.6.jar
   * Squareup
     - com.squareup.okhttp-logging-interceptor-2.7.5.jar
     - com.squareup.okhttp-okhttp-ws-2.7.5.jar
@@ -518,9 +518,10 @@ MIT License
     - org.slf4j-slf4j-api-1.7.25.jar
     - org.slf4j-jcl-over-slf4j-1.7.25.jar
  * Animal Sniffer Annotations
-    - org.codehaus.mojo-animal-sniffer-annotations-1.17.jar
+    - org.codehaus.mojo-animal-sniffer-annotations-1.14.jar
  * The Checker Framework
-    - org.checkerframework-checker-compat-qual-2.5.2.jar
+ 	- org.checkerframework-checker-compat-qual-2.5.2.jar
+    - org.checkerframework-checker-qual-2.0.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
