@@ -79,7 +79,7 @@
 <p>Pulsar Schema是存储在Pulsar中，相当简单的数据结构体。代表Pulsar topic中存储的消息结构。Schema结构组成如下：</p>
 <ul>
 <li><em>Name</em>：schema名称是schema关联的topic。</li>
-<li><em>Type</em>：schema type代表schema的类型。 预定义好的schema类型可以在<a href="concepts-schema-registry.md#supported-schema-formats">这里</a>找到。 如果是客制化的schema，此处保持空白。</li>
+<li><em>Type</em>：schema type代表schema的类型。 预定义好的schema类型可以在<a href="/docs/zh-CN/2.3.2/concepts-schema-registry#supported-schema-formats">这里</a>找到。 如果是客制化的schema，此处保持空白。</li>
 <li><em>Payload</em>：Shcema的二进制表示。如何翻译它取决于schema的实现。</li>
 <li><em>Properties</em>：用户定义的string/stirng map属性。 应用可以使用这个包裹传递程序指定的逻辑。 可能的属性比如schema 关联的Git hash，环境字符串如<code>dev</code>或者<code>prod</code>等等。</li>
 </ul>

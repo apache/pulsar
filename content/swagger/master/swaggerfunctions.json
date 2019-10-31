@@ -1362,15 +1362,19 @@
         "topicName" : {
           "type" : "string"
         },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
         "redeliveryCount" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "messageId" : {
           "$ref" : "#/definitions/MessageId"
@@ -1379,13 +1383,6 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
         "orderingKey" : {
           "type" : "array",
           "items" : {
@@ -1393,10 +1390,13 @@
             "format" : "byte"
           }
         },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
+        "producerName" : {
+          "type" : "string"
         },
-        "schemaVersion" : {
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "keyBytes" : {
           "type" : "array",
           "items" : {
             "type" : "string",

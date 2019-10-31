@@ -79,7 +79,7 @@
 <p>A Pulsar schema is a fairly simple data structure stored in Pulsar for representing the structure of messages stored in a Pulsar topic. The schema structure consists of:</p>
 <ul>
 <li><em>Name</em>: A schema's name is the topic that the schema is associated to.</li>
-<li><em>Type</em>: A schema type represents the type of the schema. The predefined schema types can be found <a href="concepts-schema-registry.md#supported-schema-formats">here</a>. If it is a customized schema, it is left as an empty string.</li>
+<li><em>Type</em>: A schema type represents the type of the schema. The predefined schema types can be found <a href="/docs/ja/2.2.1/concepts-schema-registry#supported-schema-formats">here</a>. If it is a customized schema, it is left as an empty string.</li>
 <li><em>Payload</em>: It is a binary representation of the schema. How to interpret it is up to the implementation of the schema.</li>
 <li><em>Properties</em>: It is a user defined properties as a string/string map. Applications can use this bag for carrying any application specific logics. Possible properties might be the Git hash associated with the schema, an environment string like <code>dev</code> or <code>prod</code>, etc.</li>
 </ul>
