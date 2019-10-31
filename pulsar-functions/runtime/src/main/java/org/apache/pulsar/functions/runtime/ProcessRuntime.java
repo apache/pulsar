@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.runtime;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
@@ -237,7 +238,7 @@ class ProcessRuntime implements Runtime {
             public void onSuccess(InstanceCommunication.FunctionStatus t) {
                 retval.complete(t);
             }
-        });
+        }, MoreExecutors.directExecutor());
         return retval;
     }
 
@@ -259,7 +260,7 @@ class ProcessRuntime implements Runtime {
             public void onSuccess(InstanceCommunication.MetricsData t) {
                 retval.complete(t);
             }
-        });
+        }, MoreExecutors.directExecutor());
         return retval;
     }
 
@@ -281,7 +282,7 @@ class ProcessRuntime implements Runtime {
             public void onSuccess(Empty t) {
                 retval.complete(null);
             }
-        });
+        }, MoreExecutors.directExecutor());
         return retval;
     }
 
@@ -303,7 +304,7 @@ class ProcessRuntime implements Runtime {
             public void onSuccess(InstanceCommunication.MetricsData t) {
                 retval.complete(t);
             }
-        });
+        }, MoreExecutors.directExecutor());
         return retval;
     }
 
@@ -329,7 +330,7 @@ class ProcessRuntime implements Runtime {
             public void onSuccess(InstanceCommunication.HealthCheckResult t) {
                 retval.complete(t);
             }
-        });
+        }, MoreExecutors.directExecutor());
         return retval;
     }
 
