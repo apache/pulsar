@@ -192,7 +192,8 @@ class AdminProxyHandler extends ProxyServlet {
                         );
                     }
 
-                    SslContextFactory contextFactory = new SslContextFactory();
+
+                    SslContextFactory contextFactory = new SslContextFactory.Client(true);
                     contextFactory.setSslContext(sslCtx);
 
                     return new JettyHttpClient(contextFactory);
