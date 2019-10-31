@@ -30,7 +30,7 @@ import java.util.Optional;
  */
 public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
 
-    void initialize(CoreV1Api coreClient, String kubeNamespace);
+    void initialize(CoreV1Api coreClient, String kubeNamespace, byte[] caBytes);
 
     /**
      * Configure function statefulset spec based on function auth data
