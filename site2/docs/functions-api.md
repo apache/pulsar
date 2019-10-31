@@ -588,6 +588,7 @@ Method | What it provides
 `get_user_config_map` | Returns the entire user-defined config as a dict
 `record_metric` | Records a per-key [metric](#python-metrics)
 `publish` | Publishes a message to the specified Pulsar topic
+`get_input_topics` | The name(s) of the input(topics), as a list
 `get_output_topic` | The name of the output topic
 `get_output_serde_class_name` | The name of the output [SerDe](#python-serde) class
 `ack` | [Acks](reference-terminology.md#acknowledgment-ack) the message being processed to Pulsar
