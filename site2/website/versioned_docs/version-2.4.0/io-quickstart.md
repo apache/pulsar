@@ -383,7 +383,7 @@ Use the MySQL 5.7 docker image to start a single-node MySQL cluster in Docker.
     > `-name` | Assign a name to the container. | This example specifies _pulsar-mysql_ for the container.
     > `-p` | Publish the port of the container to the host. | This example publishes the port _3306_ of the container to the host.
     > `-e` | Set environment variables. | This example sets the following variables:<br>- The password for the root user is _jdbc_. <br>- The name for the normal user is _mysqluser_. <br>- The password for the normal user is _mysqlpw_.
-    > For more information about Docker command, see [here](#https://docs.docker.com/engine/reference/commandline/run/).
+    > For more information about Docker command, see [here](https://docs.docker.com/engine/reference/commandline/run/).
 
 3. Check if MySQL has been started successfully.
 
