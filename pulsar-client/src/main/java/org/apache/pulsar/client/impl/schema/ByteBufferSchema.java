@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
+
 import java.nio.ByteBuffer;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -34,11 +34,16 @@ public class ByteBufferSchema extends AbstractSchema<ByteBuffer> {
         return INSTANCE;
     }
 
-    private static final ByteBufferSchema INSTANCE = new ByteBufferSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("ByteBuffer")
-        .setType(SchemaType.BYTES)
-        .setSchema(new byte[0]);
+    private static final ByteBufferSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("ByteBuffer")
+            .setType(SchemaType.BYTES)
+            .setSchema(new byte[0]);
+        INSTANCE = new ByteBufferSchema();
+    }
 
     @Override
     public byte[] encode(ByteBuffer data) {

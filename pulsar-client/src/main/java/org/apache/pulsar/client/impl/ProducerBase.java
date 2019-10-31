@@ -32,7 +32,9 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 public abstract class ProducerBase<T> extends HandlerState implements Producer<T> {
 
@@ -40,6 +42,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected final ProducerConfigurationData conf;
     protected final Schema<T> schema;
     protected final ProducerInterceptors<T> interceptors;
+    protected final ConcurrentOpenHashMap<SchemaHash, byte[]> schemaCache;
+    protected volatile MultiSchemaMode multiSchemaMode = MultiSchemaMode.Auto;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
             CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors<T> interceptors) {
@@ -48,6 +52,10 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         this.conf = conf;
         this.schema = schema;
         this.interceptors = interceptors;
+        this.schemaCache = new ConcurrentOpenHashMap<>();
+        if (!conf.isMultiSchema()) {
+            multiSchemaMode = MultiSchemaMode.Disabled;
+        }
     }
 
     @Override
@@ -70,6 +78,14 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
 
     @Override
     public TypedMessageBuilder<T> newMessage() {
+        return new TypedMessageBuilderImpl<>(this, schema);
+    }
+
+    // TODO: same parameterized type `T` with producer for the moment,
+    //       it should provide a signature with different parameterized type.
+    //       then expose it to `Producer` interface.
+    public TypedMessageBuilder<T> newMessage(Schema<T> schema) {
+        checkArgument(schema != null);
         return new TypedMessageBuilderImpl<>(this, schema);
     }
 
@@ -158,5 +174,9 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     @Override
     public String toString() {
         return "ProducerBase{" + "topic='" + topic + '\'' + '}';
+    }
+
+    public enum MultiSchemaMode {
+        Auto, Enabled, Disabled
     }
 }

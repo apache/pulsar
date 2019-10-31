@@ -51,4 +51,3 @@ to a RabbitMQ queue.
 | `requestedHeartbeat` | `false` | `60` | The requested heartbeat timeout in seconds. |
 | `exchangeName` | `true` | `null` | The exchange to publish the messages on. |
 | `routingKey` | `true` | `null` | The routing key used for publishing the messages. |
-

@@ -33,11 +33,16 @@ public class ByteBufSchema extends AbstractSchema<ByteBuf> {
         return INSTANCE;
     }
 
-    private static final ByteBufSchema INSTANCE = new ByteBufSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("ByteBuf")
-        .setType(SchemaType.BYTES)
-        .setSchema(new byte[0]);
+    private static final ByteBufSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("ByteBuf")
+            .setType(SchemaType.BYTES)
+            .setSchema(new byte[0]);
+        INSTANCE = new ByteBufSchema();
+    }
 
     @Override
     public byte[] encode(ByteBuf message) {

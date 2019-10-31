@@ -43,16 +43,19 @@ import java.util.function.Supplier;
 
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceExistsException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
+import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
@@ -162,10 +165,6 @@ public class LocalBookkeeperEnsemble {
     StreamStorageLifecycleComponent streamStorage;
     Integer streamStoragePort = 4181;
 
-    /**
-     * @param args
-     */
-
     private void runZookeeper(int maxCC) throws IOException {
         // create a ZooKeeper server(dataDir, dataLogDir, port)
         LOG.info("Starting ZK server");
@@ -267,6 +266,7 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setZkServers("127.0.0.1:" + ZooKeeperDefaultPort);
             bsConfs[i].setJournalDirName(bkDataDir.getPath());
             bsConfs[i].setLedgerDirNames(new String[] { bkDataDir.getPath() });
+            bsConfs[i].setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
             try {
                 bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
@@ -290,7 +290,7 @@ public class LocalBookkeeperEnsemble {
         }
     }
 
-    private void runStreamStorage(CompositeConfiguration conf) throws Exception {
+    public void runStreamStorage(CompositeConfiguration conf) throws Exception {
         String zkServers = "127.0.0.1:" + ZooKeeperDefaultPort;
         String metadataServiceUriStr = "zk://" + zkServers + "/ledgers";
         URI metadataServiceUri = URI.create(metadataServiceUriStr);
@@ -369,6 +369,7 @@ public class LocalBookkeeperEnsemble {
         conf.setNumJournalCallbackThreads(0);
         conf.setServerNumIOThreads(1);
         conf.setNumLongPollWorkerThreads(1);
+        conf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
         runZookeeper(1000);
         initializeZookeper();
@@ -396,6 +397,37 @@ public class LocalBookkeeperEnsemble {
         runBookies(conf);
         if (enableStreamStorage) {
             runStreamStorage(new CompositeConfiguration());
+        }
+    }
+
+    public void stopBK() {
+        LOG.debug("Local ZK/BK stopping ...");
+        for (BookieServer bookie : bs) {
+            bookie.shutdown();
+        }
+    }
+
+    public void startBK() throws Exception {
+        for (int i = 0; i < numberOfBookies; i++) {
+
+            try {
+                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+            } catch (InvalidCookieException e) {
+                // InvalidCookieException can happen if the machine IP has changed
+                // Since we are running here a local bookie that is always accessed
+                // from localhost, we can ignore the error
+                for (String path : zkc.getChildren("/ledgers/cookies", false)) {
+                    zkc.delete("/ledgers/cookies/" + path, -1);
+                }
+
+                // Also clean the on-disk cookie
+                new File(new File(bsConfs[i].getJournalDirNames()[0], "current"), "VERSION").delete();
+
+                // Retry to start the bookie after cleaning the old left cookie
+                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+
+            }
+            bs[i].start();
         }
     }
 

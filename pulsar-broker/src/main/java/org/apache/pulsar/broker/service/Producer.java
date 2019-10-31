@@ -169,7 +169,7 @@ public class Producer {
             }
         }
 
-        startPublishOperation();
+        startPublishOperation((int) batchSize, headersAndPayload.readableBytes());
         topic.publishMessage(headersAndPayload,
                 MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         System.nanoTime()));
@@ -200,10 +200,12 @@ public class Producer {
         }
     }
 
-    private void startPublishOperation() {
+    private void startPublishOperation(int batchSize, long msgSize) {
         // A single thread is incrementing/decrementing this counter, so we can use lazySet which doesn't involve a mem
         // barrier
         pendingPublishAcksUpdater.lazySet(this, pendingPublishAcks + 1);
+        // increment publish-count
+        this.getTopic().incrementPublishCount(batchSize, msgSize);
     }
 
     private void publishOperationCompleted() {
@@ -236,6 +238,10 @@ public class Producer {
         } else {
             return ((PersistentTopic) topic).getLastPublishedSequenceId(producerName);
         }
+    }
+
+    public ServerCnx getCnx() {
+        return this.cnx;
     }
 
     private static final class MessagePublishContext implements PublishContext, Runnable {
@@ -307,7 +313,6 @@ public class Producer {
 
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
-                producer.topic.recordAddLatency(TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTimeNs));
                 producer.cnx.ctx().channel().eventLoop().execute(this);
             }
         }
@@ -324,6 +329,7 @@ public class Producer {
 
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
+            producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             producer.cnx.ctx().writeAndFlush(
                     Commands.newSendReceipt(producer.producerId, sequenceId, ledgerId, entryId),
                     producer.cnx.ctx().voidPromise());
@@ -453,6 +459,7 @@ public class Producer {
             msgDrop.calculateRate();
             ((NonPersistentPublisherStats) stats).msgDropRate = msgDrop.getRate();
         }
+        
     }
 
     public boolean isRemote() {

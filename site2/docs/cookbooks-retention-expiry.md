@@ -4,34 +4,38 @@ title: Message retention and expiry
 sidebar_label: Message retention and expiry
 ---
 
-Pulsar brokers are responsible for handling messages that pass through Pulsar, including [persistent storage](concepts-architecture-overview.md#persistent-storage) of messages. By default, brokers:
+Pulsar brokers are responsible for handling messages that pass through Pulsar, including [persistent storage](concepts-architecture-overview.md#persistent-storage) of messages. By default, for each topic, brokers only retain messages that are in at least one backlog. A backlog is the set of unacknowledged messages for a particular subscription. As a topic can have multiple subscriptions, a topic can have multiple backlogs.
 
-* immediately delete all messages that have been acknowledged on every subscription, and
-* persistently store all unacknowledged messages in a [backlog](#backlog-quotas).
+As a consequence, no messages are retained (by default) on a topic that has not had any subscriptions created for it.
 
-In Pulsar, you can override both of these default behaviors, at the namespace level, in two ways:
+(Note that messages that are no longer being stored are not necessarily immediately deleted, and may in fact still be accessible until the next ledger rollover. Because clients cannot predict when rollovers may happen, it is not wise to rely on a rollover not happening at an inconvenient point in time.)
 
-* You can persistently store messages that have already been consumed and acknowledged for a minimum time by setting [retention policies](#retention-policies).
-* Messages that are not acknowledged within a specified timeframe, can be automatically marked as consumed, by specifying the [time to live](#time-to-live-ttl) (TTL).
+In Pulsar, you can modify this behavior, with namespace granularity, in two ways:
 
-Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL at the namespace level (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
+* You can persistently store messages that are not within a backlog (because they've been acknowledged by on every existing subscription, or because there are no subscriptions) by setting [retention policies](#retention-policies).
+* Messages that are not acknowledged within a specified timeframe can be automatically acknowledged, by specifying the [time to live](#time-to-live-ttl) (TTL).
+
+Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL with namespace granularity (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
 
 
-> #### Retention and TTL are solving two different problems
+> #### Retention and TTL solve two different problems
 > * Message retention: Keep the data for at least X hours (even if acknowledged)
 > * Time-to-live: Discard data after some time (by automatically acknowledging)
 >
-> In most cases, applications will want to use either one or the other (or none). 
+> Most applications will want to use at most one of these.
 
 
 ## Retention policies
 
-By default, when a Pulsar message arrives at a broker it will be stored until it has been acknowledged by a consumer, at which point it will be deleted. You can override this behavior and retain even messages that have already been acknowledged by setting a *retention policy* on all the topics in a given namespace. When you set a retention policy you can set either a *size limit* or a *time limit*.
+By default, when a Pulsar message arrives at a broker it will be stored until it has been acknowledged on all subscriptions, at which point it will be marked for deletion. You can override this behavior and retain even messages that have already been acknowledged on all subscriptions by setting a *retention policy* for all topics in a given namespace. Retention policies are either a *size limit* or a *time limit*.
 
-When you set a size limit of, say, 10 gigabytes, then messages in all topics in the namespace, *even acknowledged messages*, will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then messages for all topics in the namespace will be retained for 24 hours.
+Retention policies are particularly useful if you intend to exclusively use the Reader interface. Because the Reader interface does not use acknowledgements, messages will never exist within backlogs. Most realistic Reader-only use cases require that retention be configured.
 
-It is also possible to set *infinite* retention time or size, by setting `-1` for either time or
-size retention.
+When you set a size limit of, say, 10 gigabytes, then acknowledged messages in all topics in the namespace will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then acknowledged messages for all topics in the namespace will be retained for 24 hours. The retention settings apply to all messages on topics that do not have any subscriptions, or if there are subscriptions, to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions -- these are instead controlled by the backlog quota (see below).
+
+When a retention limit is exceeded, the oldest message is marked for deletion until the set of retained messages falls within the specified limits again.
+
+It is also possible to set *unlimited* retention time or size by setting `-1` for either time or size retention.
 
 ### Defaults
 
@@ -57,7 +61,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time 3h
 ```
 
-To set retention with infinite time and a size limit:
+To set retention with a size limit but without a time limit:
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -65,7 +69,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time -1
 ```
 
-Similarly, even the size can be to unlimited:
+Retention can be configured to be unlimited both in size and time:
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -122,6 +126,8 @@ admin.namespaces().getRetention(namespace);
 
 You can control the allowable size of backlogs, at the namespace level, using *backlog quotas*. Setting a backlog quota involves setting:
 
+TODO: Expand on is this per backlog or per topic?
+
 * an allowable *size threshold* for each topic in the namespace
 * a *retention policy* that determines which action the [broker](reference-terminology.md#broker) takes if the threshold is exceeded.
 
@@ -135,7 +141,7 @@ Policy | Action
 
 
 > #### Beware the distinction between retention policy types
-> As you may have noticed, there are two definitions of the term "retention policy" in Pulsar, one that applies to persistent storage of already-acknowledged messages and one that applies to backlogs.
+> As you may have noticed, there are two definitions of the term "retention policy" in Pulsar, one that applies to persistent storage of messages not in backlogs, and one that applies to messages within backlogs.
 
 
 Backlog quotas are handled at the namespace level. They can be managed via:

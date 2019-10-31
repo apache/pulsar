@@ -27,6 +27,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -759,5 +761,52 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
+    }
+
+    @Test()
+    public void testTopicDeletion() throws Exception {
+        String baseTopicName = "persistent://my-property/my-ns/pattern-topic-" + System.currentTimeMillis();
+        Pattern pattern = Pattern.compile(baseTopicName + ".*");
+
+        // Create 2 topics
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-1")
+                .create();
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-2")
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+            .topicsPattern(pattern)
+            .patternAutoDiscoveryPeriod(1)
+            .subscriptionName("sub")
+            .subscribe();
+
+        assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
+        PatternMultiTopicsConsumerImpl<String> consumerImpl = (PatternMultiTopicsConsumerImpl<String>) consumer;
+
+        // 4. verify consumer get methods
+        assertSame(consumerImpl.getPattern(), pattern);
+        assertEquals(consumerImpl.getTopics().size(), 2);
+
+        producer1.send("msg-1");
+
+        producer1.close();
+
+        Message<String> message = consumer.receive();
+        assertEquals(message.getValue(), "msg-1");
+        consumer.acknowledge(message);
+
+        // Force delete the topic while the regex consumer is connected
+        admin.topics().delete(baseTopicName + "-1", true);
+
+        producer2.send("msg-2");
+
+        message = consumer.receive();
+        assertEquals(message.getValue(), "msg-2");
+        consumer.acknowledge(message);
+
+        assertEquals(pulsar.getBrokerService().getTopicIfExists(baseTopicName + "-1").join(), Optional.empty());
+        assertTrue(pulsar.getBrokerService().getTopicIfExists(baseTopicName + "-2").join().isPresent());
     }
 }

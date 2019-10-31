@@ -52,7 +52,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     @BeforeClass
     public void setupFunctionWorkers() {
-        final int numFunctionWorkers = 3;
+        final int numFunctionWorkers = 2;
         log.info("Setting up {} function workers : function runtime type = {}",
             numFunctionWorkers, functionRuntimeType);
         pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);
@@ -79,6 +79,11 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCEPTION_JAVA_CLASS =
             "org.apache.pulsar.tests.integration.functions.ExceptionFunction";
 
+    public static final String Serde_JAVA_CLASS =
+            "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
+
+    public static final String Serde_OUTPUT_CLASS =
+            "org.apache.pulsar.functions.api.examples.CustomBaseSerde";
 
     public static final String EXCLAMATION_PYTHON_CLASS =
         "exclamation_function.ExclamationFunction";

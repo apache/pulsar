@@ -99,8 +99,8 @@ docker run -d -it --link pulsar-mysql -e canal.auto.scan=false -e canal.destinat
 - Start pulsar standalone
 
 ```$bash
-docker pull apachepulsar/pulsar:2.3.0
-docker run -d -it --link pulsar-canal-server -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:2.3.0 bin/pulsar standalone
+docker pull apachepulsar/pulsar:2.4.1
+docker run -d -it --link pulsar-canal-server -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-standalone apachepulsar/pulsar:2.4.1 bin/pulsar standalone
 ```
 
 - Start pulsar-io in standalone
@@ -144,8 +144,8 @@ docker cp pulsar-client.py pulsar-standalone:/pulsar/
 - Download canal connector and start canal connector
 ```$bash
 docker exec -it pulsar-standalone /bin/bash
-wget http://apache.01link.hk/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors
-./bin/pulsar-admin sources localrun --archive ./connectors/pulsar-io-canal-2.3.0.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1
+wget http://apache.01link.hk/pulsar/pulsar-2.4.1/connectors/pulsar-io-canal-2.4.1.nar -P connectors
+./bin/pulsar-admin sources localrun --archive ./connectors/pulsar-io-canal-2.4.1.nar --classname org.apache.pulsar.io.canal.CanalStringSource --tenant public --namespace default --name canal --destination-topic-name my-topic --source-config-file /pulsar/conf/canal-mysql-source-config.yaml --parallelism 1
 ```
 
 - Consumption data 

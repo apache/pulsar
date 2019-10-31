@@ -32,12 +32,6 @@
   <name>Pulsar Functions :: Utils</name>
 
   <dependencies>
-
-    <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-common</artifactId>

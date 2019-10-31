@@ -54,7 +54,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                           ExecutorService listenerExecutor,
                                           CompletableFuture<Consumer<T>> subscribeFuture,
                                           Schema<T> schema, Mode subscriptionMode, ConsumerInterceptors<T> interceptors) {
-        super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors);
+        super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors,
+                false /* createTopicIfDoesNotExist */);
         this.topicsPattern = topicsPattern;
         this.subscriptionMode = subscriptionMode;
 
@@ -129,7 +130,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
 
             List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(topics.size());
-            removedTopics.stream().forEach(topic -> futures.add(unsubscribeAsync(topic)));
+            removedTopics.stream().forEach(topic -> futures.add(removeConsumerAsync(topic)));
             FutureUtil.waitForAll(futures)
                 .thenAccept(finalFuture -> removeFuture.complete(null))
                 .exceptionally(ex -> {
@@ -150,7 +151,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
 
             List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(topics.size());
-            addedTopics.stream().forEach(topic -> futures.add(subscribeAsync(topic)));
+            addedTopics.stream().forEach(topic -> futures.add(subscribeAsync(topic, false /* createTopicIfDoesNotExist */)));
             FutureUtil.waitForAll(futures)
                 .thenAccept(finalFuture -> addFuture.complete(null))
                 .exceptionally(ex -> {

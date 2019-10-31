@@ -164,7 +164,9 @@ public class KinesisSink extends AbstractKinesisConnector implements Sink<byte[]
         kinesisConfig.setThreadPoolSize(4);
         kinesisConfig.setCollectionMaxCount(1);
         AWSCredentialsProvider credentialsProvider = createCredentialProvider(
-                kinesisSinkConfig.getAwsCredentialPluginName(), kinesisSinkConfig.getAwsCredentialPluginParam());
+                kinesisSinkConfig.getAwsCredentialPluginName(),
+                kinesisSinkConfig.getAwsCredentialPluginParam())
+            .getCredentialProvider();
         kinesisConfig.setCredentialsProvider(credentialsProvider);
 
         this.streamName = kinesisSinkConfig.getAwsKinesisStreamName();
