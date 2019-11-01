@@ -988,6 +988,7 @@ table {
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_namespace">get_function_namespace</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_tenant">get_function_tenant</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_function_version">get_function_version</a></li>
+    <li class="mono"><a href="#pulsar.functions.context.Context.get_input_topics">get_input_topics</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_instance_id">get_instance_id</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_logger">get_logger</a></li>
     <li class="mono"><a href="#pulsar.functions.context.Context.get_message_eventtime">get_message_eventtime</a></li>
@@ -1177,6 +1178,11 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_input_topics(self):
+    """Returns the input topics of function"""
+    pass
+
+  @abstractmethod
   def get_output_topic(self):
     """Returns the output topic of function"""
     pass
@@ -1335,6 +1341,11 @@ class Context(object):
       event_timestamp
 
     """
+    pass
+
+  @abstractmethod
+  def get_input_topics(self):
+    """Returns the input topics of function"""
     pass
 
   @abstractmethod
@@ -1587,6 +1598,29 @@ def get_function_tenant(self):
     <pre><code>@abstractmethod
 def get_function_version(self):
   """Returns the version of function that we are executing"""
+  pass
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.functions.context.Context.get_input_topics">
+    <p>def <span class="ident">get_input_topics</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Returns the input topics of function</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.get_input_topics', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.functions.context.Context.get_input_topics" class="source">
+    <pre><code>@abstractmethod
+def get_input_topics(self):
+  """Returns the input topics of function"""
   pass
 </code></pre>
   </div>

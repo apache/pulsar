@@ -159,16 +159,16 @@ client = Client(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/
 <h3><a class="anchor" aria-hidden="true" id="c-client"></a><a href="#c-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>C++ client</h3>
 <pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
 
-pulsar::ClientConfiguration config;
-config.setUseTls(<span class="hljs-literal">true</span>);
-config.setTlsTrustCertsFilePath(<span class="hljs-string">"/path/to/ca.cert.pem"</span>);
-config.setTlsAllowInsecureConnection(<span class="hljs-literal">false</span>);
+pulsar::ClientConfiguration <span class="hljs-built_in">config</span>;
+<span class="hljs-built_in">config</span>.setUseTls(<span class="hljs-literal">true</span>);
+<span class="hljs-built_in">config</span>.setTlsTrustCertsFilePath(<span class="hljs-string">"/path/to/ca.cert.pem"</span>);
+<span class="hljs-built_in">config</span>.setTlsAllowInsecureConnection(<span class="hljs-literal">false</span>);
 
 pulsar::AuthenticationPtr auth = pulsar::AuthTls::create(<span class="hljs-string">"/path/to/my-role.cert.pem"</span>,
                                                          <span class="hljs-string">"/path/to/my-role.key-pk8.pem"</span>)
-config.setAuth(auth);
+<span class="hljs-built_in">config</span>.setAuth(auth);
 
-pulsar::<span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>, config)</span></span>;
+pulsar::<span class="hljs-function"><span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar+ssl://broker.example.com:6651/"</span>, <span class="hljs-built_in">config</span>)</span></span>;
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/2.3.0/security-tls-transport"><span class="arrow-prev">← </span><span>Transport Encryption using TLS</span></a><a class="docs-next button" href="/docs/en/2.3.0/security-token-client"><span>Next</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#tls-authentication-overview">TLS Authentication Overview</a><ul class="toc-headings"><li><a href="#creating-client-certificates">Creating client certificates</a></li></ul></li><li><a href="#enabling-tls-authentication-">Enabling TLS Authentication ...</a><ul class="toc-headings"><li><a href="#on-brokers">... on Brokers</a></li><li><a href="#on-proxies">... on Proxies</a></li></ul></li><li><a href="#client-configuration">Client configuration</a><ul class="toc-headings"><li><a href="#cli-tools">CLI tools</a></li><li><a href="#java-client">Java client</a></li><li><a href="#python-client">Python client</a></li><li><a href="#c-client">C++ client</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2019 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;

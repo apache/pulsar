@@ -101,11 +101,11 @@ sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabnam
 <p>Here is an example of the krb5.conf file:</p>
 <p>In the configuration file, <code>EXAMPLE.COM</code> is the default realm; <code>kdc = localhost:62037</code> is the kdc server url for realm <code>EXAMPLE.COM</code>:</p>
 <pre><code class="hljs">[libdefaults]
- default_realm = EXAMPLE<span class="hljs-selector-class">.COM</span>
+ <span class="hljs-attr">default_realm</span> = EXAMPLE.COM
 
 [realms]
- EXAMPLE<span class="hljs-selector-class">.COM</span>  = {
-  kdc = localhost:<span class="hljs-number">62037</span>
+ EXAMPLE.<span class="hljs-attr">COM</span>  = {
+  <span class="hljs-attr">kdc</span> = localhost:<span class="hljs-number">62037</span>
  }
 </code></pre>
 <p>Usually machines configured with kerberos already have a system wide configuration and this configuration is optional.</p>
@@ -180,7 +180,7 @@ clientSaslConfig.put(<span class="hljs-string">"saslJaasClientSectionName"</span
 clientSaslConfig.put(<span class="hljs-string">"serverType"</span>, <span class="hljs-string">"broker"</span>);
 
 Authentication saslAuth = AuthenticationFactory
-        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl.class.getName(), authParams);
+        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://my-broker.com:6650"</span>)
@@ -244,7 +244,7 @@ clientSaslConfig.put(<span class="hljs-string">"saslJaasClientSectionName"</span
 clientSaslConfig.put(<span class="hljs-string">"serverType"</span>, <span class="hljs-string">"proxy"</span>);        <span class="hljs-comment">// ** here is the different **</span>
 
 Authentication saslAuth = AuthenticationFactory
-        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl.class.getName(), authParams);
+        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://my-broker.com:6650"</span>)

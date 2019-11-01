@@ -85,7 +85,7 @@ docker <span class="hljs-builtin-name">run</span> -d -it --rm --name pulsar-mysq
 <ul>
 <li>Copy the file to mysql server from local and restart mysql server</li>
 </ul>
-<pre><code class="hljs css language-$bash">docker cp mysqld<span class="hljs-selector-class">.cnf</span> pulsar-mysql:/etc/mysql/mysql<span class="hljs-selector-class">.conf</span><span class="hljs-selector-class">.d</span>/
+<pre><code class="hljs css language-$bash">docker <span class="hljs-keyword">cp</span> mysqld.<span class="hljs-keyword">cnf</span> pulsar-mysq<span class="hljs-variable">l:</span>/etc/mysql/mysql.<span class="hljs-keyword">conf</span>.d/
 docker restart pulsar-mysql
 </code></pre>
 <ul>
@@ -97,8 +97,8 @@ mysql -h 127.0.0.1 -uroot -pcanal -e '<span class="hljs-keyword">create</span> <
 <ul>
 <li>Start canal server and connect mysql server</li>
 </ul>
-<pre><code class="hljs">docker pull canal/canal-server:v1.<span class="hljs-number">1.2</span>
-docker run -d -it --link pulsar-mysql -e canal<span class="hljs-selector-class">.auto</span><span class="hljs-selector-class">.scan</span>=false -e canal.destinations=test -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.master</span><span class="hljs-selector-class">.address</span>=pulsar-mysql:<span class="hljs-number">3306</span> -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.dbUsername</span>=root -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.dbPassword</span>=canal -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.connectionCharset</span>=UTF-<span class="hljs-number">8</span> -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.tsdb</span><span class="hljs-selector-class">.enable</span>=true -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.gtidon</span>=false --name=pulsar-canal-server -<span class="hljs-selector-tag">p</span> <span class="hljs-number">8000</span>:<span class="hljs-number">8000</span> -<span class="hljs-selector-tag">p</span> <span class="hljs-number">2222</span>:<span class="hljs-number">2222</span> -<span class="hljs-selector-tag">p</span> <span class="hljs-number">11111</span>:<span class="hljs-number">11111</span> -<span class="hljs-selector-tag">p</span> <span class="hljs-number">11112</span>:<span class="hljs-number">11112</span> -m <span class="hljs-number">4096</span>m canal/canal-server:v1.<span class="hljs-number">1.2</span>
+<pre><code class="hljs">docker pull canal/canal-server:v1.1.2
+docker <span class="hljs-builtin-name">run</span> -d -it --link pulsar-mysql -e canal.auto.<span class="hljs-attribute">scan</span>=<span class="hljs-literal">false</span> -e canal.<span class="hljs-attribute">destinations</span>=test -e canal.instance.master.<span class="hljs-attribute">address</span>=pulsar-mysql:3306 -e canal.instance.<span class="hljs-attribute">dbUsername</span>=root -e canal.instance.<span class="hljs-attribute">dbPassword</span>=canal -e canal.instance.<span class="hljs-attribute">connectionCharset</span>=UTF-8 -e canal.instance.tsdb.<span class="hljs-attribute">enable</span>=<span class="hljs-literal">true</span> -e canal.instance.<span class="hljs-attribute">gtidon</span>=<span class="hljs-literal">false</span> <span class="hljs-attribute">--name</span>=pulsar-canal-server -p 8000:8000 -p 2222:2222 -p 11111:11111 -p 11112:11112 -m 4096m canal/canal-server:v1.1.2
 </code></pre>
 <ul>
 <li>Start Pulsar standalone</li>
@@ -123,18 +123,18 @@ docker run -d -it --link pulsar-canal-server -p <span class="hljs-number">6650</
 <ul>
 <li>Test the consumer file pulsar-client.py</li>
 </ul>
-<pre><code class="hljs"><span class="hljs-keyword">import</span> pulsar
-
-client = pulsar.<span class="hljs-built_in">Client</span>(<span class="hljs-string">'pulsar://localhost:6650'</span>)
+<pre><code class="hljs">import pulsar
+<span class="hljs-built_in">
+client </span>= pulsar.Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
 consumer = client.subscribe(<span class="hljs-string">'my-topic'</span>,
-                            subscription_name=<span class="hljs-string">'my-sub'</span>)
+                            <span class="hljs-attribute">subscription_name</span>=<span class="hljs-string">'my-sub'</span>)
 
-<span class="hljs-built_in">while</span> True:
+<span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
     msg = consumer.receive()
-    <span class="hljs-built_in">print</span>(<span class="hljs-string">"Received message: '%s'"</span> % msg.data())
+    <span class="hljs-builtin-name">print</span>(<span class="hljs-string">"Received message: '%s'"</span> % msg.data())
     consumer.acknowledge(msg)
 
-client.<span class="hljs-built_in">close</span>()
+client.close()
 </code></pre>
 <ul>
 <li>Copy the config file and test file on a Pulsar server</li>

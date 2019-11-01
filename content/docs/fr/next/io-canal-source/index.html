@@ -55,14 +55,14 @@
 <li><p>YAML</p>
 <p>You can create a YAML file and copy the <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/resources/canal-mysql-source-config.yaml">contents</a> below to your YAML file.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
-<span class="hljs-attr">    zkServers:</span> <span class="hljs-string">"127.0.0.1:2181"</span>
-<span class="hljs-attr">    batchSize:</span> <span class="hljs-number">5120</span>
-<span class="hljs-attr">    destination:</span> <span class="hljs-string">"example"</span>
-<span class="hljs-attr">    username:</span> <span class="hljs-string">""</span>
-<span class="hljs-attr">    password:</span> <span class="hljs-string">""</span>
-<span class="hljs-attr">    cluster:</span> <span class="hljs-literal">false</span>
-<span class="hljs-attr">    singleHostname:</span> <span class="hljs-string">"127.0.0.1"</span>
-<span class="hljs-attr">    singlePort:</span> <span class="hljs-number">11111</span>
+    <span class="hljs-attr">zkServers:</span> <span class="hljs-string">"127.0.0.1:2181"</span>
+    <span class="hljs-attr">batchSize:</span> <span class="hljs-number">5120</span>
+    <span class="hljs-attr">destination:</span> <span class="hljs-string">"example"</span>
+    <span class="hljs-attr">username:</span> <span class="hljs-string">""</span>
+    <span class="hljs-attr">password:</span> <span class="hljs-string">""</span>
+    <span class="hljs-attr">cluster:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">singleHostname:</span> <span class="hljs-string">"127.0.0.1"</span>
+    <span class="hljs-attr">singlePort:</span> <span class="hljs-number">11111</span>
 </code></pre></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="usage"></a><a href="#usage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h2>
@@ -97,8 +97,8 @@ server_id=1
 $ mysql -h 127.0.0.1 -uroot -pcanal -e <span class="hljs-string">'create database test;'</span>
 </code></pre></li>
 <li><p>Start a Canal server and connect to MySQL server.</p>
-<pre><code class="hljs">$ docker pull canal/canal-server:v1.<span class="hljs-number">1.2</span>
-$ docker run -d -it --link pulsar-mysql -e canal<span class="hljs-selector-class">.auto</span><span class="hljs-selector-class">.scan</span>=false -e canal.destinations=test -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.master</span><span class="hljs-selector-class">.address</span>=pulsar-mysql:<span class="hljs-number">3306</span> -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.dbUsername</span>=root -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.dbPassword</span>=canal -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.connectionCharset</span>=UTF-<span class="hljs-number">8</span> -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.tsdb</span><span class="hljs-selector-class">.enable</span>=true -e canal<span class="hljs-selector-class">.instance</span><span class="hljs-selector-class">.gtidon</span>=false --name=pulsar-canal-server -<span class="hljs-selector-tag">p</span> <span class="hljs-number">8000</span>:<span class="hljs-number">8000</span> -<span class="hljs-selector-tag">p</span> <span class="hljs-number">2222</span>:<span class="hljs-number">2222</span> -<span class="hljs-selector-tag">p</span> <span class="hljs-number">11111</span>:<span class="hljs-number">11111</span> -<span class="hljs-selector-tag">p</span> <span class="hljs-number">11112</span>:<span class="hljs-number">11112</span> -m <span class="hljs-number">4096</span>m canal/canal-server:v1.<span class="hljs-number">1.2</span>
+<pre><code class="hljs">$ docker pull canal/canal-server:v1.1.2
+$ docker <span class="hljs-builtin-name">run</span> -d -it --link pulsar-mysql -e canal.auto.<span class="hljs-attribute">scan</span>=<span class="hljs-literal">false</span> -e canal.<span class="hljs-attribute">destinations</span>=test -e canal.instance.master.<span class="hljs-attribute">address</span>=pulsar-mysql:3306 -e canal.instance.<span class="hljs-attribute">dbUsername</span>=root -e canal.instance.<span class="hljs-attribute">dbPassword</span>=canal -e canal.instance.<span class="hljs-attribute">connectionCharset</span>=UTF-8 -e canal.instance.tsdb.<span class="hljs-attribute">enable</span>=<span class="hljs-literal">true</span> -e canal.instance.<span class="hljs-attribute">gtidon</span>=<span class="hljs-literal">false</span> <span class="hljs-attribute">--name</span>=pulsar-canal-server -p 8000:8000 -p 2222:2222 -p 11111:11111 -p 11112:11112 -m 4096m canal/canal-server:v1.1.2
 </code></pre></li>
 <li><p>Start Pulsar standalone.</p>
 <pre><code class="hljs css language-bash">$ docker pull apachepulsar/pulsar:2.3.0
@@ -106,14 +106,14 @@ $ docker run -d -it --link pulsar-canal-server -p 6650:6650 -p 8080:8080 -v <spa
 </code></pre></li>
 <li><p>Modify the configuration file <code>canal-mysql-source-config.yaml</code>.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
-<span class="hljs-attr">    zkServers:</span> <span class="hljs-string">""</span>
-<span class="hljs-attr">    batchSize:</span> <span class="hljs-string">"5120"</span>
-<span class="hljs-attr">    destination:</span> <span class="hljs-string">"test"</span>
-<span class="hljs-attr">    username:</span> <span class="hljs-string">""</span>
-<span class="hljs-attr">    password:</span> <span class="hljs-string">""</span>
-<span class="hljs-attr">    cluster:</span> <span class="hljs-literal">false</span>
-<span class="hljs-attr">    singleHostname:</span> <span class="hljs-string">"pulsar-canal-server"</span>
-<span class="hljs-attr">    singlePort:</span> <span class="hljs-string">"11111"</span>
+    <span class="hljs-attr">zkServers:</span> <span class="hljs-string">""</span>
+    <span class="hljs-attr">batchSize:</span> <span class="hljs-string">"5120"</span>
+    <span class="hljs-attr">destination:</span> <span class="hljs-string">"test"</span>
+    <span class="hljs-attr">username:</span> <span class="hljs-string">""</span>
+    <span class="hljs-attr">password:</span> <span class="hljs-string">""</span>
+    <span class="hljs-attr">cluster:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">singleHostname:</span> <span class="hljs-string">"pulsar-canal-server"</span>
+    <span class="hljs-attr">singlePort:</span> <span class="hljs-string">"11111"</span>
 </code></pre></li>
 <li><p>Create a consumer file <code>pulsar-client.py</code>.</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> pulsar

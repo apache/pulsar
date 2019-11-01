@@ -130,7 +130,7 @@ share the same hosts used for the local ZooKeeper quorum.</p>
 <p>For example, let's assume a Pulsar instance with the following clusters <code>us-west</code>,
 <code>us-east</code>, <code>us-central</code>, <code>eu-central</code>, <code>ap-south</code>. Also let's assume, each cluster
 will have its own local ZK servers named such as</p>
-<pre><code class="hljs">zk[<span class="hljs-number">1</span>-<span class="hljs-number">3</span>].${CLUSTER}<span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>
+<pre><code class="hljs">zk[<span class="hljs-number">1</span><span class="hljs-number">-3</span>].${CLUSTER}.example.com
 </code></pre>
 <p>In this scenario we want to pick the quorum participants from few clusters and
 let all the others be ZK observers. For example, to form a 7 servers quorum, we

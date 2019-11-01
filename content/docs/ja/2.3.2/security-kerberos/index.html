@@ -176,7 +176,7 @@ saslJaasBrokerSectionName=PulsarBroker</p></li>
  clientSaslConfig.put(<span class="hljs-string">"serverType"</span>, <span class="hljs-string">"broker"</span>);
 
  Authentication saslAuth = AuthenticationFactory
-         .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl.class.getName(), authParams);
+         .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
 
  PulsarClient client = PulsarClient.builder()
          .serviceUrl(<span class="hljs-string">"pulsar://my-broker.com:6650"</span>)
@@ -240,7 +240,7 @@ sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabnam
  clientSaslConfig.put(<span class="hljs-string">"serverType"</span>, <span class="hljs-string">"proxy"</span>);        <span class="hljs-comment">// ** here is the different **</span>
 
  Authentication saslAuth = AuthenticationFactory
-         .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl.class.getName(), authParams);
+         .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
 
  PulsarClient client = PulsarClient.builder()
          .serviceUrl(<span class="hljs-string">"pulsar://my-broker.com:6650"</span>)

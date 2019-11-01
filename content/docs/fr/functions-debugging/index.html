@@ -61,7 +61,7 @@
 <pre><code class="hljs css language-java"><span class="hljs-meta">@Test</span>
 <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">testExclamationFunction</span><span class="hljs-params">()</span> </span>{
    ExclamationFunction exclamation = <span class="hljs-keyword">new</span> ExclamationFunction();
-   String output = exclamation.process(<span class="hljs-string">"foo"</span>, mock(Context.class));
+   String output = exclamation.process(<span class="hljs-string">"foo"</span>, mock(Context<span class="hljs-class">.<span class="hljs-keyword">class</span>))</span>;
    Assert.assertEquals(output, <span class="hljs-string">"foo!"</span>);
 }
 </code></pre>
@@ -76,7 +76,7 @@
 <pre><code class="hljs css language-java">FunctionConfig functionConfig = <span class="hljs-keyword">new</span> FunctionConfig();
 functionConfig.setName(functionName);
 functionConfig.setInputs(Collections.singleton(sourceTopic));
-functionConfig.setClassName(ExclamationFunction.class.getName());
+functionConfig.setClassName(ExclamationFunction<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
 functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 functionConfig.setOutput(sinkTopic);
 
@@ -97,7 +97,7 @@ localRunner.start(<span class="hljs-keyword">true</span>);
     FunctionConfig functionConfig = <span class="hljs-keyword">new</span> FunctionConfig();
     functionConfig.setName(<span class="hljs-string">"exclamation"</span>);
     functionConfig.setInputs(Collections.singleton(<span class="hljs-string">"input"</span>));
-    functionConfig.setClassName(ExclamationFunction.class.getName());
+    functionConfig.setClassName(ExclamationFunction<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
     functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
     functionConfig.setOutput(<span class="hljs-string">"output"</span>);
 

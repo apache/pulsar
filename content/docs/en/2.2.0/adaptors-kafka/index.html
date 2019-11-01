@@ -114,8 +114,8 @@ Properties props = <span class="hljs-keyword">new</span> Properties();
 <span class="hljs-comment">// Point to a Pulsar service</span>
 props.put(<span class="hljs-string">"bootstrap.servers"</span>, <span class="hljs-string">"pulsar://localhost:6650"</span>);
 
-props.put(<span class="hljs-string">"key.serializer"</span>, IntegerSerializer.class.getName());
-props.put(<span class="hljs-string">"value.serializer"</span>, StringSerializer.class.getName());
+props.put(<span class="hljs-string">"key.serializer"</span>, IntegerSerializer<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
+props.put(<span class="hljs-string">"value.serializer"</span>, StringSerializer<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
 
 Producer&lt;Integer, String&gt; producer = <span class="hljs-keyword">new</span> KafkaProducer&lt;&gt;(props);
 
@@ -134,8 +134,8 @@ Properties props = <span class="hljs-keyword">new</span> Properties();
 props.put(<span class="hljs-string">"bootstrap.servers"</span>, <span class="hljs-string">"pulsar://localhost:6650"</span>);
 props.put(<span class="hljs-string">"group.id"</span>, <span class="hljs-string">"my-subscription-name"</span>);
 props.put(<span class="hljs-string">"enable.auto.commit"</span>, <span class="hljs-string">"false"</span>);
-props.put(<span class="hljs-string">"key.deserializer"</span>, IntegerDeserializer.class.getName());
-props.put(<span class="hljs-string">"value.deserializer"</span>, StringDeserializer.class.getName());
+props.put(<span class="hljs-string">"key.deserializer"</span>, IntegerDeserializer<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
+props.put(<span class="hljs-string">"value.deserializer"</span>, StringDeserializer<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>())</span>;
 
 Consumer&lt;Integer, String&gt; consumer = <span class="hljs-keyword">new</span> KafkaConsumer&lt;&gt;(props);
 consumer.subscribe(Arrays.asList(topic));

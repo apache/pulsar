@@ -102,11 +102,11 @@ sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabnam
 <p>Here is an example of the krb5.conf file:</p>
 <p>In the configuration file, <code>EXAMPLE.COM</code> is the default realm; <code>kdc = localhost:62037</code> is the kdc server url for realm <code>EXAMPLE.COM</code>:</p>
 <pre><code class="hljs">[libdefaults]
- default_realm = EXAMPLE<span class="hljs-selector-class">.COM</span>
+ <span class="hljs-attr">default_realm</span> = EXAMPLE.COM
 
 [realms]
- EXAMPLE<span class="hljs-selector-class">.COM</span>  = {
-  kdc = localhost:<span class="hljs-number">62037</span>
+ EXAMPLE.<span class="hljs-attr">COM</span>  = {
+  <span class="hljs-attr">kdc</span> = localhost:<span class="hljs-number">62037</span>
  }
 </code></pre>
 <p>Usually machines configured with kerberos already have a system wide configuration and this configuration is optional.</p>
@@ -199,7 +199,7 @@ authParams.put(<span class="hljs-string">"saslJaasClientSectionName"</span>, <sp
 authParams.put(<span class="hljs-string">"serverType"</span>, <span class="hljs-string">"broker"</span>);
 
 Authentication saslAuth = AuthenticationFactory
-        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl.class.getName(), authParams);
+        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://my-broker.com:6650"</span>)
@@ -209,7 +209,7 @@ PulsarClient client = PulsarClient.builder()
 <blockquote>
 <p>The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when you run the application like below:</p>
 </blockquote>
-<pre><code class="hljs">java -cp -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.login</span><span class="hljs-selector-class">.config</span>=/etc/pulsar/pulsar_jaas<span class="hljs-selector-class">.conf</span> -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.krb5</span><span class="hljs-selector-class">.conf</span>=/etc/pulsar/krb5<span class="hljs-selector-class">.conf</span> <span class="hljs-variable">$APP</span>-jar-with-dependencies<span class="hljs-selector-class">.jar</span> <span class="hljs-variable">$CLASSNAME</span>
+<pre><code class="hljs">java -cp -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.login</span>.config=/etc/pulsar/pulsar_jaas<span class="hljs-selector-class">.conf</span> -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.krb5</span>.conf=/etc/pulsar/krb5<span class="hljs-selector-class">.conf</span> <span class="hljs-variable">$APP</span>-jar-with-dependencies<span class="hljs-selector-class">.jar</span> <span class="hljs-variable">$CLASSNAME</span>
 </code></pre>
 <p>You must ensure that the operating system user who starts pulsar client can reach the keytabs configured in the <code>pulsar_jaas.conf</code> file and kdc server in the <code>krb5.conf</code> file.</p>
 <h4><a class="anchor" aria-hidden="true" id="configure-cli-tools"></a><a href="#configure-cli-tools" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure CLI tools</h4>
@@ -280,7 +280,7 @@ authParams.put(<span class="hljs-string">"saslJaasClientSectionName"</span>, <sp
 authParams.put(<span class="hljs-string">"serverType"</span>, <span class="hljs-string">"proxy"</span>);        <span class="hljs-comment">// ** here is the different **</span>
 
 Authentication saslAuth = AuthenticationFactory
-        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl.class.getName(), authParams);
+        .create(org.apache.pulsar.client.impl.auth.AuthenticationSasl<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://my-broker.com:6650"</span>)
@@ -290,7 +290,7 @@ PulsarClient client = PulsarClient.builder()
 <blockquote>
 <p>The first two lines in the example above are hard coded, alternatively, you can set additional JVM parameters for JAAS and krb5 configuration file when you run the application like below:</p>
 </blockquote>
-<pre><code class="hljs">java -cp -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.login</span><span class="hljs-selector-class">.config</span>=/etc/pulsar/pulsar_jaas<span class="hljs-selector-class">.conf</span> -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.krb5</span><span class="hljs-selector-class">.conf</span>=/etc/pulsar/krb5<span class="hljs-selector-class">.conf</span> <span class="hljs-variable">$APP</span>-jar-with-dependencies<span class="hljs-selector-class">.jar</span> <span class="hljs-variable">$CLASSNAME</span>
+<pre><code class="hljs">java -cp -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.login</span>.config=/etc/pulsar/pulsar_jaas<span class="hljs-selector-class">.conf</span> -Djava<span class="hljs-selector-class">.security</span><span class="hljs-selector-class">.krb5</span>.conf=/etc/pulsar/krb5<span class="hljs-selector-class">.conf</span> <span class="hljs-variable">$APP</span>-jar-with-dependencies<span class="hljs-selector-class">.jar</span> <span class="hljs-variable">$CLASSNAME</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="kerberos-configuration-for-pulsar-proxy-service"></a><a href="#kerberos-configuration-for-pulsar-proxy-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kerberos configuration for Pulsar proxy service</h3>
 <p>In the <code>proxy.conf</code> file, set Kerberos related configuration. Here is an example:</p>

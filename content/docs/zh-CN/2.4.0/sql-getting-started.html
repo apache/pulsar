@@ -164,22 +164,22 @@ Splits: 19 total, 19 <span class="hljs-keyword">done</span> (100.00%)
 <p>现在，您有一些模拟数据可供查询和使用！</p>
 <p>如果您想尝试获取一些自己的数据，可以编写一个简单的生产者将自定义数据写入Pulsar。</p>
 <p>例如:</p>
-<pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Test</span> </span>{
+<pre><code class="hljs css language-java">public class Test {
 
-     <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Foo</span> </span>{
-        <span class="hljs-keyword">private</span> <span class="hljs-keyword">int</span> field1 = <span class="hljs-number">1</span>;
-        <span class="hljs-keyword">private</span> String field2;
-        <span class="hljs-keyword">private</span> <span class="hljs-keyword">long</span> field3;
+     public static class Foo {
+        private int field1 = 1;
+        private String field2;
+        private long field3;
      }
 
-     <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">(String[] args)</span> <span class="hljs-keyword">throws</span> Exception </span>{
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>).build();
-        Producer&lt;Foo&gt; producer = pulsarClient.newProducer(AvroSchema.of(Foo.class)).topic(<span class="hljs-string">"test_topic"</span>).create();
+     public static void main(String[] args) throws Exception {
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        Producer&lt;Foo&gt; producer = pulsarClient.newProducer(AvroSchema.of(Foo.class)).topic("test_topic").create();
 
-        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">1000</span>; i++) {
-            Foo foo = <span class="hljs-keyword">new</span> Foo();
+        for (int i = 0; i &lt; 1000; i++) {
+            Foo foo = new Foo();
             foo.setField1(i);
-            foo.setField2(<span class="hljs-string">"foo"</span> + i);
+            foo.setField2("foo" + i);
             foo.setField3(System.currentTimeMillis());
             producer.newMessage().value(foo).send();
         }

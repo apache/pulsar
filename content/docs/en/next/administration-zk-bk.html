@@ -126,7 +126,7 @@
 <p>The key here is to make sure the ZK quorum members are spread across at least 3 regions and that other regions run as observers.</p>
 <p>Again, given the very low expected load on the configuration store servers, you can share the same hosts used for the local ZooKeeper quorum.</p>
 <p>For example, you can assume a Pulsar instance with the following clusters <code>us-west</code>, <code>us-east</code>, <code>us-central</code>, <code>eu-central</code>, <code>ap-south</code>. Also you can assume, each cluster has its own local ZK servers named such as</p>
-<pre><code class="hljs">zk[<span class="hljs-number">1</span>-<span class="hljs-number">3</span>].${CLUSTER}<span class="hljs-selector-class">.example</span><span class="hljs-selector-class">.com</span>
+<pre><code class="hljs">zk[<span class="hljs-number">1</span><span class="hljs-number">-3</span>].${CLUSTER}.example.com
 </code></pre>
 <p>In this scenario you want to pick the quorum participants from few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, you can pick 3 servers from <code>us-west</code>, 2 from <code>us-central</code> and 2 from <code>us-east</code>.</p>
 <p>This guarantees that writes to configuration store is possible even if one of these regions is unreachable.</p>

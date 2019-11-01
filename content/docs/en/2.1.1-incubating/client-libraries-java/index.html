@@ -349,7 +349,7 @@ Reader reader = pulsarClient.newReader()
 </code></pre>
 <p>You could then create a <code>Producer&lt;SensorReading&gt;</code> (or <code>Consumer&lt;SensorReading&gt;</code>) like so:</p>
 <pre><code class="hljs css language-java">Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
-        .topic(<span class="hljs-string">"sensor-readings"</span>)
+        .topic("sensor-readings")
         .create();
 </code></pre>
 <p>The following schema formats are currently available for Java:</p>
@@ -370,7 +370,7 @@ Reader reader = pulsarClient.newReader()
       .create();
 </code></pre></li>
 <li><p>JSON schemas can be created for POJOs using the <code>JSONSchema</code> class. Here's an example:</p>
-<pre><code class="hljs css language-java">Schema&lt;MyPojo&gt; pojoSchema = JSONSchema.of(MyPojo.class);
+<pre><code class="hljs css language-java">Schema&lt;MyPojo&gt; pojoSchema = JSONSchema.of(MyPojo<span class="hljs-class">.<span class="hljs-keyword">class</span>)</span>;
 Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(pojoSchema)
       .topic(<span class="hljs-string">"some-pojo-topic"</span>)
       .create();
@@ -386,7 +386,7 @@ authParams.put(<span class="hljs-string">"tlsCertFile"</span>, <span class="hljs
 authParams.put(<span class="hljs-string">"tlsKeyFile"</span>, <span class="hljs-string">"/path/to/client-key.pem"</span>);
 
 Authentication tlsAuth = AuthenticationFactory
-        .create(AuthenticationTls.class.getName(), authParams);
+        .create(AuthenticationTls<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar+ssl://my-broker.com:6651"</span>)
@@ -412,7 +412,7 @@ authParams.put(<span class="hljs-string">"privateKey"</span>, <span class="hljs-
 authParams.put(<span class="hljs-string">"keyId"</span>, <span class="hljs-string">"v1"</span>); <span class="hljs-comment">// Key id for the tenant private key (optional, default: "0")</span>
 
 Authentication athenzAuth = AuthenticationFactory
-        .create(AuthenticationAthenz.class.getName(), authParams);
+        .create(AuthenticationAthenz<span class="hljs-class">.<span class="hljs-keyword">class</span>.<span class="hljs-title">getName</span>(), <span class="hljs-title">authParams</span>)</span>;
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar+ssl://my-broker.com:6651"</span>)

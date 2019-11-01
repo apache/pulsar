@@ -105,50 +105,50 @@ data and metadata in the filesystem outside the container, in order not to start
 </ul>
 <p>If you start Pulsar successfully, you will see <code>INFO</code>-level log messages like this:</p>
 <pre><code class="hljs">
-<span class="hljs-number">2017</span>-<span class="hljs-number">08</span>-<span class="hljs-number">09</span> <span class="hljs-number">22</span>:<span class="hljs-number">34</span>:<span class="hljs-number">04</span>,<span class="hljs-number">030</span> - INFO - [main:WebService@<span class="hljs-number">213</span>] - Web Service started at http://<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">8080</span> <span class="hljs-number">2017</span>-<span class="hljs-number">08</span>-<span class="hljs-number">09</span> <span class="hljs-number">22</span>:<span class="hljs-number">34</span>:<span class="hljs-number">04</span>,<span class="hljs-number">038</span> - INFO - [main:PulsarService@<span class="hljs-number">335</span>] - messaging service <span class="hljs-keyword">is</span> ready, bootstrap service <span class="hljs-keyword">on</span> <span class="hljs-keyword">port</span>=<span class="hljs-number">8080</span>, broker url=pulsar://<span class="hljs-number">127.0</span>.<span class="hljs-number">0.1</span>:<span class="hljs-number">6650</span>, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@<span class="hljs-number">4</span>db60246 ...
+<span class="hljs-number">2017</span><span class="hljs-number">-08</span><span class="hljs-number">-09</span> <span class="hljs-number">22</span>:<span class="hljs-number">34</span>:<span class="hljs-number">04</span>,<span class="hljs-number">030</span> - INFO - [main:WebService@<span class="hljs-number">213</span>] - Web Service started at http:<span class="hljs-regexp">//</span><span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>:<span class="hljs-number">8080</span> <span class="hljs-number">2017</span><span class="hljs-number">-08</span><span class="hljs-number">-09</span> <span class="hljs-number">22</span>:<span class="hljs-number">34</span>:<span class="hljs-number">04</span>,<span class="hljs-number">038</span> - INFO - [main:PulsarService@<span class="hljs-number">335</span>] - messaging service <span class="hljs-keyword">is</span> ready, bootstrap service <span class="hljs-literal">on</span> port=<span class="hljs-number">8080</span>, broker url=pulsar:<span class="hljs-regexp">//</span><span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>:<span class="hljs-number">6650</span>, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@<span class="hljs-number">4</span>db60246 ...
 
-    &lt;br /&gt;&gt; #### Tip
+    &lt;br /&gt;&gt; <span class="hljs-comment">#### Tip
     &gt; 
-    &gt; <span class="hljs-keyword">When</span> you start a local standalone cluster, a `public/<span class="hljs-keyword">default</span>`
-    namespace <span class="hljs-keyword">is</span> created automatically. The namespace <span class="hljs-keyword">is</span> used <span class="hljs-keyword">for</span> development purposes. <span class="hljs-keyword">All</span> Pulsar topics are managed within namespaces.
-    <span class="hljs-keyword">For</span> more information, see [Topics](concepts-messaging.md#topics).
+    &gt; When you start a local standalone cluster, a `public/default`
+    namespace is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces.
+    For more information, see [Topics](concepts-messaging.md#topics).
     
-    ## <span class="hljs-keyword">Use</span> Pulsar <span class="hljs-keyword">in</span> Docker
+    ## Use Pulsar in Docker
     
-    Pulsar offers client libraries <span class="hljs-keyword">for</span> [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
-    <span class="hljs-keyword">and</span> [C++](client-libraries-cpp.md). <span class="hljs-keyword">If</span> you<span class="hljs-symbol">'re</span> running a local standalone cluster, you can
-    <span class="hljs-keyword">use</span> one <span class="hljs-keyword">of</span> these root URLs <span class="hljs-keyword">to</span> interact <span class="hljs-keyword">with</span> your cluster:
+    Pulsar offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
+    and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can
+    use one of these root URLs to interact with your cluster:
     
-    * `pulsar://localhost:<span class="hljs-number">6650</span>`
-    * `http://localhost:<span class="hljs-number">8080</span>`
+    * `pulsar://localhost:6650`
+    * `http://localhost:8080`
     
-    The following example will guide you get started <span class="hljs-keyword">with</span> Pulsar quickly by using the [Python](client-libraries-python.md)
+    The following example will guide you get started with Pulsar quickly by using the [Python](client-libraries-python.md)
     client API.
     
-    Install the Pulsar Python client <span class="hljs-keyword">library</span> directly from [PyPI](https://pypi.org/project/pulsar-client/):
+    Install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
     
     ```shell
     $ pip install pulsar-client
     
 
-### Consume a message
+###</span> Consume a message
 
-Create a consumer <span class="hljs-keyword">and</span> subscribe <span class="hljs-keyword">to</span> the topic:
+Create a consumer <span class="hljs-keyword">and</span> subscribe to the topic:
 
-```python
-import pulsar
+```<span class="javascript">python
+<span class="hljs-keyword">import</span> pulsar
 
-client = pulsar.Client(<span class="hljs-symbol">'pulsar</span>://localhost:<span class="hljs-number">6650</span>')
-consumer = client.subscribe(<span class="hljs-symbol">'my</span>-topic',
-                            subscription_name=<span class="hljs-symbol">'my</span>-sub')
+client = pulsar.Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
+consumer = client.subscribe(<span class="hljs-string">'my-topic'</span>,
+                            subscription_name=<span class="hljs-string">'my-sub'</span>)
 
-<span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+<span class="hljs-keyword">while</span> True:
     msg = consumer.receive()
     print(<span class="hljs-string">"Received message: '%s'"</span> % msg.data())
     consumer.acknowledge(msg)
 
 client.close()
-</code></pre>
+</span></code></pre>
 <h3><a class="anchor" aria-hidden="true" id="produce-a-message"></a><a href="#produce-a-message" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Produce a message</h3>
 <p>Now start a producer to send some test messages:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> pulsar
