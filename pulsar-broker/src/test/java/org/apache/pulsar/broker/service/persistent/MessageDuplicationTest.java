@@ -339,20 +339,21 @@ public class MessageDuplicationTest {
         });
     }
 
-    public Topic.PublishContext getPublishContext(String producerName, long lowestSequenceId, long highestSequenceId) {
+    public Topic.PublishContext getPublishContext(String producerName, long seqId, long lastSequenceId) {
         return spy(new Topic.PublishContext() {
             @Override
             public String getProducerName() {
                 return producerName;
             }
 
-            public long getLowestSequenceId() {
-                return lowestSequenceId;
+            @Override
+            public long getSequenceId() {
+                return seqId;
             }
 
             @Override
-            public long getHighestSequenceId() {
-                return highestSequenceId;
+            public long getLastSequenceId() {
+                return lastSequenceId;
             }
 
             @Override

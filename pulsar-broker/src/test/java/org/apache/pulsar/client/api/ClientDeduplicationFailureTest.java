@@ -241,11 +241,7 @@ public class ClientDeduplicationFailureTest {
         producerThread.stop();
 
         // send last message
-        try {
-            producer.newMessage().sequenceId(producerThread.getLastSeqId() + 1).value("end").send();
-            fail("should failed, because send a duplication");
-        } catch (PulsarClientException.InvalidMessageException ignore) {
-        }
+        producer.newMessage().sequenceId(producerThread.getLastSeqId() + 1).value("end").send();
         producer.close();
 
         Reader<String> reader = pulsarClient.newReader(Schema.STRING).startMessageId(MessageId.earliest).topic(sourceTopic).create();

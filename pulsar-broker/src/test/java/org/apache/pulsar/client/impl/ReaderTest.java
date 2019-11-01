@@ -189,7 +189,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
                     .value(("new" + i).getBytes());
             Builder metadataBuilder = msg.getMetadataBuilder();
-            metadataBuilder.setPublishTime(newMsgPublishTime).setSequenceId(totalMsg + i);
+            metadataBuilder.setPublishTime(newMsgPublishTime);
             metadataBuilder.setProducerName(producer.getProducerName()).setReplicatedFrom("us-west1");
             MessageId msgId = msg.send();
             if (firstMsgId == null) {

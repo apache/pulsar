@@ -371,16 +371,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgMetadataBuilder.setSequenceId(sequenceId);
                 } else {
                     sequenceId = msgMetadataBuilder.getSequenceId();
-                    if (sequenceId <= lastSequenceIdPushed) {
-                        if (sequenceId <= lastSequenceIdPublished) {
-                            log.warn("Message with sequence id {} is definitely a duplicate", sequenceId);
-                        } else {
-                            log.warn("Message with sequence id {} is a definitely a duplicate or not cannot be " +
-                                    "determined at this time", sequenceId);
-                        }
-                        callback.getFuture().complete(null);
-                        return;
-                    }
                 }
                 if (!msgMetadataBuilder.hasPublishTime()) {
                     msgMetadataBuilder.setPublishTime(client.getClientClock().millis());
@@ -396,15 +386,27 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
                 if (canAddToBatch(msg)) {
-                    // handle boundary cases where message being added would exceed
-                    // batch size and/or max message size
                     if (canAddToCurrentBatch(msg)) {
-                        batchMessageContainer.add(msg, callback);
-                        lastSendFuture = callback.getFuture();
-                        payload.release();
-                        if (batchMessageContainer.getNumMessagesInBatch() == maxNumMessagesInBatch
-                                || batchMessageContainer.getCurrentBatchSize() >= BatchMessageContainerImpl.MAX_MESSAGE_BATCH_SIZE_BYTES) {
-                            batchMessageAndSend();
+                        // should trigger complete the batch message, new message will add to a new batch and new batch
+                        // sequence id use the new message, so that broker can handle the message duplication
+                        if (sequenceId <= lastSequenceIdPushed) {
+                            if (sequenceId <= lastSequenceIdPublished) {
+                                log.warn("Message with sequence id {} is definitely a duplicate", sequenceId);
+                            } else {
+                                log.warn("Message with sequence id {} is a definitely a duplicate or not cannot be " +
+                                        "determined at this time", sequenceId);
+                            }
+                            doBatchSendAndAdd(msg, callback, payload);
+                        } else {
+                            // handle boundary cases where message being added would exceed
+                            // batch size and/or max message size
+                            batchMessageContainer.add(msg, callback);
+                            lastSendFuture = callback.getFuture();
+                            payload.release();
+                            if (batchMessageContainer.getNumMessagesInBatch() == maxNumMessagesInBatch
+                                    || batchMessageContainer.getCurrentBatchSize() >= BatchMessageContainerImpl.MAX_MESSAGE_BATCH_SIZE_BYTES) {
+                                batchMessageAndSend();
+                            }
                         }
                     } else {
                         doBatchSendAndAdd(msg, callback, payload);

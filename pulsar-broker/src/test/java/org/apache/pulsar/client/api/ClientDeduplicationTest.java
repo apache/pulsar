@@ -129,12 +129,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
         // Repeat the messages and verify they're not received by consumer
-        try {
-            producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
-            producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
-            fail("should be failed");
-        } catch (PulsarClientException ignore) {
-        }
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
         producer.close();
 
@@ -186,10 +182,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.flush();
 
         // Repeat the messages and verify they're not received by consumer
-        CompletableFuture<MessageId> sendResult = producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
-        assertTrue(sendResult.isCompletedExceptionally());
-        sendResult = producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
-        assertTrue(sendResult.isCompletedExceptionally());
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
         producer.close();
 
         for (int i = 0; i < 3; i++) {
@@ -239,10 +233,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.newMessage().value("my-message-2".getBytes()).sequenceId(5).sendAsync();
 
         // Repeat the messages and verify they're not received by consumer
-        CompletableFuture<MessageId> sendResult = producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
-        assertTrue(sendResult.isCompletedExceptionally());
-        sendResult = producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
-        assertTrue(sendResult.isCompletedExceptionally());
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
         producer.close();
 
         for (int i = 0; i < 3; i++) {
