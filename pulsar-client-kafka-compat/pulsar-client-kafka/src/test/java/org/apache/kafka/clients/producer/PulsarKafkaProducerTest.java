@@ -143,7 +143,8 @@ public class PulsarKafkaProducerTest {
         doReturn(mockPartitionFuture).when(mockClient).getPartitionsForTopic(anyString());
         doReturn(mockProducerBuilder).when(mockProducerBuilder).topic(anyString());
         doReturn(mockProducerBuilder).when(mockProducerBuilder).clone();
-        doReturn(mockProducerBuilder).when(mockProducerBuilder).intercept(anyVararg());
+        doReturn(mockProducerBuilder).when(mockProducerBuilder).intercept(
+                (org.apache.pulsar.client.api.ProducerInterceptor) anyVararg());
         doReturn(mockProducer).when(mockProducerBuilder).create();
         doReturn(mockTypedMessageBuilder).when(mockProducer).newMessage();
         doReturn(mockSendAsyncFuture).when(mockTypedMessageBuilder).sendAsync();
@@ -169,7 +170,8 @@ public class PulsarKafkaProducerTest {
         pulsarKafkaProducer.send(new ProducerRecord<>("topic", 1,"key", "value"));
 
         // Verify
-        verify(mockProducerBuilder, times(1)).intercept(anyVararg());
+        verify(mockProducerBuilder, times(1)).intercept(
+                (org.apache.pulsar.client.api.ProducerInterceptor) anyVararg());
     }
 
     @Test
@@ -191,7 +193,8 @@ public class PulsarKafkaProducerTest {
         doReturn(mockPartitionFuture).when(mockClient).getPartitionsForTopic(anyString());
         doReturn(mockProducerBuilder).when(mockProducerBuilder).topic(anyString());
         doReturn(mockProducerBuilder).when(mockProducerBuilder).clone();
-        doReturn(mockProducerBuilder).when(mockProducerBuilder).intercept(anyVararg());
+        doReturn(mockProducerBuilder).when(mockProducerBuilder).intercept(
+                (org.apache.pulsar.client.api.ProducerInterceptor) anyVararg());
         doReturn(mockProducer).when(mockProducerBuilder).create();
         doReturn(mockTypedMessageBuilder).when(mockProducer).newMessage();
         doReturn(mockSendAsyncFuture).when(mockTypedMessageBuilder).sendAsync();
@@ -228,7 +231,8 @@ public class PulsarKafkaProducerTest {
 
         // Verify
         verify(mockTypedMessageBuilder, times(1)).sendAsync();
-        verify(mockProducerBuilder, times(1)).intercept(anyVararg());
+        verify(mockProducerBuilder, times(1)).intercept(
+                (org.apache.pulsar.client.api.ProducerInterceptor) anyVararg());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid value 2147483648000 for 'connections.max.idle.ms'. Please use a value smaller than 2147483647000 milliseconds.")

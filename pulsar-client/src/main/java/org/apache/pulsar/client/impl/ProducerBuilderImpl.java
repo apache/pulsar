@@ -256,7 +256,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     @Deprecated
-    public ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<?>... interceptors) {
+    public ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<T>... interceptors) {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();
         }
