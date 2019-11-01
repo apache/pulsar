@@ -76,7 +76,37 @@ public class FunctionRuntimeManager implements AutoCloseable{
     // All the runtime info related to functions executed by this worker
     // Fully Qualified InstanceId - > FunctionRuntimeInfo
     @VisibleForTesting
-    Map<String, FunctionRuntimeInfo> functionRuntimeInfoMap = new ConcurrentHashMap<>();
+    class FunctionRuntimeInfos {
+
+        private Map<String, FunctionRuntimeInfo> functionRuntimeInfoMap = new ConcurrentHashMap<>();
+
+        public FunctionRuntimeInfo get(String fullyQualifiedInstanceId) {
+            return functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
+        }
+
+        public void put(String fullyQualifiedInstanceId, FunctionRuntimeInfo functionRuntimeInfo) {
+            if (!isInitializePhase) {
+                functionRuntimeInfoMap.put(fullyQualifiedInstanceId, functionRuntimeInfo);
+            }
+        }
+
+        public void remove (String fullyQualifiedInstanceId) {
+            if (!isInitializePhase) {
+                functionRuntimeInfoMap.remove(fullyQualifiedInstanceId);
+            }
+        }
+
+        public Map<String, FunctionRuntimeInfo> getAll() {
+            return functionRuntimeInfoMap;
+        }
+
+        public int size() {
+            return functionRuntimeInfoMap.size();
+        }
+    }
+
+    @VisibleForTesting
+    final FunctionRuntimeInfos functionRuntimeInfos = new FunctionRuntimeInfos();
 
     @VisibleForTesting
     @Getter
@@ -98,8 +128,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     @Getter
     private WorkerService workerService;
 
-    @Setter
-    @Getter
     boolean isInitializePhase = false;
 
     private final FunctionMetaDataManager functionMetaDataManager;
@@ -200,12 +228,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     .startMessageId(MessageId.earliest).create();
 
             this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
+            // start init phase
+            this.isInitializePhase = true;
             // read all existing messages
-            this.setInitializePhase(true);
             while (reader.hasMessageAvailable()) {
                 this.functionAssignmentTailer.processAssignment(reader.readNext());
             }
-            this.setInitializePhase(false);
+            // init phase is done
+            this.isInitializePhase = false;
             // realize existing assignments
             Map<String, Assignment> assignmentMap = workerIdToAssignments.get(this.workerConfig.getWorkerId());
             if (assignmentMap != null) {
@@ -639,10 +669,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
                             newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
 
                             this.conditionallyStartFunction(newFunctionRuntimeInfo);
-                            this.functionRuntimeInfoMap.put(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                            this.functionRuntimeInfos.put(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
                         }
                     } else {
-                        this.functionRuntimeInfoMap.remove(fullyQualifiedInstanceId);
+                        this.functionRuntimeInfos.remove(fullyQualifiedInstanceId);
                     }
                 } else {
                     // if assignment got transferred to me just set function runtime
@@ -656,9 +686,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         runtimeSpawner.getRuntime().reinitialize();
                         newFunctionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
-                        this.functionRuntimeInfoMap.put(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                        this.functionRuntimeInfos.put(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
                     } else {
-                        this.functionRuntimeInfoMap.remove(fullyQualifiedInstanceId);
+                        this.functionRuntimeInfos.remove(fullyQualifiedInstanceId);
                     }
                 }
             } else {
@@ -673,10 +703,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
                         newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
                         this.conditionallyStartFunction(newFunctionRuntimeInfo);
-                        this.functionRuntimeInfoMap.put(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
+                        this.functionRuntimeInfos.put(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
                     }
                 } else {
-                    this.functionRuntimeInfoMap.remove(fullyQualifiedInstanceId);
+                    this.functionRuntimeInfos.remove(fullyQualifiedInstanceId);
                 }
             }
 
@@ -720,7 +750,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     this.conditionallyTerminateFunction(functionRuntimeInfo);
                 }
             }
-            this.functionRuntimeInfoMap.remove(fullyQualifiedInstanceId);
+            this.functionRuntimeInfos.remove(fullyQualifiedInstanceId);
         }
 
         String workerId = null;
@@ -761,13 +791,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     private void startFunctionInstance(Assignment assignment) {
+        log.info("infos: {}", functionRuntimeInfos.getAll());
         String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
         FunctionRuntimeInfo functionRuntimeInfo = _getFunctionRuntimeInfo(fullyQualifiedInstanceId);
 
         if (functionRuntimeInfo == null) {
             functionRuntimeInfo = new FunctionRuntimeInfo()
                     .setFunctionInstance(assignment.getInstance());
-            this.functionRuntimeInfoMap.put(fullyQualifiedInstanceId, functionRuntimeInfo);
+            this.functionRuntimeInfos.put(fullyQualifiedInstanceId, functionRuntimeInfo);
         } else {
             //Somehow this function is already started
             log.warn("Function {} already running. Going to restart function.",
@@ -778,7 +809,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     public Map<String, FunctionRuntimeInfo> getFunctionRuntimeInfos() {
-        return this.functionRuntimeInfoMap;
+        return this.functionRuntimeInfos.getAll();
     }
 
     /**
@@ -832,7 +863,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     private FunctionRuntimeInfo _getFunctionRuntimeInfo(String fullyQualifiedInstanceId) {
-        FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
+        FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfos.get(fullyQualifiedInstanceId);
 
         // sanity check to make sure assignments and runtimeinfo is in sync
         if (functionRuntimeInfo == null) {
