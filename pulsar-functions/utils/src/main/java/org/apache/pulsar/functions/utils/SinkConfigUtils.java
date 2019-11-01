@@ -27,6 +27,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -168,6 +169,12 @@ public class SinkConfigUtils {
             sourceSpecBuilder.setCleanupSubscription(sinkConfig.getCleanupSubscription());
         } else {
             sourceSpecBuilder.setCleanupSubscription(true);
+        }
+
+        if (sinkConfig.getSourceSubscriptionPosition() == SubscriptionInitialPosition.Earliest) {
+            sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.EARLIEST);
+        } else {
+            sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.LATEST);
         }
 
         functionDetailsBuilder.setSource(sourceSpecBuilder);
