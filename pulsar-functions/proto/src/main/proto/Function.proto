@@ -35,8 +35,8 @@ enum SubscriptionType {
 }
 
 enum SubscriptionPosition {
-    Latest = 0;
-    Earliest = 1;
+    LATEST = 0;
+    EARLIEST = 1;
 }
 
 message Resources {
