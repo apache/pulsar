@@ -146,6 +146,7 @@ public class PulsarClusterMetadataSetup {
 
         if (arguments.numTransactionCoordinators <= 0) {
             System.err.println("Number of transaction coordinators must greater than 0");
+            System.exit(1);
         }
 
         log.info("Setting up cluster {} with zk={} configuration-store={}", arguments.cluster, arguments.zookeeper,
@@ -238,7 +239,7 @@ public class PulsarClusterMetadataSetup {
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
 
-    private static void createTenantIfAbsent(ZooKeeper configStoreZk, String tenant, String cluster) throws IOException,
+    static void createTenantIfAbsent(ZooKeeper configStoreZk, String tenant, String cluster) throws IOException,
             KeeperException, InterruptedException {
 
         String tenantPath = POLICIES_ROOT + "/" + tenant;
@@ -269,7 +270,7 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    private static void createNamespaceIfAbsent(ZooKeeper configStoreZk, NamespaceName namespaceName, String cluster)
+    static void createNamespaceIfAbsent(ZooKeeper configStoreZk, NamespaceName namespaceName, String cluster)
             throws KeeperException, InterruptedException, IOException {
         String namespacePath = POLICIES_ROOT + "/" +namespaceName.toString();
         Policies policies;
@@ -303,7 +304,7 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    private static void createPartitionedTopic(ZooKeeper configStoreZk, TopicName topicName, int numPartitions) throws KeeperException, InterruptedException, IOException {
+    static void createPartitionedTopic(ZooKeeper configStoreZk, TopicName topicName, int numPartitions) throws KeeperException, InterruptedException, IOException {
         String partitionedTopicPath = ZkAdminPaths.partitionedTopicPath(topicName);
         Stat stat = configStoreZk.exists(partitionedTopicPath, false);
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions);
