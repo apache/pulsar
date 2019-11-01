@@ -266,7 +266,7 @@ public class NamespaceService {
      * @throws PulsarServerException
      * @throws Exception
      */
-    private boolean registerNamespace(String namespace, boolean ensureOwned) throws PulsarServerException {
+    public boolean registerNamespace(String namespace, boolean ensureOwned) throws PulsarServerException {
 
         String myUrl = pulsar.getSafeBrokerServiceUrl();
 

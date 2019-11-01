@@ -472,6 +472,11 @@ public class PulsarService implements AutoCloseable {
             // Register heartbeat and bootstrap namespaces.
             this.nsService.registerBootstrapNamespaces();
 
+            // Register pulsar system namespaces
+            if (config.isTransactionCoordinatorEnabled()) {
+               this.nsService.registerNamespace(NamespaceName.SYSTEM_NAMESPACE.toString(), false);
+            }
+
             this.metricsGenerator = new MetricsGenerator(this);
 
             // By starting the Load manager service, the broker will also become visible

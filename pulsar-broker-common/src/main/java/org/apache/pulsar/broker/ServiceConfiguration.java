@@ -83,6 +83,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
     @Category
     private static final String CATEGORY_HTTP = "HTTP";
+    @Category
+    private static final String CATEGORY_TRANSACTION = "Transaction";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -1319,6 +1321,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum number of thread pool threads for ledger offloading"
     )
     private int managedLedgerOffloadMaxThreads = 2;
+
+    /**** --- Transaction config variables --- ****/
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Enable transaction coordinator in broker"
+    )
+    private boolean transactionCoordinatorEnabled = true;
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}
