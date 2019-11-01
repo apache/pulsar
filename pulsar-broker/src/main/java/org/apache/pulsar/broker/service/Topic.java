@@ -78,11 +78,15 @@ public interface Topic {
 
         void completed(Exception e, long ledgerId, long entryId);
 
-        default long getLowestSequenceId() {
-            return -1;
+        default long getLastSequenceId() {
+            return  -1;
         }
 
-        default long getHighestSequenceId() {
+        default void setOriginalLastSequenceId(long originalLastSequenceId) {
+
+        }
+
+        default long getOriginalLastSequenceId() {
             return  -1;
         }
     }

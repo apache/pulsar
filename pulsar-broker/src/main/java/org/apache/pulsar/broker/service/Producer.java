@@ -136,18 +136,18 @@ public class Producer {
         publishMessageToTopic(headersAndPayload, sequenceId, batchSize);
     }
 
-    public void publishMessage(long producerId, long lowestSequenceId, long highestSequenceId,
+    public void publishMessage(long producerId, long sequenceId, long lastSequenceId,
            ByteBuf headersAndPayload, long batchSize) {
-        if (lowestSequenceId > highestSequenceId) {
+        if (sequenceId > lastSequenceId) {
             cnx.ctx().channel().eventLoop().execute(() -> {
-                cnx.ctx().writeAndFlush(Commands.newSendError(producerId, highestSequenceId, ServerError.MetadataError,
+                cnx.ctx().writeAndFlush(Commands.newSendError(producerId, lastSequenceId, ServerError.MetadataError,
                         "Invalid lowest or highest sequence id"));
                 cnx.completedSendOperation(isNonPersistentTopic);
             });
             return;
         }
-        beforePublish(producerId, highestSequenceId, headersAndPayload, batchSize);
-        publishMessageToTopic(headersAndPayload, lowestSequenceId, highestSequenceId, batchSize);
+        beforePublish(producerId, lastSequenceId, headersAndPayload, batchSize);
+        publishMessageToTopic(headersAndPayload, sequenceId, lastSequenceId, batchSize);
     }
 
     public void beforePublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize) {
@@ -197,9 +197,9 @@ public class Producer {
                         System.nanoTime()));
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId, long batchSize) {
+    private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long lastSequenceId, long batchSize) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, lowestSequenceId, highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, sequenceId, lastSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         System.nanoTime()));
     }
 
@@ -285,8 +285,8 @@ public class Producer {
         private String originalProducerName;
         private long originalSequenceId;
 
-        private long lowestSequenceId;
-        private long highestSequenceId;
+        private long lastSequenceId;
+        private long originalLastSequenceId;
 
         public String getProducerName() {
             return producer.getProducerName();
@@ -296,13 +296,9 @@ public class Producer {
             return sequenceId;
         }
 
-        public long getLowestSequenceId() {
-            return lowestSequenceId;
-        }
-
         @Override
-        public long getHighestSequenceId() {
-            return highestSequenceId;
+        public long getLastSequenceId() {
+            return lastSequenceId;
         }
 
         @Override
@@ -325,6 +321,16 @@ public class Producer {
             return originalSequenceId;
         }
 
+        @Override
+        public void setOriginalLastSequenceId(long originalLastSequenceId) {
+            this.originalLastSequenceId = originalLastSequenceId;
+        }
+
+        @Override
+        public long getOriginalLastSequenceId() {
+            return originalLastSequenceId;
+        }
+
         /**
          * Executed from managed ledger thread when the message is persisted
          */
@@ -338,7 +344,7 @@ public class Producer {
                     if (!(exception instanceof TopicClosedException)) {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
-                        long callBackSequenceId = highestSequenceId > 0 ? highestSequenceId : sequenceId;
+                        long callBackSequenceId = lastSequenceId >= sequenceId ? lastSequenceId : sequenceId;
                         producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, callBackSequenceId,
                                 serverError, exception.getMessage()));
                     }
@@ -371,7 +377,7 @@ public class Producer {
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            long callBackSequenceId = highestSequenceId >= 0 && highestSequenceId >= sequenceId ? highestSequenceId : sequenceId;
+            long callBackSequenceId = lastSequenceId >= sequenceId ? lastSequenceId : sequenceId;;
             producer.cnx.ctx().writeAndFlush(
                     Commands.newSendReceipt(producer.producerId, callBackSequenceId, ledgerId, entryId),
                     producer.cnx.ctx().voidPromise());
@@ -394,12 +400,12 @@ public class Producer {
             return callback;
         }
 
-        static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
+        static MessagePublishContext get(Producer producer, long sequenceId, long lastSequenceId, Rate rateIn,
                  int msgSize, long batchSize, long startTimeNs) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
-            callback.lowestSequenceId = lowestSequenceId;
-            callback.highestSequenceId = highestSequenceId;
+            callback.sequenceId = sequenceId;
+            callback.lastSequenceId = lastSequenceId;
             callback.rateIn = rateIn;
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
@@ -424,8 +430,9 @@ public class Producer {
         public void recycle() {
             producer = null;
             sequenceId = -1;
-            lowestSequenceId = -1;
-            highestSequenceId = -1;
+            lastSequenceId = -1;
+            originalSequenceId = -1;
+            originalLastSequenceId = -1;
             rateIn = null;
             msgSize = 0;
             ledgerId = -1;
