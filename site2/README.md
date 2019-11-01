@@ -40,6 +40,7 @@ yarn test
 Before submitting a pull request, run the following command to make sure no broken links exist.
 
 ```
+cd pulsar/site2/website
 yarn build
 ```
 
