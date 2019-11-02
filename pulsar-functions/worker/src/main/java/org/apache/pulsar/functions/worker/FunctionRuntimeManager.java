@@ -31,16 +31,17 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
-import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
-import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
+import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -150,7 +151,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
         secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
 
-        Optional<FunctionAuthProvider> functionAuthProvider  = Optional.empty();
+        Optional<FunctionAuthProvider> functionAuthProvider = Optional.empty();
         AuthenticationConfig authConfig = null;
         if (workerConfig.isAuthenticationEnabled()) {
             authConfig = AuthenticationConfig.builder()
@@ -168,57 +169,28 @@ public class FunctionRuntimeManager implements AutoCloseable{
             }
         }
 
-        if (workerConfig.getThreadContainerFactory() != null) {
-            this.runtimeFactory = new ThreadRuntimeFactory(
-                    workerConfig.getThreadContainerFactory().getThreadGroupName(),
-                    workerConfig.getPulsarServiceUrl(),
-                    workerConfig.getStateStorageServiceUrl(),
-                    authConfig,
-                    new ClearTextSecretsProvider(),
-                     null, null);
-        } else if (workerConfig.getProcessContainerFactory() != null) {
-            this.runtimeFactory = new ProcessRuntimeFactory(
-                    workerConfig.getPulsarServiceUrl(),
-                    workerConfig.getStateStorageServiceUrl(),
-                    authConfig,
-                    workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
-                    workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
-                    workerConfig.getProcessContainerFactory().getLogDirectory(),
-                    workerConfig.getProcessContainerFactory().getExtraFunctionDependenciesDir(),
-                    secretsProviderConfigurator,
-                    workerConfig.isAuthenticationEnabled(),
-                    functionAuthProvider);
-        } else if (workerConfig.getKubernetesContainerFactory() != null){
-            this.runtimeFactory = new KubernetesRuntimeFactory(
-                    workerConfig.getKubernetesContainerFactory().getK8Uri(),
-                    workerConfig.getKubernetesContainerFactory().getJobNamespace(),
-                    workerConfig.getKubernetesContainerFactory().getPulsarDockerImageName(),
-                    workerConfig.getKubernetesContainerFactory().getImagePullPolicy(),
-                    workerConfig.getKubernetesContainerFactory().getPulsarRootDir(),
-                    workerConfig.getKubernetesContainerFactory().getSubmittingInsidePod(),
-                    workerConfig.getKubernetesContainerFactory().getInstallUserCodeDependencies(),
-                    workerConfig.getKubernetesContainerFactory().getPythonDependencyRepository(),
-                    workerConfig.getKubernetesContainerFactory().getPythonExtraDependencyRepository(),
-                    workerConfig.getKubernetesContainerFactory().getExtraFunctionDependenciesDir(),
-                    workerConfig.getKubernetesContainerFactory().getCustomLabels(),
-                    workerConfig.getKubernetesContainerFactory().getPercentMemoryPadding(),
-                    workerConfig.getKubernetesContainerFactory().getCpuOverCommitRatio(),
-                    workerConfig.getKubernetesContainerFactory().getMemoryOverCommitRatio(),
-                    StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl()) ? workerConfig.getPulsarServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarServiceUrl(),
-                    StringUtils.isEmpty(workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl()) ? workerConfig.getPulsarWebServiceUrl() : workerConfig.getKubernetesContainerFactory().getPulsarAdminUrl(),
-                    workerConfig.getStateStorageServiceUrl(),
-                    authConfig,
-                    workerConfig.getTlsTrustChainBytes(),
-                    workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval() == null ? -1 : workerConfig.getKubernetesContainerFactory().getExpectedMetricsCollectionInterval(),
-                    workerConfig.getKubernetesContainerFactory().getChangeConfigMap(),
-                    workerConfig.getKubernetesContainerFactory().getChangeConfigMapNamespace(),
-                    workerConfig.getFunctionInstanceMinResources(),
-                    secretsProviderConfigurator,
-                    workerConfig.isAuthenticationEnabled(),
-                    functionAuthProvider);
+        // initialize function runtime factory
+        if (!StringUtils.isEmpty(workerConfig.getFunctionRuntimeFactoryClassName())) {
+            this.runtimeFactory = RuntimeFactory.getFuntionRuntimeFactory(workerConfig.getFunctionRuntimeFactoryClassName());
         } else {
-            throw new RuntimeException("Either Thread, Process or Kubernetes Container Factory need to be set");
+            if (workerConfig.getThreadContainerFactory() != null) {
+                this.runtimeFactory = new ThreadRuntimeFactory();
+                workerConfig.setFunctionRuntimeFactoryConfigs(
+                        ObjectMapperFactory.getThreadLocal().convertValue(workerConfig.getThreadContainerFactory(), Map.class));
+            } else if (workerConfig.getProcessContainerFactory() != null) {
+                this.runtimeFactory = new ProcessRuntimeFactory();
+                workerConfig.setFunctionRuntimeFactoryConfigs(
+                        ObjectMapperFactory.getThreadLocal().convertValue(workerConfig.getProcessContainerFactory(), Map.class));
+            } else if (workerConfig.getKubernetesContainerFactory() != null) {
+                this.runtimeFactory = new KubernetesRuntimeFactory();
+                workerConfig.setFunctionRuntimeFactoryConfigs(
+                        ObjectMapperFactory.getThreadLocal().convertValue(workerConfig.getKubernetesContainerFactory(), Map.class));
+            } else {
+                throw new RuntimeException("A Function Runtime Factory needs to be set");
+            }
         }
+        // initialize runtime
+        this.runtimeFactory.initialize(workerConfig, authConfig, secretsProviderConfigurator, functionAuthProvider);
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
                 dlogNamespace, connectorsManager, workerService.getBrokerAdmin());

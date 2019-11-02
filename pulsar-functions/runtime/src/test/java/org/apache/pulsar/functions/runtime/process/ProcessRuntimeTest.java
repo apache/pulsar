@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.runtime.process;
 
 import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.testng.Assert.assertEquals;
@@ -40,13 +40,16 @@ import java.util.Optional;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1PodSpec;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -139,15 +142,25 @@ public class ProcessRuntimeTest {
     }
 
     private ProcessRuntimeFactory createProcessRuntimeFactory(String extraDependenciesDir) {
-        return new ProcessRuntimeFactory(
-            pulsarServiceUrl,
-            stateStorageServiceUrl,
-            null, /* auth config */
-            javaInstanceJarFile,
-            pythonInstanceFile,
-            logDirectory,
-            extraDependenciesDir, /* extra dependencies dir */
-            new TestSecretsProviderConfigurator(), false, Optional.empty());
+        ProcessRuntimeFactory processRuntimeFactory = new ProcessRuntimeFactory();
+
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
+        workerConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
+        workerConfig.setAuthenticationEnabled(false);
+
+        ProcessRuntimeFactoryConfig processRuntimeFactoryConfig = new ProcessRuntimeFactoryConfig();
+        processRuntimeFactoryConfig.setJavaInstanceJarLocation(javaInstanceJarFile);
+        processRuntimeFactoryConfig.setPythonInstanceLocation(pythonInstanceFile);
+        processRuntimeFactoryConfig.setLogDirectory(logDirectory);
+        processRuntimeFactoryConfig.setExtraFunctionDependenciesDir(extraDependenciesDir);
+
+        workerConfig.setFunctionRuntimeFactoryClassName(ProcessRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(processRuntimeFactoryConfig, Map.class));
+        processRuntimeFactory.initialize(workerConfig, null, new TestSecretsProviderConfigurator(), Optional.empty());
+
+        return processRuntimeFactory;
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {

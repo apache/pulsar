@@ -17,15 +17,17 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.runtime.kubernetes;
 
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
+import io.kubernetes.client.models.V1ConfigMap;
 import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1StatefulSet;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
@@ -33,8 +35,12 @@ import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -43,6 +49,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -136,31 +144,38 @@ public class KubernetesRuntimeFactoryTest {
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir,
                                                             Resources minResources,
                                                             Optional<FunctionAuthProvider> functionAuthProvider) throws Exception {
-        KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory(
-            null,
-            null,
-            null,
-            null,
-            pulsarRootDir,
-            false,
-            true,
-            "myrepo",
-            "anotherrepo",
-            extraDepsDir,
-            null,
-                0,
-                1.0,
-                1.0,
-                pulsarServiceUrl,
-            pulsarAdminUrl,
-            stateStorageServiceUrl,
-            null,
-            null,
-            null,
-            null,
-            null,
-                minResources,
-                new TestSecretProviderConfigurator(), false, functionAuthProvider));
+        KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
+
+        WorkerConfig workerConfig = new WorkerConfig();
+        KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
+        kubernetesRuntimeFactoryConfig.setK8Uri(null);
+        kubernetesRuntimeFactoryConfig.setJobNamespace(null);
+        kubernetesRuntimeFactoryConfig.setPulsarDockerImageName(null);
+        kubernetesRuntimeFactoryConfig.setImagePullPolicy(null);
+        kubernetesRuntimeFactoryConfig.setPulsarRootDir(pulsarRootDir);
+        kubernetesRuntimeFactoryConfig.setSubmittingInsidePod(false);
+        kubernetesRuntimeFactoryConfig.setInstallUserCodeDependencies(true);
+        kubernetesRuntimeFactoryConfig.setPythonDependencyRepository("myrepo");
+        kubernetesRuntimeFactoryConfig.setPythonExtraDependencyRepository("anotherrepo");
+        kubernetesRuntimeFactoryConfig.setExtraFunctionDependenciesDir(extraDepsDir);
+        kubernetesRuntimeFactoryConfig.setCustomLabels(null);
+        kubernetesRuntimeFactoryConfig.setPercentMemoryPadding(0);
+        kubernetesRuntimeFactoryConfig.setCpuOverCommitRatio(1.0);
+        kubernetesRuntimeFactoryConfig.setMemoryOverCommitRatio(1.0);
+        kubernetesRuntimeFactoryConfig.setPulsarServiceUrl(pulsarServiceUrl);
+        kubernetesRuntimeFactoryConfig.setPulsarAdminUrl(pulsarAdminUrl);
+        kubernetesRuntimeFactoryConfig.setChangeConfigMapNamespace(null);
+        kubernetesRuntimeFactoryConfig.setChangeConfigMap(null);
+
+        workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+
+        workerConfig.setFunctionInstanceMinResources(minResources);
+        workerConfig.setStateStorageServiceUrl(null);
+        workerConfig.setAuthenticationEnabled(false);
+
+        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), functionAuthProvider);
         doNothing().when(factory).setupClient();
         return factory;
     }
@@ -316,5 +331,47 @@ public class KubernetesRuntimeFactoryTest {
                 assertEquals(e.getMessage(), failError);
             }
         }
+    }
+
+    @Test
+    public void testDynamicConfigMapLoading() throws Exception {
+
+        String changeConfigMap = "changeMap";
+        String changeConfigNamespace = "changeConfigNamespace";
+
+        KubernetesRuntimeFactory kubernetesRuntimeFactory = getKuberentesRuntimeFactory();
+        CoreV1Api coreV1Api = Mockito.mock(CoreV1Api.class);
+        V1ConfigMap v1ConfigMap = new V1ConfigMap();
+        Mockito.doReturn(v1ConfigMap).when(coreV1Api).readNamespacedConfigMap(any(), any(), any(), any(), any());
+        KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap, changeConfigNamespace, kubernetesRuntimeFactory);
+        Mockito.verify(coreV1Api, Mockito.times(1)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null), eq(true), eq(false));
+        KubernetesRuntimeFactory expected = getKuberentesRuntimeFactory();
+        assertEquals(kubernetesRuntimeFactory, expected);
+
+        HashMap<String, String> configs = new HashMap<>();
+        configs.put("pulsarDockerImageName", "test_dockerImage2");
+        configs.put("imagePullPolicy", "test_imagePullPolicy2");
+        v1ConfigMap.setData(configs);
+        KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap, changeConfigNamespace, kubernetesRuntimeFactory);
+        Mockito.verify(coreV1Api, Mockito.times(2)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null), eq(true), eq(false));
+
+       assertEquals(kubernetesRuntimeFactory.getPulsarDockerImageName(), "test_dockerImage2");
+       assertEquals(kubernetesRuntimeFactory.getImagePullPolicy(), "test_imagePullPolicy2");
+    }
+
+    private KubernetesRuntimeFactory getKuberentesRuntimeFactory() {
+        KubernetesRuntimeFactory kubernetesRuntimeFactory = new KubernetesRuntimeFactory();
+        WorkerConfig workerConfig = new WorkerConfig();
+        KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
+        kubernetesRuntimeFactoryConfig.setK8Uri("test_k8uri");
+        kubernetesRuntimeFactoryConfig.setJobNamespace("test_jobNamespace");
+        kubernetesRuntimeFactoryConfig.setPulsarDockerImageName("test_dockerImage");
+        kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");
+        workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+        AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
+        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Optional.empty());
+        return kubernetesRuntimeFactory;
     }
 }

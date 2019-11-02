@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.runtime.thread;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +30,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
@@ -39,7 +40,7 @@ import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
  * A function container implemented using java thread.
  */
 @Slf4j
-class ThreadRuntime implements Runtime {
+public class ThreadRuntime implements Runtime {
 
     // The thread that invokes the function
     private Thread fnThread;
