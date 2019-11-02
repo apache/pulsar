@@ -735,6 +735,30 @@ class PulsarTest(TestCase):
         time.sleep(0.5)
         msg = consumer.receive(TM)
         self.assertEqual(msg.data(), b'hello-0')
+
+        # repeat with reader
+        reader = client.create_reader('my-python-topic-seek', MessageId.latest)
+        try:
+            msg = reader.read_next(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+        # seek on messageId
+        reader.seek(MessageId.earliest)
+        time.sleep(0.5)
+        msg = reader.read_next(TM)
+        self.assertEqual(msg0.data(), b'hello-0')
+        msg = reader.read_next(TM)
+        self.assertEqual(msg0.data(), b'hello-1')
+        # seek on timestamp
+        reader.seek(0)
+        time.sleep(0.5)
+        msg = reader.read_next(TM)
+        self.assertEqual(msg0.data(), b'hello-0')
+        msg = reader.read_next(TM)
+        self.assertEqual(msg0.data(), b'hello-1')
+
+        reader.close()
         client.close()
 
     def test_v2_topics(self):
