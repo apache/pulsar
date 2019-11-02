@@ -47,6 +47,10 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
+import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 
 @Data
 @Setter
@@ -328,162 +332,20 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     }
 
 
-    @Data
-    @Setter
-    @Getter
-    @EqualsAndHashCode
-    @ToString
-    public static class ThreadContainerFactory {
-        @FieldContext(
-            doc = "The name of thread group running function threads"
-        )
-        private String threadGroupName;
-    }
+    /******** Function Runtime configurations **********/
+
+
     @FieldContext(
-        category = CATEGORY_FUNC_RUNTIME_MNG,
-        doc = "Thread based runtime settings"
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "The classname of the function runtime factory."
     )
-    private ThreadContainerFactory threadContainerFactory;
+    private String functionRuntimeFactoryClassName;
 
-    @Data
-    @Setter
-    @Getter
-    @EqualsAndHashCode
-    @ToString
-    public static class ProcessContainerFactory {
-        @FieldContext(
-            doc = "The path to the java instance. Change the jar location only when you put"
-                + " the java instance jar in a different location"
-        )
-        private String javaInstanceJarLocation;
-        @FieldContext(
-            doc = "The path to the python instance. Change the python instance location only"
-                + " when you put the python instance in a different location"
-        )
-        private String pythonInstanceLocation;
-        @FieldContext(
-            doc = "The path to the log directory"
-        )
-        private String logDirectory;
-        @FieldContext(
-            doc = "the directory for dropping extra function dependencies"
-        )
-        private String extraFunctionDependenciesDir;
-    }
     @FieldContext(
-        category = CATEGORY_FUNC_RUNTIME_MNG,
-        doc = "Process based runtime settings"
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "A map of configs for function runtime factory."
     )
-    private ProcessContainerFactory processContainerFactory;
-
-    @Data
-    @Setter
-    @Getter
-    @EqualsAndHashCode
-    @ToString
-    public static class KubernetesContainerFactory {
-        @FieldContext(
-            doc = "Uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in"
-                + " function worker machine"
-        )
-        private String k8Uri;
-        @FieldContext(
-            doc = "The Kubernetes namespace to run the function instances. It is `default`,"
-                + " if this setting is left to be empty"
-        )
-        private String jobNamespace;
-        @FieldContext(
-            doc = "The docker image used to run function instance. By default it is `apachepulsar/pulsar`"
-        )
-        private String pulsarDockerImageName;
-
-        @FieldContext(
-                doc = "The image pull policy for image used to run function instance. By default it is `IfNotPresent`"
-        )
-        private String imagePullPolicy;
-        @FieldContext(
-                doc = "The root directory of pulsar home directory in the pulsar docker image specified"
-                        + " `pulsarDockerImageName`. By default it is under `/pulsar`. If you are using your own"
-                        + " customized image in `pulsarDockerImageName`, you need to set this setting accordingly"
-        )
-        private String pulsarRootDir;
-        @FieldContext(
-            doc = "This setting only takes effects if `k8Uri` is set to null. If your function worker is"
-                + " also running as a k8s pod, set this to `true` is let function worker to submit functions to"
-                + " the same k8s cluster as function worker is running. Set this to `false` if your function worker"
-                + " is not running as a k8s pod"
-        )
-        private Boolean submittingInsidePod;
-        @FieldContext(
-            doc = "The pulsar service url that pulsar functions should use to connect to pulsar."
-                + " If it is not set, it will use the pulsar service url configured in function worker."
-        )
-        private String pulsarServiceUrl;
-        @FieldContext(
-            doc = "The pulsar admin url that pulsar functions should use to connect to pulsar."
-                + " If it is not set, it will use the pulsar admin url configured in function worker."
-        )
-        private String pulsarAdminUrl;
-        @FieldContext(
-            doc = "The flag indicates to install user code dependencies. (applied to python package)"
-        )
-        private Boolean installUserCodeDependencies;
-        @FieldContext(
-            doc = "The repository that pulsar functions use to download python dependencies"
-        )
-        private String pythonDependencyRepository;
-        @FieldContext(
-            doc = "The repository that pulsar functions use to download extra python dependencies"
-        )
-        private String pythonExtraDependencyRepository;
-
-        @FieldContext(
-            doc = "the directory for dropping extra function dependencies. "
-                + "If it is not absolute path, it is relative to `pulsarRootDir`"
-        )
-        private String extraFunctionDependenciesDir;
-        @FieldContext(
-            doc = "The custom labels that function worker uses to select the nodes for pods"
-        )
-        private Map<String, String> customLabels;
-
-        @FieldContext(
-            doc = "The expected metrics collection interval, in seconds"
-        )
-        private Integer expectedMetricsCollectionInterval = 30;
-        @FieldContext(
-            doc = "Kubernetes Runtime will periodically checkback on"
-                + " this configMap if defined and if there are any changes"
-                + " to the kubernetes specific stuff, we apply those changes"
-        )
-        private String changeConfigMap;
-        @FieldContext(
-            doc = "The namespace for storing change config map"
-        )
-        private String changeConfigMapNamespace;
-
-        @FieldContext(
-                doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
-        )
-        private int percentMemoryPadding;
-
-        @FieldContext(
-                doc = "The ratio cpu request and cpu limit to be set for a function/source/sink." +
-                        "  The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio"
-        )
-        private double cpuOverCommitRatio = 1.0;
-
-        @FieldContext(
-                doc = "The ratio memory request and memory limit to be set for a function/source/sink." +
-                        "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
-        )
-        private double memoryOverCommitRatio = 1.0;
-    }
-    @FieldContext(
-        category = CATEGORY_FUNC_RUNTIME_MNG,
-        doc = "Kubernetes based runtime settings"
-    )
-    private KubernetesContainerFactory kubernetesContainerFactory;
+    private Map<String, Object> functionRuntimeFactoryConfigs;
 
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
@@ -569,4 +431,54 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     public void setProperties(Properties properties) {
         this.properties = properties;
     }
+
+    /********* DEPRECATED CONFIGS *********/
+
+    @Deprecated
+    @Data
+    /**
+     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * for specifying the function runtime and configs to use
+     */
+    public static class ThreadContainerFactory extends ThreadRuntimeFactoryConfig {
+
+    }
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Thread based runtime settings"
+    )
+    @Deprecated
+    private ThreadContainerFactory threadContainerFactory;
+
+    @Deprecated
+    @Data
+    /**
+     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * for specifying the function runtime and configs to use
+     */
+    public static class ProcessContainerFactory extends ProcessRuntimeFactoryConfig {
+
+    }
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Process based runtime settings"
+    )
+    @Deprecated
+    private ProcessContainerFactory processContainerFactory;
+
+    @Deprecated
+    @Data
+    /**
+     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * for specifying the function runtime and configs to use
+     */
+    public static class KubernetesContainerFactory extends KubernetesRuntimeFactoryConfig {
+
+    }
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Kubernetes based runtime settings"
+    )
+    @Deprecated
+    private KubernetesContainerFactory kubernetesContainerFactory;
 }

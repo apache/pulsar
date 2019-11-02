@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.runtime.kubernetes;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.ApiClient;
@@ -28,9 +28,9 @@ import io.kubernetes.client.models.V1ConfigMap;
 import io.kubernetes.client.util.Config;
 import java.nio.file.Paths;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
@@ -39,7 +39,10 @@ import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -54,132 +57,130 @@ import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuth
  * Kubernetes based function container factory implementation.
  */
 @Slf4j
+@Data
 public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     static int NUM_RETRIES = 5;
     static long SLEEP_BETWEEN_RETRIES_MS = 500;
 
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    class KubernetesInfo {
-        private String k8Uri;
-        private String jobNamespace;
-        private String pulsarDockerImageName;
-        private String imagePullPolicy;
-        private String pulsarRootDir;
-        private String pulsarAdminUrl;
-        private String pulsarServiceUrl;
-        private String pythonDependencyRepository;
-        private String pythonExtraDependencyRepository;
-        private String extraDependenciesDir;
-        private String changeConfigMap;
-        private String changeConfigMapNamespace;
-        private int percentMemoryPadding;
-        private double cpuOverCommitRatio;
-        private double memoryOverCommitRatio;
-    }
-    private final KubernetesInfo kubernetesInfo;
-    private final Boolean submittingInsidePod;
-    private final Boolean installUserCodeDependencies;
-    private final Map<String, String> customLabels;
-    private final Integer expectedMetricsCollectionInterval;
-    private final String stateStorageServiceUri;
-    private final AuthenticationConfig authConfig;
-    private final String javaInstanceJarFile;
-    private final String pythonInstanceFile;
-    private final String extraDependenciesDir;
-    private final SecretsProviderConfigurator secretsProviderConfigurator;
+    private String k8Uri;
+    private String jobNamespace;
+    private String pulsarDockerImageName;
+    private String imagePullPolicy;
+    private String pulsarRootDir;
+    private String pulsarAdminUrl;
+    private String pulsarServiceUrl;
+    private String pythonDependencyRepository;
+    private String pythonExtraDependencyRepository;
+    private String extraDependenciesDir;
+    private String changeConfigMap;
+    private String changeConfigMapNamespace;
+    private int percentMemoryPadding;
+    private double cpuOverCommitRatio;
+    private double memoryOverCommitRatio;
+    private Boolean submittingInsidePod;
+    private Boolean installUserCodeDependencies;
+    private Map<String, String> customLabels;
+    private Integer expectedMetricsCollectionInterval;
+    private String stateStorageServiceUri;
+    private AuthenticationConfig authConfig;
+    private String javaInstanceJarFile;
+    private String pythonInstanceFile;
     private final String logDirectory = "logs/functions";
-    private Timer changeConfigMapTimer;
-    private AppsV1Api appsClient;
-    private CoreV1Api coreClient;
     private Resources functionInstanceMinResources;
-    private final boolean authenticationEnabled;
-    private Optional<KubernetesFunctionAuthProvider> authProvider;
-    private final byte[] serverCaBytes;
+    private boolean authenticationEnabled;
 
-    @VisibleForTesting
-    public KubernetesRuntimeFactory(String k8Uri,
-                                    String jobNamespace,
-                                    String pulsarDockerImageName,
-                                    String imagePullPolicy,
-                                    String pulsarRootDir,
-                                    Boolean submittingInsidePod,
-                                    Boolean installUserCodeDependencies,
-                                    String pythonDependencyRepository,
-                                    String pythonExtraDependencyRepository,
-                                    String extraDependenciesDir,
-                                    Map<String, String> customLabels,
-                                    int percentMemoryPadding,
-                                    double cpuOverCommitRatio,
-                                    double memoryOverCommitRatio,
-                                    String pulsarServiceUri,
-                                    String pulsarAdminUri,
-                                    String stateStorageServiceUri,
-                                    AuthenticationConfig authConfig,
-                                    byte[] serverCaBytes,
-                                    Integer expectedMetricsCollectionInterval,
-                                    String changeConfigMap,
-                                    String changeConfigMapNamespace,
-                                    Resources functionInstanceMinResources,
-                                    SecretsProviderConfigurator secretsProviderConfigurator,
-                                    boolean authenticationEnabled,
-                                    Optional<FunctionAuthProvider> functionAuthProvider) {
-        this.kubernetesInfo = new KubernetesInfo();
-        this.kubernetesInfo.setK8Uri(k8Uri);
-        if (!isEmpty(jobNamespace)) {
-            this.kubernetesInfo.setJobNamespace(jobNamespace);
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Timer changeConfigMapTimer;
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private AppsV1Api appsClient;
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private CoreV1Api coreClient;
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private SecretsProviderConfigurator secretsProviderConfigurator;
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Optional<KubernetesFunctionAuthProvider> authProvider;
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private byte[] serverCaBytes;
+
+    @Override
+    public boolean externallyManaged() {
+        return true;
+    }
+
+    @Override
+    public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
+                           SecretsProviderConfigurator secretsProviderConfigurator,
+                           Optional<FunctionAuthProvider> functionAuthProvider) {
+
+        KubernetesRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
+                workerConfig.getFunctionRuntimeFactoryConfigs(), KubernetesRuntimeFactoryConfig.class);
+
+        this.k8Uri = factoryConfig.getK8Uri();
+        if (!isEmpty(factoryConfig.getJobNamespace())) {
+            this.jobNamespace = factoryConfig.getJobNamespace();
         } else {
-            this.kubernetesInfo.setJobNamespace("default");
+            this.jobNamespace = "default";
         }
-        if (!isEmpty(pulsarDockerImageName)) {
-            this.kubernetesInfo.setPulsarDockerImageName(pulsarDockerImageName);
+        if (!isEmpty(factoryConfig.getPulsarDockerImageName())) {
+            this.pulsarDockerImageName = factoryConfig.getPulsarDockerImageName();
         } else {
-            this.kubernetesInfo.setPulsarDockerImageName("apachepulsar/pulsar");
+            this.pulsarDockerImageName = "apachepulsar/pulsar";
         }
-        if (!isEmpty(imagePullPolicy)) {
-            this.kubernetesInfo.setImagePullPolicy(imagePullPolicy);
+        if (!isEmpty(factoryConfig.getImagePullPolicy())) {
+            this.imagePullPolicy = factoryConfig.getImagePullPolicy();
         } else {
-            this.kubernetesInfo.setImagePullPolicy("IfNotPresent");
+            this.imagePullPolicy = "IfNotPresent";
         }
-        if (!isEmpty(pulsarRootDir)) {
-            this.kubernetesInfo.setPulsarRootDir(pulsarRootDir);
+        if (!isEmpty(factoryConfig.getPulsarRootDir())) {
+            this.pulsarRootDir = factoryConfig.getPulsarRootDir();
         } else {
-            this.kubernetesInfo.setPulsarRootDir("/pulsar");
+            this.pulsarRootDir = "/pulsar";
         }
-        if (StringUtils.isNotEmpty(extraDependenciesDir)) {
-            if (Paths.get(extraDependenciesDir).isAbsolute()) {
-                this.extraDependenciesDir = extraDependenciesDir;
+
+        this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
+        this.installUserCodeDependencies = factoryConfig.getInstallUserCodeDependencies();
+        this.pythonDependencyRepository = factoryConfig.getPythonDependencyRepository();
+        this.pythonExtraDependencyRepository = factoryConfig.getPythonExtraDependencyRepository();
+
+        if (StringUtils.isNotEmpty(factoryConfig.getExtraFunctionDependenciesDir())) {
+            if (Paths.get(factoryConfig.getExtraFunctionDependenciesDir()).isAbsolute()) {
+                this.extraDependenciesDir = factoryConfig.getExtraFunctionDependenciesDir();
             } else {
-                this.extraDependenciesDir = this.kubernetesInfo.getPulsarRootDir()
-                    + "/" + extraDependenciesDir;
+                this.extraDependenciesDir = this.pulsarRootDir
+                        + "/" + factoryConfig.getExtraFunctionDependenciesDir();
             }
         } else {
-            this.extraDependenciesDir = this.kubernetesInfo.getPulsarRootDir() + "/instances/deps";
+            this.extraDependenciesDir = this.pulsarRootDir + "/instances/deps";
         }
-        this.kubernetesInfo.setExtraDependenciesDir(extraDependenciesDir);
-        this.kubernetesInfo.setPythonDependencyRepository(pythonDependencyRepository);
-        this.kubernetesInfo.setPythonExtraDependencyRepository(pythonExtraDependencyRepository);
-        this.kubernetesInfo.setPulsarServiceUrl(pulsarServiceUri);
-        this.kubernetesInfo.setPulsarAdminUrl(pulsarAdminUri);
-        this.kubernetesInfo.setChangeConfigMap(changeConfigMap);
-        this.kubernetesInfo.setChangeConfigMapNamespace(changeConfigMapNamespace);
-        this.kubernetesInfo.setPercentMemoryPadding(percentMemoryPadding);
-        this.kubernetesInfo.setCpuOverCommitRatio(cpuOverCommitRatio);
-        this.kubernetesInfo.setMemoryOverCommitRatio(memoryOverCommitRatio);
-        this.submittingInsidePod = submittingInsidePod;
-        this.installUserCodeDependencies = installUserCodeDependencies;
-        this.customLabels = customLabels;
-        this.stateStorageServiceUri = stateStorageServiceUri;
-        this.authConfig = authConfig;
-        this.serverCaBytes = serverCaBytes;
-        this.javaInstanceJarFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/java-instance.jar";
-        this.pythonInstanceFile = this.kubernetesInfo.getPulsarRootDir() + "/instances/python-instance/python_instance_main.py";
-        this.expectedMetricsCollectionInterval = expectedMetricsCollectionInterval == null ? -1 : expectedMetricsCollectionInterval;
+
+        this.customLabels = factoryConfig.getCustomLabels();
+        this.percentMemoryPadding = factoryConfig.getPercentMemoryPadding();
+        this.cpuOverCommitRatio = factoryConfig.getCpuOverCommitRatio();
+        this.memoryOverCommitRatio = factoryConfig.getMemoryOverCommitRatio();
+        this.pulsarServiceUrl = StringUtils.isEmpty(factoryConfig.getPulsarServiceUrl())
+                ? workerConfig.getPulsarServiceUrl() : factoryConfig.getPulsarServiceUrl();
+        this.pulsarAdminUrl = StringUtils.isEmpty(factoryConfig.getPulsarAdminUrl())
+                ? workerConfig.getPulsarWebServiceUrl() : factoryConfig.getPulsarAdminUrl();
+        this.stateStorageServiceUri = workerConfig.getStateStorageServiceUrl();
+        this.authConfig = authenticationConfig;
+        this.expectedMetricsCollectionInterval = factoryConfig.getExpectedMetricsCollectionInterval() == null
+                ? -1 : factoryConfig.getExpectedMetricsCollectionInterval();
+        this.changeConfigMap = factoryConfig.getChangeConfigMap();
+        this.changeConfigMapNamespace = factoryConfig.getChangeConfigMapNamespace();
+        this.functionInstanceMinResources = workerConfig.getFunctionInstanceMinResources();
         this.secretsProviderConfigurator = secretsProviderConfigurator;
-        this.functionInstanceMinResources = functionInstanceMinResources;
-        this.authenticationEnabled = authenticationEnabled;
+        this.authenticationEnabled = workerConfig.isAuthenticationEnabled();
+        this.javaInstanceJarFile = this.pulsarRootDir + "/instances/java-instance.jar";
+        this.pythonInstanceFile = this.pulsarRootDir + "/instances/python-instance/python_instance_main.py";
+        this.serverCaBytes = workerConfig.getTlsTrustChainBytes();
         try {
             setupClient();
         } catch (Exception e) {
@@ -193,19 +194,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                         + functionAuthProvider.get().getClass().getName() + " must implement KubernetesFunctionAuthProvider");
             } else {
                 KubernetesFunctionAuthProvider kubernetesFunctionAuthProvider = (KubernetesFunctionAuthProvider) functionAuthProvider.get();
-                kubernetesFunctionAuthProvider.initialize(coreClient, jobNamespace, serverCaBytes);
+                kubernetesFunctionAuthProvider.initialize(coreClient, factoryConfig.getJobNamespace(), serverCaBytes);
                 this.authProvider = Optional.of(kubernetesFunctionAuthProvider);
             }
         } else {
             this.authProvider = Optional.empty();
         }
 
-
-    }
-
-    @Override
-    public boolean externallyManaged() {
-        return true;
     }
 
     @Override
@@ -237,29 +232,29 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         return new KubernetesRuntime(
             appsClient,
             coreClient,
-            this.kubernetesInfo.getJobNamespace(),
+            jobNamespace,
             customLabels,
             installUserCodeDependencies,
-            this.kubernetesInfo.getPythonDependencyRepository(),
-            this.kubernetesInfo.getPythonExtraDependencyRepository(),
-            this.kubernetesInfo.getPulsarDockerImageName(),
-            this.kubernetesInfo.imagePullPolicy,
-            this.kubernetesInfo.getPulsarRootDir(),
+            pythonDependencyRepository,
+            pythonExtraDependencyRepository,
+            pulsarDockerImageName,
+            imagePullPolicy,
+            pulsarRootDir,
             instanceConfig,
             instanceFile,
             extraDependenciesDir,
             logDirectory,
             codePkgUrl,
             originalCodeFileName,
-            this.kubernetesInfo.getPulsarServiceUrl(),
-            this.kubernetesInfo.getPulsarAdminUrl(),
+            pulsarServiceUrl,
+            pulsarAdminUrl,
             stateStorageServiceUri,
             authConfig,
             secretsProviderConfigurator,
             expectedMetricsCollectionInterval,
-            this.kubernetesInfo.getPercentMemoryPadding(),
-            this.kubernetesInfo.getCpuOverCommitRatio(),
-            this.kubernetesInfo.getMemoryOverCommitRatio(),
+            percentMemoryPadding,
+            cpuOverCommitRatio,
+            memoryOverCommitRatio,
             authProvider,
             authenticationEnabled);
     }
@@ -272,13 +267,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
         KubernetesRuntime.doChecks(functionDetails);
         validateMinResourcesRequired(functionDetails);
-        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, kubernetesInfo.getJobNamespace(), functionDetails);
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, jobNamespace, functionDetails);
     }
 
     @VisibleForTesting
     public void setupClient() throws Exception {
         if (appsClient == null) {
-            if (this.kubernetesInfo.getK8Uri() == null) {
+            if (k8Uri == null) {
                 log.info("k8Uri is null thus going by defaults");
                 ApiClient cli;
                 if (submittingInsidePod) {
@@ -292,43 +287,47 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 appsClient = new AppsV1Api();
                 coreClient = new CoreV1Api();
             } else {
-                log.info("Setting up k8Client using uri " + this.kubernetesInfo.getK8Uri());
-                final ApiClient apiClient = new ApiClient().setBasePath(this.kubernetesInfo.getK8Uri());
+                log.info("Setting up k8Client using uri " + k8Uri);
+                final ApiClient apiClient = new ApiClient().setBasePath(k8Uri);
                 appsClient = new AppsV1Api(apiClient);
                 coreClient = new CoreV1Api(apiClient);
             }
 
             // Setup a timer to change stuff.
-            if (!isEmpty(this.kubernetesInfo.getChangeConfigMap())) {
+            if (!isEmpty(changeConfigMap)) {
                 changeConfigMapTimer = new Timer();
+                final KubernetesRuntimeFactory THIS = this;
                 changeConfigMapTimer.scheduleAtFixedRate(new TimerTask() {
                     @Override
                     public void run() {
-                        fetchConfigMap();
+                        fetchConfigMap(coreClient, changeConfigMap, changeConfigMapNamespace, THIS);
                     }
                 }, 300000, 300000);
             }
         }
     }
 
-    void fetchConfigMap() {
+    static void fetchConfigMap(CoreV1Api coreClient, String changeConfigMap,
+                               String changeConfigMapNamespace,
+                               KubernetesRuntimeFactory kubernetesRuntimeFactory) {
         try {
-            V1ConfigMap v1ConfigMap = coreClient.readNamespacedConfigMap(kubernetesInfo.getChangeConfigMap(), kubernetesInfo.getChangeConfigMapNamespace(), null, true, false);
+            V1ConfigMap v1ConfigMap = coreClient.readNamespacedConfigMap(changeConfigMap, changeConfigMapNamespace, null, true, false);
             Map<String, String> data = v1ConfigMap.getData();
             if (data != null) {
-                overRideKubernetesConfig(data);
+                overRideKubernetesConfig(data, kubernetesRuntimeFactory);
             }
         } catch (Exception e) {
-            log.error("Error while trying to fetch configmap {} at namespace {}", kubernetesInfo.getChangeConfigMap(), kubernetesInfo.getChangeConfigMapNamespace(), e);
+            log.error("Error while trying to fetch configmap {} at namespace {}", changeConfigMap, changeConfigMapNamespace, e);
         }
     }
 
-    void overRideKubernetesConfig(Map<String, String> data) throws Exception {
-        for (Field field : KubernetesInfo.class.getDeclaredFields()) {
+    static void overRideKubernetesConfig(Map<String, String> data,
+                                         KubernetesRuntimeFactory kubernetesRuntimeFactory) throws Exception {
+        for (Field field : KubernetesRuntimeFactory.class.getDeclaredFields()) {
             field.setAccessible(true);
-            if (data.containsKey(field.getName()) && !data.get(field.getName()).equals(field.get(kubernetesInfo))) {
-                log.info("Kubernetes Config {} changed from {} to {}", field.getName(), field.get(kubernetesInfo), data.get(field.getName()));
-                field.set(kubernetesInfo, data.get(field.getName()));
+            if (data.containsKey(field.getName()) && !data.get(field.getName()).equals(field.get(kubernetesRuntimeFactory))) {
+                log.info("Kubernetes Config {} changed from {} to {}", field.getName(), field.get(kubernetesRuntimeFactory), data.get(field.getName()));
+                field.set(kubernetesRuntimeFactory, data.get(field.getName()));
             }
         }
     }

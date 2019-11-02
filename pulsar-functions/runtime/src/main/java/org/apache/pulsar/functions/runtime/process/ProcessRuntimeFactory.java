@@ -17,21 +17,26 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.runtime.process;
 
 import com.google.common.annotations.VisibleForTesting;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
-import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.nio.file.Paths;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
@@ -39,17 +44,25 @@ import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuth
  * Thread based function container factory implementation.
  */
 @Slf4j
+@NoArgsConstructor
+@Data
 public class ProcessRuntimeFactory implements RuntimeFactory {
 
-    private final String pulsarServiceUrl;
-    private final String stateStorageServiceUrl;
-    private final boolean authenticationEnabled;
+    private String pulsarServiceUrl;
+    private String stateStorageServiceUrl;
+    private boolean authenticationEnabled;
     private AuthenticationConfig authConfig;
-    private SecretsProviderConfigurator secretsProviderConfigurator;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
     private String extraDependenciesDir;
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private SecretsProviderConfigurator secretsProviderConfigurator;
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Optional<FunctionAuthProvider> authProvider;
 
     @VisibleForTesting
@@ -63,6 +76,41 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  SecretsProviderConfigurator secretsProviderConfigurator,
                                  boolean authenticationEnabled,
                                  Optional<FunctionAuthProvider> functionAuthProvider) {
+
+        initialize(pulsarServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
+                pythonInstanceFile, logDirectory, extraDependenciesDir,
+                secretsProviderConfigurator, authenticationEnabled, functionAuthProvider);
+    }
+
+    @Override
+    public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
+                           SecretsProviderConfigurator secretsProviderConfigurator,
+                           Optional<FunctionAuthProvider> functionAuthProvider) {
+        ProcessRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
+                workerConfig.getFunctionRuntimeFactoryConfigs(), ProcessRuntimeFactoryConfig.class);
+
+        initialize(workerConfig.getPulsarServiceUrl(),
+                workerConfig.getStateStorageServiceUrl(),
+                authenticationConfig,
+                factoryConfig.getJavaInstanceJarLocation(),
+                factoryConfig.getPythonInstanceLocation(),
+                factoryConfig.getLogDirectory(),
+                factoryConfig.getExtraFunctionDependenciesDir(),
+                secretsProviderConfigurator,
+                workerConfig.isAuthenticationEnabled(),
+                functionAuthProvider);
+    }
+
+    private void initialize(String pulsarServiceUrl,
+                            String stateStorageServiceUrl,
+                            AuthenticationConfig authConfig,
+                            String javaInstanceJarFile,
+                            String pythonInstanceFile,
+                            String logDirectory,
+                            String extraDependenciesDir,
+                            SecretsProviderConfigurator secretsProviderConfigurator,
+                            boolean authenticationEnabled,
+                            Optional<FunctionAuthProvider> functionAuthProvider) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
@@ -109,14 +157,14 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
         if (this.extraDependenciesDir == null) {
             String envProcessContainerExtraDependenciesDir =
-                System.getProperty("pulsar.functions.extra.dependencies.dir");
+                    System.getProperty("pulsar.functions.extra.dependencies.dir");
             if (null != envProcessContainerExtraDependenciesDir) {
                 log.info("Extra dependencies location is not defined using"
-                    + " the location defined in system environment : {}", envProcessContainerExtraDependenciesDir);
+                        + " the location defined in system environment : {}", envProcessContainerExtraDependenciesDir);
                 this.extraDependenciesDir = envProcessContainerExtraDependenciesDir;
             } else {
                 log.info("No extra dependencies location is defined in either"
-                    + " function worker config or system environment");
+                        + " function worker config or system environment");
             }
         }
 
