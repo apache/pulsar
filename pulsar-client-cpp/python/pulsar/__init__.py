@@ -1077,7 +1077,7 @@ class Consumer:
         **Args**
 
         * `message`:
-          The message id for seek.
+          The message id for seek, OR an integer event time to seek to
         """
         self._consumer.seek(messageid)
 

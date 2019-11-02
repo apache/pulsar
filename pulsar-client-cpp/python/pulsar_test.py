@@ -729,6 +729,12 @@ class PulsarTest(TestCase):
         time.sleep(0.5)
         msg = consumer.receive(TM)
         self.assertEqual(msg.data(), b'hello-0')
+
+        # ditto, but seek on timestamp
+        consumer.seek(0)
+        time.sleep(0.5)
+        msg = consumer.receive(TM)
+        self.assertEqual(msg.data(), b'hello-0')
         client.close()
 
     def test_v2_topics(self):
