@@ -201,9 +201,6 @@ public class WorkerService {
 
             // indicate function worker service is done initializing
             this.isInitialized = true;
-
-            this.connectorsManager = new ConnectorsManager(workerConfig);
-
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
             throw new RuntimeException(t);
