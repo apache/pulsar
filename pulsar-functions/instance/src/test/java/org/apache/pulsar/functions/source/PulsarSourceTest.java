@@ -82,6 +82,7 @@ public class PulsarSourceTest {
         doReturn(consumerBuilder).when(consumerBuilder).topics(anyList());
         doReturn(consumerBuilder).when(consumerBuilder).cryptoFailureAction(any());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(any());
+        doReturn(consumerBuilder).when(consumerBuilder).subscriptionInitialPosition(any());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
         doReturn(consumerBuilder).when(consumerBuilder).messageListener(any());
