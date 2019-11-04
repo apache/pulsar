@@ -214,6 +214,16 @@ public interface Schema<T> {
     }
 
     /**
+     * Disable SchemaInfo.
+     *
+     * @param schema instance
+     * @return a Schema instance of bytes type
+     */
+    static <T> Schema<T> disabled(Schema<T> schema) {
+        return DefaultImplementation.schemaDisabled(schema);
+    }
+
+    /**
      * Create a Protobuf schema type with schema definition.
      *
      * @param schemaDefinition schemaDefinition the definition of the schema

@@ -311,6 +311,13 @@ public class DefaultImplementation {
                     String.class).newInstance(name));
     }
 
+    public static <T> Schema<T> schemaDisabled(Schema<T> schema) {
+        return catchExceptions(
+                () -> (Schema<T>) getStaticMethod(
+                        "org.apache.pulsar.client.impl.schema.SchemaDisabled", "of", Schema.class)
+                        .invoke(null, schema));
+    }
+
     /**
      * Decode the kv encoding type from the schema info.
      *
