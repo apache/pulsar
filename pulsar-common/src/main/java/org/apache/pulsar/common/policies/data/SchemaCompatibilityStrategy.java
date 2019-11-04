@@ -16,33 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
-
+/**
+ * Pulsar Schema compatibility strategy.
+ */
 public enum SchemaCompatibilityStrategy {
+
     /**
-     * Always incompatible
+     * Undefined.
+     */
+    UNDEFINED,
+
+    /**
+     * Always incompatible.
      */
     ALWAYS_INCOMPATIBLE,
 
     /**
-     * Always compatible
+     * Always compatible.
      */
     ALWAYS_COMPATIBLE,
 
     /**
-     * Messages written by an old schema can be read by a new schema
+     * Messages written by an old schema can be read by a new schema.
      */
     BACKWARD,
 
     /**
-     * Messages written by a new schema can be read by an old schema
+     * Messages written by a new schema can be read by an old schema.
      */
     FORWARD,
 
     /**
-     * Equivalent to both FORWARD and BACKWARD
+     * Equivalent to both FORWARD and BACKWARD.
      */
     FULL,
 
@@ -59,7 +66,7 @@ public enum SchemaCompatibilityStrategy {
     FORWARD_TRANSITIVE,
 
     /**
-     * Equivalent to both FORWARD_TRANSITIVE and BACKWARD_TRANSITIVE
+     * Equivalent to both FORWARD_TRANSITIVE and BACKWARD_TRANSITIVE.
      */
     FULL_TRANSITIVE;
 

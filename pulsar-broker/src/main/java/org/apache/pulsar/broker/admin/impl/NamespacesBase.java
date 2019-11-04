@@ -81,12 +81,14 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2034,11 +2036,18 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    @Deprecated
     protected SchemaAutoUpdateCompatibilityStrategy internalGetSchemaAutoUpdateCompatibilityStrategy() {
         validateAdminAccessForTenant(namespaceName.getTenant());
         return getNamespacePolicies(namespaceName).schema_auto_update_compatibility_strategy;
     }
 
+    protected SchemaCompatibilityStrategy internalGetSchemaCompatibilityStrategy() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        return getNamespacePolicies(namespaceName).schema_compatibility_strategy;
+    }
+
+    @Deprecated
     protected void internalSetSchemaAutoUpdateCompatibilityStrategy(SchemaAutoUpdateCompatibilityStrategy strategy) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
@@ -2048,6 +2057,17 @@ public abstract class NamespacesBase extends AdminResource {
                 return policies;
             }, (policies) -> policies.schema_auto_update_compatibility_strategy,
             "schemaAutoUpdateCompatibilityStrategy");
+    }
+
+    protected void internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        mutatePolicy((policies) -> {
+                    policies.schema_compatibility_strategy = strategy;
+                    return policies;
+                }, (policies) -> policies.schema_compatibility_strategy,
+                "schemaCompatibilityStrategy");
     }
 
     protected boolean internalGetSchemaValidationEnforced() {
@@ -2065,6 +2085,23 @@ public abstract class NamespacesBase extends AdminResource {
                 return policies;
             }, (policies) -> policies. schema_validation_enforced,
             "schemaValidationEnforced");
+    }
+
+    protected boolean internalGetIsAllowAutoUpdateSchema() {
+        validateSuperUserAccess();
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
+    }
+
+    protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        mutatePolicy((policies) -> {
+                    policies.is_allow_auto_update_schema = isAllowAutoUpdateSchema;
+                    return policies;
+                }, (policies) -> policies.is_allow_auto_update_schema,
+                "isAllowAutoUpdateSchema");
     }
 
 

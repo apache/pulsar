@@ -172,14 +172,14 @@ public interface Topic {
     /**
      * Check if schema is compatible with current topic schema.
      */
-    CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);
+    CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema);
 
     /**
      * If the topic is idle (no producers, no entries, no subscribers and no existing schema),
      * add the passed schema to the topic. Otherwise, check that the passed schema is compatible
      * with what the topic already has.
      */
-    CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
+    CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
 
     CompletableFuture<Void> deleteForcefully();
 
