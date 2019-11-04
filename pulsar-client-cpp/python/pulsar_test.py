@@ -760,25 +760,25 @@ class PulsarTest(TestCase):
         reader.seek(MessageId.earliest)
         time.sleep(0.5)
         msg = reader.read_next(TM)
-        self.assertEqual(msg0.data(), b'hello-0')
+        self.assertEqual(msg.data(), b'hello-0')
         msg = reader.read_next(TM)
-        self.assertEqual(msg0.data(), b'hello-1')
+        self.assertEqual(msg.data(), b'hello-1')
 
         # seek on messageId
         reader.seek(ids[33])
         time.sleep(0.5)
         msg = reader.read_next(TM)
-        self.assertEqual(msg0.data(), b'hello-33')
+        self.assertEqual(msg.data(), b'hello-33')
         msg = reader.read_next(TM)
-        self.assertEqual(msg0.data(), b'hello-34')
+        self.assertEqual(msg.data(), b'hello-34')
 
         # seek on timestamp
         reader.seek(timestamps[79])
         time.sleep(0.5)
         msg = reader.read_next(TM)
-        self.assertEqual(msg0.data(), b'hello-79')
+        self.assertEqual(msg.data(), b'hello-79')
         msg = reader.read_next(TM)
-        self.assertEqual(msg0.data(), b'hello-80')
+        self.assertEqual(msg.data(), b'hello-80')
 
         reader.close()
         client.close()
