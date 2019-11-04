@@ -384,7 +384,7 @@ class PulsarTest(TestCase):
                 'my-python-topic-reader-on-specific-message',
                 MessageId.earliest)
 
-        for i in range(num_of_msgs/2):
+        for i in range(num_of_msgs//2):
             msg = reader1.read_next(TM)
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
