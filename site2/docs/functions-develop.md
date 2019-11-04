@@ -35,19 +35,17 @@ def process(input):
 ```
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/native_exclamation_function.py).
 
-Note that functions can be written in python2 or python3, but Pulsar
-currently only looks for "python" as the interpreter to execute them.
-
-A recent Ubuntu system may have only "python3" but not "python", in which
-case functions will fail to start.  A solution is under development in
-[issue 5518](https://github.com/apache/pulsar/issues/5518).
-
-As a workaround you can create a symlink, but your system will break if
-you ever install any other package which depends on "python" (2.x):
-
-```bash
-sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
-```
+> Note
+> You can write Pulsar Functions in python2 or python3. However, Pulsar only looks for `python` as the interpreter.
+> 
+> If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
+> start the functions. In this case, you can create a symlink. Your system will fail if
+> you subsequently install any other package that depends on Python 2.x. A solution is under development in
+> [Issue 5518](https://github.com/apache/pulsar/issues/5518).
+> 
+> ```bash
+> sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+> ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -717,16 +715,15 @@ Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a sta
 
 Since Pulsar 2.1.0 release, Pulsar integrates with Apache BookKeeper [table service](https://docs.google.com/document/d/155xAwWv5IdOitHh1NVMEwCMGgB28M3FyMiQSxEpjE-Y/edit#heading=h.56rbh52koe3f) to store the `State` for functions. For example, a `WordCount` function can store its `counters` state into BookKeeper table service via Pulsar Functions State API.
 
-States are key-value pairs, where the key is a string and the value is arbitrary binary data - counters are stored as 64-bit big-endian binary values.  Keys are scoped to an individual Pulsar function, and shared between instances of that function.
+States are key-value pairs, where the key is a string and the value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function, and shared between instances of that function.
 
-You can access states within Pulsar functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object.  You can also manage states using the [querystate](pulsar-admin.md#querystate) and [putstate](pulsar-admin.md#putstate) options to `pulsar-admin functions`.
+You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](pulsar-admin.md#querystate) and [putstate](pulsar-admin.md#putstate) options to `pulsar-admin functions`.
 
 ### API
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
-Currently Pulsar Functions expose following APIs for mutating and accessing State. These APIs are available in the [Context](functions-api.md#context) object when
-you are using [Java SDK](functions-api.md#java-sdk-functions) functions.
+Currently Pulsar Functions expose the following APIs for mutating and accessing State. These APIs are available in the [Context](functions-develop.md#context) object when you are using Java SDK functions.
 
 #### incrCounter
 
