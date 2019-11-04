@@ -782,6 +782,10 @@
         "sourceSubscriptionName" : {
           "type" : "string"
         },
+        "sourceSubscriptionPosition" : {
+          "type" : "string",
+          "enum" : [ "Latest", "Earliest" ]
+        },
         "inputs" : {
           "type" : "array",
           "items" : {
