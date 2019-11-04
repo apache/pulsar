@@ -69,11 +69,11 @@ Log the _stack traces_ at **ERROR** level, but never at **INFO** level or below.
 Apache Pulsar is a low latency system, it is implemented as a purely asynchronous service, which is accomplished as follows:
 
 * All public classes should be **thread-safe**.
-* We prefer using [xxx]() for executing any asynchronous actions. The mutations to same instance should be submitted to same thread to execute.
-* If synchronization and locking is required, they should be in a fine granularity way.
+* We prefer using [xxx]() for executing any asynchronous actions. The mutations to the same instance should be submitted to the same thread to execute.
+* If synchronization and locking are required, they should be in a fine granularity way.
 * All threads should have proper meaningful name.
 * If a class is not thread-safe, it should be annotated [@NotThreadSafe](https://github.com/misberner/jsr-305/blob/master/ri/src/main/java/javax/annotation/concurrent/NotThreadSafe.java). The instances that use this class is responsible for its synchronization.
 
-## Backwards Compatibility
+## Backwards compatibility
 * Wire protocol should support backwards compatibility to enable no-downtime upgrades. This means the servers **MUST** be able to support requests from both old and new clients simultaneously.
 * Metadata formats and data formats should support backwards compatibility.
