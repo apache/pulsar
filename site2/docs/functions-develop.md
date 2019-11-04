@@ -792,8 +792,8 @@ general key/value state.
 Counters and binary values share the same keyspace, so this deletes either type.
 
 <!--Python-->
-Currently Pulsar Functions expose following APIs for mutating and accessing State. These APIs are available in the [Context](functions-api.md#context) object when
-you are using [Python SDK](functions-api.md#python-sdk-functions) functions.
+Currently Pulsar Functions expose following APIs for mutating and accessing State. These APIs are available in the [Context](#context) object when
+you are using Python SDK functions.
 
 #### incr_counter
 
