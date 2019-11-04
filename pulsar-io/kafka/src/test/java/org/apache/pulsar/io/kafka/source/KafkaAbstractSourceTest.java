@@ -150,6 +150,16 @@ public class KafkaAbstractSourceTest {
             }
 
             @Override
+            public void deleteState(String key) {
+
+            }
+
+            @Override
+            public CompletableFuture<Void> deleteStateAsync(String key) {
+                return null;
+            }
+
+            @Override
             public ByteBuffer getState(String key) {
                 return null;
             }

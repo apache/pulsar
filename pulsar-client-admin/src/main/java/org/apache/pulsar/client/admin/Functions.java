@@ -527,4 +527,32 @@ public interface Functions {
      *             Unexpected error
      */
     void putFunctionState(String tenant, String namespace, String function, FunctionState state) throws PulsarAdminException;
+
+    /**
+     * Deletes the given state associated with a Pulsar Function.  Response true if deletion was successful and false otherwise.
+     * <p>
+     * Response Example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param key
+     *            Key name of State
+     **
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to get the configuration of the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteFunctionState(String tenant, String namespace, String function, String key) throws PulsarAdminException;
+
 }

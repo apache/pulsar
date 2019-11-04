@@ -500,4 +500,22 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             throw getApiException(e);
         }
     }
+
+    @Override
+    public void deleteFunctionState(String tenant, String namespace, String function, String key)
+            throws PulsarAdminException {
+        try {
+            Response response = request(functions.path(tenant)
+                    .path(namespace).path(function).path("state").path(key)).delete();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw getApiException(response);
+            }
+
+            if (response.getStatus() < 200 || response.getStatus() >= 300) {
+                throw getApiException(Response.status(response.getStatus()).entity(response.readEntity(String.class)).build());
+            }
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 }

@@ -353,4 +353,14 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
                                  final @FormDataParam("state") FunctionState stateJson) throws IOException {
         functions.putFunctionState(tenant, namespace, functionName, key, stateJson, clientAppId(), clientAuthData());
     }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public void deleteFunctionState(final @PathParam("tenant") String tenant,
+                                 final @PathParam("namespace") String namespace,
+                                 final @PathParam("functionName") String functionName,
+                                 final @PathParam("key") String key) throws IOException {
+        functions.deleteFunctionState(tenant, namespace, functionName, key, clientAppId(), clientAuthData());
+    }
 }

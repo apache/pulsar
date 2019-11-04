@@ -107,6 +107,11 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public void deleteState(String key) {
+        this.context.deleteState(key);
+    }
+
+    @Override
     public ByteBuffer getState(String key) {
         return this.context.getState(key);
     }

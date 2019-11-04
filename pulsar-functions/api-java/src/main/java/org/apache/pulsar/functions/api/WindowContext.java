@@ -130,6 +130,13 @@ public interface WindowContext {
     void putState(String key, ByteBuffer value);
 
     /**
+     * Delete the state given the key.
+     *
+     * @param key name of the key
+     */
+    void deleteState(String key);
+
+    /**
      * Retrieve the state value for the key.
      *
      * @param key name of the key

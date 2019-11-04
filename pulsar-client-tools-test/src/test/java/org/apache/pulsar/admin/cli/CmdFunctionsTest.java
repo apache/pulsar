@@ -572,6 +572,30 @@ public class CmdFunctionsTest {
         verify(functions, times(0)).getFunctionState(any(), any(), any(), any());
     }
 
+    @Test
+    public void testStateDeleter() throws Exception {
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
+        String fnName = TEST_NAME + "-function";
+        String key = TEST_NAME + "-key";
+
+        cmd.run(new String[] {
+                "deletestate",
+                "--tenant", tenant,
+                "--namespace", namespace,
+                "--name", fnName,
+                "--key", key
+        });
+
+        CmdFunctions.StateDeleter stateDeleter = cmd.getStateDeleter();
+
+        assertEquals(tenant, stateDeleter.getTenant());
+        assertEquals(namespace, stateDeleter.getNamespace());
+        assertEquals(fnName, stateDeleter.getFunctionName());
+
+        verify(functions, times(1)).deleteFunctionState(eq(tenant), eq(namespace), eq(fnName), eq(key));
+    }
+
     private static final String fnName = TEST_NAME + "-function";
     private static final String inputTopicName = TEST_NAME + "-input-topic";
     private static final String outputTopicName = TEST_NAME + "-output-topic";
