@@ -34,7 +34,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
-import java.util.List;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -703,19 +703,11 @@ public class ServerCnx extends PulsarHandler {
 
                                     if (schema != null) {
                                         return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                            .thenCompose(isCompatible -> {
-                                                    if (isCompatible) {
-                                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                                subType, priorityLevel, consumerName, isDurable,
-                                                                startMessageId, metadata,
-                                                                readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated);
-                                                    } else {
-                                                        return FutureUtil.failedFuture(
-                                                                new IncompatibleSchemaException(
-                                                                        "Trying to subscribe with incompatible schema"
-                                                        ));
-                                                    }
-                                                });
+                                            .thenCompose(v -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                    subType, priorityLevel, consumerName, isDurable,
+                                                    startMessageId, metadata,
+                                                    readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated));
+
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,

@@ -81,8 +81,15 @@ public class Policies {
     public Long offload_deletion_lag_ms = null;
 
     @SuppressWarnings("checkstyle:MemberName")
+    @Deprecated
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
         SchemaAutoUpdateCompatibilityStrategy.Full;
+
+    @SuppressWarnings("checkstyle:MemberName")
+    public SchemaCompatibilityStrategy schema_compatibility_strategy = SchemaCompatibilityStrategy.UNDEFINED;
+
+    @SuppressWarnings("checkstyle:MemberName")
+    public boolean is_allow_auto_update_schema = true;
 
     @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
@@ -101,7 +108,9 @@ public class Policies {
                 compaction_threshold, offload_threshold,
                 offload_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
-                schema_validation_enforced);
+                schema_validation_enforced,
+                schema_compatibility_strategy,
+                is_allow_auto_update_schema);
     }
 
     @Override
@@ -132,7 +141,9 @@ public class Policies {
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
-                    && schema_validation_enforced == other.schema_validation_enforced;
+                    && schema_validation_enforced == other.schema_validation_enforced
+                    && schema_compatibility_strategy == other.schema_compatibility_strategy
+                    && is_allow_auto_update_schema == other.is_allow_auto_update_schema;
         }
 
         return false;
@@ -178,6 +189,8 @@ public class Policies {
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
-                .add("schema_validation_enforced", schema_validation_enforced).toString();
+                .add("schema_validation_enforced", schema_validation_enforced)
+                .add("schema_compatibility_Strategy", schema_compatibility_strategy)
+                .add("is_allow_auto_update_Schema", is_allow_auto_update_schema).toString();
     }
 }
