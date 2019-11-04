@@ -39,7 +39,7 @@ Use netty _ByteBuf_ over java nio _ByteBuffer_ for internal usage. As we are usi
 ### Logging levels
 
 - _INFO_ is the level you should assume the software will be run in. INFO messages are things which are not bad but which the user will definitely want to know about every time they occur.
-- _TRACE_ and _DEBUG_ are both things you turn on when something is wrong and you want to figure out what is going on. _DEBUG_ should not be so fine grained that it will seriously affect performance of the program. _TRACE_ can be anything. Both _DEBUG_ and _TRACE_ statements should be considered to be wrapped in an _if (logger.isDebugEnabled)_ or _if (logger.isTraceEnabled)_ check to avoid performance degradation.
+- _TRACE_ and _DEBUG_ are both things you turn on when something is wrong and you want to figure out what is going on. _DEBUG_ should not be so fine grained that it will seriously affect performance of the program. _TRACE_ can be anything. You should wrap _DEBUG_ and _TRACE_ statements in the `if (logger.isDebugEnabled)` or `if (logger.isTraceEnabled)` check to avoid performance degradation.
 - _WARN_ and _ERROR_ indicate something that is **BAD**. Use _WARN_ if you aren't totally sure it is bad, and _ERROR_ if you are.
 
 Log the _stack traces_ at **ERROR** level, but never at **INFO** level or below. You can log at **WARN** level if you are interested in debugging.
@@ -62,14 +62,14 @@ Log the _stack traces_ at **ERROR** level, but never at **INFO** level or below.
 
 * When you use the config files, think of the names from the very beginning.
 * If you run the program without tuning parameters, use the default values.
-* All configuration settings should be added to [default configuration file](https://github.com/apache/pulsar/tree/master/conf) and documented accordingly.
+* All configuration settings should be added accordingly in the [default configuration file](https://github.com/apache/pulsar/tree/master/conf) directory and documented accordingly.
 
 ## Concurrency
 
 Apache Pulsar is a low latency system, it is implemented as a purely asynchronous service, which is accomplished as follows:
 
 * All public classes should be **thread-safe**.
-* We prefer using [xxx]() for executing any asynchronous actions. The mutations to the same instance should be submitted to the same thread to execute.
+* We prefer using [OrderedExecutor](https://github.com/apache/bookkeeper/blob/master/bookkeeper-common/src/main/java/org/apache/bookkeeper/common/util/OrderedExecutor.java) for executing any asynchronous actions. The mutations to the same instance should be submitted to the same thread to execute.
 * If synchronization and locking are required, they should be in a fine granularity way.
 * All threads should have proper meaningful name.
 * If a class is not thread-safe, it should be annotated [@NotThreadSafe](https://github.com/misberner/jsr-305/blob/master/ri/src/main/java/javax/annotation/concurrent/NotThreadSafe.java). The instances that use this class is responsible for its synchronization.
