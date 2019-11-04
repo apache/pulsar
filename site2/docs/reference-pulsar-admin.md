@@ -1978,7 +1978,7 @@ Options
 
 
 ### `reset-cursor`
-Reset position for subscription to position closest to timestamp or messageId
+Reset position for subscription to a position that is closest to timestamp or messageId.
 
 Usage
 ```bash
