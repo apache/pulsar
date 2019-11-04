@@ -230,7 +230,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 }
             }
         } catch (Exception e) {
-            log.error("Failed to initialize function runtime manager: ", e.getMessage(), e);
+            log.error("Failed to initialize function runtime manager: {}", e.getMessage(), e);
             throw new RuntimeException(e);
         }
     }
