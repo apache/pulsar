@@ -798,7 +798,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
                 return;
             }
-            long expectedSequenceId = op.highestSequenceId > 0 ? op.highestSequenceId : op.sequenceId;
+            long expectedSequenceId = getHighestSequenceId(op);
             if (sequenceId > expectedSequenceId) {
                 log.warn("[{}] [{}] Got ack for msg. expecting: {} - got: {} - queue-size: {}", topic, producerName,
                         expectedSequenceId, sequenceId, pendingMessages.size());
@@ -824,7 +824,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (callback) {
             op = pendingCallbacks.poll();
             if (op != null) {
-                lastSequenceIdPublished = sequenceId;
+                lastSequenceIdPublished = getHighestSequenceId(op);
                 op.setMessageId(ledgerId, entryId, partitionIndex);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -838,6 +838,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.recycle();
             }
         }
+    }
+
+    private long getHighestSequenceId(OpSendMsg op) {
+        return Math.max(op.highestSequenceId, op.sequenceId);
     }
 
     /**
@@ -1430,7 +1434,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             pendingMessages.put(op);
             if (op.msg != null) {
-                lastSequenceIdPushed = op.sequenceId;
+                lastSequenceIdPushed = getHighestSequenceId(op);
             }
             ClientCnx cnx = cnx();
             if (isConnected()) {

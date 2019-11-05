@@ -53,7 +53,7 @@ public interface Topic {
         }
 
         default long getSequenceId() {
-            return -1;
+            return -1L;
         }
 
         default void setOriginalProducerName(String originalProducerName) {
@@ -73,21 +73,21 @@ public interface Topic {
         }
 
         default long getOriginalSequenceId() {
-            return -1;
+            return -1L;
         }
 
         void completed(Exception e, long ledgerId, long entryId);
 
-        default long getLastSequenceId() {
-            return  -1;
+        default long getHighestSequenceId() {
+            return  -1L;
         }
 
-        default void setOriginalLastSequenceId(long originalLastSequenceId) {
+        default void setOriginalHighestSequenceId(long originalHighestSequenceId) {
 
         }
 
-        default long getOriginalLastSequenceId() {
-            return  -1;
+        default long getOriginalHighestSequenceId() {
+            return  -1L;
         }
     }
 

@@ -479,8 +479,7 @@ public class Commands {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
         sendBuilder.setSequenceId(lowestSequenceId);
-        sendBuilder.setLastSequenceId(highestSequenceId);
-        sendBuilder.setSequenceId(lowestSequenceId);
+        sendBuilder.setHighestSequenceId(highestSequenceId);
         if (numMessages > 1) {
             sendBuilder.setNumMessages(numMessages);
         }

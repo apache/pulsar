@@ -133,8 +133,8 @@ message MessageMetadata {
     optional uint64 txnid_least_bits = 22 [default = 0];
     optional uint64 txnid_most_bits = 23 [default = 0];
 
-    /// Add last sequence id to support batch message with external sequence id
-    optional uint64 last_sequence_id = 24 [default = 0];
+    /// Add highest sequence id to support batch message with external sequence id
+    optional uint64 highest_sequence_id = 24 [default = 0];
 }
 
 message SingleMessageMetadata {
@@ -415,8 +415,8 @@ message CommandSend {
     optional uint64 txnid_least_bits = 4 [default = 0];
     optional uint64 txnid_most_bits = 5 [default = 0];
 
-    /// Add last sequence id to support batch message with external sequence id
-    optional uint64 last_sequence_id = 6 [default = 0];
+    /// Add highest sequence id to support batch message with external sequence id
+    optional uint64 highest_sequence_id = 6 [default = 0];
 }
 
 message CommandSendReceipt {

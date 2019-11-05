@@ -160,8 +160,8 @@ public class MessageDeduplication {
                     MessageMetadata md = Commands.parseMessageMetadata(messageMetadataAndPayload);
 
                     String producerName = md.getProducerName();
-                    long sequenceId = md.hasLastSequenceId() && md.getLastSequenceId() >= md.getSequenceId() ?
-                            md.getLastSequenceId() : md.getSequenceId();
+                    long sequenceId = md.hasHighestSequenceId() && md.getHighestSequenceId() >= md.getSequenceId() ?
+                            md.getHighestSequenceId() : md.getSequenceId();
                     highestSequencedPushed.put(producerName, sequenceId);
                     highestSequencedPersisted.put(producerName, sequenceId);
 
@@ -284,7 +284,7 @@ public class MessageDeduplication {
 
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
-        long lastSequenceId = publishContext.getLastSequenceId() >= sequenceId ? publishContext.getLastSequenceId()
+        long lastSequenceId = publishContext.getHighestSequenceId() >= sequenceId ? publishContext.getHighestSequenceId()
                 : sequenceId;
         if (producerName.startsWith(replicatorPrefix)) {
             // Message is coming from replication, we need to use the original producer name and sequence id
@@ -293,10 +293,10 @@ public class MessageDeduplication {
             MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
             producerName = md.getProducerName();
             sequenceId = md.getSequenceId();
-            lastSequenceId = md.getLastSequenceId() >= sequenceId ? md.getLastSequenceId() : md.getSequenceId();
+            lastSequenceId = md.getHighestSequenceId() >= sequenceId ? md.getHighestSequenceId() : md.getSequenceId();
             publishContext.setOriginalProducerName(producerName);
             publishContext.setOriginalSequenceId(sequenceId);
-            publishContext.setOriginalLastSequenceId(lastSequenceId);
+            publishContext.setOriginalHighestSequenceId(lastSequenceId);
             headersAndPayload.readerIndex(readerIndex);
             md.recycle();
         }
@@ -337,12 +337,12 @@ public class MessageDeduplication {
 
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
-        long lastSequenceId = publishContext.getLastSequenceId();
+        long lastSequenceId = publishContext.getHighestSequenceId();
         if (publishContext.getOriginalProducerName() != null) {
             // In case of replicated messages, this will be different from the current replicator producer name
             producerName = publishContext.getOriginalProducerName();
             sequenceId = publishContext.getOriginalSequenceId();
-            lastSequenceId = publishContext.getOriginalLastSequenceId();
+            lastSequenceId = publishContext.getOriginalHighestSequenceId();
         }
 
         highestSequencedPersisted.put(producerName, lastSequenceId >= sequenceId ? lastSequenceId : sequenceId);

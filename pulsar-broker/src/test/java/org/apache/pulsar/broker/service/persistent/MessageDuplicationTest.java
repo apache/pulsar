@@ -352,7 +352,7 @@ public class MessageDuplicationTest {
             }
 
             @Override
-            public long getLastSequenceId() {
+            public long getHighestSequenceId() {
                 return lastSequenceId;
             }
 
