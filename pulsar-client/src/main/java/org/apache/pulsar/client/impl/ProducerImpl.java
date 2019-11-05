@@ -126,7 +126,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
-                        ProducerInterceptors<T> interceptors) {
+                        ProducerInterceptors interceptors) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
@@ -229,11 +229,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {
+    CompletableFuture<MessageId> internalSendAsync(Message<?> message) {
 
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
-        MessageImpl<T> interceptorMessage = (MessageImpl<T>) beforeSend(message);
+        MessageImpl<?> interceptorMessage = (MessageImpl) beforeSend(message);
         //Retain the buffer used by interceptors callback to get message. Buffer will release after complete interceptors.
         interceptorMessage.getDataBuffer().retain();
         if (interceptors != null) {
@@ -283,10 +283,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         msg.getDataBuffer().retain();
                         if (e != null) {
                             stats.incrementSendFailed();
-                            onSendAcknowledgement((Message<T>) msg, null, e);
+                            onSendAcknowledgement(msg, null, e);
                             sendCallback.getFuture().completeExceptionally(e);
                         } else {
-                            onSendAcknowledgement((Message<T>) msg, msg.getMessageId(), null);
+                            onSendAcknowledgement(msg, msg.getMessageId(), null);
                             sendCallback.getFuture().complete(msg.getMessageId());
                             stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                         }
@@ -307,7 +307,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return future;
     }
 
-    public void sendAsync(Message<T> message, SendCallback callback) {
+    public void sendAsync(Message<?> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
 
         if (!isValidProducerState(callback)) {
@@ -318,7 +318,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
-        MessageImpl<T> msg = (MessageImpl<T>) message;
+        MessageImpl<?> msg = (MessageImpl) message;
         MessageMetadata.Builder msgMetadataBuilder = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
 
@@ -545,17 +545,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
     }
 
-    private boolean canAddToBatch(MessageImpl<T> msg) {
+    private boolean canAddToBatch(MessageImpl<?> msg) {
         return msg.getSchemaState() == MessageImpl.SchemaState.Ready
                 && isBatchMessagingEnabled() && !msg.getMessageBuilder().hasDeliverAtTime();
     }
 
-    private boolean canAddToCurrentBatch(MessageImpl<T> msg) {
+    private boolean canAddToCurrentBatch(MessageImpl<?> msg) {
         return batchMessageContainer.haveEnoughSpace(msg)
                && (!isMultiSchemaEnabled(false) || batchMessageContainer.hasSameSchema(msg));
     }
 
-    private void doBatchSendAndAdd(MessageImpl<T> msg, SendCallback callback, ByteBuf payload) {
+    private void doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
                     msg.getDataBuffer().readableBytes());
