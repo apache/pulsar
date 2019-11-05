@@ -34,7 +34,6 @@ import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -231,13 +230,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         byte[] contentV2 = v2Writer.write(dataV2);
         try (Producer<byte[]> p = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
                                               .topic(topic).create();
-             Consumer<V2Data> c = pulsarClient.newConsumer(v2Schema)
-                                              .topic(topic)
-                                              .subscriptionName("sub1").subscribe()) {
+                Consumer<V2Data> c = pulsarClient.newConsumer(v2Schema)
+                                                 .topic(topic)
+                                                 .subscriptionName("sub1").subscribe()) {
             Assert.expectThrows(SchemaSerializationException.class, () -> p.send(contentV1));
 
-            ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
-                                     .value(contentV1).send();
+            p.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
+             .value(contentV1).send();
             p.send(contentV2);
             Message<V2Data> msg1 = c.receive();
             V2Data msg1Value = msg1.getValue();
@@ -250,10 +249,10 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             Assert.assertEquals(msg2.getSchemaVersion(), new LongSchemaVersion(1).bytes());
 
             try {
-                ((ProducerBase<byte[]>)p).newMessage(Schema.BYTES).value(contentV1).send();
+                p.newMessage(Schema.BYTES).value(contentV1).send();
                 if (schemaValidationEnforced) {
                     Assert.fail("Shouldn't be able to send to a schema'd topic with no schema"
-                                + " if SchemaValidationEnabled is enabled");
+                                        + " if SchemaValidationEnabled is enabled");
                 }
                 Message<V2Data> msg3 = c.receive();
                 Assert.assertEquals(msg3.getSchemaVersion(), SchemaVersion.Empty.bytes());
@@ -262,9 +261,41 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                     Assert.assertTrue(e instanceof IncompatibleSchemaException);
                 } else {
                     Assert.fail("Shouldn't throw IncompatibleSchemaException"
-                                + " if SchemaValidationEnforced is disabled");
+                                        + " if SchemaValidationEnforced is disabled");
                 }
             }
+        }
+    }
+
+    @Test
+    public void newProducerForMessageOnTopicWithDifferentSchemaType() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+        V1Data data1 = new V1Data(2);
+        V2Data data2 = new V2Data(3, 5);
+        V1Data data3 = new V1Data(8);
+        try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+                                              .topic(topic).create();
+             Consumer<V2Data> c = pulsarClient.newConsumer(Schema.AVRO(V2Data.class))
+                                              .topic(topic)
+                                              .subscriptionName("sub1").subscribe()) {
+            p.newMessage().value(data1).send();
+            p.newMessage(Schema.AVRO(V2Data.class)).value(data2).send();
+            p.newMessage(Schema.AVRO(V1Data.class)).value(data3).send();
+            Message<V2Data> msg1 = c.receive();
+            V2Data msg1Value = msg1.getValue();
+            Assert.assertEquals(data1.i, msg1Value.i);
+            Assert.assertNull(msg1Value.j);
+            Assert.assertEquals(msg1.getSchemaVersion(), new LongSchemaVersion(0).bytes());
+
+            Message<V2Data> msg2 = c.receive();
+            Assert.assertEquals(data2, msg2.getValue());
+            Assert.assertEquals(msg2.getSchemaVersion(), new LongSchemaVersion(1).bytes());
+
+            Message<V2Data> msg3 = c.receive();
+            V2Data msg3Value = msg3.getValue();
+            Assert.assertEquals(data3.i, msg3Value.i);
+            Assert.assertNull(msg3Value.j);
+            Assert.assertEquals(msg3.getSchemaVersion(), new LongSchemaVersion(0).bytes());
         }
     }
 
@@ -289,13 +320,11 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 V2Data dataV2 = new V2Data(i, -i);
                 byte[] contentV1 = v1Writer.write(dataV1);
                 byte[] contentV2 = v2Writer.write(dataV2);
-                ((ProducerBase<byte[]>) p).newMessage(Schema.AUTO_PRODUCE_BYTES(v1Schema))
-                                          .value(contentV1).send();
+                p.newMessage(Schema.AUTO_PRODUCE_BYTES(v1Schema)).value(contentV1).send();
                 Message<byte[]> msg1 = c.receive();
                 Assert.assertEquals(msg1.getSchemaVersion(), new LongSchemaVersion(0).bytes());
                 Assert.assertEquals(msg1.getData(), contentV1);
-                ((ProducerBase<byte[]>) p).newMessage(Schema.AUTO_PRODUCE_BYTES(v2Schema))
-                                          .value(contentV2).send();
+                p.newMessage(Schema.AUTO_PRODUCE_BYTES(v2Schema)).value(contentV2).send();
                 Message<byte[]> msg2 = c.receive();
                 Assert.assertEquals(msg2.getSchemaVersion(), new LongSchemaVersion(1).bytes());
                 Assert.assertEquals(msg2.getData(), contentV2);
@@ -329,18 +358,18 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         for (int i = 0; i < total; ++i) {
             if (i / batch % 2 == 0) {
                 byte[] content = v1DataAvroWriter.write(new V1Data(i));
-                ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
-                                         .value(content).sendAsync();
+                p.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
+                 .value(content).sendAsync();
             } else {
                 byte[] content = v2DataAvroWriter.write(new V2Data(i, i + total));
-                ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V2Data.class)))
-                                         .value(content).sendAsync();
+                p.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V2Data.class)))
+                 .value(content).sendAsync();
             }
             if ((i + 1) % incompatible == 0) {
                 byte[] content = incompatibleDataAvroWriter.write(new IncompatibleData(-i, -i));
                 try {
-                    ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(IncompatibleData.class)))
-                                             .value(content).send();
+                    p.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(IncompatibleData.class)))
+                     .value(content).send();
                 } catch (Exception e) {
                     Assert.assertTrue(e instanceof IncompatibleSchemaException, e.getMessage());
                 }
@@ -368,8 +397,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                                               .topic(topic)
                                               .enableMultiSchema(false).create()) {
             Assert.assertThrows(InvalidMessageException.class,
-                    () -> ((ProducerBase<byte[]>)p).newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
-                                                   .value(v1DataAvroWriter.write(new V1Data(0))).send());
+                    () -> p.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(V1Data.class)))
+                           .value(v1DataAvroWriter.write(new V1Data(0))).send());
         }
     }
 
