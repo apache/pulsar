@@ -84,10 +84,7 @@
               <artifactSet>
                 <includes>
                   <include>com.google.guava:guava</include>
-                  <include>io.netty:netty-codec-http</include>
-                  <include>io.netty:netty-transport-native-epoll</include>
-                  <include>io.netty:netty</include>
-                  <include>io.netty:netty-all</include>
+                  <include>io.netty:netty-*</include>
                 </includes>
               </artifactSet>
               <relocations>

@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -146,6 +147,20 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             }
         }
         return result;
+    }
+
+    @Override
+    public boolean hasSameSchema(MessageImpl<?> msg) {
+        String key = getKey(msg);
+        KeyedBatch part = batches.get(key);
+        if (part == null || part.messages.isEmpty()) {
+            return true;
+        }
+        if (!part.messageMetadata.hasSchemaVersion()) {
+            return msg.getSchemaVersion() == null;
+        }
+        return Arrays.equals(msg.getSchemaVersion(),
+                             part.messageMetadata.getSchemaVersion().toByteArray());
     }
 
     private String getKey(MessageImpl<?> msg) {

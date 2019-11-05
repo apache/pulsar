@@ -42,6 +42,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -80,6 +82,7 @@ public class PulsarSourceTest {
         doReturn(consumerBuilder).when(consumerBuilder).topics(anyList());
         doReturn(consumerBuilder).when(consumerBuilder).cryptoFailureAction(any());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(any());
+        doReturn(consumerBuilder).when(consumerBuilder).subscriptionInitialPosition(any());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
         doReturn(consumerBuilder).when(consumerBuilder).messageListener(any());
@@ -96,6 +99,8 @@ public class PulsarSourceTest {
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         pulsarConfig.setTopicSchema(consumerConfigs);
         pulsarConfig.setTypeClassName(String.class.getName());
+        pulsarConfig.setSubscriptionPosition(SubscriptionInitialPosition.Latest);
+        pulsarConfig.setSubscriptionType(SubscriptionType.Shared);
         return pulsarConfig;
     }
 

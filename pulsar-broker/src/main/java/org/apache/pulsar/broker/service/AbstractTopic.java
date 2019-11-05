@@ -18,31 +18,35 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.base.MoreObjects;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import com.google.common.base.MoreObjects;
 
 public abstract class AbstractTopic implements Topic {
-    private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
 
     protected static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
@@ -73,8 +77,11 @@ public abstract class AbstractTopic implements Topic {
     protected volatile boolean isEncryptionRequired = false;
     protected volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
             SchemaCompatibilityStrategy.FULL;
+    protected volatile boolean isAllowAutoUpdateSchema = true;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
+    
+    protected volatile PublishRateLimiter publishRateLimiter;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -83,6 +90,17 @@ public abstract class AbstractTopic implements Topic {
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         this.lastActive = System.nanoTime();
+        Policies policies = null;
+        try {
+            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+            if (policies == null) {
+                policies = new Policies();
+            }
+        } catch (Exception e) {
+            log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
+        }
+        updatePublishDispatcher(policies);
     }
 
     protected boolean isProducersExceeded() {
@@ -169,9 +187,13 @@ public abstract class AbstractTopic implements Topic {
 
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-                .getSchemaRegistryService()
-                .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+        if (isAllowAutoUpdateSchema) {
+            return brokerService.pulsar()
+                    .getSchemaRegistryService()
+                    .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+        } else {
+            return FutureUtil.failedFuture(new IncompatibleSchemaException("Don't allow auto update schema."));
+        }
     }
 
     @Override
@@ -190,12 +212,12 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
+    public CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema) {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
                 .getSchemaRegistryService()
-                .isCompatible(id, schema, schemaCompatibilityStrategy);
+                .checkConsumerCompatibility(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
@@ -205,6 +227,14 @@ public abstract class AbstractTopic implements Topic {
         PUBLISH_LATENCY.observe(latency, unit);
     }
 
+    protected void setSchemaCompatibilityStrategy (Policies policies) {
+        if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
+            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                    policies.schema_auto_update_compatibility_strategy);
+        } else {
+            schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
+        }
+    }
     private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
             .quantile(0.0)
             .quantile(0.50)
@@ -214,4 +244,69 @@ public abstract class AbstractTopic implements Topic {
             .quantile(0.9999)
             .quantile(1.0)
             .register();
+
+    @Override
+    public void checkPublishThrottlingRate() {
+        this.publishRateLimiter.checkPublishRate();
+    }
+
+     @Override
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+        this.publishRateLimiter.incrementPublishCount(numOfMessages, msgSizeInBytes);
+    }
+
+     @Override
+    public void resetPublishCountAndEnableReadIfRequired() {
+        if (this.publishRateLimiter.resetPublishCount()) {
+            enableProduerRead();
+        }
+    }
+
+     /**
+     * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
+     */
+    protected void enableProduerRead() {
+        if (producers != null) {
+            producers.forEach(producer -> producer.getCnx().enableCnxAutoRead());
+        }
+    }
+
+     @Override
+    public boolean isPublishRateExceeded() {
+        return this.publishRateLimiter.isPublishRateExceeded();
+    }
+
+     public PublishRateLimiter getPublishRateLimiter() {
+        return publishRateLimiter;
+    }
+
+     public void updateMaxPublishRate(Policies policies) {
+        updatePublishDispatcher(policies);
+    }
+
+     private void updatePublishDispatcher(Policies policies) {
+        final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
+        final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
+                ? policies.publishMaxMessageRate.get(clusterName)
+                : null;
+        if (publishRate != null
+                && (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0)) {
+            log.info("Enabling publish rate limiting {} on topic {}", publishRate, this.topic);
+            // lazy init Publish-rateLimiting monitoring if not initialized yet
+            this.brokerService.setupPublishRateLimiterMonitor();
+            if (this.publishRateLimiter == null
+                    || this.publishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+                // create new rateLimiter if rate-limiter is disabled
+                this.publishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
+            } else {
+                this.publishRateLimiter.update(policies, clusterName);
+            }
+        } else {
+            log.info("Disabling publish throttling for {}", this.topic);
+            this.publishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+            enableProduerRead();
+        }
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
 }

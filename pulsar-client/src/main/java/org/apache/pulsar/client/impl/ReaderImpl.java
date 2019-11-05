@@ -82,9 +82,10 @@ public class ReaderImpl<T> implements Reader<T> {
         }
 
         final int partitionIdx = TopicName.getPartitionIndex(readerConfiguration.getTopicName());
-        consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration, listenerExecutor,
-                partitionIdx, false, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId(), schema, null,
-                true /* createTopicIfDoesNotExist */);
+        consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration,
+                listenerExecutor, partitionIdx, false, consumerFuture, SubscriptionMode.NonDurable,
+                readerConfiguration.getStartMessageId(), readerConfiguration.getStartMessageFromRollbackDurationInSec(),
+                schema, null, true /* createTopicIfDoesNotExist */);
     }
 
     @Override

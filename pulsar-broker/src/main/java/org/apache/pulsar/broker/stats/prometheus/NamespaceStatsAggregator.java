@@ -104,6 +104,7 @@ public class NamespaceStatsAggregator {
             stats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
+        stats.producersCount = 0;
         topic.getProducers().forEach(producer -> {
             if (producer.isRemote()) {
                 AggregatedReplicationStats replStats = stats.replicationStats

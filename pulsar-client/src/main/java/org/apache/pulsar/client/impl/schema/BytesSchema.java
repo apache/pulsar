@@ -31,11 +31,17 @@ public class BytesSchema extends AbstractSchema<byte[]> {
         return INSTANCE;
     }
 
-    private static final BytesSchema INSTANCE = new BytesSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("Bytes")
-        .setType(SchemaType.BYTES)
-        .setSchema(new byte[0]);
+    private static final BytesSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("Bytes")
+            .setType(SchemaType.BYTES)
+            .setSchema(new byte[0]);
+        INSTANCE = new BytesSchema();
+    }
+
 
     @Override
     public byte[] encode(byte[] message) {

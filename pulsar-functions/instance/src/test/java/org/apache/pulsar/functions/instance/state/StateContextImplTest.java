@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.instance.state;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.options.Options;
+import org.apache.bookkeeper.api.kv.result.DeleteResult;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -72,6 +74,18 @@ public class StateContextImplTest {
         verify(mockTable, times(1)).put(
             eq(Unpooled.copiedBuffer("test-key", UTF_8)),
             eq(Unpooled.copiedBuffer("test-value", UTF_8))
+        );
+    }
+
+    @Test
+    public void testDelete() throws Exception {
+        DeleteResult<ByteBuf, ByteBuf> result = mock(DeleteResult.class);
+        when(mockTable.delete(any(ByteBuf.class), eq(Options.delete())))
+                .thenReturn(FutureUtils.value(result));
+        stateContext.delete("test-key");
+        verify(mockTable, times(1)).delete(
+                eq(Unpooled.copiedBuffer("test-key", UTF_8)),
+                eq(Options.delete())
         );
     }
 
