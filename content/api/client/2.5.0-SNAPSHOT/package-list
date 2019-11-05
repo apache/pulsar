@@ -1,4 +1,5 @@
 org.apache.pulsar.client.api
+org.apache.pulsar.client.api.interceptor
 org.apache.pulsar.client.api.schema
 org.apache.pulsar.client.api.transaction
 org.apache.pulsar.client.internal

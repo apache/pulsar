@@ -1952,6 +1952,74 @@
         }
       }
     },
+    "/namespaces/{tenant}/{namespace}/isAllowAutoUpdateSchema" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "The flag of whether allow auto update schema",
+        "description" : "",
+        "operationId" : "getIsAllowAutoUpdateSchema",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "boolean"
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Update flag of whether allow auto update schema",
+        "description" : "",
+        "operationId" : "setIsAllowAutoUpdateSchema",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
     "/namespaces/{tenant}/{namespace}/maxConsumersPerSubscription" : {
       "get" : {
         "tags" : [ "namespaces" ],
@@ -2858,6 +2926,75 @@
         "summary" : "Update the strategy used to check the compatibility of new schemas, provided by producers, before automatically updating the schema",
         "description" : "The value AutoUpdateDisabled prevents producers from updating the schema.  If set to AutoUpdateDisabled, schemas must be updated through the REST api",
         "operationId" : "setSchemaAutoUpdateCompatibilityStrategy",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
+    "/namespaces/{tenant}/{namespace}/schemaCompatibilityStrategy" : {
+      "get" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "The strategy of the namespace schema compatibility ",
+        "description" : "",
+        "operationId" : "getSchemaCompatibilityStrategy",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "string",
+              "enum" : [ "UNDEFINED", "ALWAYS_INCOMPATIBLE", "ALWAYS_COMPATIBLE", "BACKWARD", "FORWARD", "FULL", "BACKWARD_TRANSITIVE", "FORWARD_TRANSITIVE", "FULL_TRANSITIVE" ]
+            }
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Namespace doesn't exist"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "namespaces" ],
+        "summary" : "Update the strategy used to check the compatibility of new schema",
+        "description" : "",
+        "operationId" : "setSchemaCompatibilityStrategy",
         "consumes" : [ "application/json" ],
         "produces" : [ "application/json" ],
         "parameters" : [ {
@@ -4797,7 +4934,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "401" : {
@@ -8551,10 +8688,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "address" : {
@@ -8908,23 +9045,28 @@
           "type" : "number",
           "format" : "double"
         },
-        "cpu" : {
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "msgThroughputIn" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
           "type" : "boolean"
@@ -8935,14 +9077,9 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "msgThroughputIn" : {
+          "type" : "number",
+          "format" : "double"
         }
       }
     },
@@ -9110,10 +9247,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "producerName" : {
@@ -9584,6 +9721,13 @@
           "type" : "string",
           "enum" : [ "AutoUpdateDisabled", "Backward", "Forward", "Full", "AlwaysCompatible", "BackwardTransitive", "ForwardTransitive", "FullTransitive" ]
         },
+        "schema_compatibility_strategy" : {
+          "type" : "string",
+          "enum" : [ "UNDEFINED", "ALWAYS_INCOMPATIBLE", "ALWAYS_COMPATIBLE", "BACKWARD", "FORWARD", "FULL", "BACKWARD_TRANSITIVE", "FORWARD_TRANSITIVE", "FULL_TRANSITIVE" ]
+        },
+        "is_allow_auto_update_schema" : {
+          "type" : "boolean"
+        },
         "schema_validation_enforced" : {
           "type" : "boolean"
         }
@@ -9804,10 +9948,10 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "producerName" : {

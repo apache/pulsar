@@ -128,7 +128,7 @@
 <li>Bookies被设计成可以承载数千的并发读写的ledgers。 使用多个磁盘设备，一个用于日志，另一个用于一般存储，这样Bookies可以将读操作的影响和对于写操作的延迟分隔开。</li>
 </ul>
 <p>除了消息数据，<em>cursors</em>也会被持久化入BookKeeper。 Cursors是消费端<a href="/docs/zh-CN/next/reference-terminology#subscription">订阅</a>消费的位置。 BookKeeper让Pulsar可以用一种可扩展的方式存储消费位置。</p>
-<p>目前，Pulsar只支持持久消息存储。这是所有topic名称都是持久不可变的原因。这里有一个例子：</p>
+<p>At the moment, Pulsar supports persistent message storage. This accounts for the <code>persistent</code> in all topic names. Here's an example:</p>
 <pre><code class="hljs css language-http">persistent://tenant/namespace/topic
 </code></pre>
 <blockquote>

@@ -127,7 +127,7 @@
 <li>Bookies are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices---one for journal and another for general storage--bookies are able to isolate the effects of read operations from the latency of ongoing write operations.</li>
 </ul>
 <p>In addition to message data, <em>cursors</em> are also persistently stored in BookKeeper. Cursors are <a href="/docs/fr/next/reference-terminology#subscription">subscription</a> positions for <a href="/docs/fr/next/reference-terminology#consumer">consumers</a>. BookKeeper enables Pulsar to store consumer position in a scalable fashion.</p>
-<p>At the moment, Pulsar only supports persistent message storage. This accounts for the <code>persistent</code> in all topic names. Here's an example:</p>
+<p>At the moment, Pulsar supports persistent message storage. This accounts for the <code>persistent</code> in all topic names. Here's an example:</p>
 <pre><code class="hljs css language-http">persistent://my-tenant/my-namespace/my-topic
 </code></pre>
 <blockquote>
