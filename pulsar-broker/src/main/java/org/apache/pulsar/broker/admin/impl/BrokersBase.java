@@ -270,10 +270,10 @@ public class BrokersBase extends AdminResource {
             asyncResponse.resume(new RestException(e));
             return;
         }
-        CompletableFuture<Producer<byte[]>> producerFuture =
-            client.newProducer(SchemaDisabled.of(Schema.BYTES)).topic(topic).createAsync();
-        CompletableFuture<Reader<byte[]>> readerFuture = client.newReader(SchemaDisabled.of(Schema.BYTES))
-            .topic(topic).startMessageId(MessageId.latest).createAsync();
+        CompletableFuture<Producer<String>> producerFuture =
+                client.newProducer(Schema.STRING).topic(topic).createAsync();
+        CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)
+                .topic(topic).startMessageId(MessageId.latest).createAsync();
 
         CompletableFuture<Void> completePromise = new CompletableFuture<>();
 
@@ -282,7 +282,7 @@ public class BrokersBase extends AdminResource {
                     if (exception != null) {
                         completePromise.completeExceptionally(exception);
                     } else {
-                        producerFuture.thenCompose((producer) -> producer.sendAsync(messageStr.getBytes()))
+                        producerFuture.thenCompose((producer) -> producer.sendAsync(messageStr))
                             .whenComplete((ignore2, exception2) -> {
                                     if (exception2 != null) {
                                         completePromise.completeExceptionally(exception2);
@@ -325,15 +325,15 @@ public class BrokersBase extends AdminResource {
             });
     }
 
-    private void healthcheckReadLoop(CompletableFuture<Reader<byte[]>> readerFuture,
+    private void healthcheckReadLoop(CompletableFuture<Reader<String>> readerFuture,
                                      CompletableFuture<?> completablePromise,
                                      String messageStr) {
         readerFuture.thenAccept((reader) -> {
-                CompletableFuture<Message<byte[]>> readFuture = reader.readNextAsync()
+                CompletableFuture<Message<String>> readFuture = reader.readNextAsync()
                     .whenComplete((m, exception) -> {
                             if (exception != null) {
                                 completablePromise.completeExceptionally(exception);
-                            } else if (new String(m.getValue()).equals(messageStr)) {
+                            } else if (m.getValue().equals(messageStr)) {
                                 completablePromise.complete(null);
                             } else {
                                 healthcheckReadLoop(readerFuture, completablePromise, messageStr);
