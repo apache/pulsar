@@ -18,24 +18,29 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+
+import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry.TransactionMetadataOp;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.common.util.FutureUtil;
+
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 
 
 /**
- * The provider that offers in-memory implementation of {@link TransactionMetadataStore}.
+ * The provider that offers topic-base-memory implementation of {@link TransactionMetadataStore}.
  */
 public class TopicBaseTransactionMetadataStore implements TransactionMetadataStore {
 
@@ -44,12 +49,12 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
     private final TopicBaseTransactionReader reader;
     private final TopicBaseTransactionWriter writer;
 
-    TopicBaseTransactionMetadataStore(TransactionCoordinatorID tcID,
+    public TopicBaseTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       ManagedLedgerFactory managedLedgerFactory) throws Exception {
         this.tcID = tcID;
+        this.writer = new TopicBaseTransactionWriterImpl(tcID.toString(), managedLedgerFactory);
         this.reader = new TopicBaseTransactionReaderImpl(tcID.toString(), managedLedgerFactory);
         this.sequenceId = new AtomicLong(reader.readSequenceId());
-        this.writer = new TopicBaseTransactionWriterImpl(tcID.toString(), managedLedgerFactory);
     }
 
     @Override
@@ -88,7 +93,6 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
                 .setMetadataOp(TransactionMetadataOp.NEW)
                 .setTxnLastModificationTime(currentTimeMillis)
                 .build();
-
         return writer.write(transactionMetadataEntry)
                 .thenCompose(txn -> {
                     reader.addNewTxn(new TxnMetaImpl(txnID));
@@ -105,12 +109,40 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
                     .setTxnidMostBits(txnid.getMostSigBits())
                     .setTxnidLeastBits(txnid.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
+                    .addAllPartitions(partitions)
                     .build();
 
             return writer.write(transactionMetadataEntry)
                     .thenCompose(txnMeta -> {
                         try {
                             txn.addProducedPartitions(partitions);
+                            transactionMetadataEntry.recycle();
+                            return CompletableFuture.completedFuture(null);
+                        } catch (InvalidTxnStatusException e) {
+                            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                            completableFuture.completeExceptionally(e);
+                            transactionMetadataEntry.recycle();
+                            return completableFuture;
+                        }
+                    });
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> addAckedSubscriptionToTxn(TxnID txnid, List<TxnSubscription> txnSubscriptions) {
+        return getTxnMeta(txnid).thenCompose(txn -> {
+            TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
+                    .newBuilder()
+                    .setTxnidMostBits(txnid.getMostSigBits())
+                    .setTxnidLeastBits(txnid.getLeastSigBits())
+                    .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
+                    .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
+                    .build();
+
+            return writer.write(transactionMetadataEntry)
+                    .thenCompose(txnMeta -> {
+                        try {
+                            txn.addTxnSubscription(txnSubscriptions);
                             transactionMetadataEntry.recycle();
                             return CompletableFuture.completedFuture(null);
                         } catch (InvalidTxnStatusException e) {
@@ -131,21 +163,24 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
 
     @Override
     public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         return getTxnMeta(txnid).thenCompose(txn -> {
             TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                     .newBuilder()
                     .setTxnidMostBits(txnid.getMostSigBits())
                     .setTxnidLeastBits(txnid.getLeastSigBits())
                     .setExpectedStatus(expectedStatus)
+                    .setMetadataOp(TransactionMetadataOp.UPDATE)
                     .setNewStatus(newStatus)
                     .build();
             return writer.write(transactionMetadataEntry)
                     .thenCompose(txnMeta -> {
                         try {
                             txn.updateTxnStatus(newStatus, expectedStatus);
-                            return CompletableFuture.completedFuture(null);
+                            transactionMetadataEntry.recycle();
+                            completableFuture.complete(null);
+                            return completableFuture;
                         } catch (InvalidTxnStatusException e) {
-                            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                             completableFuture.completeExceptionally(e);
                             transactionMetadataEntry.recycle();
                             return completableFuture;
@@ -154,7 +189,21 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
         });
     }
 
-    public interface TopicBaseTransactionReader {
+    protected static List<Subscription> txnSubscriptionToSubscription(List<TxnSubscription> tnxSubscriptions) {
+        List<Subscription> subscriptions = new ArrayList<>(tnxSubscriptions.size());
+        for (int i = 0; i < tnxSubscriptions.size(); i++) {
+            Subscription subscription = Subscription.newBuilder()
+                    .setSubscription(tnxSubscriptions.get(i).getSubscription())
+                    .setTopic(tnxSubscriptions.get(i).getTopic()).build();
+            subscriptions.add(subscription);
+        }
+        return subscriptions;
+    }
+
+    /**
+     * A reader for read transaction metadata.
+     */
+    protected interface TopicBaseTransactionReader {
 
         /**
          * Query the {@link TxnMeta} of a given transaction <tt>txnid</tt>.
@@ -166,32 +215,33 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
         TxnMeta getTxnMeta(TxnID txnid);
 
         /**
-         * Get the last sequenceId for new {@link TxnID}
+         * Get the last sequenceId for new {@link TxnID}.
          *
-         * @return {@link Long} for lst sequenceId
+         * @return {@link Long} for lst sequenceId.
          */
         Long readSequenceId();
 
         /**
-         * Add the new {@link TxnMeta} to the cache
-         *
-         * @return void
+         * Add the new {@link TxnMeta} to the cache.
          */
         void addNewTxn(TxnMeta txnMeta);
 
         /**
-         * Get the transaction status from the {@link TxnID}
+         * Get the transaction status from the {@link TxnID}.
          *
-         * @return the {@link TxnID} corresponding transaction status
+         * @return the {@link TxnID} corresponding transaction status.
          */
         TxnStatus getTxnStatus(TxnID txnID);
 
     }
 
-    public interface TopicBaseTransactionWriter {
+    /**
+     * A writer for write transaction metadata.
+     */
+    protected interface TopicBaseTransactionWriter {
 
         /**
-         * Write the transaction operation to the transaction log
+         * Write the transaction operation to the transaction log.
          *
          * @param transactionMetadataEntry transaction metadata entry
          * @return a future represents the result of this operation

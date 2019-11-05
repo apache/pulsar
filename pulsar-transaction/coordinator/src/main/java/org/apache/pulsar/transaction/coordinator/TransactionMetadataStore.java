@@ -21,8 +21,8 @@ package org.apache.pulsar.transaction.coordinator;
 import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * A store for storing all the transaction metadata.
@@ -78,6 +78,16 @@ public interface TransactionMetadataStore {
      */
     CompletableFuture<Void> addProducedPartitionToTxn(
         TxnID txnid, List<String> partitions);
+
+    /**
+     * Add the acked subscriptions to transaction identified by <tt>txnid</tt>.
+     *
+     * @param txnid transaction id
+     * @param txnSubscriptions the list of subscriptions that a transaction ack to
+     * @return a future represents the result of this operation
+     */
+    CompletableFuture<Void> addAckedSubscriptionToTxn(
+            TxnID txnid, List<TxnSubscription> txnSubscriptions);
 
     /**
      * Add the acked partitions to transaction identified by <tt>txnid</tt>.

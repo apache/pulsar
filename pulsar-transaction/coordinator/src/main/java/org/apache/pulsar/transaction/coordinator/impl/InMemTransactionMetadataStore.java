@@ -24,14 +24,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 
 /**
  * An in-memory implementation of {@link TransactionMetadataStore}.
@@ -89,6 +90,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
                 return error;
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> addAckedSubscriptionToTxn(TxnID txnid, List<TxnSubscription> txnSubscriptions) {
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     @Override

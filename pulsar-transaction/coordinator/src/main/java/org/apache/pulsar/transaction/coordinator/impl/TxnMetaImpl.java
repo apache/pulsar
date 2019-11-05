@@ -162,7 +162,7 @@ class TxnMetaImpl implements TxnMeta {
                                                     TxnStatus expectedStatus)
         throws InvalidTxnStatusException {
         checkTxnStatus(expectedStatus);
-        if (!TransactionUtil.canTransitionTo(txnStatus,newStatus)) {
+        if (!TransactionUtil.canTransitionTo(txnStatus, newStatus)) {
             throw new InvalidTxnStatusException(
                 "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
         }

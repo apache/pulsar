@@ -1,23 +1,25 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
-import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
-import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.TxnSubscription;
-import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
+import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
+import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.TxnSubscription;
+import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 
 class TopicBaseTransactionReaderImpl implements
         TopicBaseTransactionMetadataStore.TopicBaseTransactionReader {
@@ -28,53 +30,66 @@ class TopicBaseTransactionReaderImpl implements
 
     private final ManagedLedgerFactory managedLedgerFactory;
 
-    private final ReadOnlyCursor readOnlyCursor;
-
     public TopicBaseTransactionReaderImpl(String tcId, ManagedLedgerFactory managedLedgerFactory) throws Exception {
         this.managedLedgerFactory =  managedLedgerFactory;
-        this.readOnlyCursor = managedLedgerFactory
-                .openReadOnlyCursor(tcId,
-                        PositionImpl.earliest,
-                        ((ManagedLedgerFactoryImpl)managedLedgerFactory)
-                                .getManagedLedgers()
-                                .get(tcId)
-                                .getConfig());
+            ReadOnlyCursor readOnlyCursor = managedLedgerFactory
+                    .openReadOnlyCursor(tcId,
+                            PositionImpl.earliest, new ManagedLedgerConfig());
         while (readOnlyCursor.hasMoreEntries()) {
             List<Entry> entries = readOnlyCursor.readEntries(100);
             for (int i = 0; i < entries.size(); i++) {
-                MessageImpl<byte[]> message = MessageImpl.deserialize(entries.get(i).getDataBuffer());
+                ByteBuf buffer = entries.get(i).getDataBuffer();
+                ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
+                TransactionMetadataEntry.Builder transactionMetadataEntryBuilder =
+                        TransactionMetadataEntry.newBuilder();
                 TransactionMetadataEntry transactionMetadataEntry =
-                        TransactionMetadataEntry.parseFrom(message.getData());
+                        transactionMetadataEntryBuilder.mergeFrom(stream, null).build();
                 TxnID txnID = new TxnID(transactionMetadataEntry.getTxnidMostBits(),
                         transactionMetadataEntry.getTxnidLeastBits());
                 switch (transactionMetadataEntry.getMetadataOp()) {
                     case NEW:
-                        sequenceId = sequenceId > transactionMetadataEntry.getTxnidLeastBits() ?
-                                sequenceId : transactionMetadataEntry.getTxnidMostBits();
+                        sequenceId = sequenceId > transactionMetadataEntry.getTxnidLeastBits()
+                                ? sequenceId : transactionMetadataEntry.getTxnidMostBits();
                         txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
+                        transactionMetadataEntryBuilder.recycle();
+                        stream.recycle();
                         break;
                     case ADD_PARTITION:
                         txnMetaMap.get(txnID).addProducedPartitions(transactionMetadataEntry.getPartitionsList());
+                        transactionMetadataEntryBuilder.recycle();
+                        stream.recycle();
                         break;
                     case ADD_SUBSCRIPTION:
                         txnMetaMap.get(txnID)
                                 .addTxnSubscription(
                                         subscriptionToTxnSubscription(transactionMetadataEntry.getSubscriptionsList()));
+                        transactionMetadataEntryBuilder.recycle();
+                        stream.recycle();
                         break;
                     case UPDATE:
                         txnMetaMap.get(txnID)
                                 .updateTxnStatus(transactionMetadataEntry.getNewStatus(),
                                         transactionMetadataEntry.getExpectedStatus());
+                        transactionMetadataEntryBuilder.recycle();
+                        stream.recycle();
                         break;
-                        default:
-                            throw new InvalidTxnStatusException("Transaction `" +
-                                    txnID + "` load bad metadata operation from transaction log ");
+                    default:
+                        throw new InvalidTxnStatusException("Transaction `"
+                                + txnID + "` load bad metadata operation from transaction log ");
 
                 }
-                transactionMetadataEntry.recycle();
                 entries.get(i).release();
             }
         }
+    }
+
+    private static List<TxnSubscription> subscriptionToTxnSubscription(List<Subscription> subscriptions) {
+        List<TxnSubscription> txnSubscriptions = new ArrayList<>(subscriptions.size());
+        for (int i = 0; i < subscriptions.size(); i++) {
+            txnSubscriptions
+                    .add(new TxnSubscription(subscriptions.get(i).getTopic(), subscriptions.get(i).getSubscription()));
+        }
+        return txnSubscriptions;
     }
 
 
@@ -98,12 +113,5 @@ class TopicBaseTransactionReaderImpl implements
         return txnMetaMap.get(txnID).status();
     }
 
-    private static List<TxnSubscription> subscriptionToTxnSubscription(List<Subscription> subscriptions) {
-        List<TxnSubscription> txnSubscriptions = new ArrayList<>(subscriptions.size());
-        for (int i = 0; i < subscriptions.size(); i++) {
-            txnSubscriptions.add(new TxnSubscription(subscriptions.get(i).getTopic(), subscriptions.get(i).getSubscription()));
-        }
-        return txnSubscriptions;
-    }
 
 }

@@ -1,12 +1,16 @@
 package org.apache.pulsar.transaction.util;
 
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
-
 import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.ABORTED;
 import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.ABORTING;
 import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.COMMITTED;
 import static org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.COMMITTING;
 
+import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+
+
+/**
+ * An transaction util of {@link TransactionUtil}.
+ */
 public class TransactionUtil {
     /**
      * Check if the a status can be transaction to a new status.
