@@ -1333,7 +1333,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_TRANSACTION,
             doc = "Class name for transaction metadata store provider"
     )
-    private String transactionMetadataStoreProviderClassName;
+    private String transactionMetadataStoreProviderClassName =
+            "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider";
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}
