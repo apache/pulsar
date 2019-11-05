@@ -160,8 +160,7 @@ public class MessageDeduplication {
                     MessageMetadata md = Commands.parseMessageMetadata(messageMetadataAndPayload);
 
                     String producerName = md.getProducerName();
-                    long sequenceId = md.hasHighestSequenceId() && md.getHighestSequenceId() >= md.getSequenceId() ?
-                            md.getHighestSequenceId() : md.getSequenceId();
+                    long sequenceId = Math.max(md.getHighestSequenceId(), md.getSequenceId());
                     highestSequencedPushed.put(producerName, sequenceId);
                     highestSequencedPersisted.put(producerName, sequenceId);
 
@@ -284,8 +283,7 @@ public class MessageDeduplication {
 
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
-        long lastSequenceId = publishContext.getHighestSequenceId() >= sequenceId ? publishContext.getHighestSequenceId()
-                : sequenceId;
+        long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
         if (producerName.startsWith(replicatorPrefix)) {
             // Message is coming from replication, we need to use the original producer name and sequence id
             // for the purpose of deduplication and not rely on the "replicator" name.
@@ -293,10 +291,10 @@ public class MessageDeduplication {
             MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
             producerName = md.getProducerName();
             sequenceId = md.getSequenceId();
-            lastSequenceId = md.getHighestSequenceId() >= sequenceId ? md.getHighestSequenceId() : md.getSequenceId();
+            highestSequenceId = Math.max(md.getHighestSequenceId(), sequenceId);
             publishContext.setOriginalProducerName(producerName);
             publishContext.setOriginalSequenceId(sequenceId);
-            publishContext.setOriginalHighestSequenceId(lastSequenceId);
+            publishContext.setOriginalHighestSequenceId(highestSequenceId);
             headersAndPayload.readerIndex(readerIndex);
             md.recycle();
         }
@@ -322,7 +320,7 @@ public class MessageDeduplication {
                     return MessageDupStatus.Unknown;
                 }
             }
-            highestSequencedPushed.put(producerName, lastSequenceId);
+            highestSequencedPushed.put(producerName, highestSequenceId);
         }
         return MessageDupStatus.NotDup;
     }
@@ -337,15 +335,15 @@ public class MessageDeduplication {
 
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
-        long lastSequenceId = publishContext.getHighestSequenceId();
+        long highestSequenceId = publishContext.getHighestSequenceId();
         if (publishContext.getOriginalProducerName() != null) {
             // In case of replicated messages, this will be different from the current replicator producer name
             producerName = publishContext.getOriginalProducerName();
             sequenceId = publishContext.getOriginalSequenceId();
-            lastSequenceId = publishContext.getOriginalHighestSequenceId();
+            highestSequenceId = publishContext.getOriginalHighestSequenceId();
         }
 
-        highestSequencedPersisted.put(producerName, lastSequenceId >= sequenceId ? lastSequenceId : sequenceId);
+        highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
         if (++snapshotCounter >= snapshotInterval) {
             snapshotCounter = 0;
             takeSnapshot(position);

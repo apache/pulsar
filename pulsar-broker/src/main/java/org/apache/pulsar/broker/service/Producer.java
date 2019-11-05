@@ -197,9 +197,9 @@ public class Producer {
                         System.nanoTime()));
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long lastSequenceId, long batchSize) {
+    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId, long batchSize) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, sequenceId, lastSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, lowestSequenceId, highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         System.nanoTime()));
     }
 
@@ -377,7 +377,7 @@ public class Producer {
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            long callBackSequenceId = highestSequenceId >= sequenceId ? highestSequenceId : sequenceId;;
+            long callBackSequenceId = Math.max(highestSequenceId, sequenceId);
             producer.cnx.ctx().writeAndFlush(
                     Commands.newSendReceipt(producer.producerId, callBackSequenceId, ledgerId, entryId),
                     producer.cnx.ctx().voidPromise());

@@ -393,8 +393,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             if (sequenceId <= lastSequenceIdPublished) {
                                 log.warn("Message with sequence id {} is definitely a duplicate", sequenceId);
                             } else {
-                                log.warn("Message with sequence id {} is a definitely a duplicate or not cannot be " +
-                                        "determined at this time", sequenceId);
+                                log.info("Message with sequence id {} might be a duplicate but cannot be determined at this time.",
+                                    sequenceId);
                             }
                             doBatchSendAndAdd(msg, callback, payload);
                         } else {
