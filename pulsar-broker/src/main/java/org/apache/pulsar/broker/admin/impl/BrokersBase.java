@@ -52,7 +52,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.SchemaDisabled;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -271,9 +270,9 @@ public class BrokersBase extends AdminResource {
             return;
         }
         CompletableFuture<Producer<String>> producerFuture =
-                client.newProducer(Schema.STRING).topic(topic).createAsync();
+            client.newProducer(Schema.STRING).topic(topic).createAsync();
         CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)
-                .topic(topic).startMessageId(MessageId.latest).createAsync();
+            .topic(topic).startMessageId(MessageId.latest).createAsync();
 
         CompletableFuture<Void> completePromise = new CompletableFuture<>();
 
@@ -338,7 +337,7 @@ public class BrokersBase extends AdminResource {
                             } else {
                                 healthcheckReadLoop(readerFuture, completablePromise, messageStr);
                             }
-                    });
+                        });
             });
     }
     
