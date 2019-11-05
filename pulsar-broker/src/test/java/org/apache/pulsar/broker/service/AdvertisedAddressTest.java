@@ -18,17 +18,18 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.zookeeper.data.Stat;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
+import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.apache.zookeeper.data.Stat;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -39,14 +40,18 @@ public class AdvertisedAddressTest {
     LocalBookkeeperEnsemble bkEnsemble;
     PulsarService pulsar;
 
-    private final int ZOOKEEPER_PORT = 12759;
-    private final int BROKER_WEBSERVICE_PORT = 15782;
-    private final int BROKER_SERVICE_PORT = 16650;
+    private int ZOOKEEPER_PORT = PortManager.nextFreePort();
+    private int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+    private int BROKER_SERVICE_PORT = PortManager.nextFreePort();
 
     private final String advertisedAddress = "pulsar-usc.example.com";
 
     @BeforeMethod
     public void setup() throws Exception {
+        ZOOKEEPER_PORT = PortManager.nextFreePort();
+        BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+        BROKER_SERVICE_PORT = PortManager.nextFreePort();
+
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
         bkEnsemble.start();
         ServiceConfiguration config = new ServiceConfiguration();
@@ -59,6 +64,7 @@ public class AdvertisedAddressTest {
         config.setManagedLedgerMaxEntriesPerLedger(5);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsar = new PulsarService(config);
+        pulsar.setShutdownService(new NoOpShutdownService());
         pulsar.start();
     }
 

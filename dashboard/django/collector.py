@@ -79,7 +79,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
     active_broker.save()
 
     # Get topics stats
-    topics_stats = get(broker_url, '/admin/broker-stats/destinations')
+    topics_stats = get(broker_url, '/admin/v2/broker-stats/topics')
 
     clusters = dict((cluster.name, cluster) for cluster in Cluster.objects.all())
 

@@ -55,6 +55,12 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     ConsumerConfiguration& operator=(const ConsumerConfiguration&);
 
     /**
+     * Create a new instance of ConsumerConfiguration with the same
+     * initial settings as the current one.
+     */
+    ConsumerConfiguration clone() const;
+
+    /**
      * Declare the schema of the data that this consumer will be accepting.
      *
      * The schema will be checked against the schema of the topic, and the
