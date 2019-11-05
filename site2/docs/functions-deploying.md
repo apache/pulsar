@@ -178,7 +178,7 @@ If a Pulsar Function is running in [cluster mode](#cluster-mode), you can **trig
 
 > Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](reference-pulsar-admin.md#trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
 
-To show an example of function triggering, let's start with a simple [Python function](functions-api.md#functions-for-python) that returns a simple string based on the input:
+To show an example of function triggering, let's start with a simple Python function that returns a simple string based on the input:
 
 ```python
 # myfunc.py
