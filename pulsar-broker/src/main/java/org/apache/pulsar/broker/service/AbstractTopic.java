@@ -28,7 +28,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.naming.TopicName;
@@ -36,6 +37,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
@@ -75,6 +77,7 @@ public abstract class AbstractTopic implements Topic {
     protected volatile boolean isEncryptionRequired = false;
     protected volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
             SchemaCompatibilityStrategy.FULL;
+    protected volatile boolean isAllowAutoUpdateSchema = true;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
     
@@ -184,9 +187,13 @@ public abstract class AbstractTopic implements Topic {
 
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-                .getSchemaRegistryService()
-                .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+        if (isAllowAutoUpdateSchema) {
+            return brokerService.pulsar()
+                    .getSchemaRegistryService()
+                    .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+        } else {
+            return FutureUtil.failedFuture(new IncompatibleSchemaException("Don't allow auto update schema."));
+        }
     }
 
     @Override
@@ -205,12 +212,12 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
+    public CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema) {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
                 .getSchemaRegistryService()
-                .isCompatible(id, schema, schemaCompatibilityStrategy);
+                .checkConsumerCompatibility(id, schema, schemaCompatibilityStrategy);
     }
 
     @Override
@@ -220,6 +227,14 @@ public abstract class AbstractTopic implements Topic {
         PUBLISH_LATENCY.observe(latency, unit);
     }
 
+    protected void setSchemaCompatibilityStrategy (Policies policies) {
+        if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
+            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                    policies.schema_auto_update_compatibility_strategy);
+        } else {
+            schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
+        }
+    }
     private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
             .quantile(0.0)
             .quantile(0.50)

@@ -206,7 +206,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema,
-          ProducerInterceptors<T> interceptors) {
+          ProducerInterceptors interceptors) {
         if (conf == null) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
@@ -251,7 +251,7 @@ public class PulsarClientImpl implements PulsarClient {
     private <T> CompletableFuture<Producer<T>> createProducerAsync(String topic,
                                                                    ProducerConfigurationData conf,
                                                                    Schema<T> schema,
-                                                                   ProducerInterceptors<T> interceptors) {
+                                                                   ProducerInterceptors interceptors) {
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {

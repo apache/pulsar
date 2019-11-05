@@ -34,6 +34,7 @@ import com.google.common.collect.Queues;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -70,9 +71,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
-import org.apache.bookkeeper.api.StorageClient;
-import org.apache.bookkeeper.clients.StorageClientBuilder;
-import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
@@ -110,7 +108,6 @@ import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
-import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -217,6 +214,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
+
+    private Channel listenChannel;
+    private Channel listenChannelTls;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -359,11 +359,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // Bind and start to accept incoming connections.
             InetSocketAddress addr = new InetSocketAddress(pulsar.getBindAddress(), port.get());
             try {
-                bootstrap.bind(addr).sync();
+                listenChannel = bootstrap.bind(addr).sync().channel();
+                log.info("Started Pulsar Broker service on {}", listenChannel.localAddress());
             } catch (Exception e) {
                 throw new IOException("Failed to bind Pulsar broker on " + addr, e);
             }
-            log.info("Started Pulsar Broker service on port {}", port.get());
         }
 
         Optional<Integer> tlsPort = serviceConfig.getBrokerServicePortTls();
@@ -371,13 +371,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new PulsarChannelInitializer(pulsar, true));
             try {
-                tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort.get())).sync();
+                listenChannelTls = tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort.get())).sync()
+                        .channel();
+                log.info("Started Pulsar Broker TLS service on {} - TLS provider: {}", listenChannelTls.localAddress(),
+                        SslContext.defaultServerProvider());
             } catch (Exception e) {
                 throw new IOException(String.format("Failed to start Pulsar Broker TLS service on %s:%d",
-                        pulsar.getBindAddress(), port.get()), e);
+                        pulsar.getBindAddress(), tlsPort.get()), e);
             }
-            log.info("Started Pulsar Broker TLS service on port {} - TLS provider: {}", tlsPort.get(),
-                    SslContext.defaultServerProvider());
         }
 
         // start other housekeeping functions
@@ -511,6 +512,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 log.warn("Error shutting down repl admin for cluster {}", cluster, e);
             }
         });
+
+        if (listenChannel != null) {
+            listenChannel.close();
+        }
+
+        if (listenChannelTls != null) {
+            listenChannelTls.close();
+        }
 
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
@@ -1870,6 +1879,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public static Optional<Topic> extractTopic(CompletableFuture<Optional<Topic>> topicFuture) {
         if (topicFuture.isDone() && !topicFuture.isCompletedExceptionally()) {
             return topicFuture.join();
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPort() {
+        if (listenChannel != null) {
+            return Optional.of(((InetSocketAddress) listenChannel.localAddress()).getPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortTls() {
+        if (listenChannelTls != null) {
+            return Optional.of(((InetSocketAddress) listenChannelTls.localAddress()).getPort());
         } else {
             return Optional.empty();
         }

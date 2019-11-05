@@ -50,6 +50,8 @@ public class ZookeeperServerTest implements Closeable {
         try {
             // Allow all commands on ZK control port
             System.setProperty("zookeeper.4lw.commands.whitelist", "*");
+            // disable the admin server as to not have any port conflicts
+            System.setProperty("zookeeper.admin.enableServer", "false");
             zks = new ZooKeeperServer(zkTmpDir, zkTmpDir, ZooKeeperServer.DEFAULT_TICK_TIME);
             zks.setMaxSessionTimeout(20000);
             serverFactory = new NIOServerCnxnFactory();

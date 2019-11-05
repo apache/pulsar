@@ -20,8 +20,12 @@
 package org.apache.pulsar.functions.runtime;
 
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.util.Optional;
 
@@ -29,6 +33,11 @@ import java.util.Optional;
  * A factory to create {@link Runtime}s to invoke functions.
  */
 public interface RuntimeFactory extends AutoCloseable {
+
+    void initialize(WorkerConfig workerConfig,
+                    AuthenticationConfig authenticationConfig,
+                    SecretsProviderConfigurator secretsProviderConfigurator,
+                    Optional<FunctionAuthProvider> functionAuthProvider) throws Exception;
 
     /**
      * Create a function container to execute a java instance.
@@ -52,6 +61,10 @@ public interface RuntimeFactory extends AutoCloseable {
 
     @Override
     void close();
+
+    static RuntimeFactory getFuntionRuntimeFactory(String className) {
+        return Reflections.createInstance(className, RuntimeFactory.class, Thread.currentThread().getContextClassLoader());
+    }
 
 }
  

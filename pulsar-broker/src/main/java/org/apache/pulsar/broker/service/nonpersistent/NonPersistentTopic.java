@@ -60,7 +60,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -144,8 +144,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                    policies.schema_auto_update_compatibility_strategy);
+            isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
+            setSchemaCompatibilityStrategy(policies);
+
             schemaValidationEnforced = policies.schema_validation_enforced;
 
         } catch (Exception e) {
@@ -870,8 +871,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);
         }
         isEncryptionRequired = data.encryption_required;
-        schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                data.schema_auto_update_compatibility_strategy);
+        setSchemaCompatibilityStrategy(data);
+        isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         schemaValidationEnforced = data.schema_validation_enforced;
 
         producers.forEach(producer -> {
@@ -922,13 +923,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
 
     @Override
-    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
-            .thenCompose((hasSchema) -> {
+                .thenCompose((hasSchema) -> {
                     if (hasSchema || isActive() || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
-                        return isSchemaCompatible(schema);
+                        return checkSchemaCompatibleForConsumer(schema);
                     } else {
-                        return addSchema(schema).thenApply((ignore) -> true);
+                        return addSchema(schema).thenCompose(schemaVersion->
+                                CompletableFuture.completedFuture(null));
                     }
                 });
     }
