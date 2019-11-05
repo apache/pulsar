@@ -752,7 +752,7 @@ Application can use `incrCounter` to change the counter of a given `key` by the 
 
 Application can use `getCounter` to retrieve the counter of a given `key` mutated by `incrCounter`.
 
-Besides the `counter` API, Pulsar also exposes a general key/value API for functions to store
+Except the `counter` API, Pulsar also exposes a general key/value API for functions to store
 general key/value state.
 
 #### putState
@@ -792,8 +792,7 @@ general key/value state.
 Counters and binary values share the same keyspace, so this deletes either type.
 
 <!--Python-->
-Currently Pulsar Functions expose following APIs for mutating and accessing State. These APIs are available in the [Context](#context) object when
-you are using Python SDK functions.
+Currently Pulsar Functions expose the following APIs for mutating and accessing State. These APIs are available in the [Context](#context) object when you are using Python SDK functions.
 
 #### incr_counter
 
@@ -803,7 +802,7 @@ you are using Python SDK functions.
 ```
 
 Application can use `incr_counter` to change the counter of a given `key` by the given `amount`.
-If the `key` does not exist, it is created.
+If the `key` does not exist, a new key is created.
 
 #### get_counter
 
@@ -814,7 +813,7 @@ If the `key` does not exist, it is created.
 
 Application can use `get_counter` to retrieve the counter of a given `key` mutated by `incrCounter`.
 
-Besides the `counter` API, Pulsar also exposes a general key/value API for functions to store
+Except the `counter` API, Pulsar also exposes a general key/value API for functions to store
 general key/value state.
 
 #### put_state
@@ -824,7 +823,7 @@ general key/value state.
     """update the value of a given key in the managed state"""
 ```
 
-The key is a string, and the value is arbitrary binary data
+The key is a string, and the value is arbitrary binary data.
 
 #### get_state
 
@@ -898,7 +897,7 @@ class WordCount(Function):
 
 The logic of this `WordCount` function is pretty simple and straightforward:
 
-1. The function first splits the received string into multiple words on space
+1. The function first splits the received string into multiple words on space.
 2. For each `word`, the function increments the corresponding `counter` by 1 (via `incr_counter(key, amount)`).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
