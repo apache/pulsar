@@ -400,12 +400,12 @@ public class Producer {
             return callback;
         }
 
-        static MessagePublishContext get(Producer producer, long sequenceId, long lastSequenceId, Rate rateIn,
+        static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
                  int msgSize, long batchSize, long startTimeNs) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
-            callback.sequenceId = sequenceId;
-            callback.highestSequenceId = lastSequenceId;
+            callback.sequenceId = lowestSequenceId;
+            callback.highestSequenceId = highestSequenceId;
             callback.rateIn = rateIn;
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
