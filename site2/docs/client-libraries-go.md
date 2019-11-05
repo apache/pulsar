@@ -292,7 +292,7 @@ func main() {
     consumer, err := client.Subscribe(pulsar.ConsumerOptions{
         Topic:            "my-golang-topic",
         SubscriptionName: "sub-1",
-        SubscriptionType: pulsar.Exclusive,
+        Type: pulsar.Exclusive,
     })
 
     if err != nil { log.Fatal(err) }
@@ -329,7 +329,7 @@ Parameter | Description | Default
 `Name` | The name of the consumer |
 `AckTimeout` | | 0
 `NackRedeliveryDelay` | The delay after which to redeliver the messages that failed to be processed. Default is 1min. (See `Consumer.Nack()`) | 1 minute
-`SubscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
+`Type` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
 `MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
 `ReceiverQueueSize` | Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls `Receive`. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization. | 1000
 `MaxTotalReceiverQueueSizeAcrossPartitions` |Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value | 50000

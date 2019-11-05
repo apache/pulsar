@@ -31,11 +31,11 @@ TEST(ProducerTest, producerNotInitialized) {
 
     ASSERT_EQ(ResultProducerNotInitialized, producer.send(msg));
 
-    Promise<Result, Message> promise;
-    producer.sendAsync(msg, WaitForCallbackValue<Message>(promise));
+    Promise<Result, MessageId> promise;
+    producer.sendAsync(msg, WaitForCallbackValue<MessageId>(promise));
 
-    Message m;
-    ASSERT_EQ(ResultProducerNotInitialized, promise.getFuture().get(m));
+    MessageId mi;
+    ASSERT_EQ(ResultProducerNotInitialized, promise.getFuture().get(mi));
 
     ASSERT_EQ(ResultProducerNotInitialized, producer.close());
 

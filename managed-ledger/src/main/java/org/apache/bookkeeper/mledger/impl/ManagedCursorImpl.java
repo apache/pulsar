@@ -1046,6 +1046,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         List<Entry> entries = Lists.newArrayListWithExpectedSize(positions.size());
         if (positions.isEmpty()) {
             callback.readEntriesComplete(entries, ctx);
+            return Collections.emptySet();
         }
 
         // filters out messages which are already acknowledged

@@ -35,6 +35,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -138,14 +139,12 @@ public class FunctionActioner {
             functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
             runtimeSpawner.start();
-            return;
         } catch (Exception ex) {
             FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
                     .getFunctionMetaData().getFunctionDetails();
             log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
                     details.getName(), ex);
             functionRuntimeInfo.setStartupException(ex);
-            return;
         }
     }
 
@@ -173,7 +172,6 @@ public class FunctionActioner {
 
         return runtimeSpawner;
     }
-
 
     InstanceConfig createInstanceConfig(FunctionDetails functionDetails, Function.FunctionAuthenticationSpec
             functionAuthSpec, int instanceId, String clusterName) {
@@ -296,19 +294,21 @@ public class FunctionActioner {
 
             // cleanup any auth data cached
             if (workerConfig.isAuthenticationEnabled()) {
-                try {
-                    log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
-                    functionRuntimeInfo.getRuntimeSpawner()
-                            .getRuntimeFactory().getAuthProvider()
-                            .cleanUpAuthData(
-                                    details.getTenant(), details.getNamespace(), details.getName(),
-                                    Optional.ofNullable(getFunctionAuthData(
-                                            Optional.ofNullable(
-                                                    functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
+                functionRuntimeInfo.getRuntimeSpawner()
+                        .getRuntimeFactory().getAuthProvider().ifPresent(functionAuthProvider -> {
+                            try {
+                                log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                                functionAuthProvider
+                                        .cleanUpAuthData(
+                                                details.getTenant(), details.getNamespace(), details.getName(),
+                                                Optional.ofNullable(getFunctionAuthData(
+                                                        Optional.ofNullable(
+                                                                functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
 
-                } catch (Exception e) {
-                    log.error("Failed to cleanup auth data for function: {}", fqfn, e);
-                }
+                            } catch (Exception e) {
+                                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+                            }
+                        });
             }
             functionRuntimeInfo.setRuntimeSpawner(null);
         }

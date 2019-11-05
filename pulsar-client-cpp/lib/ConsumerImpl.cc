@@ -20,6 +20,7 @@
 #include "MessageImpl.h"
 #include "Commands.h"
 #include "LogUtils.h"
+#include "TimeUtils.h"
 #include <lib/TopicName.h>
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
@@ -205,7 +206,7 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
             scheduleReconnection(shared_from_this());
         } else {
             // Consumer was not yet created, retry to connect to broker if it's possible
-            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < now())) {
+            if (isRetriableError(result) && (creationTimestamp_ + operationTimeut_ < TimeUtils::now())) {
                 LOG_WARN(getName() << "Temporary error in creating consumer : " << strResult(result));
                 scheduleReconnection(shared_from_this());
             } else {
@@ -837,8 +838,12 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
+    LOG_INFO(getName() << "Closing consumer for topic " << topic_);
+    state_ = Closing;
+
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
+        state_ = Closed;
         lock.unlock();
         // If connection is gone, also the consumer is closed on the broker side
         if (callback) {
@@ -847,9 +852,9 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
-    LOG_INFO(getName() << "Closing consumer for topic " << topic_);
     ClientImplPtr client = client_.lock();
     if (!client) {
+        state_ = Closed;
         lock.unlock();
         // Client was already destroyed
         if (callback) {

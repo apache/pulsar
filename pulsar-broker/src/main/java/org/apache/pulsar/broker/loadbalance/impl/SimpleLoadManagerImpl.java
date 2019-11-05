@@ -1495,7 +1495,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         loadReportCacheZk.close();
         loadReportCacheZk.clear();
         availableActiveBrokers.close();
-        scheduler.shutdown();
+        scheduler.shutdownNow();
     }
 
     private long getBrokerZnodeOwner() {

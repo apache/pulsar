@@ -321,9 +321,6 @@ public interface Consumer<T> extends Closeable {
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
      *
-     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
-     * the seek() on the individual partitions.
-     *
      * @param timestamp
      *            the message publish time where to reposition the subscription
      */
@@ -349,9 +346,6 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
-     *
-     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather
-     * perform the seek() on the individual partitions.
      *
      * @param timestamp
      *            the message publish time where to reposition the subscription
