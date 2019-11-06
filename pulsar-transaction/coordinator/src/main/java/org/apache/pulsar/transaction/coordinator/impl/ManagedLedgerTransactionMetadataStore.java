@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 
 import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
@@ -42,18 +43,18 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 /**
  * The provider that offers topic-base-memory implementation of {@link TransactionMetadataStore}.
  */
-public class TopicBaseTransactionMetadataStore implements TransactionMetadataStore {
+public class ManagedLedgerTransactionMetadataStore implements TransactionMetadataStore {
 
     private final TransactionCoordinatorID tcID;
     private final AtomicLong sequenceId;
-    private final TopicBaseTransactionReader reader;
-    private final TopicBaseTransactionWriter writer;
+    private final ManagedLedgerTransactionReader reader;
+    private final ManagedLedgerTransactionWriter writer;
 
-    public TopicBaseTransactionMetadataStore(TransactionCoordinatorID tcID,
-                                      ManagedLedgerFactory managedLedgerFactory) throws Exception {
+    public ManagedLedgerTransactionMetadataStore(TransactionCoordinatorID tcID,
+                                                 ManagedLedgerFactory managedLedgerFactory) throws Exception {
         this.tcID = tcID;
-        this.writer = new TopicBaseTransactionWriterImpl(tcID.toString(), managedLedgerFactory);
-        this.reader = new TopicBaseTransactionReaderImpl(tcID.toString(), managedLedgerFactory);
+        this.writer = new ManagedLedgerTransactionWriterImpl(tcID.toString(), managedLedgerFactory);
+        this.reader = new ManagedLedgerTransactionReaderImpl(tcID.toString(), managedLedgerFactory);
         this.sequenceId = new AtomicLong(reader.readSequenceId());
     }
 
@@ -189,6 +190,19 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
         });
     }
 
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        CompletableFuture completableFuture = new CompletableFuture();
+        try {
+            this.reader.close();
+            this.writer.close();
+        } catch (Exception e) {
+            completableFuture.completeExceptionally(e);
+        }
+        completableFuture.complete(null);
+        return completableFuture;
+    }
+
     protected static List<Subscription> txnSubscriptionToSubscription(List<TxnSubscription> tnxSubscriptions) {
         List<Subscription> subscriptions = new ArrayList<>(tnxSubscriptions.size());
         for (int i = 0; i < tnxSubscriptions.size(); i++) {
@@ -203,7 +217,7 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
     /**
      * A reader for read transaction metadata.
      */
-    protected interface TopicBaseTransactionReader {
+    protected interface ManagedLedgerTransactionReader {
 
         /**
          * Query the {@link TxnMeta} of a given transaction <tt>txnid</tt>.
@@ -233,12 +247,17 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
          */
         TxnStatus getTxnStatus(TxnID txnID);
 
+        /**
+         * Close the reader.
+         */
+        void close() throws ManagedLedgerException, InterruptedException;
+
     }
 
     /**
      * A writer for write transaction metadata.
      */
-    protected interface TopicBaseTransactionWriter {
+    protected interface ManagedLedgerTransactionWriter {
 
         /**
          * Write the transaction operation to the transaction log.
@@ -247,5 +266,10 @@ public class TopicBaseTransactionMetadataStore implements TransactionMetadataSto
          * @return a future represents the result of this operation
          */
         CompletableFuture<Void> write(TransactionMetadataEntry transactionMetadataEntry);
+
+        /**
+         * Close the writer.
+         */
+        void close() throws ManagedLedgerException, InterruptedException;
     }
 }

@@ -13,13 +13,13 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-import org.apache.pulsar.transaction.coordinator.impl.TopicBaseTransactionMetadataStore.TopicBaseTransactionWriter;
 
-class TopicBaseTransactionWriterImpl implements TopicBaseTransactionWriter {
+class ManagedLedgerTransactionWriterImpl implements
+        ManagedLedgerTransactionMetadataStore.ManagedLedgerTransactionWriter {
 
     private ManagedLedger managedLedger;
 
-    public TopicBaseTransactionWriterImpl(String tcID, ManagedLedgerFactory factory) throws Exception {
+    public ManagedLedgerTransactionWriterImpl(String tcID, ManagedLedgerFactory factory) throws Exception {
         this.managedLedger = factory.open(tcID);
 
     }
@@ -58,5 +58,10 @@ class TopicBaseTransactionWriterImpl implements TopicBaseTransactionWriter {
             outStream.recycle();
         }
         return completableFuture;
+    }
+
+    @Override
+    public void close() throws ManagedLedgerException, InterruptedException {
+        this.managedLedger.close();
     }
 }
