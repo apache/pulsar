@@ -1938,7 +1938,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return OffloadProcessStatus.forSuccess(currentOffload.join());
                 }
             } catch (CancellationException | CompletionException e) {
-                log.warn("Failed to offload: {}", e.getCause());
+                log.warn("Failed to offload", e.getCause());
                 return OffloadProcessStatus.forError(e.getMessage());
             }
         }
