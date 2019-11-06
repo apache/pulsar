@@ -39,6 +39,11 @@ public interface Producer<T> extends Closeable {
     String getProducerName();
 
     /**
+     * @return the name of producer is generated or user specified
+     */
+    boolean isGeneratedName();
+
+    /**
      * Sends a message.
      *
      * <p>This call will be blocking until is successfully acknowledged by the Pulsar broker.

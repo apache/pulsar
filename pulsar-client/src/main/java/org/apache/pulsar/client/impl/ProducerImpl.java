@@ -100,6 +100,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // Globally unique producer name
     private String producerName;
+    private boolean isGeneratedName;
 
     private String connectionId;
     private String connectedSince;
@@ -130,6 +131,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
+        this.isGeneratedName = conf.isGeneratedName();
         this.partitionIndex = partitionIndex;
         this.pendingMessages = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.pendingCallbacks = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
@@ -1025,7 +1027,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                       schemaInfo),
+                       schemaInfo, connectionHandler.epoch, isGeneratedName),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1502,6 +1504,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     public String getProducerName() {
         return producerName;
+    }
+
+    @Override
+    public boolean isGeneratedName() {
+        return isGeneratedName;
     }
 
     // wrapper for connection methods

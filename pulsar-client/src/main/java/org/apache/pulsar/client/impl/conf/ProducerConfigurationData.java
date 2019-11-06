@@ -57,6 +57,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private String topicName = null;
     private String producerName = null;
+    private boolean isGeneratedName = true;
     private long sendTimeoutMs = 30000;
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = DEFAULT_MAX_PENDING_MESSAGES;
@@ -115,6 +116,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     public void setProducerName(String producerName) {
         checkArgument(StringUtils.isNotBlank(producerName), "producerName cannot be blank");
+        this.isGeneratedName = false;
         this.producerName = producerName;
     }
 

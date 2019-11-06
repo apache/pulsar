@@ -425,8 +425,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             if (!producers.add(producer)) {
-                throw new NamingException(
-                        "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
+                boolean canOverwrite = false;
+                for (Producer existProducer : producers.values()) {
+                    if (existProducer.equals(producer) && existProducer.isGeneratedName()
+                            && producer.isGeneratedName() && producer.getEpoch() > existProducer.getEpoch()) {
+                        existProducer.close();
+                        canOverwrite = true;
+                        break;
+                    }
+                }
+                if (canOverwrite) {
+                    producers.remove(producer);
+                    producers.add(producer);
+                } else {
+                    throw new NamingException(
+                            "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
+                }
             }
 
             USAGE_COUNT_UPDATER.incrementAndGet(this);
