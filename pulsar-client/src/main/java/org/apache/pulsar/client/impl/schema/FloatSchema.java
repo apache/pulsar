@@ -28,10 +28,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class FloatSchema extends AbstractSchema<Float> {
 
-    public static FloatSchema of() {
-        return INSTANCE;
-    }
-
     private static final FloatSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -41,6 +37,10 @@ public class FloatSchema extends AbstractSchema<Float> {
                 .setType(SchemaType.FLOAT)
                 .setSchema(new byte[0]);
         INSTANCE = new FloatSchema();
+    }
+
+    public static FloatSchema of() {
+        return INSTANCE;
     }
 
     @Override

@@ -28,10 +28,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class ByteSchema extends AbstractSchema<Byte> {
 
-    public static ByteSchema of() {
-        return INSTANCE;
-    }
-
     private static final ByteSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -41,6 +37,10 @@ public class ByteSchema extends AbstractSchema<Byte> {
             .setType(SchemaType.INT8)
             .setSchema(new byte[0]);
         INSTANCE = new ByteSchema();
+    }
+
+    public static ByteSchema of() {
+        return INSTANCE;
     }
 
     @Override
