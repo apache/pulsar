@@ -140,7 +140,7 @@ Here's an example to submit a Cassandra sink:
 
 ## Monitoring Connectors
 
-Since Pulsar IO connectors are running as [Pulsar Functions](functions-overiew.md), so you can use [`functions`](reference-pulsar-admin.md#source) commands
+Since Pulsar IO connectors are running as [Pulsar Functions](functions-overview.md), so you can use [`functions`](reference-pulsar-admin.md#source) commands
 available in the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool.
 
 ### Retrieve Connector Metadata

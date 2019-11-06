@@ -29,8 +29,12 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -64,9 +68,9 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
     }
 
     @Override
-    public GenericAvroRecord read(byte[] bytes) {
+    public GenericAvroRecord read(byte[] bytes, int offset, int length) {
         try {
-            Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
+            Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length, null);
             org.apache.avro.generic.GenericRecord avroRecord =
                     (org.apache.avro.generic.GenericRecord)reader.read(
                     null,
@@ -76,4 +80,26 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
             throw new SchemaSerializationException(e);
         }
     }
+
+    @Override
+    public GenericRecord read(InputStream inputStream) {
+        try {
+            Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+            org.apache.avro.generic.GenericRecord avroRecord =
+                    (org.apache.avro.generic.GenericRecord)reader.read(
+                            null,
+                            decoder);
+            return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
+        } catch (IOException e) {
+            throw new SchemaSerializationException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                log.error("GenericAvroReader close inputStream close error", e.getMessage());
+            }
+        }
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(GenericAvroReader.class);
 }

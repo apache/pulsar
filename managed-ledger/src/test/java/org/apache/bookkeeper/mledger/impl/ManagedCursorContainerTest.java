@@ -26,6 +26,7 @@ import static org.testng.Assert.fail;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.List;
@@ -313,6 +314,16 @@ public class ManagedCursorContainerTest {
         @Override
         public ManagedLedger getManagedLedger() {
             return null;
+        }
+
+        @Override
+        public Range<PositionImpl> getLastIndividualDeletedRange() {
+            return null;
+        }
+
+        @Override
+        public void trimDeletedEntries(List<Entry> entries) {
+
         }
 
     }

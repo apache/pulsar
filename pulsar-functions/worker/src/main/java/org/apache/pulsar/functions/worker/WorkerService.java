@@ -148,6 +148,9 @@ public class WorkerService {
             }
             log.info("Created Pulsar client");
 
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
             this.schedulerManager = new SchedulerManager(this.workerConfig, this.client, this.brokerAdmin,
                     this.executor);
@@ -198,9 +201,6 @@ public class WorkerService {
 
             // indicate function worker service is done initializing
             this.isInitialized = true;
-
-            this.connectorsManager = new ConnectorsManager(workerConfig);
-
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
             throw new RuntimeException(t);
@@ -249,7 +249,7 @@ public class WorkerService {
         if (null != this.brokerAdmin) {
             this.brokerAdmin.close();
         }
-        
+
         if (null != this.functionAdmin) {
             this.functionAdmin.close();
         }
@@ -261,9 +261,13 @@ public class WorkerService {
         if (null != this.dlogNamespace) {
             this.dlogNamespace.close();
         }
-        
+
         if(this.executor != null) {
             this.executor.shutdown();
+        }
+
+        if (this.statsUpdater != null) {
+            statsUpdater.shutdownNow();
         }
     }
 

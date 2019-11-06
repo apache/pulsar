@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -54,17 +56,17 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
     }
 
     @Override
-    public boolean isCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) {
-        return isCompatible(Collections.singletonList(from), to, strategy);
+    public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+        checkCompatible(Collections.singletonList(from), to, strategy);
     }
 
     @Override
-    public boolean isCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) {
+    public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException  {
         if (strategy == SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE) {
-            return true;
+            return;
         }
         if (to.getType() != SchemaType.KEY_VALUE) {
-            return false;
+            throw new IncompatibleSchemaException("To schema is not a KEY_VALUE schema.");
         }
         LinkedList<SchemaData> fromKeyList = new LinkedList<>();
         LinkedList<SchemaData> fromValueList = new LinkedList<>();
@@ -75,18 +77,23 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
 
         for (SchemaData schemaData : from) {
             if (schemaData.getType() != SchemaType.KEY_VALUE) {
-                return false;
+                throw new IncompatibleSchemaException("From schema is not a KEY_VALUE schema.");
             }
             fromKeyValue = decodeKeyValueSchemaData(schemaData);
             if (fromKeyValue.getKey().getType() != toKeyType || fromKeyValue.getValue().getType() != toValueType) {
-                return false;
+                throw new IncompatibleSchemaException(String.format("Key schemas or Value schemas are different schema type, " +
+                        "from key schema type is %s and to key schema is %s, from value schema is %s and to value schema is %s",
+                        fromKeyValue.getKey().getType(),
+                        toKeyType,
+                        fromKeyValue.getValue().getType(),
+                        toValueType));
             }
             fromKeyList.addFirst(fromKeyValue.getKey());
             fromValueList.addFirst(fromKeyValue.getValue());
         }
         SchemaCompatibilityCheck keyCheck = checkers.getOrDefault(toKeyType, SchemaCompatibilityCheck.DEFAULT);
         SchemaCompatibilityCheck valueCheck = checkers.getOrDefault(toValueType, SchemaCompatibilityCheck.DEFAULT);
-        return keyCheck.isCompatible(fromKeyList, toKeyValue.getKey(), strategy)
-                && valueCheck.isCompatible(fromValueList, toKeyValue.getValue(), strategy);
+        keyCheck.checkCompatible(fromKeyList, toKeyValue.getKey(), strategy);
+        valueCheck.checkCompatible(fromValueList, toKeyValue.getValue(), strategy);
     }
 }

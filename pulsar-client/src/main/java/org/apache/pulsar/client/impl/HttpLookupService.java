@@ -24,7 +24,6 @@ import io.netty.channel.EventLoopGroup;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -46,6 +45,8 @@ import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.yahoo.sketches.Util.bytesToLong;
 
 class HttpLookupService implements LookupService {
 
@@ -103,7 +104,8 @@ class HttpLookupService implements LookupService {
 
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
-        return httpClient.get(String.format(format, topicName.getLookupName()), PartitionedTopicMetadata.class);
+        return httpClient.get(String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation=true",
+                PartitionedTopicMetadata.class);
     }
 
     public String getServiceUrl() {
@@ -150,7 +152,7 @@ class HttpLookupService implements LookupService {
         if (version != null) {
             path = String.format("admin/v2/schemas/%s/schema/%s",
                     schemaName,
-                    new String(version, StandardCharsets.UTF_8));
+                    bytesToLong(version));
         }
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
             future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));

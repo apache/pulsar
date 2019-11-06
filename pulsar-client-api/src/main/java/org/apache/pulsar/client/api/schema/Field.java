@@ -39,5 +39,5 @@ public class Field {
      * The index of the field within the record.
      */
     private final int index;
-    
+
 }

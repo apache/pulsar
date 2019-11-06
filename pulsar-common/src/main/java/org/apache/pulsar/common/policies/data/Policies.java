@@ -18,21 +18,26 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import com.google.common.collect.Sets;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
+/**
+ * Definition of Pulsar policies.
+ */
 public class Policies {
 
+    @SuppressWarnings("checkstyle:MemberName")
     public final AuthPolicies auth_policies = new AuthPolicies();
+    @SuppressWarnings("checkstyle:MemberName")
     public Set<String> replication_clusters = Sets.newHashSet();
     public BundlesData bundles;
+    @SuppressWarnings("checkstyle:MemberName")
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> topicDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
@@ -42,9 +47,13 @@ public class Policies {
 
     // If set, it will override the broker settings for enabling deduplication
     public Boolean deduplicationEnabled = null;
+    public Map<String, PublishRate> publishMaxMessageRate = Maps.newHashMap();
 
+    @SuppressWarnings("checkstyle:MemberName")
     public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
+    @SuppressWarnings("checkstyle:MemberName")
     public int message_ttl_in_seconds = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;
     public String antiAffinityGroup;
@@ -52,26 +61,43 @@ public class Policies {
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
 
+    @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;
+    @SuppressWarnings("checkstyle:MemberName")
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public int max_producers_per_topic = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_topic = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_subscription = 0;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public long compaction_threshold = 0;
+    @SuppressWarnings("checkstyle:MemberName")
     public long offload_threshold = -1;
+    @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
 
+    @SuppressWarnings("checkstyle:MemberName")
+    @Deprecated
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
         SchemaAutoUpdateCompatibilityStrategy.Full;
 
+    @SuppressWarnings("checkstyle:MemberName")
+    public SchemaCompatibilityStrategy schema_compatibility_strategy = SchemaCompatibilityStrategy.UNDEFINED;
+
+    @SuppressWarnings("checkstyle:MemberName")
+    public boolean is_allow_auto_update_schema = true;
+
+    @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
 
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
-                backlog_quota_map,
+                backlog_quota_map, publishMaxMessageRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
                 clusterSubscribeRate, deduplicationEnabled, persistence,
                 bundles, latency_stats_sample_rate,
@@ -82,7 +108,9 @@ public class Policies {
                 compaction_threshold, offload_threshold,
                 offload_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
-                schema_validation_enforced);
+                schema_validation_enforced,
+                schema_compatibility_strategy,
+                is_allow_auto_update_schema);
     }
 
     @Override
@@ -96,6 +124,7 @@ public class Policies {
                     && Objects.equals(subscriptionDispatchRate, other.subscriptionDispatchRate)
                     && Objects.equals(replicatorDispatchRate, other.replicatorDispatchRate)
                     && Objects.equals(clusterSubscribeRate, other.clusterSubscribeRate)
+                    && Objects.equals(publishMaxMessageRate, other.publishMaxMessageRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
@@ -112,7 +141,9 @@ public class Policies {
                     && offload_threshold == other.offload_threshold
                     && offload_deletion_lag_ms == other.offload_deletion_lag_ms
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
-                    && schema_validation_enforced == other.schema_validation_enforced;
+                    && schema_validation_enforced == other.schema_validation_enforced
+                    && schema_compatibility_strategy == other.schema_compatibility_strategy
+                    && is_allow_auto_update_schema == other.is_allow_auto_update_schema;
         }
 
         return false;
@@ -144,6 +175,7 @@ public class Policies {
                 .add("subscriptionDispatchRate", subscriptionDispatchRate)
                 .add("replicatorDispatchRate", replicatorDispatchRate)
                 .add("clusterSubscribeRate", clusterSubscribeRate)
+                .add("publishMaxMessageRate", publishMaxMessageRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("antiAffinityGroup", antiAffinityGroup)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
@@ -157,6 +189,8 @@ public class Policies {
                 .add("offload_threshold", offload_threshold)
                 .add("offload_deletion_lag_ms", offload_deletion_lag_ms)
                 .add("schema_auto_update_compatibility_strategy", schema_auto_update_compatibility_strategy)
-                .add("schema_validation_enforced", schema_validation_enforced).toString();
+                .add("schema_validation_enforced", schema_validation_enforced)
+                .add("schema_compatibility_Strategy", schema_compatibility_strategy)
+                .add("is_allow_auto_update_Schema", is_allow_auto_update_schema).toString();
     }
 }

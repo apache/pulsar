@@ -32,6 +32,9 @@ import org.apache.bookkeeper.common.allocator.ByteBufAllocatorBuilder;
 import org.apache.bookkeeper.common.allocator.LeakDetectionPolicy;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 
+/**
+ * Holder of a ByteBuf allocator.
+ */
 @UtilityClass
 @Slf4j
 public class PulsarByteBufAllocator {

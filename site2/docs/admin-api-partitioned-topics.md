@@ -34,6 +34,7 @@ need to provide a name for the topic as well as the desired number of partitions
 
 You can create partitioned topics using the [`create-partitioned-topic`](reference-pulsar-admin.md#create-partitioned-topic)
 command and specifying the topic name as an argument and the number of partitions using the `-p` or `--partitions` flag.
+
 Here's an example:
 
 ```shell
@@ -41,6 +42,13 @@ $ bin/pulsar-admin topics create-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic \
   --partitions 4
 ```
+
+> #### Note
+>
+> If there already exists a non partitioned topic with suffix '-partition-' followed by numeric value like
+> 'xyz-topic-partition-10', then you can not create partitioned topic with name 'xyz-topic' as the partitions
+> of the partitioned topic could override the existing non partitioned topic. You have to delete that non
+> partitioned topic first then create the partitioned topic.
 
 #### REST API
 
@@ -52,43 +60,6 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
-```
-
-## Nonpartitioned topics resources
-
-### Create
-
-Nonpartitioned topics in Pulsar must be explicitly created if allowAutoTopicCreation or createIfMissing is disabled.
-When creating a non-partitioned topic, you need to provide a topic name.
-
-> #### Note
->
-> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
->
-> To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
->
-> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
->
-> For more information about these two parameters, see [here](reference-configuration.md#broker).
-
-#### pulsar-admin
-
-You can create non-partitioned topics using the [`create`](reference-pulsar-admin.md#create)
-command and specifying the topic name as an argument. This is an example command:
-
-```shell
-$ bin/pulsar-admin topics create persistent://my-tenant/my-namespace/my-topic
-``` 
-
-#### REST API
-
-{@inject: endpoint|PUT|admin/v2/persistent/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
-
-#### Java
-
-```java
-String topicName = "persistent://my-tenant/my-namespace/my-topic";
-admin.topics().createNonPartitionedTopic(topicName);
 ```
 
 ### Get metadata

@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -646,7 +647,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
             LoadManager manager = LoadManager.create(pulsar);
             manager.start();
-            loadManagerRef.set(manager);
+            LoadManager oldLoadManager = loadManagerRef.getAndSet(manager);
+            oldLoadManager.stop();
 
             NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
             LoadManager loadManager = pulsar.getLoadManager().get();
@@ -735,7 +737,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
             LoadManager manager = LoadManager.create(pulsar);
             manager.start();
-            loadManagerRef.set(manager);
+            LoadManager oldLoadManager = loadManagerRef.getAndSet(manager);
+            oldLoadManager.stop();
 
             NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
             LoadManager loadManager = pulsar.getLoadManager().get();
@@ -891,7 +894,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config1.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
             config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
+            config1.setAllowAutoTopicCreationType("non-partitioned");
             pulsar1 = new PulsarService(config1);
+            pulsar1.setShutdownService(new NoOpShutdownService());
             pulsar1.start();
             ns1 = pulsar1.getBrokerService();
 
@@ -917,7 +922,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config2.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
             config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
+            config2.setAllowAutoTopicCreationType("non-partitioned");
             pulsar2 = new PulsarService(config2);
+            pulsar2.setShutdownService(new NoOpShutdownService());
             pulsar2.start();
             ns2 = pulsar2.getBrokerService();
 
@@ -942,7 +949,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config3.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
+            config3.setAllowAutoTopicCreationType("non-partitioned");
             pulsar3 = new PulsarService(config3);
+            pulsar3.setShutdownService(new NoOpShutdownService());
             pulsar3.start();
             ns3 = pulsar3.getBrokerService();
 

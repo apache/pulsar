@@ -38,8 +38,6 @@ import static org.mockito.Mockito.*;
 
 public class ConsumerImplTest {
 
-	private static final long DEFAULT_BACKOFF_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
-	private static final long MAX_BACKOFF_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(20);
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private ConsumerImpl<ConsumerImpl> consumer;
@@ -58,26 +56,25 @@ public class ConsumerImplTest {
         when(client.getConnection(anyString())).thenReturn(clientCnxFuture);
         clientConf.setOperationTimeoutMs(100);
         clientConf.setStatsIntervalSeconds(0);
-        clientConf.setDefaultBackoffIntervalNanos(DEFAULT_BACKOFF_INTERVAL_NANOS);
-        clientConf.setMaxBackoffIntervalNanos(MAX_BACKOFF_INTERVAL_NANOS);
         when(client.getConfiguration()).thenReturn(clientConf);
 
         consumerConf.setSubscriptionName("test-sub");
         consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
                 executorService, -1, false, subscribeFuture, SubscriptionMode.Durable, null, null, null,
-                clientConf.getDefaultBackoffIntervalNanos(), clientConf.getMaxBackoffIntervalNanos());
-    }
-
-    @Test(invocationTimeOut = 500)
-    public void testCorrectBackoffConfiguration() {
-    	final Backoff backoff = consumer.getConnectionHandler().backoff;
-    	Assert.assertEquals(backoff.backoffIntervalNanos(), DEFAULT_BACKOFF_INTERVAL_NANOS);
-    	Assert.assertEquals(backoff.maxBackoffIntervalNanos(), MAX_BACKOFF_INTERVAL_NANOS);
+                true);
     }
 
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_EmptyQueueNotThrowsException() {
         consumer.notifyPendingReceivedCallback(null, null);
+    }
+
+    @Test(invocationTimeOut = 500)
+    public void testCorrectBackoffConfiguration() {
+        final Backoff backoff = consumer.getConnectionHandler().backoff;
+        ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
+        Assert.assertEquals(backoff.getMax(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.next(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 
     @Test(invocationTimeOut = 1000)

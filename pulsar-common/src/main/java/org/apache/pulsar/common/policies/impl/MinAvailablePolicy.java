@@ -20,21 +20,24 @@ package org.apache.pulsar.common.policies.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Objects;
 import java.util.SortedSet;
-
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 
-import com.google.common.base.Objects;
-
+/**
+ * Implementation of min available policy.
+ */
 public class MinAvailablePolicy extends AutoFailoverPolicy {
     private static final String MIN_LIMIT_KEY = "min_limit";
     private static final String USAGE_THRESHOLD_KEY = "usage_threshold";
     private static final int MAX_USAGE_THRESHOLD = 100;
 
+    @SuppressWarnings("checkstyle:MemberName")
     public int min_limit;
+    @SuppressWarnings("checkstyle:MemberName")
     public int usage_threshold;
 
     MinAvailablePolicy(int minLimit, int usageThreshold) {

@@ -18,31 +18,32 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
 /**
- * Batcher builder
+ * Batcher builder.
  */
-public interface BatcherBuilder {
+public interface BatcherBuilder extends Serializable {
 
     /**
-     * Default batch message container
+     * Default batch message container.
      *
-     * incoming single messages:
+     * <p>incoming single messages:
      * (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
      *
-     * batched into single batch message:
+     * <p>batched into single batch message:
      * [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
      */
     BatcherBuilder DEFAULT = DefaultImplementation.newDefaultBatcherBuilder();
 
     /**
-     * Key based batch message container
+     * Key based batch message container.
      *
-     * incoming single messages:
+     * <p>incoming single messages:
      * (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
      *
-     * batched into multiple batch messages:
+     * <p>batched into multiple batch messages:
      * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
      */
     BatcherBuilder KEY_BASED = DefaultImplementation.newKeyBasedBatcherBuilder();

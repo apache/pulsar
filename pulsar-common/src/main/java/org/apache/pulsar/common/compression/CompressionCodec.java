@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.common.compression;
 
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 
-import io.netty.buffer.ByteBuf;
-
 /**
- * Generic compression codec interface
+ * Generic compression codec interface.
  */
 public interface CompressionCodec {
 
     /**
-     * Compress a buffer
+     * Compress a buffer.
      *
      * @param raw
      *            a buffer with the uncompressed content. The reader/writer indexes will not be modified
@@ -39,7 +38,7 @@ public interface CompressionCodec {
     /**
      * Decompress a buffer.
      *
-     * The buffer needs to have been compressed with the matching Encoder.
+     * <p>The buffer needs to have been compressed with the matching Encoder.
      *
      * @param encoded
      *            the compressed content

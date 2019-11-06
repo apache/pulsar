@@ -112,28 +112,20 @@ class HomeView(generic.ListView):
 def home(request):
     ts = get_timestamp()
     properties = Property.objects.filter(
-        ).annotate(
-            numNamespaces = Subquery(
-                Namespace.objects.filter(
-                    deleted=False,
-                    timestamp=ts,
-                    property=OuterRef('pk')
-                ).values('property')
-                    .annotate(cnt=Count('pk'))
-                    .values('cnt'),
-                output_field=IntegerField()
-            ),
-            numTopics    = Count('namespace__topic__name', distinct=True),
-            numProducers = Sum('namespace__topic__producerCount'),
-            numSubscriptions = Sum('namespace__topic__subscriptionCount'),
-            numConsumers  = Sum('namespace__topic__consumerCount'),
-            backlog       = Sum('namespace__topic__backlog'),
-            storage       = Sum('namespace__topic__storageSize'),
-            rateIn        = Sum('namespace__topic__msgRateIn'),
-            rateOut       = Sum('namespace__topic__msgRateOut'),
-            throughputIn  = Sum('namespace__topic__msgThroughputIn'),
-            throughputOut = Sum('namespace__topic__msgThroughputOut'),
-        )
+        namespace__topic__timestamp = ts,
+    ).annotate(
+        numNamespaces = Count('namespace__name', distinct=True),
+        numTopics    = Count('namespace__topic__name', distinct=True),
+        numProducers = Sum('namespace__topic__producerCount', filter=Q(topic__timestamp__eq=ts)),
+        numSubscriptions = Sum('namespace__topic__subscriptionCount'),
+        numConsumers  = Sum('namespace__topic__consumerCount'),
+        backlog       = Sum('namespace__topic__backlog'),
+        storage       = Sum('namespace__topic__storageSize'),
+        rateIn        = Sum('namespace__topic__msgRateIn'),
+        rateOut       = Sum('namespace__topic__msgRateOut'),
+        throughputIn  = Sum('namespace__topic__msgThroughputIn'),
+        throughputOut = Sum('namespace__topic__msgThroughputOut'),
+    )
 
     logger.info(properties.query)
 

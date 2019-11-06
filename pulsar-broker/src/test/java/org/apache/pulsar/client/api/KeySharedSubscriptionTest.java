@@ -42,6 +42,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
@@ -293,6 +294,32 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             .subscriptionType(SubscriptionType.Key_Shared)
             .ackTimeout(10, TimeUnit.SECONDS)
             .subscribe();
+    }
+
+    @Test()
+    public void testCannotUseAcknowledgeCumulative() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared_ack_cumulative-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        @Cleanup
+        Consumer<Integer> consumer = createConsumer(topic);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send(i);
+        }
+
+        for (int i = 0; i < 10; i++) {
+            Message<Integer> message = consumer.receive();
+            if (i == 9) {
+                try {
+                    consumer.acknowledgeCumulative(message);
+                    fail("should have failed");
+                } catch (PulsarClientException.InvalidConfigurationException ignore) {}
+            }
+        }
     }
 
     private Producer<Integer> createProducer(String topic, boolean enableBatch) throws PulsarClientException {

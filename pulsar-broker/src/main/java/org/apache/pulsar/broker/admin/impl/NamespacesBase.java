@@ -24,8 +24,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -80,14 +78,17 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -189,7 +190,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         boolean isEmpty;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).isEmpty()
+            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join().isEmpty()
                     && getPartitionedTopicList(TopicDomain.persistent).isEmpty()
                     && getPartitionedTopicList(TopicDomain.non_persistent).isEmpty();
         } catch (Exception e) {
@@ -319,7 +320,7 @@ public abstract class NamespacesBase extends AdminResource {
         NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
         try {
-            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
             for (String topic : topics) {
                 NamespaceBundle topicBundle = (NamespaceBundle) pulsar().getNamespaceService()
                         .getBundle(TopicName.get(topic));
@@ -800,6 +801,56 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (Exception e) {
             log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
             throw new RestException(e);
+        }
+    }
+
+    protected void internalSetPublishRate(PublishRate maxPublishMessageRate) {
+        log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
+        validateSuperUserAccess();
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
+                    policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path);
+
+            log.info("[{}] Successfully updated the publish_max_message_rate for cluster on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update the publish_max_message_rate for cluster on namespace {}: does not exist",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to update the publish_max_message_rate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update the publish_max_message_rate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected PublishRate internalGetPublishRate() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        PublishRate publishRate = policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
+        if (publishRate != null) {
+            return publishRate;
+        } else {
+            throw new RestException(Status.NOT_FOUND,
+                    "Publish-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
         }
     }
 
@@ -1985,11 +2036,18 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    @Deprecated
     protected SchemaAutoUpdateCompatibilityStrategy internalGetSchemaAutoUpdateCompatibilityStrategy() {
         validateAdminAccessForTenant(namespaceName.getTenant());
         return getNamespacePolicies(namespaceName).schema_auto_update_compatibility_strategy;
     }
 
+    protected SchemaCompatibilityStrategy internalGetSchemaCompatibilityStrategy() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        return getNamespacePolicies(namespaceName).schema_compatibility_strategy;
+    }
+
+    @Deprecated
     protected void internalSetSchemaAutoUpdateCompatibilityStrategy(SchemaAutoUpdateCompatibilityStrategy strategy) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
@@ -1999,6 +2057,17 @@ public abstract class NamespacesBase extends AdminResource {
                 return policies;
             }, (policies) -> policies.schema_auto_update_compatibility_strategy,
             "schemaAutoUpdateCompatibilityStrategy");
+    }
+
+    protected void internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        mutatePolicy((policies) -> {
+                    policies.schema_compatibility_strategy = strategy;
+                    return policies;
+                }, (policies) -> policies.schema_compatibility_strategy,
+                "schemaCompatibilityStrategy");
     }
 
     protected boolean internalGetSchemaValidationEnforced() {
@@ -2016,6 +2085,23 @@ public abstract class NamespacesBase extends AdminResource {
                 return policies;
             }, (policies) -> policies. schema_validation_enforced,
             "schemaValidationEnforced");
+    }
+
+    protected boolean internalGetIsAllowAutoUpdateSchema() {
+        validateSuperUserAccess();
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
+    }
+
+    protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        mutatePolicy((policies) -> {
+                    policies.is_allow_auto_update_schema = isAllowAutoUpdateSchema;
+                    return policies;
+                }, (policies) -> policies.is_allow_auto_update_schema,
+                "isAllowAutoUpdateSchema");
     }
 
 

@@ -18,17 +18,20 @@
  */
 package org.apache.pulsar.tests.integration.functions;
 
-import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import net.jodah.failsafe.Failsafe;
+import net.jodah.failsafe.RetryPolicy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -43,26 +46,21 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
+import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
-import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
-import org.apache.pulsar.tests.integration.io.DebeziumMySqlSourceTester;
-import org.apache.pulsar.tests.integration.io.ElasticSearchSinkTester;
-import org.apache.pulsar.tests.integration.io.HdfsSinkTester;
-import org.apache.pulsar.tests.integration.io.JdbcSinkTester;
+import org.apache.pulsar.tests.integration.io.*;
 import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
-import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
-import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
-import org.apache.pulsar.tests.integration.io.SinkTester;
-import org.apache.pulsar.tests.integration.io.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.assertj.core.api.Assertions;
 import org.testcontainers.containers.GenericContainer;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -71,6 +69,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -81,13 +80,21 @@ import static org.testng.Assert.fail;
 @Slf4j
 public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
+   final Duration ONE_MINUTE = Duration.ofMinutes(1);
+   final Duration TEN_SECONDS = Duration.ofSeconds(10);
+
+   final RetryPolicy statusRetryPolicy = new RetryPolicy()
+            .withMaxDuration(ONE_MINUTE)
+            .withDelay(TEN_SECONDS)
+            .onRetry(e -> log.error("Retry ... "));
+
     PulsarFunctionsTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
     }
 
     @Test
     public void testKafkaSink() throws Exception {
-        String kafkaContainerName = "kafka-" + randomName(8);
+        final String kafkaContainerName = "kafka-" + randomName(8);
         testSink(new KafkaSinkTester(kafkaContainerName), true, new KafkaSourceTester(kafkaContainerName));
     }
 
@@ -121,6 +128,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testDebeziumMySqlConnect();
     }
 
+    @Test
+    public void testDebeziumPostgreSqlSource() throws Exception {
+        testDebeziumPostgreSqlConnect();
+    }
+
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
         tester.startServiceContainer(pulsarCluster);
         try {
@@ -146,7 +158,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             sinkTester.stopServiceContainer(pulsarCluster);
         }
     }
-    private void runSinkTester(SinkTester tester, boolean builtin) throws Exception {
+    private <T extends GenericContainer> void runSinkTester(SinkTester<T> tester, boolean builtin) throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String inputTopicName = "test-sink-connector-"
@@ -170,39 +182,45 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSinkInfoSuccess(tester, tenant, namespace, sinkName, builtin);
 
         // get sink status
-        getSinkStatus(tenant, namespace, sinkName);
+        Failsafe.with(statusRetryPolicy).run(() -> getSinkStatus(tenant, namespace, sinkName));
 
         // produce messages
         Map<String, String> kvs;
         if (tester instanceof JdbcSinkTester) {
             kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
             // wait for sink to process messages
-            waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages);
+            Failsafe.with(statusRetryPolicy).run(() ->
+                    waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
+
             // validate the sink result
             tester.validateSinkResult(kvs);
 
             kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
 
             // wait for sink to process messages
-            waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20);
+            Failsafe.with(statusRetryPolicy).run(() ->
+                    waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20));
+
             // validate the sink result
             tester.validateSinkResult(kvs);
 
             kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
 
             // wait for sink to process messages
-            waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20 + 20);
+            Failsafe.with(statusRetryPolicy).run(() ->
+                    waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20 + 20));
+
             // validate the sink result
             tester.validateSinkResult(kvs);
 
         } else {
             kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
             // wait for sink to process messages
-            waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages);
+            Failsafe.with(statusRetryPolicy).run(() ->
+                    waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
             // validate the sink result
             tester.validateSinkResult(kvs);
         }
-
 
         // update the sink
         updateSinkConnector(tester, tenant, namespace, sinkName, inputTopicName);
@@ -323,7 +341,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void getSinkStatus(String tenant, String namespace, String sinkName) throws Exception {
-        String[] commands = {
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "sink",
             "status",
@@ -331,32 +349,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sinkName
         };
-        while (true) {
-            try {
-                ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-                log.info("Get sink status : {}", result.getStdout());
 
-                assertEquals(result.getExitCode(), 0);
+        final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        log.info("Get sink status : {}", result.getStdout());
 
-                SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
-                try {
-                    assertEquals(sinkStatus.getNumInstances(), 1);
-                    assertEquals(sinkStatus.getNumRunning(), 1);
-                    assertEquals(sinkStatus.getInstances().size(), 1);
-                    assertEquals(sinkStatus.getInstances().get(0).getInstanceId(), 0);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().isRunning(), true);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
-                    return;
-                } catch (Exception e) {
-                    // noop
-                }
-            } catch (ContainerExecException e) {
-                // expected in early iterations
-            }
-            log.info("Backoff 1 second until the sink is running");
-            TimeUnit.SECONDS.sleep(1);
-        }
+        assertEquals(result.getExitCode(), 0);
+
+        SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
+
+        assertEquals(sinkStatus.getNumInstances(), 1);
+        assertEquals(sinkStatus.getNumRunning(), 1);
+        assertEquals(sinkStatus.getInstances().size(), 1);
+        assertEquals(sinkStatus.getInstances().get(0).getInstanceId(), 0);
+        assertEquals(sinkStatus.getInstances().get(0).getStatus().isRunning(), true);
+        assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        assertEquals(sinkStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
     }
 
     protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
@@ -365,10 +372,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
+
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING)
             .topic(inputTopicName)
             .create();
+
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
@@ -384,16 +393,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     // This for JdbcSinkTester
     protected Map<String, String> produceSchemaInsertMessagesToInputTopic(String inputTopicName,
-                                                                    int numMessages,
-                                                                    Schema<Foo> schema) throws Exception {
+                                                                          int numMessages,
+                                                                          Schema<Foo> schema) throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
+
         @Cleanup
         Producer<Foo> producer = client.newProducer(schema)
             .topic(inputTopicName)
             .create();
+
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
@@ -419,16 +430,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     // This for JdbcSinkTester
     protected Map<String, String> produceSchemaUpdateMessagesToInputTopic(String inputTopicName,
-                                                                    int numMessages,
-                                                                    Schema<Foo> schema) throws Exception {
+                                                                          int numMessages,
+                                                                          Schema<Foo> schema) throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
+
         @Cleanup
         Producer<Foo> producer = client.newProducer(schema)
                 .topic(inputTopicName)
                 .create();
+
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         log.info("update start");
         for (int i = 0; i < numMessages; i++) {
@@ -462,10 +475,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
+
         @Cleanup
         Producer<Foo> producer = client.newProducer(schema)
                 .topic(inputTopicName)
                 .create();
+
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
@@ -490,7 +505,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void deleteSink(String tenant, String namespace, String sinkName) throws Exception {
-        String[] commands = {
+
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "sink",
             "delete",
@@ -498,6 +514,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sinkName
         };
+
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
             result.getStdout().contains("Deleted successfully"),
@@ -510,7 +527,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void getSinkInfoNotFound(String tenant, String namespace, String sinkName) throws Exception {
-        String[] commands = {
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "sink",
             "get",
@@ -530,7 +547,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // Source Test
     //
 
-    private void testSource(SourceTester tester)  throws Exception {
+    private <T extends GenericContainer> void testSource(SourceTester<T> tester)  throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "test-source-connector-"
@@ -543,6 +560,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        admin.topics().createNonPartitionedTopic(outputTopicName);
 
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
@@ -561,13 +582,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoSuccess(tester, tenant, namespace, sourceName);
 
         // get source status
-        getSourceStatus(tenant, namespace, sourceName);
+        Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
 
         // produce messages
         Map<String, String> kvs = tester.produceSourceMessages(numMessages);
 
         // wait for source to process messages
-        waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
+        Failsafe.with(statusRetryPolicy).run(() ->
+                waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
         validateSourceResult(consumer, kvs);
@@ -591,7 +613,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                          String namespace,
                                          String sourceName,
                                          String outputTopicName) throws Exception {
-        String[] commands = {
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "source", "create",
             "--tenant", tenant,
@@ -601,6 +623,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
             "--destinationTopicName", outputTopicName
         };
+
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
@@ -613,7 +636,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                          String namespace,
                                          String sourceName,
                                          String outputTopicName) throws Exception {
-        String[] commands = {
+        final String[] commands = {
                 PulsarCluster.ADMIN_SCRIPT,
                 "source", "update",
                 "--tenant", tenant,
@@ -624,6 +647,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 "--destinationTopicName", outputTopicName,
                 "--parallelism", "2"
         };
+
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
@@ -635,7 +659,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                         String tenant,
                                         String namespace,
                                         String sourceName) throws Exception {
-        String[] commands = {
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "source",
             "get",
@@ -643,6 +667,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sourceName
         };
+
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get source info : {}", result.getStdout());
         assertTrue(
@@ -652,7 +677,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void getSourceStatus(String tenant, String namespace, String sourceName) throws Exception {
-        String[] commands = {
+
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "source",
             "status",
@@ -660,35 +686,23 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sourceName
         };
-        while (true) {
-            try {
-                ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-                log.info("Get source status : {}", result.getStdout());
 
-                assertEquals(result.getExitCode(), 0);
+        final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        log.info("Get source status : {}", result.getStdout());
 
-                SourceStatus sourceStatus = SourceStatus.decode(result.getStdout());
-                try {
-                    assertEquals(sourceStatus.getNumInstances(), 1);
-                    assertEquals(sourceStatus.getNumRunning(), 1);
-                    assertEquals(sourceStatus.getInstances().size(), 1);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().isRunning(), true);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
-                    return;
-                } catch (Exception e) {
-                    // noop
-                }
+        assertEquals(result.getExitCode(), 0);
 
-                if (result.getStdout().contains("\"running\": true")) {
-                    return;
-                }
-            } catch (ContainerExecException e) {
-                // expected for early iterations
-            }
-            log.info("Backoff 1 second until the function is running");
-            TimeUnit.SECONDS.sleep(1);
-        }
+        final SourceStatus sourceStatus = SourceStatus.decode(result.getStdout());
+
+        assertEquals(sourceStatus.getNumInstances(), 1);
+        assertEquals(sourceStatus.getNumRunning(), 1);
+        assertEquals(sourceStatus.getInstances().size(), 1);
+        assertEquals(sourceStatus.getInstances().get(0).getStatus().isRunning(), true);
+        assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        assertEquals(sourceStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+
+        assertTrue(result.getStdout().contains("\"running\" : true"));
+
     }
 
     protected void validateSourceResult(Consumer<String> consumer,
@@ -704,7 +718,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                    String namespace,
                                                    String sourceName,
                                                    int numMessages) throws Exception {
-        String[] commands = {
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "source",
             "status",
@@ -712,44 +726,30 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sourceName
         };
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        while (true) {
-            try {
-                ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-                log.info("Get source status : {}", result.getStdout());
 
-                assertEquals(result.getExitCode(), 0);
+        final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        log.info("Get source status : {}", result.getStdout());
 
-                SourceStatus sourceStatus = SourceStatus.decode(result.getStdout());
-                try {
-                    assertEquals(sourceStatus.getNumInstances(), 1);
-                    assertEquals(sourceStatus.getNumRunning(), 1);
-                    assertEquals(sourceStatus.getInstances().size(), 1);
-                    assertEquals(sourceStatus.getInstances().get(0).getInstanceId(), 0);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().isRunning(), true);
-                    assertTrue(sourceStatus.getInstances().get(0).getStatus().getLastReceivedTime() > 0);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumReceivedFromSource(), numMessages);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumWritten(), numMessages);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
-                    assertEquals(sourceStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
-                    return;
-                } catch (Exception e) {
-                    // noop
-                }
-            } catch (ContainerExecException e) {
-                // expected for early iterations
-            }
-            log.info("{} ms has elapsed but the source hasn't process {} messages, backoff to wait for another 1 second",
-                stopwatch.elapsed(TimeUnit.MILLISECONDS), numMessages);
-            TimeUnit.SECONDS.sleep(1);
-        }
+        assertEquals(result.getExitCode(), 0);
+
+        SourceStatus sourceStatus = SourceStatus.decode(result.getStdout());
+        assertEquals(sourceStatus.getNumInstances(), 1);
+        assertEquals(sourceStatus.getNumRunning(), 1);
+        assertEquals(sourceStatus.getInstances().size(), 1);
+        assertEquals(sourceStatus.getInstances().get(0).getInstanceId(), 0);
+        assertEquals(sourceStatus.getInstances().get(0).getStatus().isRunning(), true);
+        assertTrue(sourceStatus.getInstances().get(0).getStatus().getLastReceivedTime() > 0);
+        assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumReceivedFromSource(), numMessages);
+        assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumWritten(), numMessages);
+        assertEquals(sourceStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        assertEquals(sourceStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
     }
 
     protected void waitForProcessingSinkMessages(String tenant,
                                                  String namespace,
                                                  String sinkName,
                                                  int numMessages) throws Exception {
-        String[] commands = {
+        final String[] commands = {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sink",
                 "status",
@@ -757,42 +757,29 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 "--namespace", namespace,
                 "--name", sinkName
         };
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        while (true) {
-            try {
-                ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
-                log.info("Get sink status : {}", result.getStdout());
 
-                assertEquals(result.getExitCode(), 0);
+        final ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
+        log.info("Get sink status : {}", result.getStdout());
 
-                SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
-                try {
-                    assertEquals(sinkStatus.getNumInstances(), 1);
-                    assertEquals(sinkStatus.getNumRunning(), 1);
-                    assertEquals(sinkStatus.getInstances().size(), 1);
-                    assertEquals(sinkStatus.getInstances().get(0).getInstanceId(), 0);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().isRunning(), true);
-                    assertTrue(sinkStatus.getInstances().get(0).getStatus().getLastReceivedTime() > 0);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumReadFromPulsar(), numMessages);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumWrittenToSink(), numMessages);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
-                    assertEquals(sinkStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
-                    return;
-                } catch (Exception e) {
-                    // noop
-                }
+        assertEquals(result.getExitCode(), 0);
 
-            } catch (ContainerExecException e) {
-                // expected for early iterations
-            }
-            log.info("{} ms has elapsed but the sink hasn't process {} messages, backoff to wait for another 1 second",
-                    stopwatch.elapsed(TimeUnit.MILLISECONDS), numMessages);
-            TimeUnit.SECONDS.sleep(1);
-        }
+        final SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
+
+        assertEquals(sinkStatus.getNumInstances(), 1);
+        assertEquals(sinkStatus.getNumRunning(), 1);
+        assertEquals(sinkStatus.getInstances().size(), 1);
+        assertEquals(sinkStatus.getInstances().get(0).getInstanceId(), 0);
+        assertEquals(sinkStatus.getInstances().get(0).getStatus().isRunning(), true);
+        assertTrue(sinkStatus.getInstances().get(0).getStatus().getLastReceivedTime() > 0);
+        assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumReadFromPulsar(), numMessages);
+        assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumWrittenToSink(), numMessages);
+        assertEquals(sinkStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        assertEquals(sinkStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
     }
 
     protected void deleteSource(String tenant, String namespace, String sourceName) throws Exception {
-        String[] commands = {
+
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "source",
             "delete",
@@ -800,6 +787,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sourceName
         };
+
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
             result.getStdout().contains("Delete source successfully"),
@@ -812,7 +800,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void getSourceInfoNotFound(String tenant, String namespace, String sourceName) throws Exception {
-        String[] commands = {
+
+        final String[] commands = {
             PulsarCluster.ADMIN_SCRIPT,
             "source",
             "get",
@@ -820,6 +809,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--namespace", namespace,
             "--name", sourceName
         };
+
         try {
             pulsarCluster.getAnyWorker().execCmd(commands);
             fail("Command should have exited with non-zero");
@@ -867,6 +857,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
 
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
             retryStrategically((test) -> {
                 try {
                     return admin.topics().getStats(inputTopicName).subscriptions.size() == 1;
@@ -883,11 +875,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 @Cleanup PulsarClient client = PulsarClient.builder()
                         .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                         .build();
+
                 @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
                         .topic(outputTopicName)
                         .subscriptionType(SubscriptionType.Exclusive)
                         .subscriptionName("test-sub")
                         .subscribe();
+
                 @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
                         .topic(inputTopicName)
                         .create();
@@ -947,6 +941,152 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     }
 
+    public void testWindowFunction(String type, String[] expectedResults) throws Exception {
+        int NUM_OF_MESSAGES = 100;
+        int windowLengthCount = 10;
+        int slidingIntervalCount = 5;
+        String functionName = "test-" + type + "-window-fn-" + randomName(8);
+
+        String inputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-input-" + randomName(8);
+        String outputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
+
+        CommandGenerator generator = CommandGenerator.createDefaultGenerator(
+                inputTopicName,
+                "org.apache.pulsar.functions.api.examples.WindowDurationFunction");
+        generator.setFunctionName(functionName);
+        generator.setSinkTopic(outputTopicName);
+        generator.setWindowLengthCount(windowLengthCount);
+        if (type.equals("sliding")) {
+            generator.setSlidingIntervalCount(slidingIntervalCount);
+        }
+
+
+        String[] commands = {
+                "sh", "-c", generator.generateCreateFunctionCommand()
+        };
+
+        ContainerExecResult containerExecResult = pulsarCluster.getAnyWorker().execCmd(commands);
+        assertTrue(containerExecResult.getStdout().contains("\"Created successfully\""));
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        containerExecResult = pulsarCluster.getAnyWorker().execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "status",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName
+        );
+
+        FunctionStatus functionStatus = FunctionStatus.decode(containerExecResult.getStdout());
+        assertEquals(functionStatus.getNumInstances(), 1);
+        assertEquals(functionStatus.getNumRunning(), 1);
+        assertEquals(functionStatus.getInstances().size(), 1);
+        assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        Reader<byte[]> reader = client.newReader().startMessageId(MessageId.earliest)
+                .topic(outputTopicName)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic(inputTopicName)
+                .enableBatching(false)
+                .create();
+
+        for (int i = 0; i < NUM_OF_MESSAGES; i++) {
+            producer.send(String.format("%d", i).getBytes());
+        }
+
+        int i = 0;
+        while (true) {
+            if (i > expectedResults.length) {
+                Assertions.fail("More results than expected");
+            }
+
+            Message<byte[]> msg = reader.readNext(30, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            String msgStr = new String(msg.getData());
+            log.info("i: {} RECV: {}", i, msgStr);
+            String result = msgStr.split(":")[0];
+            assertThat(result).contains(expectedResults[i]);
+            i++;
+        }
+        // in case last commit is not updated
+        assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
+
+        getFunctionStatus(functionName, NUM_OF_MESSAGES, true);
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
+    }
+
+    @Test
+    public void testSlidingCountWindowTest() throws Exception {
+        String[] EXPECTED_RESULTS = {
+                "0,1,2,3,4",
+                "0,1,2,3,4,5,6,7,8,9",
+                "5,6,7,8,9,10,11,12,13,14",
+                "10,11,12,13,14,15,16,17,18,19",
+                "15,16,17,18,19,20,21,22,23,24",
+                "20,21,22,23,24,25,26,27,28,29",
+                "25,26,27,28,29,30,31,32,33,34",
+                "30,31,32,33,34,35,36,37,38,39",
+                "35,36,37,38,39,40,41,42,43,44",
+                "40,41,42,43,44,45,46,47,48,49",
+                "45,46,47,48,49,50,51,52,53,54",
+                "50,51,52,53,54,55,56,57,58,59",
+                "55,56,57,58,59,60,61,62,63,64",
+                "60,61,62,63,64,65,66,67,68,69",
+                "65,66,67,68,69,70,71,72,73,74",
+                "70,71,72,73,74,75,76,77,78,79",
+                "75,76,77,78,79,80,81,82,83,84",
+                "80,81,82,83,84,85,86,87,88,89",
+                "85,86,87,88,89,90,91,92,93,94",
+                "90,91,92,93,94,95,96,97,98,99",
+        };
+
+        testWindowFunction("sliding", EXPECTED_RESULTS);
+    }
+
+    @Test
+    public void testTumblingCountWindowTest() throws Exception {
+        String[] EXPECTED_RESULTS = {
+                "0,1,2,3,4,5,6,7,8,9",
+                "10,11,12,13,14,15,16,17,18,19",
+                "20,21,22,23,24,25,26,27,28,29",
+                "30,31,32,33,34,35,36,37,38,39",
+                "40,41,42,43,44,45,46,47,48,49",
+                "50,51,52,53,54,55,56,57,58,59",
+                "60,61,62,63,64,65,66,67,68,69",
+                "70,71,72,73,74,75,76,77,78,79",
+                "80,81,82,83,84,85,86,87,88,89",
+                "90,91,92,93,94,95,96,97,98,99",
+        };
+
+        testWindowFunction("tumbling", EXPECTED_RESULTS);
+    }
+
     //
     // Test CRUD functions on different runtimes.
     //
@@ -975,6 +1115,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-neg-ack-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-neg-ack-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         String functionName = "test-neg-ack-fn-" + randomName(8);
         final int numMessages = 20;
@@ -1033,6 +1177,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                     .build();
+
             @Cleanup Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
                     .topic(outputTopicName)
                     .subscriptionType(SubscriptionType.Exclusive)
@@ -1151,6 +1296,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-publish-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-publish-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
 
         String functionName = "test-publish-fn-" + randomName(8);
         final int numMessages = 10;
@@ -1159,10 +1308,24 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         if (runtime == Runtime.PYTHON) {
             submitFunction(
-                    runtime, inputTopicName, outputTopicName, functionName, PUBLISH_FUNCTION_PYTHON_FILE, PUBLISH_PYTHON_CLASS, schema, Collections.singletonMap("publish-topic", outputTopicName));
+                    runtime,
+                    inputTopicName,
+                    outputTopicName,
+                    functionName,
+                    PUBLISH_FUNCTION_PYTHON_FILE,
+                    PUBLISH_PYTHON_CLASS,
+                    schema,
+                    Collections.singletonMap("publish-topic", outputTopicName));
         } else {
             submitFunction(
-                    runtime, inputTopicName, outputTopicName, functionName, null, PUBLISH_JAVA_CLASS, schema, Collections.singletonMap("publish-topic", outputTopicName));
+                    runtime,
+                    inputTopicName,
+                    outputTopicName,
+                    functionName,
+                    null,
+                    PUBLISH_JAVA_CLASS,
+                    schema,
+                    Collections.singletonMap("publish-topic", outputTopicName));
         }
 
         // get function info
@@ -1181,6 +1344,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                     .build();
+
             @Cleanup Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
                     .topic(outputTopicName)
                     .subscriptionType(SubscriptionType.Exclusive)
@@ -1227,6 +1391,48 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // make sure subscriptions are cleanup
         checkSubscriptionsCleanup(inputTopicName);
+    }
+
+    @Test
+    public void testSerdeFunction() throws Exception {
+        testCustomSerdeFunction();
+    }
+
+    private void testCustomSerdeFunction() throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD) {
+            return;
+        }
+
+        String inputTopicName = "persistent://public/default/test-serde-java-input-" + randomName(8);
+        String outputTopicName = "test-publish-serde-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
+
+        String functionName = "test-serde-fn-" + randomName(8);
+        submitFunction(
+                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS,
+                SERDE_OUTPUT_CLASS, Collections.singletonMap("serde-topic", outputTopicName)
+        );
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+        // get function stats
+        getFunctionStatsEmpty(functionName);
+
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "functions",
+                "status",
+                "--tenant", "public",
+                "--namespace", "default",
+                "--name", functionName
+        );
+
+        FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
+        assertEquals(functionStatus.getNumInstances(), 1);
+        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
     }
 
     @Test
@@ -1277,15 +1483,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "persistent://public/default/test-exclamation-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-exclamation-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
         if (isTopicPattern) {
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                     .build();
+
             @Cleanup Consumer<?> consumer1 = client.newConsumer(schema)
                     .topic(inputTopicName + "1")
                     .subscriptionType(SubscriptionType.Exclusive)
                     .subscriptionName("test-sub")
                     .subscribe();
+
             @Cleanup Consumer<?> consumer2 = client.newConsumer(schema)
                     .topic(inputTopicName + "2")
                     .subscriptionType(SubscriptionType.Exclusive)
@@ -1368,7 +1580,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             if (isPublishFunction) {
                 file = PUBLISH_FUNCTION_PYTHON_FILE;
             } else if (pyZip) {
-                file = EXCLAMATION_PYTHONZIP_FILE;
+                file = EXCLAMATION_PYTHON_ZIP_FILE;
             } else if (withExtraDeps) {
                 file = EXCLAMATION_WITH_DEPS_PYTHON_FILE;
             } else {
@@ -1431,6 +1643,49 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStdout().contains("\"Created successfully\""));
 
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+    }
+
+    private static <T> void submitFunction(Runtime runtime,
+                                           String inputTopicName,
+                                           String outputTopicName,
+                                           String functionName,
+                                           String functionFile,
+                                           String functionClass,
+                                           String outputSerdeClassName,
+                                           Map<String, String> userConfigs) throws Exception {
+
+        CommandGenerator generator;
+        log.info("------- INPUT TOPIC: '{}'", inputTopicName);
+        if (inputTopicName.endsWith(".*")) {
+            log.info("----- CREATING TOPIC PATTERN FUNCTION --- ");
+            generator = CommandGenerator.createTopicPatternGenerator(inputTopicName, functionClass);
+        } else {
+            log.info("----- CREATING REGULAR FUNCTION --- ");
+            generator = CommandGenerator.createDefaultGenerator(inputTopicName, functionClass);
+        }
+        generator.setSinkTopic(outputTopicName);
+        generator.setFunctionName(functionName);
+        generator.setOutputSerDe(outputSerdeClassName);
+        if (userConfigs != null) {
+            generator.setUserConfig(userConfigs);
+        }
+        String command;
+        if (Runtime.JAVA == runtime) {
+            command = generator.generateCreateFunctionCommand();
+        } else if (Runtime.PYTHON == runtime) {
+            generator.setRuntime(runtime);
+            command = generator.generateCreateFunctionCommand(functionFile);
+        } else {
+            throw new IllegalArgumentException("Unsupported runtime : " + runtime);
+        }
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("\"Created successfully\""));
     }
 
     private static <T> void ensureSubscriptionCreated(String inputTopicName,
@@ -1545,18 +1800,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private static void getFunctionInfoNotFound(String functionName) throws Exception {
-        try {
-            pulsarCluster.getAnyWorker().execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "functions",
-                    "get",
-                    "--tenant", "public",
-                    "--namespace", "default",
-                    "--name", functionName);
-            fail("Command should have exited with non-zero");
-        } catch (ContainerExecException e) {
-            assertTrue(e.getResult().getStderr().contains("Reason: Function " + functionName + " doesn't exist"));
-        }
+        retryStrategically(aVoid -> {
+            try {
+                pulsarCluster.getAnyWorker().execCmd(
+                        PulsarCluster.ADMIN_SCRIPT,
+                        "functions",
+                        "get",
+                        "--tenant", "public",
+                        "--namespace", "default",
+                        "--name", functionName);
+            } catch (ContainerExecException e) {
+                if (e.getResult().getStderr().contains("Reason: Function " + functionName + " doesn't exist")) {
+                    return true;
+                }
+
+            } catch (Exception e) {
+
+            }
+            return false;
+        }, 5, 100, true);
     }
 
     private static void checkSubscriptionsCleanup(String topic) throws Exception {
@@ -1608,15 +1870,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         @Cleanup PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
+
         @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic(outputTopic)
             .subscriptionType(SubscriptionType.Exclusive)
             .subscriptionName("test-sub")
             .subscribe();
+
         if (inputTopic.endsWith(".*")) {
             @Cleanup Producer<String> producer1 = client.newProducer(Schema.STRING)
                     .topic(inputTopic.substring(0, inputTopic.length() - 2) + "1")
                     .create();
+
             @Cleanup Producer<String> producer2 = client.newProducer(Schema.STRING)
                     .topic(inputTopic.substring(0, inputTopic.length() - 2) + "2")
                     .create();
@@ -1657,15 +1922,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         @Cleanup PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
+
         @Cleanup Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
             .topic(outputTopic)
             .subscriptionType(SubscriptionType.Exclusive)
             .subscriptionName("test-sub")
             .subscribe();
+
         if (inputTopic.endsWith(".*")) {
             @Cleanup Producer<byte[]> producer1 = client.newProducer(Schema.BYTES)
                     .topic(inputTopic.substring(0, inputTopic.length() - 2) + "1")
                     .create();
+
             @Cleanup Producer<byte[]> producer2 = client.newProducer(Schema.BYTES)
                     .topic(inputTopic.substring(0, inputTopic.length() - 2) + "2")
                     .create();
@@ -1723,7 +1991,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitFunction(
-            Runtime.JAVA, inputTopicName, outputTopicName, functionName, false, false, false,
+            Runtime.JAVA,
+            inputTopicName,
+            outputTopicName,
+            functionName,
+            false,
+            false,
+            false,
             AutoSchemaFunction.class.getName(),
             Schema.AVRO(CustomObject.class));
 
@@ -1747,14 +2021,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     private static void publishAndConsumeAvroMessages(String inputTopic,
                                                       String outputTopic,
                                                       int numMessages) throws Exception {
+
         @Cleanup PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
+
         @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic(outputTopic)
             .subscriptionType(SubscriptionType.Exclusive)
             .subscriptionName("test-sub")
             .subscribe();
+
         @Cleanup Producer<CustomObject> producer = client.newProducer(Schema.AVRO(CustomObject.class))
             .topic(inputTopic)
             .create();
@@ -1789,6 +2066,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .build();
 
         @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        admin.topics().createNonPartitionedTopic(consumeTopicName);
+        admin.topics().createNonPartitionedTopic(outputTopicName);
+
+        @Cleanup
         Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
             .topic(consumeTopicName)
             .subscriptionName("debezium-source-tester")
@@ -1812,10 +2094,68 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoSuccess(sourceTester, tenant, namespace, sourceName);
 
         // get source status
-        getSourceStatus(tenant, namespace, sourceName);
+        Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
 
         // wait for source to process messages
-        waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
+        Failsafe.with(statusRetryPolicy).run(() ->
+                waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
+
+        // validate the source result
+        sourceTester.validateSourceResult(consumer, 9);
+
+        // delete the source
+        deleteSource(tenant, namespace, sourceName);
+
+        // get source info (source should be deleted)
+        getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private  void testDebeziumPostgreSqlConnect() throws Exception {
+
+        final String tenant = TopicName.PUBLIC_TENANT;
+        final String namespace = TopicName.DEFAULT_NAMESPACE;
+        final String outputTopicName = "debe-output-topic-name";
+        final String consumeTopicName = "public/default/dbserver1.inventory.products";
+        final String sourceName = "test-source-connector-"
+                + functionRuntimeType + "-name-" + randomName(8);
+
+        // This is the binlog count that contained in postgresql container.
+        final int numMessages = 26;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        Consumer<KeyValue<byte[], byte[]>> consumer = client.newConsumer(KeyValueSchema.kvBytes())
+                .topic(consumeTopicName)
+                .subscriptionName("debezium-source-tester")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        @Cleanup
+        DebeziumPostgreSqlSourceTester sourceTester = new DebeziumPostgreSqlSourceTester(pulsarCluster);
+
+        // setup debezium postgresql server
+        DebeziumPostgreSqlContainer postgreSqlContainer = new DebeziumPostgreSqlContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(postgreSqlContainer);
+
+        // prepare the testing environment for source
+        prepareSource(sourceTester);
+
+        // submit the source connector
+        submitSourceConnector(sourceTester, tenant, namespace, sourceName, outputTopicName);
+
+        // get source info
+        getSourceInfoSuccess(sourceTester, tenant, namespace, sourceName);
+
+        // get source status
+        Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
+
+        // wait for source to process messages
+        Failsafe.with(statusRetryPolicy).run(() ->
+                waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
         sourceTester.validateSourceResult(consumer, 9);

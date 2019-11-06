@@ -57,7 +57,7 @@ public class MultiTopicsConsumerImplTest {
 
         MultiTopicsConsumerImpl impl = new MultiTopicsConsumerImpl(
             clientImpl, consumerConfData,
-            listenerExecutor, null, null, null);
+            listenerExecutor, null, null, null, true);
 
         impl.getStats();
     }

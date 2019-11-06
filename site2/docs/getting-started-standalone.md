@@ -15,7 +15,7 @@ This tutorial guides you through every step of the installation process.
 
 ### System requirements
 
-Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
+Pulsar is currently available for **MacOS** and **Linux**. To use Pulsar, you need to install Java 8 from [Oracle download center](http://www.oracle.com/).
 
 > #### Tip
 > By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. 
@@ -174,7 +174,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 > * The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
 You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 > 
-> * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview.md.md) document to secure your deployment.
+> * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview.md) document to secure your deployment.
 >
 > * When you start a local standalone cluster, a `public/default` [namespace](concepts-messaging.md#namespaces) is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
 

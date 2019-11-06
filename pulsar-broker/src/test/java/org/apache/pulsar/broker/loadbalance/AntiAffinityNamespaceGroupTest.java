@@ -28,6 +28,7 @@ import java.net.URL;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -35,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
@@ -52,6 +54,8 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
@@ -87,19 +91,14 @@ public class AntiAffinityNamespaceGroupTest {
     private ModularLoadManagerImpl primaryLoadManager;
     private ModularLoadManagerImpl secondaryLoadManager;
 
-    private ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
-            new LinkedBlockingQueue<Runnable>());
+    private ExecutorService executor;
 
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_PORT = PortManager.nextFreePort();
+    private int ZOOKEEPER_PORT;
+    private int PRIMARY_BROKER_WEBSERVICE_PORT;
+    private int SECONDARY_BROKER_WEBSERVICE_PORT;
+    private int PRIMARY_BROKER_PORT;
+    private int SECONDARY_BROKER_PORT;
     private static final Logger log = LoggerFactory.getLogger(AntiAffinityNamespaceGroupTest.class);
-
-    static {
-        System.setProperty("test.basePort", "16100");
-    }
 
     private static Object getField(final Object instance, final String fieldName) throws Exception {
         final Field field = instance.getClass().getDeclaredField(fieldName);
@@ -109,6 +108,14 @@ public class AntiAffinityNamespaceGroupTest {
 
     @BeforeMethod
     void setup() throws Exception {
+        executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>());
+
+        ZOOKEEPER_PORT = PortManager.nextFreePort();
+        PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+        SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
+        PRIMARY_BROKER_PORT = PortManager.nextFreePort();
+        SECONDARY_BROKER_PORT = PortManager.nextFreePort();
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
@@ -126,7 +133,7 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setAdvertisedAddress("localhost");
         createCluster(bkEnsemble.getZkClient(), config1);
         pulsar1 = new PulsarService(config1);
-
+        pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
 
         primaryHost = String.format("%s:%d", "localhost", PRIMARY_BROKER_WEBSERVICE_PORT);
@@ -142,6 +149,7 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setBrokerServicePort(Optional.ofNullable(SECONDARY_BROKER_PORT));
         config2.setFailureDomainsEnabled(true);
         pulsar2 = new PulsarService(config2);
+        pulsar2.setShutdownService(new NoOpShutdownService());
         secondaryHost = String.format("%s:%d", "localhost",
                 SECONDARY_BROKER_WEBSERVICE_PORT);
 
@@ -236,7 +244,7 @@ public class AntiAffinityNamespaceGroupTest {
         brokerToDomainMap.put("brokerName-3", "domain-1");
 
         Set<String> candidate = Sets.newHashSet();
-        Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange = Maps.newHashMap();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
 
         assertEquals(brokers.size(), totalBrokers);
 
@@ -322,7 +330,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         Set<String> brokers = Sets.newHashSet();
         Set<String> candidate = Sets.newHashSet();
-        Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange = Maps.newHashMap();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
         brokers.add("broker-0");
         brokers.add("broker-1");
         brokers.add("broker-2");
@@ -366,10 +374,13 @@ public class AntiAffinityNamespaceGroupTest {
         assertEquals(candidate.size(), 3);
     }
 
-    private void selectBrokerForNamespace(Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange,
+    private void selectBrokerForNamespace(
+            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange,
             String broker, String namespace, String assignedBundleName) {
-        Map<String, Set<String>> nsToBundleMap = Maps.newHashMap();
-        nsToBundleMap.put(namespace, Sets.newHashSet(assignedBundleName));
+        ConcurrentOpenHashSet<String> bundleSet = new ConcurrentOpenHashSet<>();
+        bundleSet.add(assignedBundleName);
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> nsToBundleMap = new ConcurrentOpenHashMap<>();
+        nsToBundleMap.put(namespace, bundleSet);
         brokerToNamespaceToBundleRange.put(broker, nsToBundleMap);
     }
 
@@ -392,16 +403,16 @@ public class AntiAffinityNamespaceGroupTest {
         final String broker1 = primaryHost;
         final String broker2 = secondaryHost;
         final String cluster = pulsar1.getConfiguration().getClusterName();
-        final String property = "prop";
-        final String namespace1 = property + "/" + cluster + "/ns1";
-        final String namespace2 = property + "/" + cluster + "/ns2";
+        final String tenant = "tenant-" + UUID.randomUUID().toString();
+        final String namespace1 = tenant + "/" + cluster + "/ns1";
+        final String namespace2 = tenant + "/" + cluster + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
         FailureDomain domain = new FailureDomain();
         domain.brokers = Sets.newHashSet(broker1);
         admin1.clusters().createFailureDomain(cluster, "domain1", domain);
         domain.brokers = Sets.newHashSet(broker2);
-        admin1.clusters().createFailureDomain(cluster, "domain1", domain);
-        admin1.tenants().createTenant(property, new TenantInfo(null, Sets.newHashSet(cluster)));
+        admin1.clusters().createFailureDomain(cluster, "domain2", domain);
+        admin1.tenants().createTenant(tenant, new TenantInfo(null, Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
         admin1.namespaces().setNamespaceAntiAffinityGroup(namespace1, namespaceAntiAffinityGroup);
@@ -417,10 +428,10 @@ public class AntiAffinityNamespaceGroupTest {
         assertTrue(isLoadManagerUpdatedDomainCache(primaryLoadManager));
         assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
 
-        ServiceUnitId serviceUnit = makeBundle(property, cluster, "ns1");
+        ServiceUnitId serviceUnit = makeBundle(tenant, cluster, "ns1");
         String selectedBroker1 = primaryLoadManager.selectBrokerForAssignment(serviceUnit).get();
 
-        serviceUnit = makeBundle(property, cluster, "ns2");
+        serviceUnit = makeBundle(tenant, cluster, "ns2");
         String selectedBroker2 = primaryLoadManager.selectBrokerForAssignment(serviceUnit).get();
 
         assertNotEquals(selectedBroker1, selectedBroker2);
@@ -458,7 +469,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         Set<String> brokers = Sets.newHashSet();
         Set<String> candidate = Sets.newHashSet();
-        Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange = Maps.newHashMap();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
         brokers.add("broker-0");
         brokers.add("broker-1");
         brokers.add("broker-2");

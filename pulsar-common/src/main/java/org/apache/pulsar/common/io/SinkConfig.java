@@ -20,19 +20,29 @@ package org.apache.pulsar.common.io;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.TreeMap;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 
+/**
+ * Configuration of Pulsar Sink.
+ */
 @Getter
 @Setter
 @Data
 @EqualsAndHashCode
 @ToString
-@Builder(toBuilder=true)
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class SinkConfig {
@@ -42,6 +52,7 @@ public class SinkConfig {
     private String name;
     private String className;
     private String sourceSubscriptionName;
+    private SubscriptionInitialPosition sourceSubscriptionPosition;
 
     private Collection<String> inputs;
 

@@ -34,7 +34,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
 
@@ -44,8 +43,8 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -54,6 +53,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -328,7 +328,7 @@ public class Consumer {
 
         if (ack.getAckType() == AckType.Cumulative) {
             if (ack.getMessageIdCount() != 1) {
-                log.warn("[{}] [{}] Received multi-message ack at {} - Reason: {}", subscription, consumerId);
+                log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
                 return;
             }
 
@@ -541,26 +541,34 @@ public class Consumer {
 
     public void redeliverUnacknowledgedMessages() {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
-        clearUnAckedMsgs(this);
+        clearUnAckedMsgs();
         blockedConsumerOnUnackedMsgs = false;
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received redelivery", topicName, subscription, consumerId);
         }
-        // redeliver unacked-msgs
-        subscription.redeliverUnacknowledgedMessages(this);
-        flowConsumerBlockedPermits(this);
+
         if (pendingAcks != null) {
-            AtomicInteger totalRedeliveryMessages = new AtomicInteger(0);
-            pendingAcks.forEach(
-                    (ledgerId, entryId, batchSize, none) -> totalRedeliveryMessages.addAndGet((int) batchSize));
-            msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.get(), totalRedeliveryMessages.get());
-            pendingAcks.clear();
+            List<PositionImpl> pendingPositions = new ArrayList<>((int) pendingAcks.size());
+            MutableInt totalRedeliveryMessages = new MutableInt(0);
+            pendingAcks.forEach((ledgerId, entryId, batchSize, none) -> {
+                totalRedeliveryMessages.add((int) batchSize);
+                pendingPositions.add(new PositionImpl(ledgerId, entryId));
+            });
+
+            for (PositionImpl p : pendingPositions) {
+                pendingAcks.remove(p.getLedgerId(), p.getEntryId());
+            }
+
+            msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
+            subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
+        } else {
+            subscription.redeliverUnacknowledgedMessages(this);
         }
 
+        flowConsumerBlockedPermits(this);
     }
 
     public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {
-
         int totalRedeliveryMessages = 0;
         List<PositionImpl> pendingPositions = Lists.newArrayList();
         for (MessageIdData msg : messageIds) {
@@ -602,7 +610,7 @@ public class Consumer {
         return UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
     }
 
-    private void clearUnAckedMsgs(Consumer consumer) {
+    private void clearUnAckedMsgs() {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
     }

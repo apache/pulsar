@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.pulsar.zookeeper.ZooKeeperCache.CacheUpdater;
@@ -92,7 +93,12 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
      * @throws Exception
      */
     public Optional<T> get(final String path) throws Exception {
-        return getAsync(path).get(zkOperationTimeoutSeconds, TimeUnit.SECONDS);
+        try {
+            return getAsync(path).get(zkOperationTimeoutSeconds, TimeUnit.SECONDS);    
+        }catch(TimeoutException e) {
+            cache.asyncInvalidate(path);
+            throw e;
+        }
     }
 
     public Optional<Entry<T, Stat>> getWithStat(final String path) throws Exception {
@@ -157,6 +163,11 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
             cache.process(event, this);
         }
     }
+
+    public <T> T getDataIfPresent(String path) {
+        return (T) cache.getDataIfPresent(path);
+    }
+
 
     public void close() {
         IS_SHUTDOWN_UPDATER.set(this, TRUE);

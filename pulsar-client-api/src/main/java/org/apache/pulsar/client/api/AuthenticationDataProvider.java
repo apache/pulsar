@@ -31,7 +31,7 @@ import javax.naming.AuthenticationException;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
- * Interface for accessing data which are used in variety of authentication schemes on client side
+ * Interface for accessing data which are used in variety of authentication schemes on client side.
  */
 public interface AuthenticationDataProvider extends Serializable {
     /*
@@ -78,7 +78,7 @@ public interface AuthenticationDataProvider extends Serializable {
 
     /**
      *
-     * @return a authentication scheme, or <code>null<c/ode> if the request will not be authenticated
+     * @return a authentication scheme, or {@code null} if the request will not be authenticated.
      */
     default String getHttpAuthType() {
         return null;
@@ -118,7 +118,7 @@ public interface AuthenticationDataProvider extends Serializable {
      * then returns null if authentication has completed;
      * returns authenticated data back to server side, if authentication has not completed.
      *
-     * Mainly used for mutual authentication like sasl.
+     * <p>Mainly used for mutual authentication like sasl.
      */
     default AuthData authenticate(AuthData data) throws AuthenticationException {
         byte[] bytes = (hasDataFromCommand() ? this.getCommandData() : "").getBytes(UTF_8);

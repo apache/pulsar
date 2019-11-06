@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.github.zafarkhaja.semver.Version;
@@ -41,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -114,7 +116,7 @@ import org.slf4j.LoggerFactory;
 public class PersistentTopicsBase extends AdminResource {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicsBase.class);
 
-    protected static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
+    public static final int PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS = 1000;
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
@@ -374,6 +376,20 @@ public class PersistentTopicsBase extends AdminResource {
         if (numPartitions <= 0) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
+        validatePartitionTopicName(topicName.getLocalName());
+        try {
+            boolean topicExist = pulsar().getNamespaceService()
+                    .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
+                    .join()
+                    .contains(topicName.toString());
+            if (topicExist) {
+                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                throw new RestException(Status.CONFLICT, "This topic already exists");
+            }
+        } catch (Exception e) {
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        }
         try {
             String path = ZkAdminPaths.partitionedTopicPath(topicName);
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
@@ -396,7 +412,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalCreateNonPartitionedTopic(boolean authoritative) {
         validateAdminAccessForTenant(topicName.getTenant());
-
+        validateNonPartitionTopicName(topicName.getLocalName());
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -412,7 +428,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to
+     * It updates number of partitions of an existing partitioned topic. It requires partitioned-topic to
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
      *
@@ -422,14 +438,67 @@ public class PersistentTopicsBase extends AdminResource {
      *
      * @param numPartitions
      */
-    protected void internalUpdatePartitionedTopic(int numPartitions) {
+    protected void internalUpdatePartitionedTopic(int numPartitions, boolean updateLocalTopicOnly) {
         validateAdminAccessForTenant(topicName.getTenant());
+        // Only do the validation if it's the first hop.
+        if (!updateLocalTopicOnly) {
+            validatePartitionTopicUpdate(topicName.getLocalName(), numPartitions);
+        }
 
         if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
-            log.error("[{}] Update partitioned-topic is forbidden on global namespace {}", clientAppId(),
-                    topicName);
-            throw new RestException(Status.FORBIDDEN, "Update forbidden on global namespace");
+            Set<String> clusters = getNamespaceReplicatedClusters(topicName.getNamespaceObject());
+            if (!clusters.contains(pulsar().getConfig().getClusterName())) {
+                log.error("[{}] local cluster is not part of replicated cluster for namespace {}", clientAppId(),
+                        topicName);
+                throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate cluster list");
+            }
+            try {
+                createSubscriptions(topicName, numPartitions).get();
+            } catch (Exception e) {
+                if (e.getCause() instanceof RestException) {
+                    throw (RestException) e.getCause();
+                }
+                log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
+                throw new RestException(e);
+            }
+            // if this cluster is the first hop which needs to coordinate with other clusters then update partitions in
+            // other clusters and then update number of partitions.
+            if (!updateLocalTopicOnly) {
+                CompletableFuture<Void> updatePartition = new CompletableFuture<>();
+                final String path = ZkAdminPaths.partitionedTopicPath(topicName);
+                updatePartitionInOtherCluster(numPartitions, clusters).thenAccept((res) -> {
+                    try {
+                        byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
+                        globalZk().setData(path, data, -1, (rc, path1, ctx, stat) -> {
+                            if (rc == KeeperException.Code.OK.intValue()) {
+                                updatePartition.complete(null);
+                            } else {
+                                updatePartition.completeExceptionally(KeeperException
+                                        .create(KeeperException.Code.get(rc), "failed to create update partitions"));
+                            }
+                        }, null);
+                    } catch (Exception e) {
+                        updatePartition.completeExceptionally(e);
+                    }
+
+                }).exceptionally(ex -> {
+                    updatePartition.completeExceptionally(ex);
+                    return null;
+                });
+                try {
+                    updatePartition.get();
+                } catch (Exception e) {
+                    log.error("{} Failed to update number of partitions in zk for topic {} and partitions {}",
+                            clientAppId(), topicName, numPartitions, e);
+                    if (e.getCause() instanceof RestException) {
+                        throw (RestException) e.getCause();
+                    }
+                    throw new RestException(e);
+                }
+            }
+            return;
         }
+        
         if (numPartitions <= 0) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
         }
@@ -444,8 +513,20 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative) {
-        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, authoritative);
+    private CompletableFuture<Void> updatePartitionInOtherCluster(int numPartitions, Set<String> clusters) {
+        List<CompletableFuture<Void>> results = new ArrayList<>(clusters.size() -1);
+        clusters.forEach(cluster -> {
+            if (cluster.equals(pulsar().getConfig().getClusterName())) {
+                return;
+            }
+            results.add(pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics()
+                    .updatePartitionedTopicAsync(topicName.toString(), numPartitions, true));
+        });
+        return FutureUtil.waitForAll(results);
+    }
+
+    protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative, boolean checkAllowAutoCreation) {
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
         if (metadata.partitions > 1) {
             validateClientVersion();
         }
@@ -457,7 +538,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         final int numPartitions = partitionMetadata.partitions;
         if (numPartitions > 0) {
             final AtomicInteger count = new AtomicInteger(numPartitions);
@@ -574,7 +655,7 @@ public class PersistentTopicsBase extends AdminResource {
             log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
         } catch (Exception e) {
             Throwable t = e.getCause();
-            log.error("[{}] Failed to get delete topic {}", clientAppId(), topicName, t);
+            log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
             if (t instanceof TopicBusyException) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Topic has active producers/subscriptions");
             } else {
@@ -590,7 +671,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         final List<String> subscriptions = Lists.newArrayList();
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             try {
                 // get the subscriptions only from the 1st partition since all the other partitions will have the same
@@ -685,7 +766,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative,
             boolean perPartition) {
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions == 0) {
             throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
         }
@@ -743,7 +824,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetPartitionedStatsInternal(AsyncResponse asyncResponse, boolean authoritative) {
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions == 0) {
             throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
         }
@@ -786,7 +867,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -855,7 +936,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -890,28 +971,32 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             validateAdminAccessForSubscriber(subName, authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
+                if (ex != null) {
+                    asyncResponse.resume(new RestException(ex));
+                    log.error("[{}] Failed to skip all messages {} {}", clientAppId(), topicName, subName, ex);
+                } else {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
+                }
+            };
             try {
                 if (subName.startsWith(topic.getReplicatorPrefix())) {
                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                     PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                     checkNotNull(repl);
-                    repl.clearBacklog().get();
+                    repl.clearBacklog().whenComplete(biConsumer);
                 } else {
                     PersistentSubscription sub = topic.getSubscription(subName);
                     checkNotNull(sub);
-                    sub.clearBacklog().get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(),
-                            TimeUnit.SECONDS);
+                    sub.clearBacklog().whenComplete(biConsumer);
                 }
-                log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
-                asyncResponse.resume(Response.noContent().build());
-                return;
-            } catch (NullPointerException npe) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                return;
-            } catch (Exception exception) {
-                log.error("[{}] Failed to skip all messages {} {}", clientAppId(), topicName, subName, exception);
-                asyncResponse.resume(new RestException(exception));
-                return;
+            } catch (Exception e) {
+                if (e instanceof NullPointerException) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
+                } else {
+                    asyncResponse.resume(new RestException(e));
+                }
             }
         }
     }
@@ -920,7 +1005,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Skip messages on a partitioned topic is not allowed");
         }
@@ -952,7 +1037,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -1027,7 +1112,7 @@ public class PersistentTopicsBase extends AdminResource {
             validateGlobalNamespaceOwnership(namespaceName);
         }
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         final int numPartitions = partitionMetadata.partitions;
         if (numPartitions > 0) {
             final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -1141,7 +1226,7 @@ public class PersistentTopicsBase extends AdminResource {
         log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), topicName, subscriptionName,
                 targetMessageId);
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         final int numPartitions = partitionMetadata.partitions;
         if (numPartitions > 0) {
             final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -1188,7 +1273,7 @@ public class PersistentTopicsBase extends AdminResource {
                         return;
                     }
                 }
-                
+
                 if (partitionException.get() != null) {
                     log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
                             subscriptionName, targetMessageId, partitionException.get());
@@ -1249,7 +1334,7 @@ public class PersistentTopicsBase extends AdminResource {
         log.info("[{}][{}] received reset cursor on subscription {} to position {}", clientAppId(), topicName,
                 subName, messageId);
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
 
         if (partitionMetadata.partitions > 0) {
             log.warn("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), topicName,
@@ -1288,7 +1373,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
         }
@@ -1413,7 +1498,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Termination of a partitioned topic is not allowed");
         }
@@ -1433,7 +1518,7 @@ public class PersistentTopicsBase extends AdminResource {
             validateGlobalNamespaceOwnership(namespaceName);
         }
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -1489,7 +1574,7 @@ public class PersistentTopicsBase extends AdminResource {
             validateGlobalNamespaceOwnership(namespaceName);
         }
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
         if (partitionMetadata.partitions > 0) {
             String msg = "This method should not be called for partitioned topic";
             log.error("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
@@ -1555,6 +1640,7 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (AlreadyRunningException e) {
             throw new RestException(Status.CONFLICT, e.getMessage());
         } catch (Exception e) {
+            log.warn("Unexpected error triggering offload", e);
             throw new RestException(e);
         }
     }
@@ -1595,7 +1681,9 @@ public class PersistentTopicsBase extends AdminResource {
             // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
             // producer/consumer
             checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
-                    .thenCompose(res -> fetchPartitionedTopicMetadataAsync(pulsar, path)).thenAccept(metadata -> {
+                    .thenCompose(res -> pulsar.getBrokerService()
+                            .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                    .thenAccept(metadata -> {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, topicName,
                                     metadata.partitions);
@@ -1632,7 +1720,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(
-                TopicName.get(topicName.getPartitionedTopicName()), false);
+                TopicName.get(topicName.getPartitionedTopicName()), false, false);
         if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
             final String topicErrorType = partitionedTopicMetadata == null ?
                     "has no metadata" : "has zero partitions";
@@ -1710,7 +1798,7 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
         String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getPersistenceNamingEncoding());
         CompletableFuture<Void> result = new CompletableFuture<>();
-        fetchPartitionedTopicMetadataAsync(pulsar(), path).thenAccept(partitionMetadata -> {
+        pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions <= 1) {
                 result.completeExceptionally(new RestException(Status.CONFLICT, "Topic is not partitioned topic"));
                 return;
@@ -1818,6 +1906,127 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }
         return;
+    }
+
+    /**
+     * Validate update of number of partition for partitioned topic.
+     * If there's already non partition topic with same name and contains partition suffix "-partition-"
+     * followed by numeric value X then the new number of partition of that partitioned topic can not be greater
+     * than that X else that non partition topic will essentially be overwritten and cause unexpected consequence.
+     *
+     * @param topicName
+     */
+    private void validatePartitionTopicUpdate(String topicName, int numberOfPartition) {
+        List<String> existingTopicList = internalGetList();
+        TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
+        int oldPartition = metadata.partitions;
+        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        for (String exsitingTopicName : existingTopicList) {
+            if (exsitingTopicName.contains(prefix)) {
+                try {
+                    long suffix = Long.parseLong(exsitingTopicName.substring(
+                            exsitingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                    // Skip partition of partitioned topic by making sure the numeric suffix greater than old partition number.
+                    if (suffix >= oldPartition && suffix <= (long) numberOfPartition) {
+                        log.warn("[{}] Already have non partition topic {} which contains partition " +
+                                "suffix '-partition-' and end with numeric value smaller than the new number of partition. " +
+                                "Update of partitioned topic {} could cause conflict.", clientAppId(), exsitingTopicName, topicName);
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Already have non partition topic" + exsitingTopicName + " which contains partition suffix '-partition-' " +
+                                        "and end with numeric value and end with numeric value smaller than the new " +
+                                        "number of partition. Update of partitioned topic " + topicName + " could cause conflict.");
+                    }
+                } catch (NumberFormatException e) {
+                    // Do nothing, if value after partition suffix is not pure numeric value,
+                    // as it can't conflict with internal created partitioned topic's name.
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate partitioned topic name.
+     * Validation will fail and throw RestException if
+     * 1) There's already a partitioned topic with same topic name and have some of its partition created.
+     * 2) There's already non partition topic with same name and contains partition suffix "-partition-"
+     * followed by numeric value. In this case internal created partition of partitioned topic could override
+     * the existing non partition topic.
+     *
+     * @param topicName
+     */
+    private void validatePartitionTopicName(String topicName) {
+        List<String> existingTopicList = internalGetList();
+        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        for (String existingTopicName : existingTopicList) {
+            if (existingTopicName.contains(prefix)) {
+                try {
+                    Long.parseLong(existingTopicName.substring(
+                            existingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                    log.warn("[{}] Already have topic {} which contains partition " +
+                            "suffix '-partition-' and end with numeric value. Creation of partitioned topic {}"
+                            + "could cause conflict.", clientAppId(), existingTopicName, topicName);
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Already have topic " + existingTopicName + " which contains partition suffix '-partition-' " +
+                                    "and end with numeric value, Creation of partitioned topic " + topicName +
+                                    " could cause conflict.");
+                } catch (NumberFormatException e) {
+                    // Do nothing, if value after partition suffix is not pure numeric value,
+                    // as it can't conflict with internal created partitioned topic's name.
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate non partition topic name,
+     * Validation will fail and throw RestException if
+     * 1) Topic name contains partition suffix "-partition-" and the remaining part follow the partition
+     * suffix is numeric value larger than the number of partition if there's already a partition topic with same
+     * name(the part before suffix "-partition-").
+     * 2)Topic name contains partition suffix "-partition-" and the remaining part follow the partition
+     * suffix is numeric value but there isn't a partitioned topic with same name.
+     *
+     * @param topicName
+     */
+    private void validateNonPartitionTopicName(String topicName) {
+        if (topicName.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+            try {
+                // First check if what's after suffix "-partition-" is number or not, if not number then can create.
+                int partitionIndex = topicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX);
+                long suffix = Long.parseLong(topicName.substring(partitionIndex
+                        + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName.substring(0, partitionIndex));
+                PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
+
+                // Partition topic index is 0 to (number of partition - 1)
+                if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
+                    log.warn("[{}] Can't create topic {} with \"-partition-\" followed by" +
+                            " a number smaller then number of partition of partitioned topic {}.",
+                            clientAppId(), topicName, partitionTopicName.getLocalName());
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Can't create topic " + topicName + " with \"-partition-\" followed by" +
+                            " a number smaller then number of partition of partitioned topic " +
+                                    partitionTopicName.getLocalName());
+                } else if (metadata.partitions == 0) {
+                    log.warn("[{}] Can't create topic {} with \"-partition-\" followed by" +
+                                    " numeric value if there isn't a partitioned topic {} created.",
+                            clientAppId(), topicName, partitionTopicName.getLocalName());
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Can't create topic " + topicName + " with \"-partition-\" followed by" +
+                                    " numeric value if there isn't a partitioned topic " +
+                                    partitionTopicName.getLocalName() + " created.");
+                }
+                // If there is a  partitioned topic with the same name and numeric suffix is smaller than the
+                // number of partition for that partitioned topic, validation will pass.
+            } catch (NumberFormatException e) {
+                // Do nothing, if value after partition suffix is not pure numeric value,
+                // as it can't conflict if user want to create partitioned topic with same
+                // topic name prefix in the future.
+            }
+        }
     }
 
     protected MessageId internalGetLastMessageId(boolean authoritative) {

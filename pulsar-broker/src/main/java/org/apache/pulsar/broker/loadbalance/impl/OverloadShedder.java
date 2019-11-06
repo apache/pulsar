@@ -60,6 +60,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
      *            The service configuration.
      * @return A map from bundles to unload to the brokers on which they are loaded.
      */
+    @Override
     public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
         selectedBundlesCache.clear();
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
@@ -85,8 +86,8 @@ public class OverloadShedder implements LoadSheddingStrategy {
             double minimumThroughputToOffload = brokerCurrentThroughput * percentOfTrafficToOffload;
 
             log.info(
-                    "Attempting to shed load on {}, which has max resource usage above threshold {}% > {}% -- Offloading at least {} MByte/s of traffic",
-                    broker, currentUsage, overloadThreshold, minimumThroughputToOffload / 1024 / 1024);
+                    "Attempting to shed load on {}, which has resource usage {}% above threshold {}% -- Offloading at least {} MByte/s of traffic",
+                    broker, 100 * currentUsage, 100 * overloadThreshold, minimumThroughputToOffload / 1024 / 1024);
 
             MutableDouble trafficMarkedToOffload = new MutableDouble(0);
             MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);

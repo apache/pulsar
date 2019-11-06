@@ -69,6 +69,8 @@ import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -125,7 +127,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
     // Used to distribute bundles within a namespace evely across brokers.
-    private final Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange;
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
 
     // Path to the ZNode containing the LocalBrokerData json for this broker.
     private String brokerZnodePath;
@@ -189,7 +191,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     public ModularLoadManagerImpl() {
         brokerCandidateCache = new HashSet<>();
-        brokerToNamespaceToBundleRange = new HashMap<>();
+        brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
         defaultStats = new NamespaceBundleStats();
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
@@ -220,9 +222,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      * Initialize this load manager using the given PulsarService. Should be called only once, after invoking the
      * default constructor.
      *
-     * @param pulsar
-     *            The service to initialize with.
+     * @param pulsar The service to initialize with.
      */
+    @Override
     public void initialize(final PulsarService pulsar) {
         this.pulsar = pulsar;
         availableActiveBrokers = new ZooKeeperChildrenCache(pulsar.getLocalZkCache(),
@@ -262,18 +264,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         defaultStats.msgThroughputOut = DEFAULT_MESSAGE_THROUGHPUT;
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
-
-        lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        localData.setBrokerVersionString(pulsar.getBrokerVersion());
-        // configure broker-topic mode
-        lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-        lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-        localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-        localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-
 
         placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
@@ -501,13 +491,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
                 if (bundleData.containsKey(bundle)) {
-                    // If we recognize the bundle, add these stats as a new
-                    // sample.
+                    // If we recognize the bundle, add these stats as a new sample.
                     bundleData.get(bundle).update(stats);
                 } else {
                     // Otherwise, attempt to find the bundle data on ZooKeeper.
-                    // If it cannot be found, use the latest stats as the first
-                    // sample.
+                    // If it cannot be found, use the latest stats as the first sample.
                     BundleData currentBundleData = getBundleDataOrDefault(bundle);
                     currentBundleData.update(stats);
                     bundleData.put(bundle, currentBundleData);
@@ -540,8 +528,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Using the newest data, update the aggregated time-average data for the current broker.
             brokerData.getTimeAverageData().reset(statsMap.keySet(), bundleData, defaultStats);
-            final Map<String, Set<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
-                    .computeIfAbsent(broker, k -> new HashMap<>());
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
+                    .computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>());
             synchronized (namespaceToBundleRange) {
                 namespaceToBundleRange.clear();
                 LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
@@ -582,8 +570,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             log.info("Only 1 broker available: no load shedding will be performed");
             return;
         }
-        // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded
-        // map.
+        // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded map.
         final long timeout = System.currentTimeMillis()
                 - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
@@ -765,8 +752,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
             final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-            brokerToNamespaceToBundleRange.get(broker.get()).computeIfAbsent(namespaceName, k -> new HashSet<>())
-                    .add(bundleRange);
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
+                    .computeIfAbsent(broker.get(), k -> new ConcurrentOpenHashMap<>());
+            synchronized (namespaceToBundleRange) {
+                namespaceToBundleRange.computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>())
+                        .add(bundleRange);
+            }
             return broker;
         }
     }
@@ -780,6 +771,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public void start() throws PulsarServerException {
         try {
+            // At this point, the ports will be updated with the real port number that the server was assigned
+            Map<String, String> protocolData = pulsar.getProtocolDataToAdvertise();
+
+            lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+            lastData.setProtocols(protocolData);
+            // configure broker-topic mode
+            lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+            lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+
+            localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+            localData.setProtocols(protocolData);
+            localData.setBrokerVersionString(pulsar.getBrokerVersion());
+            // configure broker-topic mode
+            localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
+            localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
+
             // Register the brokers in zk list
             createZPathIfNotExists(zkClient, LoadManager.LOADBALANCE_BROKERS_ROOT);
 
@@ -964,7 +973,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             log.warn("Failed to get domain-list for cluster {}", e.getMessage());
         }
     }
-    
+
     @Override
     public LocalBrokerData getBrokerLocalData(String broker) {
         String key = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, broker);

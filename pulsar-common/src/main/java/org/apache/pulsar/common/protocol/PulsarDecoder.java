@@ -48,6 +48,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnSubscriptionR
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
@@ -76,6 +78,9 @@ import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Basic implementation of the channel handler to process inbound Pulsar data.
+ */
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     @Override
@@ -313,6 +318,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 cmd.getGetSchemaResponse().recycle();
                 break;
 
+            case GET_OR_CREATE_SCHEMA:
+                checkArgument(cmd.hasGetOrCreateSchema());
+                handleGetOrCreateSchema(cmd.getGetOrCreateSchema());
+                cmd.getGetOrCreateSchema().recycle();
+                break;
+
+            case GET_OR_CREATE_SCHEMA_RESPONSE:
+                checkArgument(cmd.hasGetOrCreateSchemaResponse());
+                handleGetOrCreateSchemaResponse(cmd.getGetOrCreateSchemaResponse());
+                cmd.getGetOrCreateSchemaResponse().recycle();
+                break;
+
             case AUTH_CHALLENGE:
                 checkArgument(cmd.hasAuthChallenge());
                 handleAuthChallenge(cmd.getAuthChallenge());
@@ -513,11 +530,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleConsumerStats(CommandConsumerStats commandConsumerStats) {
-    	throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException();
     }
 
     protected void handleConsumerStatsResponse(CommandConsumerStatsResponse commandConsumerStatsResponse) {
-    	throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException();
     }
 
     protected void handleReachedEndOfTopic(CommandReachedEndOfTopic commandReachedEndOfTopic) {
@@ -544,6 +561,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleGetSchemaResponse(CommandGetSchemaResponse commandGetSchemaResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetOrCreateSchema(CommandGetOrCreateSchema commandGetOrCreateSchema) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
         throw new UnsupportedOperationException();
     }
 
