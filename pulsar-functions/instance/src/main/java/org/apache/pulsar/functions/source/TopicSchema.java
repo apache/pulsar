@@ -151,7 +151,7 @@ public class TopicSchema {
             return (Schema<T>)Schema.KV_BYTES();
 
         case PROTOBUF:
-            return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());
+            return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
 
         default:
             throw new RuntimeException("Unsupported schema type" + type);
