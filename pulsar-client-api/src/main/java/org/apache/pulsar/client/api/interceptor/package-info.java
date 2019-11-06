@@ -16,25 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator;
-
-import com.google.common.annotations.Beta;
-import lombok.Data;
-
 /**
- * A class for representing the identifier for a transaction coordinator.
+ * Pulsar interceptors.
  */
-@Beta
-@Data
-public class TransactionCoordinatorID {
-
-    /**
-     * The identifier of the transaction coordinator.
-     */
-    private final long id;
-
-    public static TransactionCoordinatorID get(long id) {
-        return new TransactionCoordinatorID(id);
-    }
-
-}
+package org.apache.pulsar.client.api.interceptor;

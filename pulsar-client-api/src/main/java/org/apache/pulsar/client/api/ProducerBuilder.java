@@ -418,7 +418,19 @@ public interface ProducerBuilder<T> extends Cloneable {
      *            the list of interceptors to intercept the producer created by this builder.
      * @return the producer builder instance
      */
+    @Deprecated
     ProducerBuilder<T> intercept(ProducerInterceptor<T> ... interceptors);
+
+    /**
+     * Add a set of {@link org.apache.pulsar.client.api.interceptor.ProducerInterceptor} to the producer.
+     *
+     * <p>Interceptors can be used to trace the publish and acknowledgments operation happening in a producer.
+     *
+     * @param interceptors
+     *            the list of interceptors to intercept the producer created by this builder.
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> intercept(org.apache.pulsar.client.api.interceptor.ProducerInterceptor... interceptors);
 
     /**
      * If enabled, partitioned producer will automatically discover new partitions at runtime. This is only applied on
