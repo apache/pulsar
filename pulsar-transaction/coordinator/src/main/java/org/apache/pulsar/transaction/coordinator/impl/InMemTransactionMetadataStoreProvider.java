@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+        import java.util.concurrent.CompletableFuture;
+
+        import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+        import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+        import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+        import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 
 /**
  * The provider that offers in-memory implementation of {@link TransactionMetadataStore}.
@@ -29,10 +31,9 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvide
 public class InMemTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
 
     @Override
-    public CompletableFuture<TransactionMetadataStore>
-        openStore(TransactionCoordinatorID transactionCoordinatorId) {
+    public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
+                                                                 ManagedLedgerFactory managedLedgerFactory) {
         return CompletableFuture.completedFuture(
-            new InMemTransactionMetadataStore(transactionCoordinatorId));
+                new InMemTransactionMetadataStore(transactionCoordinatorId));
     }
-
 }

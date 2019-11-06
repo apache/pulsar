@@ -32,11 +32,16 @@ public class ShortSchema extends AbstractSchema<Short> {
         return INSTANCE;
     }
 
-    private static final ShortSchema INSTANCE = new ShortSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("INT16")
-        .setType(SchemaType.INT16)
-        .setSchema(new byte[0]);
+    private static final ShortSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("INT16")
+            .setType(SchemaType.INT16)
+            .setSchema(new byte[0]);
+        INSTANCE = new ShortSchema();
+    }
 
     @Override
     public void validate(byte[] message) {

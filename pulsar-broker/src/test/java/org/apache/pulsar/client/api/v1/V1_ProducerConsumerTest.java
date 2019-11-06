@@ -634,7 +634,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         final long batchMessageDelayMs = 100;
         final int receiverSize = 10;
-        final String topicName = "cache-topic";
+        final String topicName = "cache-topic-" + UUID.randomUUID().toString();
         final String sub1 = "faster-sub1";
         final String sub2 = "slower-sub2";
 
@@ -770,6 +770,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        executor.shutdownNow();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -813,6 +814,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        executor.shutdownNow();
         log.info("-- Exiting {} test --", methodName);
     }
 

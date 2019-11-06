@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 import io.netty.util.ReferenceCountUtil;
@@ -82,11 +83,31 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     }
 
     private ByteBuf getCompressedBatchMetadataAndPayload() {
-        for (MessageImpl<?> msg : messages) {
+        int batchWriteIndex = batchedMessageMetadataAndPayload.writerIndex();
+        int batchReadIndex = batchedMessageMetadataAndPayload.readerIndex();
+
+        for (int i = 0, n = messages.size(); i < n; i++) {
+            MessageImpl<?> msg = messages.get(i);
             PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
-            batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
-                    msg.getDataBuffer(), batchedMessageMetadataAndPayload);
-            msgBuilder.recycle();
+            msg.getDataBuffer().markReaderIndex();
+            try {
+                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
+                        msg.getDataBuffer(), batchedMessageMetadataAndPayload);
+            } catch (Throwable th) {
+                // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
+                // next iteration doesn't send corrupt message to broker.
+                for (int j = 0; j <= i; j++) {
+                    MessageImpl<?> previousMsg = messages.get(j);
+                    previousMsg.getDataBuffer().resetReaderIndex();
+                }
+                batchedMessageMetadataAndPayload.writerIndex(batchWriteIndex);
+                batchedMessageMetadataAndPayload.readerIndex(batchReadIndex);
+                throw new RuntimeException(th);
+            }
+        }
+        // Recycle messages only once they serialized successfully in batch
+        for (MessageImpl<?> msg : messages) {
+            msg.getMessageBuilder().recycle();
         }
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
@@ -161,6 +182,18 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
         return op;
+    }
+
+    @Override
+    public boolean hasSameSchema(MessageImpl<?> msg) {
+        if (numMessagesInBatch == 0) {
+            return true;
+        }
+        if (!messageMetadata.hasSchemaVersion()) {
+            return msg.getSchemaVersion() == null;
+        }
+        return Arrays.equals(msg.getSchemaVersion(),
+                             messageMetadata.getSchemaVersion().toByteArray());
     }
 
     private static final Logger log = LoggerFactory.getLogger(BatchMessageContainerImpl.class);

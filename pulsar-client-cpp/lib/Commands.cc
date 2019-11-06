@@ -530,6 +530,10 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::ACK_RESPONSE:
             return "ACK_RESPONSE";
             break;
+        case BaseCommand::GET_OR_CREATE_SCHEMA:
+            return "GET_OR_CREATE_SCHEMA";
+        case BaseCommand::GET_OR_CREATE_SCHEMA_RESPONSE:
+            return "GET_OR_CREATE_SCHEMA_RESPONSE";
         case BaseCommand::NEW_TXN:
             return "NEW_TXN";
             break;
