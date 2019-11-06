@@ -108,6 +108,8 @@ import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
@@ -182,6 +184,7 @@ public class PulsarService implements AutoCloseable {
     private ShutdownService shutdownService;
 
     private MetricsGenerator metricsGenerator;
+    private TransactionMetadataStoreService transactionMetadataStoreService;
 
     public enum State {
         Init, Started, Closed
@@ -396,6 +399,14 @@ public class PulsarService implements AutoCloseable {
             this.loadManager.set(LoadManager.create(this));
 
             this.offloader = createManagedLedgerOffloader(this.getConfiguration());
+
+            if (StringUtils.isNotBlank(config.getTransactionMetadataStoreProviderClassName())) {
+                transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
+                        .newProvider(config.getTransactionMetadataStoreProviderClassName()), this);
+            } else {
+                transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
+                        .newProvider(InMemTransactionMetadataStoreProvider.class.getName()), this);
+            }
 
             brokerService.start();
 
@@ -914,6 +925,10 @@ public class PulsarService implements AutoCloseable {
 
     public MetricsGenerator getMetricsGenerator() {
         return metricsGenerator;
+    }
+
+    public TransactionMetadataStoreService getTransactionMetadataStoreService() {
+        return transactionMetadataStoreService;
     }
 
     public void setShutdownService(ShutdownService shutdownService) {
