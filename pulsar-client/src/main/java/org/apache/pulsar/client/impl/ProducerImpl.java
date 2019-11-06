@@ -824,7 +824,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (callback) {
             op = pendingCallbacks.poll();
             if (op != null) {
-                lastSequenceIdPublished = getHighestSequenceId(op);
+                lastSequenceIdPublished = Math.max(lastSequenceIdPublished, getHighestSequenceId(op));
                 op.setMessageId(ledgerId, entryId, partitionIndex);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -864,7 +864,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 log.debug("[{}] [{}] Got send failure for timed out msg {}", topic, producerName, sequenceId);
             }
         } else {
-            long expectedSequenceId = op.highestSequenceId > 0 ? op.highestSequenceId : op.sequenceId;
+            long expectedSequenceId = getHighestSequenceId(op);
             if (sequenceId == expectedSequenceId) {
                 boolean corrupted = !verifyLocalBufferIsNotCorrupted(op);
                 if (corrupted) {
@@ -1434,7 +1434,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             pendingMessages.put(op);
             if (op.msg != null) {
-                lastSequenceIdPushed = getHighestSequenceId(op);
+                lastSequenceIdPushed = Math.max(lastSequenceIdPushed, getHighestSequenceId(op));
             }
             ClientCnx cnx = cnx();
             if (isConnected()) {
