@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -53,7 +54,7 @@ public abstract class AbstractTopic implements Topic {
     protected final String topic;
 
     // Producers currently connected to this topic
-    protected final ConcurrentOpenHashSet<Producer> producers;
+    protected final ConcurrentHashMap<String, Producer> producers;
 
     protected final BrokerService brokerService;
 
@@ -86,7 +87,7 @@ public abstract class AbstractTopic implements Topic {
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
-        this.producers = new ConcurrentOpenHashSet<>(16, 1);
+        this.producers = new ConcurrentHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         this.lastActive = System.nanoTime();
@@ -123,7 +124,7 @@ public abstract class AbstractTopic implements Topic {
 
     protected boolean hasLocalProducers() {
         AtomicBoolean foundLocal = new AtomicBoolean(false);
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             if (!producer.isRemote()) {
                 foundLocal.set(true);
             }
@@ -139,7 +140,9 @@ public abstract class AbstractTopic implements Topic {
 
     @Override
     public ConcurrentOpenHashSet<Producer> getProducers() {
-        return producers;
+        ConcurrentOpenHashSet<Producer> result = new ConcurrentOpenHashSet<>(16, 1);
+        producers.values().forEach(result::add);
+        return result;
     }
 
 
@@ -267,7 +270,7 @@ public abstract class AbstractTopic implements Topic {
      */
     protected void enableProduerRead() {
         if (producers != null) {
-            producers.forEach(producer -> producer.getCnx().enableCnxAutoRead());
+            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
         }
     }
 

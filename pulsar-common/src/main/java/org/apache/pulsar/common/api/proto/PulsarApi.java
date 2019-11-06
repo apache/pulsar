@@ -13417,9 +13417,9 @@ public final class PulsarApi {
     boolean hasEpoch();
     long getEpoch();
     
-    // optional bool is_generated_name = 9 [default = false];
-    boolean hasIsGeneratedName();
-    boolean getIsGeneratedName();
+    // optional bool user_provided_producer_name = 9 [default = true];
+    boolean hasUserProvidedProducerName();
+    boolean getUserProvidedProducerName();
   }
   public static final class CommandProducer extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -13591,14 +13591,14 @@ public final class PulsarApi {
       return epoch_;
     }
     
-    // optional bool is_generated_name = 9 [default = false];
-    public static final int IS_GENERATED_NAME_FIELD_NUMBER = 9;
-    private boolean isGeneratedName_;
-    public boolean hasIsGeneratedName() {
+    // optional bool user_provided_producer_name = 9 [default = true];
+    public static final int USER_PROVIDED_PRODUCER_NAME_FIELD_NUMBER = 9;
+    private boolean userProvidedProducerName_;
+    public boolean hasUserProvidedProducerName() {
       return ((bitField0_ & 0x00000080) == 0x00000080);
     }
-    public boolean getIsGeneratedName() {
-      return isGeneratedName_;
+    public boolean getUserProvidedProducerName() {
+      return userProvidedProducerName_;
     }
     
     private void initFields() {
@@ -13610,7 +13610,7 @@ public final class PulsarApi {
       metadata_ = java.util.Collections.emptyList();
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
       epoch_ = 0L;
-      isGeneratedName_ = false;
+      userProvidedProducerName_ = true;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -13678,7 +13678,7 @@ public final class PulsarApi {
         output.writeUInt64(8, epoch_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        output.writeBool(9, isGeneratedName_);
+        output.writeBool(9, userProvidedProducerName_);
       }
     }
     
@@ -13722,7 +13722,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeBoolSize(9, isGeneratedName_);
+          .computeBoolSize(9, userProvidedProducerName_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -13853,7 +13853,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000040);
         epoch_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000080);
-        isGeneratedName_ = false;
+        userProvidedProducerName_ = true;
         bitField0_ = (bitField0_ & ~0x00000100);
         return this;
       }
@@ -13924,7 +13924,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000100) == 0x00000100)) {
           to_bitField0_ |= 0x00000080;
         }
-        result.isGeneratedName_ = isGeneratedName_;
+        result.userProvidedProducerName_ = userProvidedProducerName_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -13962,8 +13962,8 @@ public final class PulsarApi {
         if (other.hasEpoch()) {
           setEpoch(other.getEpoch());
         }
-        if (other.hasIsGeneratedName()) {
-          setIsGeneratedName(other.getIsGeneratedName());
+        if (other.hasUserProvidedProducerName()) {
+          setUserProvidedProducerName(other.getUserProvidedProducerName());
         }
         return this;
       }
@@ -14066,7 +14066,7 @@ public final class PulsarApi {
             }
             case 72: {
               bitField0_ |= 0x00000100;
-              isGeneratedName_ = input.readBool();
+              userProvidedProducerName_ = input.readBool();
               break;
             }
           }
@@ -14363,23 +14363,23 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional bool is_generated_name = 9 [default = false];
-      private boolean isGeneratedName_ ;
-      public boolean hasIsGeneratedName() {
+      // optional bool user_provided_producer_name = 9 [default = true];
+      private boolean userProvidedProducerName_ = true;
+      public boolean hasUserProvidedProducerName() {
         return ((bitField0_ & 0x00000100) == 0x00000100);
       }
-      public boolean getIsGeneratedName() {
-        return isGeneratedName_;
+      public boolean getUserProvidedProducerName() {
+        return userProvidedProducerName_;
       }
-      public Builder setIsGeneratedName(boolean value) {
+      public Builder setUserProvidedProducerName(boolean value) {
         bitField0_ |= 0x00000100;
-        isGeneratedName_ = value;
+        userProvidedProducerName_ = value;
         
         return this;
       }
-      public Builder clearIsGeneratedName() {
+      public Builder clearUserProvidedProducerName() {
         bitField0_ = (bitField0_ & ~0x00000100);
-        isGeneratedName_ = false;
+        userProvidedProducerName_ = true;
         
         return this;
       }

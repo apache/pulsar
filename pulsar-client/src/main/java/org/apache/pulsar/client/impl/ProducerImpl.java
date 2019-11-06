@@ -53,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -100,7 +101,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // Globally unique producer name
     private String producerName;
-    private boolean isGeneratedName;
+    private boolean userProvidedProducerName = false;
 
     private String connectionId;
     private String connectedSince;
@@ -131,7 +132,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
-        this.isGeneratedName = conf.isGeneratedName();
+        if (StringUtils.isNotBlank(producerName)) {
+            this.userProvidedProducerName = true;
+        }
         this.partitionIndex = partitionIndex;
         this.pendingMessages = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.pendingCallbacks = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
@@ -1027,7 +1030,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                       schemaInfo, connectionHandler.epoch, isGeneratedName),
+                       schemaInfo, connectionHandler.epoch, userProvidedProducerName),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1504,11 +1507,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     public String getProducerName() {
         return producerName;
-    }
-
-    @Override
-    public boolean isGeneratedName() {
-        return isGeneratedName;
     }
 
     // wrapper for connection methods

@@ -62,7 +62,7 @@ public class Producer {
     private final ServerCnx cnx;
     private final String producerName;
     private final long epoch;
-    private final boolean isGeneratedName;
+    private final boolean userProvidedProducerName;
     private final long producerId;
     private final String appId;
     private Rate msgIn;
@@ -89,12 +89,12 @@ public class Producer {
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
-            boolean isGeneratedName) {
+            boolean userProvidedProducerName) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
         this.producerName = checkNotNull(producerName);
-        this.isGeneratedName = isGeneratedName;
+        this.userProvidedProducerName = userProvidedProducerName;
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
@@ -487,8 +487,8 @@ public class Producer {
         return epoch;
     }
 
-    public boolean isGeneratedName() {
-        return isGeneratedName;
+    public boolean isUserProvidedProducerName() {
+        return userProvidedProducerName;
     }
 
     @VisibleForTesting

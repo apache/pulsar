@@ -115,11 +115,6 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     @Override
-    public boolean isGeneratedName() {
-        return producers.get(0).isGeneratedName();
-    }
-
-    @Override
     public long getLastSequenceId() {
         // Return the highest sequence id across all partitions. This will be correct,
         // since there is a single id generator across all partitions for the same producer

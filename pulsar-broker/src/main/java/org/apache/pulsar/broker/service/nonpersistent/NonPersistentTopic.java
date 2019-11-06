@@ -207,9 +207,20 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
             }
 
-            if (!producers.add(producer)) {
-                throw new NamingException(
-                        "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
+            Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
+            if (existProducer != null) {
+                boolean canOverwrite = false;
+                if (existProducer.equals(producer) && !existProducer.isUserProvidedProducerName()
+                        && !producer.isUserProvidedProducerName() && producer.getEpoch() > existProducer.getEpoch()) {
+                    existProducer.close();
+                    canOverwrite = true;
+                }
+                if (canOverwrite) {
+                    producers.put(producer.getProducerName(), producer);
+                } else {
+                    throw new NamingException(
+                            "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
+                }
             }
 
             USAGE_COUNT_UPDATER.incrementAndGet(this);
@@ -231,7 +242,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public void removeProducer(Producer producer) {
         checkArgument(producer.getTopic() == this);
-        if (producers.remove(producer)) {
+        if (producers.remove(producer.getProducerName(), producer)) {
             // decrement usage only if this was a valid producer close
             USAGE_COUNT_UPDATER.decrementAndGet(this);
             if (log.isDebugEnabled()) {
@@ -363,7 +374,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-                producers.forEach(producer -> futures.add(producer.disconnect()));
+                producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
@@ -452,7 +463,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        producers.forEach(producer -> futures.add(producer.disconnect()));
+        producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
 
         FutureUtil.waitForAll(futures).thenRun(() -> {
@@ -642,7 +653,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.startObject(topic);
 
         topicStatsStream.startList("publishers");
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             producer.updateRates();
             PublisherStats publisherStats = producer.getStats();
 
@@ -760,7 +771,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             NonPersistentPublisherStats publisherStats = (NonPersistentPublisherStats) producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
             stats.msgThroughputIn += publisherStats.msgThroughputIn;
@@ -875,7 +886,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             producer.checkPermissions();
             producer.checkEncryption();
         });

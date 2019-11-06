@@ -19,9 +19,12 @@
 package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ProducerCreationTest extends ProducerConsumerBase {
@@ -39,10 +42,18 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testExactlyOnceWithProducerNameSpecified() throws PulsarClientException {
+    @DataProvider(name = "topicDomainProvider")
+    public Object[][] topicDomainProvider() {
+        return new Object[][] {
+                { TopicDomain.persistent },
+                { TopicDomain.non_persistent }
+        };
+    }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testExactlyOnceWithProducerNameSpecified(TopicDomain domain) throws PulsarClientException {
         Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic("testExactlyOnceWithProducerNameSpecified")
+                .topic(TopicName.get(domain.value(), "public", "default", "testExactlyOnceWithProducerNameSpecified").toString())
                 .producerName("p-name-1")
                 .create();
 
@@ -66,10 +77,10 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testGeneratedNameProducerReconnect() throws PulsarClientException, InterruptedException {
+    @Test(dataProvider = "topicDomainProvider")
+    public void testGeneratedNameProducerReconnect(TopicDomain domain) throws PulsarClientException, InterruptedException {
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic("testGeneratedNameProducerReconnect")
+                .topic(TopicName.get(domain.value(), "public", "default", "testGeneratedNameProducerReconnect").toString())
                 .create();
         Assert.assertTrue(producer.isConnected());
         //simulate create producer timeout.

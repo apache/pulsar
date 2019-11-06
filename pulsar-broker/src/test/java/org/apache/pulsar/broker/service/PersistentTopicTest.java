@@ -393,9 +393,9 @@ public class PersistentTopicTest {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         String role = "appid1";
         Producer producer1 = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, false);
+                role, false, null, SchemaVersion.Latest, 0, true);
         Producer producer2= new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 0, false);
+                role, false, null, SchemaVersion.Latest, 0, true);
         try {
             topic.addProducer(producer1);
             topic.addProducer(producer2);
@@ -407,7 +407,7 @@ public class PersistentTopicTest {
         Assert.assertEquals(topic.getProducers().size(), 1);
 
         Producer producer3= new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 1, true);
+                role, false, null, SchemaVersion.Latest, 1, false);
 
         try {
             topic.addProducer(producer3);
@@ -422,7 +422,7 @@ public class PersistentTopicTest {
         Assert.assertEquals(topic.getProducers().size(), 0);
 
         Producer producer4= new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest, 2, true);
+                role, false, null, SchemaVersion.Latest, 2, false);
 
         topic.addProducer(producer3);
         topic.addProducer(producer4);

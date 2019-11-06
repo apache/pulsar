@@ -818,7 +818,7 @@ public class ServerCnx extends PulsarHandler {
         final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
                 : service.generateUniqueProducerName();
         final long epoch = cmdProducer.getEpoch();
-        final boolean isGeneratedName = cmdProducer.getIsGeneratedName();
+        final boolean userProvidedProducerName = cmdProducer.getUserProvidedProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
         final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
@@ -940,7 +940,7 @@ public class ServerCnx extends PulsarHandler {
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
                                 Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
-                                    isEncrypted, metadata, schemaVersion, epoch, isGeneratedName);
+                                    isEncrypted, metadata, schemaVersion, epoch, userProvidedProducerName);
 
                                 try {
                                     topic.addProducer(producer);
