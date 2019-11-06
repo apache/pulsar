@@ -644,7 +644,9 @@ public class PulsarClientException extends IOException {
             return new ChecksumException(msg);
         } else if (cause instanceof CryptoException) {
             return new CryptoException(msg);
-        } else {
+        } else if (cause instanceof TopicDoesNotExistException) {
+            return new TopicDoesNotExistException(msg);
+        }else {
             return new PulsarClientException(t);
         }
     }
