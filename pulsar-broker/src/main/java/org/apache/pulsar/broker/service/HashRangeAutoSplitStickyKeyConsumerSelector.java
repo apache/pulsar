@@ -55,8 +55,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
  */
 public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
 
-    public static final int DEFAULT_RANGE_SIZE =  2 << 15;
-
     private final int rangeSize;
 
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;

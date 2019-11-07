@@ -29,9 +29,8 @@ public enum KeySharedMode {
     AUTO_SPLIT,
 
     /**
-     * New consumer with fixed hash range and each hash range is exclusive,
-     * If new consumer use conflict hash range with exits consumers, new consumer
-     * will be rejected.
+     * New consumer with fixed hash range to attach the topic, if new consumer use conflict hash range with
+     * exits consumers, new consumer will be rejected.
      */
-    EXCLUSIVE_HASH_RANGE
+    STICKY
 }

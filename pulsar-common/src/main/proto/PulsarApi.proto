@@ -257,12 +257,11 @@ message AuthData {
 
 enum KeySharedMode {
     autoSplit = 0;
-    exclusiveHashRange = 1;
+    sticky = 1;
 }
 
 message KeySharedMeta {
     required KeySharedMode keySharedMode = 1;
-    required int32 totalHashRange = 2;
     repeated IntRange hashRanges = 3;
 }
 

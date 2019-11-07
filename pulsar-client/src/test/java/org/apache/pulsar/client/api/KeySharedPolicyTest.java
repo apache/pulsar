@@ -29,39 +29,14 @@ public class KeySharedPolicyTest {
         KeySharedPolicy policy = KeySharedPolicy.autoSplitHashRange();
         Assert.assertEquals(2 << 15, policy.getHashRangeTotal());
 
-        policy.hashRangeTotal(100);
-        Assert.assertEquals(100, policy.getHashRangeTotal());
-
         policy.validate();
-    }
-
-    @Test
-    public void testAutoSplitInvalid() {
-
-        try {
-            KeySharedPolicy.autoSplitHashRange().hashRangeTotal(0).validate();
-            Assert.fail("should be failed");
-        } catch (Exception e) {
-            Assert.assertTrue(e instanceof IllegalArgumentException);
-        }
-
-        try {
-            KeySharedPolicy.autoSplitHashRange().hashRangeTotal(-1).validate();
-            Assert.fail("should be failed");
-        } catch (IllegalArgumentException ignore) {
-        }
-
     }
 
     @Test
     public void testExclusiveHashRange() {
 
-        KeySharedPolicy.KeySharedPolicyExclusiveHashRange policy = KeySharedPolicy.exclusiveHashRange();
+        KeySharedPolicy.KeySharedPolicySticky policy = KeySharedPolicy.stickyHashRange();
         Assert.assertEquals(2 << 15, policy.getHashRangeTotal());
-
-        policy.hashRangeTotal(100);
-        Assert.assertEquals(100, policy.getHashRangeTotal());
-        Assert.assertTrue(policy.getRanges().isEmpty());
 
         policy.ranges(Range.of(0, 1), Range.of(1, 2));
         Assert.assertEquals(policy.getRanges().size(), 2);
@@ -70,19 +45,7 @@ public class KeySharedPolicyTest {
     @Test
     public void testExclusiveHashRangeInvalid() {
 
-        try {
-            KeySharedPolicy.autoSplitHashRange().hashRangeTotal(0).validate();
-            Assert.fail("should be failed");
-        } catch (IllegalArgumentException ignore) {
-        }
-
-        try {
-            KeySharedPolicy.autoSplitHashRange().hashRangeTotal(-1).validate();
-            Assert.fail("should be failed");
-        } catch (IllegalArgumentException ignore) {
-        }
-
-        KeySharedPolicy.KeySharedPolicyExclusiveHashRange policy = KeySharedPolicy.exclusiveHashRange();
+        KeySharedPolicy.KeySharedPolicySticky policy = KeySharedPolicy.stickyHashRange();
         try {
             policy.validate();
             Assert.fail("should be failed");

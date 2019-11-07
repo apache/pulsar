@@ -124,13 +124,13 @@ public class NonPersistentSubscription implements Subscription {
                     previousDispatcher = dispatcher;
                     if (consumer.getKeySharedMeta() != null) {
                         switch (consumer.getKeySharedMeta().getKeySharedMode()) {
-                            case exclusiveHashRange:
+                            case sticky:
                                 dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                        new HashRangeExclusiveStickyKeyConsumerSelector(consumer.getKeySharedMeta().getTotalHashRange()));
+                                        new HashRangeExclusiveStickyKeyConsumerSelector());
                                 break;
                             case autoSplit:
                                 dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector(consumer.getKeySharedMeta().getTotalHashRange()));
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
                                 break;
                             default:
                                 dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,

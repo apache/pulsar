@@ -29,66 +29,63 @@ public abstract class KeySharedPolicy {
 
     protected KeySharedMode keySharedMode;
 
-    protected int hashRangeTotal = 2 << 15;
+    public static final int DEFAULT_HASH_RANGE_SIZE = 2 << 15;
 
     public static KeySharedPolicyAutoSplit autoSplitHashRange() {
         return new KeySharedPolicyAutoSplit();
     }
 
-    public static KeySharedPolicyExclusiveHashRange exclusiveHashRange() {
-        return new KeySharedPolicyExclusiveHashRange();
+    public static KeySharedPolicySticky stickyHashRange() {
+        return new KeySharedPolicySticky();
     }
 
-    public void validate() {
-        if (this.hashRangeTotal <= 0) {
-            throw new IllegalArgumentException("Hash range total for KeyShared policy must > 0.");
-        }
-    }
-
-    abstract KeySharedPolicy hashRangeTotal(int hashRangeTotal);
-
-    public int getHashRangeTotal() {
-        return this.hashRangeTotal;
-    }
+    public abstract void validate();
 
     public KeySharedMode getKeySharedMode() {
         return this.keySharedMode;
     }
 
+    public int getHashRangeTotal() {
+        return DEFAULT_HASH_RANGE_SIZE;
+    }
+
     /**
-     * Exclusive hash range key shared policy.
+     * Sticky attach topic with fixed hash range.
+     *
+     * Total hash range size is 65536, using the sticky hash range policy should ensure that the provided ranges by
+     * all consumers can cover the total hash range [0, 65535]. If not, while broker dispatcher can't find the consumer
+     * for message, the cursor will rewind.
+     *
      */
-    public static class KeySharedPolicyExclusiveHashRange extends KeySharedPolicy {
+    public static class KeySharedPolicySticky extends KeySharedPolicy {
 
         protected List<Range> ranges;
 
-        KeySharedPolicyExclusiveHashRange() {
-            this.keySharedMode = KeySharedMode.EXCLUSIVE_HASH_RANGE;
+        KeySharedPolicySticky() {
+            this.keySharedMode = KeySharedMode.STICKY;
             this.ranges = new ArrayList<>();
         }
 
-        public KeySharedPolicyExclusiveHashRange hashRangeTotal(int hashRangeTotal) {
-            this.hashRangeTotal = hashRangeTotal;
-            return this;
-        }
-
-        public KeySharedPolicyExclusiveHashRange ranges(Range... ranges) {
+        public KeySharedPolicySticky ranges(Range... ranges) {
             this.ranges.addAll(Arrays.asList(ranges));
             return this;
         }
 
         @Override
         public void validate() {
-            super.validate();
             if (ranges.isEmpty()) {
                 throw new IllegalArgumentException("Ranges for KeyShared policy must not be empty.");
             }
             for (int i = 0; i < ranges.size(); i++) {
+                Range range1 = ranges.get(i);
+                if (range1.getStart() < 0 || range1.getEnd() > DEFAULT_HASH_RANGE_SIZE) {
+                    throw new IllegalArgumentException("Ranges must be [0, 65535] but provided range is " + range1);
+                }
                 for (int j = 0; j < ranges.size(); j++) {
-                    Range range1 = ranges.get(i);
                     Range range2 = ranges.get(j);
                     if (i != j && range1.intersect(range2) != null) {
-                        throw new IllegalArgumentException("Ranges for KeyShared policy with overlap.");
+                        throw new IllegalArgumentException("Ranges for KeyShared policy with overlap between " + range1
+                                + " and " + range2);
                     }
                 }
             }
@@ -108,14 +105,9 @@ public abstract class KeySharedPolicy {
             this.keySharedMode = KeySharedMode.AUTO_SPLIT;
         }
 
-        public KeySharedPolicyAutoSplit hashRangeTotal(int hashRangeTotal) {
-            this.hashRangeTotal = hashRangeTotal;
-            return this;
-        }
-
         @Override
         public void validate() {
-            super.validate();
+            // do nothing here
         }
     }
 }

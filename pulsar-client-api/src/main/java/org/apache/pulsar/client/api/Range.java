@@ -56,4 +56,9 @@ public class Range {
             return null;
         }
     }
+
+    @Override
+    public String toString() {
+        return "[" + start + ", " + end + "]";
+    }
 }

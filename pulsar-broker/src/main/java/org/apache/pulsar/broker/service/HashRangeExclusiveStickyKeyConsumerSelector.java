@@ -31,6 +31,10 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     private final int rangeSize;
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
 
+    public HashRangeExclusiveStickyKeyConsumerSelector() {
+        this(DEFAULT_RANGE_SIZE);
+    }
+
     public HashRangeExclusiveStickyKeyConsumerSelector(int rangeSize) {
         super();
         if (rangeSize < 1) {
@@ -84,7 +88,12 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         if (ranges.isEmpty()) {
             throw new BrokerServiceException.ConsumerAssignException("Ranges for KeyShared policy must not be empty.");
         }
-        for (PulsarApi.IntRange intRange : consumer.getKeySharedMeta().getHashRangesList()) {
+        for (PulsarApi.IntRange intRange : ranges) {
+
+            if (intRange.getStart() > intRange.getEnd()) {
+                throw new BrokerServiceException.ConsumerAssignException("Fixed hash range start > end");
+            }
+
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(intRange.getStart());
             Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(intRange.getEnd());
 

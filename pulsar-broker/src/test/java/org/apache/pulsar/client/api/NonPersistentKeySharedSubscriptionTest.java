@@ -116,22 +116,17 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared_exclusive";
 
-        final int hashRangeTotal = 9;
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(0, 20000)));
 
         @Cleanup
-        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(0, 2)));
+        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(20001, 40000)));
 
         @Cleanup
-        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(3, 5)));
-
-        @Cleanup
-        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(6, 8)));
+        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE - 1)));
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic);
@@ -143,10 +138,10 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         for (int i = 0; i < 10; i++) {
             for (String key : keys) {
                 int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
-                        % 9;
-                if (slot <= 2) {
+                        % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
+                if (slot <= 20000) {
                     consumer1ExpectMessages++;
-                } else if (slot <= 5) {
+                } else if (slot <= 40000) {
                     consumer2ExpectMessages++;
                 } else {
                     consumer3ExpectMessages++;
@@ -282,22 +277,17 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared_exclusive_non_key";
 
-        final int hashRangeTotal = 9;
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(0, 20000)));
 
         @Cleanup
-        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(0, 2)));
+        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(20001, 40000)));
 
         @Cleanup
-        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(3, 5)));
-
-        @Cleanup
-        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(6, 8)));
+        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE - 1)));
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic);
@@ -308,11 +298,11 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
                     .send();
         }
         int slot = Murmur3_32Hash.getInstance().makeHash(PersistentStickyKeyDispatcherMultipleConsumers.NONE_KEY.getBytes())
-                % 9;
+                % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
         List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
-        if (slot <= 2) {
+        if (slot <= 20000) {
             checkList.add(new KeyValue<>(consumer1, 100));
-        } else if (slot <= 5) {
+        } else if (slot <= 40000) {
             checkList.add(new KeyValue<>(consumer2, 100));
         } else {
             checkList.add(new KeyValue<>(consumer3, 100));
@@ -377,22 +367,17 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "non-persistent://public/default/key_shared_exclusive_ordering_key";
 
-        final int hashRangeTotal = 9;
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(0, 20000)));
 
         @Cleanup
-        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(0, 2)));
+        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(20001, 40000)));
 
         @Cleanup
-        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(3, 5)));
-
-        @Cleanup
-        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.exclusiveHashRange()
-                .hashRangeTotal(hashRangeTotal)
-                .ranges(Range.of(6, 8)));
+        Consumer<Integer> consumer3 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(40001, KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE)));
 
         @Cleanup
         Producer<Integer> producer = createProducer(topic);
@@ -404,10 +389,10 @@ public class NonPersistentKeySharedSubscriptionTest extends ProducerConsumerBase
         for (int i = 0; i < 10; i++) {
             for (String key : keys) {
                 int slot = Murmur3_32Hash.getInstance().makeHash(key.getBytes())
-                        % 9;
-                if (slot <= 2) {
+                        % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
+                if (slot <= 20000) {
                     consumer1ExpectMessages++;
-                } else if (slot <= 5) {
+                } else if (slot <= 40000) {
                     consumer2ExpectMessages++;
                 } else {
                     consumer3ExpectMessages++;

@@ -508,14 +508,12 @@ public class Commands {
             switch (keySharedPolicy.getKeySharedMode()) {
                 case AUTO_SPLIT:
                     subscribeBuilder.setKeySharedMeta(PulsarApi.KeySharedMeta.newBuilder()
-                            .setKeySharedMode(PulsarApi.KeySharedMode.autoSplit)
-                            .setTotalHashRange(keySharedPolicy.getHashRangeTotal()));
+                            .setKeySharedMode(PulsarApi.KeySharedMode.autoSplit));
                     break;
-                case EXCLUSIVE_HASH_RANGE:
+                case STICKY:
                     PulsarApi.KeySharedMeta.Builder builder = PulsarApi.KeySharedMeta.newBuilder()
-                            .setKeySharedMode(PulsarApi.KeySharedMode.exclusiveHashRange)
-                            .setTotalHashRange(keySharedPolicy.getHashRangeTotal());
-                    List<Range> ranges = ((KeySharedPolicy.KeySharedPolicyExclusiveHashRange) keySharedPolicy)
+                            .setKeySharedMode(PulsarApi.KeySharedMode.sticky);
+                    List<Range> ranges = ((KeySharedPolicy.KeySharedPolicySticky) keySharedPolicy)
                             .getRanges();
                     for (Range range : ranges) {
                         builder.addHashRanges(PulsarApi.IntRange.newBuilder()

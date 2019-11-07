@@ -283,11 +283,11 @@ public final class PulsarApi {
   public enum KeySharedMode
       implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
     autoSplit(0, 0),
-    exclusiveHashRange(1, 1),
+    sticky(1, 1),
     ;
     
     public static final int autoSplit_VALUE = 0;
-    public static final int exclusiveHashRange_VALUE = 1;
+    public static final int sticky_VALUE = 1;
     
     
     public final int getNumber() { return value; }
@@ -295,7 +295,7 @@ public final class PulsarApi {
     public static KeySharedMode valueOf(int value) {
       switch (value) {
         case 0: return autoSplit;
-        case 1: return exclusiveHashRange;
+        case 1: return sticky;
         default: return null;
       }
     }
@@ -9188,10 +9188,6 @@ public final class PulsarApi {
     boolean hasKeySharedMode();
     org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode getKeySharedMode();
     
-    // required int32 totalHashRange = 2;
-    boolean hasTotalHashRange();
-    int getTotalHashRange();
-    
     // repeated .pulsar.proto.IntRange hashRanges = 3;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.IntRange> 
         getHashRangesList();
@@ -9243,16 +9239,6 @@ public final class PulsarApi {
       return keySharedMode_;
     }
     
-    // required int32 totalHashRange = 2;
-    public static final int TOTALHASHRANGE_FIELD_NUMBER = 2;
-    private int totalHashRange_;
-    public boolean hasTotalHashRange() {
-      return ((bitField0_ & 0x00000002) == 0x00000002);
-    }
-    public int getTotalHashRange() {
-      return totalHashRange_;
-    }
-    
     // repeated .pulsar.proto.IntRange hashRanges = 3;
     public static final int HASHRANGES_FIELD_NUMBER = 3;
     private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.IntRange> hashRanges_;
@@ -9276,7 +9262,6 @@ public final class PulsarApi {
     
     private void initFields() {
       keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.autoSplit;
-      totalHashRange_ = 0;
       hashRanges_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
@@ -9285,10 +9270,6 @@ public final class PulsarApi {
       if (isInitialized != -1) return isInitialized == 1;
       
       if (!hasKeySharedMode()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasTotalHashRange()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -9313,9 +9294,6 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         output.writeEnum(1, keySharedMode_.getNumber());
       }
-      if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeInt32(2, totalHashRange_);
-      }
       for (int i = 0; i < hashRanges_.size(); i++) {
         output.writeMessage(3, hashRanges_.get(i));
       }
@@ -9330,10 +9308,6 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(1, keySharedMode_.getNumber());
-      }
-      if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeInt32Size(2, totalHashRange_);
       }
       for (int i = 0; i < hashRanges_.size(); i++) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
@@ -9454,10 +9428,8 @@ public final class PulsarApi {
         super.clear();
         keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.autoSplit;
         bitField0_ = (bitField0_ & ~0x00000001);
-        totalHashRange_ = 0;
-        bitField0_ = (bitField0_ & ~0x00000002);
         hashRanges_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000004);
+        bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
       
@@ -9495,13 +9467,9 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000001;
         }
         result.keySharedMode_ = keySharedMode_;
-        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
-          to_bitField0_ |= 0x00000002;
-        }
-        result.totalHashRange_ = totalHashRange_;
-        if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        if (((bitField0_ & 0x00000002) == 0x00000002)) {
           hashRanges_ = java.util.Collections.unmodifiableList(hashRanges_);
-          bitField0_ = (bitField0_ & ~0x00000004);
+          bitField0_ = (bitField0_ & ~0x00000002);
         }
         result.hashRanges_ = hashRanges_;
         result.bitField0_ = to_bitField0_;
@@ -9513,13 +9481,10 @@ public final class PulsarApi {
         if (other.hasKeySharedMode()) {
           setKeySharedMode(other.getKeySharedMode());
         }
-        if (other.hasTotalHashRange()) {
-          setTotalHashRange(other.getTotalHashRange());
-        }
         if (!other.hashRanges_.isEmpty()) {
           if (hashRanges_.isEmpty()) {
             hashRanges_ = other.hashRanges_;
-            bitField0_ = (bitField0_ & ~0x00000004);
+            bitField0_ = (bitField0_ & ~0x00000002);
           } else {
             ensureHashRangesIsMutable();
             hashRanges_.addAll(other.hashRanges_);
@@ -9531,10 +9496,6 @@ public final class PulsarApi {
       
       public final boolean isInitialized() {
         if (!hasKeySharedMode()) {
-          
-          return false;
-        }
-        if (!hasTotalHashRange()) {
           
           return false;
         }
@@ -9578,11 +9539,6 @@ public final class PulsarApi {
               }
               break;
             }
-            case 16: {
-              bitField0_ |= 0x00000002;
-              totalHashRange_ = input.readInt32();
-              break;
-            }
             case 26: {
               org.apache.pulsar.common.api.proto.PulsarApi.IntRange.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.IntRange.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
@@ -9619,34 +9575,13 @@ public final class PulsarApi {
         return this;
       }
       
-      // required int32 totalHashRange = 2;
-      private int totalHashRange_ ;
-      public boolean hasTotalHashRange() {
-        return ((bitField0_ & 0x00000002) == 0x00000002);
-      }
-      public int getTotalHashRange() {
-        return totalHashRange_;
-      }
-      public Builder setTotalHashRange(int value) {
-        bitField0_ |= 0x00000002;
-        totalHashRange_ = value;
-        
-        return this;
-      }
-      public Builder clearTotalHashRange() {
-        bitField0_ = (bitField0_ & ~0x00000002);
-        totalHashRange_ = 0;
-        
-        return this;
-      }
-      
       // repeated .pulsar.proto.IntRange hashRanges = 3;
       private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.IntRange> hashRanges_ =
         java.util.Collections.emptyList();
       private void ensureHashRangesIsMutable() {
-        if (!((bitField0_ & 0x00000004) == 0x00000004)) {
+        if (!((bitField0_ & 0x00000002) == 0x00000002)) {
           hashRanges_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.IntRange>(hashRanges_);
-          bitField0_ |= 0x00000004;
+          bitField0_ |= 0x00000002;
          }
       }
       
@@ -9718,7 +9653,7 @@ public final class PulsarApi {
       }
       public Builder clearHashRanges() {
         hashRanges_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000004);
+        bitField0_ = (bitField0_ & ~0x00000002);
         
         return this;
       }
