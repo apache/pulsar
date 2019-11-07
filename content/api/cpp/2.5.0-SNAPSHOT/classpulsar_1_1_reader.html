@@ -119,6 +119,14 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>closeAsync</b> (<a cl
 <tr class="separator:a0c3755b32954d1aeb1b4ef60e4314c1d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7f751b63fba4d4734ff79da590f9fd56"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#a7f751b63fba4d4734ff79da590f9fd56">hasMessageAvailable</a> (bool &amp;hasMessageAvailable)</td></tr>
 <tr class="separator:a7f751b63fba4d4734ff79da590f9fd56"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6bec25700e5b4eb7be41625a9bc856bd"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#a6bec25700e5b4eb7be41625a9bc856bd">seek</a> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;msgId)</td></tr>
+<tr class="separator:a6bec25700e5b4eb7be41625a9bc856bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adebdd61a5150777704c8ce8dcec08fc8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#adebdd61a5150777704c8ce8dcec08fc8">seek</a> (uint64_t timestamp)</td></tr>
+<tr class="separator:adebdd61a5150777704c8ce8dcec08fc8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acba58f8fb3ecefc4a693a1091f3c4669"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#acba58f8fb3ecefc4a693a1091f3c4669">seekAsync</a> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;msgId, <a class="el" href="namespacepulsar.html#ae5bf6401bfa8e3962e5c8f9fa2efbf4d">ResultCallback</a> callback)</td></tr>
+<tr class="separator:acba58f8fb3ecefc4a693a1091f3c4669"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:addec61dc54aba2959c06a2017bea7c32"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#addec61dc54aba2959c06a2017bea7c32">seekAsync</a> (uint64_t timestamp, <a class="el" href="namespacepulsar.html#ae5bf6401bfa8e3962e5c8f9fa2efbf4d">ResultCallback</a> callback)</td></tr>
+<tr class="separator:addec61dc54aba2959c06a2017bea7c32"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -268,6 +276,120 @@ ResultInvalidConfiguration if a message listener had been set in the configurati
 ResultTimeout if the receive timeout was triggered </dd>
 <dd>
 ResultInvalidConfiguration if a message listener had been set in the configuration </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a6bec25700e5b4eb7be41625a9bc856bd"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Reader::seek </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td>
+          <td class="paramname"><em>msgId</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Reset the this reader to a specific message id. The message id can either be a specific message or represent the first or last messages in the topic.</p>
+<p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the <a class="el" href="classpulsar_1_1_reader.html#a6bec25700e5b4eb7be41625a9bc856bd">seek()</a> on the individual partitions.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">messageId</td><td>the message id where to reposition the subscription </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="adebdd61a5150777704c8ce8dcec08fc8"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Reader::seek </td>
+          <td>(</td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>timestamp</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Reset this reader to a specific message publish time.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">timestamp</td><td>the message publish time where to reposition the subscription </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="acba58f8fb3ecefc4a693a1091f3c4669"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::Reader::seekAsync </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td>
+          <td class="paramname"><em>msgId</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespacepulsar.html#ae5bf6401bfa8e3962e5c8f9fa2efbf4d">ResultCallback</a>&#160;</td>
+          <td class="paramname"><em>callback</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Asynchronously reset this reader to a specific message id. The message id can either be a specific message or represent the first or last messages in the topic.</p>
+<p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the <a class="el" href="classpulsar_1_1_reader.html#a6bec25700e5b4eb7be41625a9bc856bd">seek()</a> on the individual partitions.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">messageId</td><td>the message id where to reposition the subscription </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="addec61dc54aba2959c06a2017bea7c32"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::Reader::seekAsync </td>
+          <td>(</td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>timestamp</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespacepulsar.html#ae5bf6401bfa8e3962e5c8f9fa2efbf4d">ResultCallback</a>&#160;</td>
+          <td class="paramname"><em>callback</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Asynchronously reset this reader to a specific message publish time.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">timestamp</td><td>the message publish time where to reposition the subscription </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
