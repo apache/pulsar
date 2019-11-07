@@ -522,16 +522,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *          .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 10)))
      *          .subscribe();
      * </pre>
-     *
      * Details about sticky hash range policy, please see {@link KeySharedPolicy.KeySharedPolicySticky}.
      *
-     * Or
+     * <p>Or
      * <pre>
      * client.newConsumer()
      *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().hashRangeTotal(100))
      *          .subscribe();
      * </pre>
-     *
      * Details about auto split hash range policy, please see {@link KeySharedPolicy.KeySharedPolicyAutoSplit}.
      *
      * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
