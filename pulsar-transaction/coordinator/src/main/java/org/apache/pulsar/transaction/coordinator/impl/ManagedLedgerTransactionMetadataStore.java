@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -41,8 +43,6 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 
 /**
  * The provider that offers topic-base-memory implementation of {@link TransactionMetadataStore}.
@@ -55,13 +55,18 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
     private final AtomicLong sequenceId;
     private final ManagedLedgerTransactionReader reader;
     private final ManagedLedgerTransactionWriter writer;
+    protected static final long TC_ID_NOT_USED = -1L;
 
     public ManagedLedgerTransactionMetadataStore(TransactionCoordinatorID tcID,
                                                  ManagedLedgerFactory managedLedgerFactory) throws Exception {
         this.tcID = tcID;
         this.writer = new ManagedLedgerTransactionWriterImpl(tcID.toString(), managedLedgerFactory);
         this.reader = new ManagedLedgerTransactionReaderImpl(tcID.toString(), managedLedgerFactory);
-        this.sequenceId = new AtomicLong(reader.readSequenceId());
+        if (reader.readSequenceId() == TC_ID_NOT_USED) {
+            this.sequenceId = new AtomicLong(0L);
+        } else {
+            this.sequenceId = new AtomicLong(reader.readSequenceId() + 1L);
+        }
     }
 
     @Override

@@ -127,6 +127,6 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
         Assert.assertEquals(txnMeta1.status(), TxnStatus.COMMITTED);
         Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
         TxnID txnID = transactionMetadataStoreTest.newTransaction(1000).get();
-        Assert.assertEquals(txnID.getLeastSigBits(), 3L);
+        Assert.assertEquals(txnID.getLeastSigBits(), 2L);
     }
 }

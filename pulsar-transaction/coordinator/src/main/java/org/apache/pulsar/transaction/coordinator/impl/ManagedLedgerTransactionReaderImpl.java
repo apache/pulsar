@@ -51,7 +51,7 @@ class ManagedLedgerTransactionReaderImpl implements
 
     private ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
 
-    private AtomicLong sequenceId = new AtomicLong();
+    private AtomicLong sequenceId = new AtomicLong(ManagedLedgerTransactionMetadataStore.TC_ID_NOT_USED);
 
     private final ReadOnlyCursor readOnlyCursor;
 
@@ -149,8 +149,8 @@ class ManagedLedgerTransactionReaderImpl implements
                             transactionMetadataEntry.getTxnidLeastBits());
                     switch (transactionMetadataEntry.getMetadataOp()) {
                         case NEW:
-                            if (sequenceId.get() > transactionMetadataEntry.getTxnidLeastBits()) {
-                                sequenceId.set(transactionMetadataEntry.getTxnidMostBits());
+                            if (sequenceId.get() < transactionMetadataEntry.getTxnidLeastBits()) {
+                                sequenceId.set(transactionMetadataEntry.getTxnidLeastBits());
                             }
                             txnMetaMap.put(txnID, new TxnMetaImpl(txnID));
                             transactionMetadataEntryBuilder.recycle();
