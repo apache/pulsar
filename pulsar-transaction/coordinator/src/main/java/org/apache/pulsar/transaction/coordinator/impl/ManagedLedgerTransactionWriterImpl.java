@@ -20,7 +20,6 @@ package org.apache.pulsar.transaction.coordinator.impl;
 
 import io.netty.buffer.ByteBuf;
 
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -67,9 +66,7 @@ class ManagedLedgerTransactionWriterImpl implements
                     completableFuture.completeExceptionally(exception);
                 }
             } , null);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (Exception e){
+        } catch (Exception e) {
             completableFuture.completeExceptionally(e);
             return completableFuture;
         } finally {

@@ -41,9 +41,13 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class ManagedLedgerTransactionReaderImpl implements
         ManagedLedgerTransactionMetadataStore.ManagedLedgerTransactionReader {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ManagedLedgerTransactionReaderImpl.class);
 
     private ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
 
@@ -59,17 +63,22 @@ class ManagedLedgerTransactionReaderImpl implements
                             PositionImpl.earliest, new ManagedLedgerConfig());
         CountDownLatch countDownLatch = new CountDownLatch(1);
         countDownLatch.countDown();
-        if (initCacheException != null) {
-            throw initCacheException;
-        }
         while (readOnlyCursor.hasMoreEntries()) {
+            if (initCacheException != null) {
+                throw initCacheException;
+            }
             List<Entry> entries = readOnlyCursor.readEntries(2);
             countDownLatch.await();
             countDownLatch = new CountDownLatch(1);
             new Thread(new ReadOnce(countDownLatch,
                     txnMetaMap, sequenceId, this, entries)).start();
         }
+
         countDownLatch.await();
+
+        if (initCacheException != null) {
+            throw initCacheException;
+        }
     }
 
     private static List<TxnSubscription> subscriptionToTxnSubscription(List<Subscription> subscriptions) {

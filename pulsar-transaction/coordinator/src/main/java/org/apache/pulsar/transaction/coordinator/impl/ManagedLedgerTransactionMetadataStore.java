@@ -38,12 +38,18 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 
 /**
  * The provider that offers topic-base-memory implementation of {@link TransactionMetadataStore}.
  */
 public class ManagedLedgerTransactionMetadataStore implements TransactionMetadataStore {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ManagedLedgerTransactionReaderImpl.class);
 
     private final TransactionCoordinatorID tcID;
     private final AtomicLong sequenceId;
@@ -94,32 +100,44 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
                 .setMetadataOp(TransactionMetadataOp.NEW)
                 .setTxnLastModificationTime(currentTimeMillis)
                 .build();
-        return writer.write(transactionMetadataEntry)
+        CompletableFuture completableFuture = new CompletableFuture();
+        writer.write(transactionMetadataEntry)
                 .thenCompose(txn -> {
                     reader.addNewTxn(new TxnMetaImpl(txnID));
                     transactionMetadataEntry.recycle();
-                    return CompletableFuture.completedFuture(txnID);
+                    completableFuture.complete(txnID);
+                    return null;
+                }).exceptionally(e -> {
+                    LOGGER.error("Transaction-log new transaction error", e);
+                    completableFuture.completeExceptionally(e);
+                    return null;
                 });
+        return completableFuture;
     }
 
     @Override
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnid, List<String> partitions) {
         return getTxnMeta(txnid).thenCompose(txn -> {
+            checkArgument(txn != null);
             TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                     .newBuilder()
                     .setTxnidMostBits(txnid.getMostSigBits())
                     .setTxnidLeastBits(txnid.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
                     .addAllPartitions(partitions)
+                    .setTxnLastModificationTime(System.currentTimeMillis())
                     .build();
 
             return writer.write(transactionMetadataEntry)
-                    .thenCompose(txnMeta -> {
+                    .thenCompose(v -> {
                         try {
                             txn.addProducedPartitions(partitions);
                             transactionMetadataEntry.recycle();
                             return CompletableFuture.completedFuture(null);
                         } catch (InvalidTxnStatusException e) {
+                            LOGGER.error("TxnID : " + txn.id().toString()
+                                    + " add produced partition error with TxnStatus : "
+                                    + txn.status().name(), e);
                             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                             completableFuture.completeExceptionally(e);
                             transactionMetadataEntry.recycle();
@@ -132,12 +150,14 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
     @Override
     public CompletableFuture<Void> addAckedSubscriptionToTxn(TxnID txnid, List<TxnSubscription> txnSubscriptions) {
         return getTxnMeta(txnid).thenCompose(txn -> {
+            checkArgument(txn != null);
             TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                     .newBuilder()
                     .setTxnidMostBits(txnid.getMostSigBits())
                     .setTxnidLeastBits(txnid.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
                     .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
+                    .setTxnLastModificationTime(System.currentTimeMillis())
                     .build();
 
             return writer.write(transactionMetadataEntry)
@@ -147,6 +167,9 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
                             transactionMetadataEntry.recycle();
                             return CompletableFuture.completedFuture(null);
                         } catch (InvalidTxnStatusException e) {
+                            LOGGER.error("TxnID : " + txn.id().toString()
+                                    + " add acked subscription error with TxnStatus : "
+                                    + txn.status().name(), e);
                             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                             completableFuture.completeExceptionally(e);
                             transactionMetadataEntry.recycle();
@@ -164,14 +187,15 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
 
     @Override
     public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         return getTxnMeta(txnid).thenCompose(txn -> {
+            checkArgument(txn != null);
             TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                     .newBuilder()
                     .setTxnidMostBits(txnid.getMostSigBits())
                     .setTxnidLeastBits(txnid.getLeastSigBits())
                     .setExpectedStatus(expectedStatus)
                     .setMetadataOp(TransactionMetadataOp.UPDATE)
+                    .setTxnLastModificationTime(System.currentTimeMillis())
                     .setNewStatus(newStatus)
                     .build();
             return writer.write(transactionMetadataEntry)
@@ -179,9 +203,12 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
                         try {
                             txn.updateTxnStatus(newStatus, expectedStatus);
                             transactionMetadataEntry.recycle();
-                            completableFuture.complete(null);
-                            return completableFuture;
+                            return CompletableFuture.completedFuture(null);
                         } catch (InvalidTxnStatusException e) {
+                            LOGGER.error("TxnID : " + txn.id().toString()
+                                    + " add update txn status error with TxnStatus : "
+                                    + txn.status().name(), e);
+                            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                             completableFuture.completeExceptionally(e);
                             transactionMetadataEntry.recycle();
                             return completableFuture;
@@ -273,3 +300,4 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
         void close() throws ManagedLedgerException, InterruptedException;
     }
 }
+
