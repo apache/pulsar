@@ -384,7 +384,7 @@ class PulsarTest(TestCase):
                 'my-python-topic-reader-on-specific-message',
                 MessageId.earliest)
 
-        for i in range(num_of_msgs/2):
+        for i in range(num_of_msgs//2):
             msg = reader1.read_next(TM)
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
@@ -717,11 +717,17 @@ class PulsarTest(TestCase):
         producer = client.create_producer('my-python-topic-seek')
 
         for i in range(100):
+            if i > 0:
+                time.sleep(0.02)
             producer.send(b'hello-%d' % i)
 
+        ids = []
+        timestamps = []
         for i in range(100):
             msg = consumer.receive(TM)
             self.assertEqual(msg.data(), b'hello-%d' % i)
+            ids.append(msg.message_id())
+            timestamps.append(msg.publish_timestamp())
             consumer.acknowledge(msg)
 
         # seek, and after reconnect, expected receive first message.
@@ -729,6 +735,52 @@ class PulsarTest(TestCase):
         time.sleep(0.5)
         msg = consumer.receive(TM)
         self.assertEqual(msg.data(), b'hello-0')
+
+        # seek on messageId
+        consumer.seek(ids[50])
+        time.sleep(0.5)
+        msg = consumer.receive(TM)
+        self.assertEqual(msg.data(), b'hello-50')
+
+        # ditto, but seek on timestamp
+        consumer.seek(timestamps[42])
+        time.sleep(0.5)
+        msg = consumer.receive(TM)
+        self.assertEqual(msg.data(), b'hello-42')
+
+        # repeat with reader
+        reader = client.create_reader('my-python-topic-seek', MessageId.latest)
+        try:
+            msg = reader.read_next(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        # earliest
+        reader.seek(MessageId.earliest)
+        time.sleep(0.5)
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-0')
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-1')
+
+        # seek on messageId
+        reader.seek(ids[33])
+        time.sleep(0.5)
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-33')
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-34')
+
+        # seek on timestamp
+        reader.seek(timestamps[79])
+        time.sleep(0.5)
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-79')
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-80')
+
+        reader.close()
         client.close()
 
     def test_v2_topics(self):
