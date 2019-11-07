@@ -28,9 +28,6 @@ import java.util.Date;
  * A schema for `java.util.Date` or `java.sql.Date`.
  */
 public class DateSchema extends AbstractSchema<Date> {
-   public static DateSchema of() {
-      return INSTANCE;
-   }
 
    private static final DateSchema INSTANCE;
    private static final SchemaInfo SCHEMA_INFO;
@@ -41,6 +38,10 @@ public class DateSchema extends AbstractSchema<Date> {
              .setType(SchemaType.DATE)
              .setSchema(new byte[0]);
        INSTANCE = new DateSchema();
+   }
+
+   public static DateSchema of() {
+      return INSTANCE;
    }
 
    @Override

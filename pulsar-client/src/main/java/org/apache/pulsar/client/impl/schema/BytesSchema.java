@@ -27,10 +27,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class BytesSchema extends AbstractSchema<byte[]> {
 
-    public static BytesSchema of() {
-        return INSTANCE;
-    }
-
     private static final BytesSchema INSTANCE;
     private static final SchemaInfo SCHEMA_INFO;
 
@@ -42,6 +38,9 @@ public class BytesSchema extends AbstractSchema<byte[]> {
         INSTANCE = new BytesSchema();
     }
 
+    public static BytesSchema of() {
+        return INSTANCE;
+    }
 
     @Override
     public byte[] encode(byte[] message) {
