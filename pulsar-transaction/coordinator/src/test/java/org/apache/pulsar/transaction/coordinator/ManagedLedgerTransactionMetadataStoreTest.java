@@ -103,7 +103,9 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
         transactionMetadataStore.addAckedSubscriptionToTxn(txnID1, subscriptions).get();
         transactionMetadataStore.addAckedSubscriptionToTxn(txnID2, subscriptions).get();
         List<TxnSubscription> subscriptions1 = new ArrayList<>();
-        subscriptions1.add(new TxnSubscription("topic3", "sub3"));
+        TxnSubscription txnSubscription = new TxnSubscription("topic3", "sub3");
+        subscriptions1.add(txnSubscription);
+        subscriptions1.add(txnSubscription);
         transactionMetadataStore.addAckedSubscriptionToTxn(txnID1, subscriptions1).get();
         transactionMetadataStore.addAckedSubscriptionToTxn(txnID2, subscriptions1).get();
 
@@ -121,8 +123,10 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
         Assert.assertEquals(txnMeta1.producedPartitions(), partitions);
         Assert.assertEquals(txnMeta2.producedPartitions(), partitions);
         Assert.assertEquals(txnMeta1.txnSubscription(), transactionMetadataStore.getTxnMeta(txnID1).get().txnSubscription());
-        Assert.assertEquals(txnMeta2.txnSubscription(), transactionMetadataStore.getTxnMeta(txnID1).get().txnSubscription());
+        Assert.assertEquals(txnMeta2.txnSubscription(), transactionMetadataStore.getTxnMeta(txnID2).get().txnSubscription());
         Assert.assertEquals(txnMeta1.status(), TxnStatus.COMMITTED);
         Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
+        TxnID txnID = transactionMetadataStoreTest.newTransaction(1000).get();
+        Assert.assertEquals(txnID.getLeastSigBits(), 3L);
     }
 }
