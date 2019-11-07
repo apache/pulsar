@@ -395,7 +395,7 @@ public class Producer {
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
             callback.originalProducerName = null;
-            callback.originalSequenceId = -1;
+            callback.originalSequenceId = -1L;
             callback.startTimeNs = startTimeNs;
             return callback;
         }
@@ -410,7 +410,7 @@ public class Producer {
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
             callback.originalProducerName = null;
-            callback.originalSequenceId = -1;
+            callback.originalSequenceId = -1L;
             callback.startTimeNs = startTimeNs;
             return callback;
         }
@@ -429,16 +429,16 @@ public class Producer {
 
         public void recycle() {
             producer = null;
-            sequenceId = -1;
-            highestSequenceId = -1;
-            originalSequenceId = -1;
-            originalHighestSequenceId = -1;
+            sequenceId = -1L;
+            highestSequenceId = -1L;
+            originalSequenceId = -1L;
+            originalHighestSequenceId = -1L;
             rateIn = null;
             msgSize = 0;
-            ledgerId = -1;
-            entryId = -1;
-            batchSize = 0;
-            startTimeNs = -1;
+            ledgerId = -1L;
+            entryId = -1L;
+            batchSize = 0L;
+            startTimeNs = -1L;
             recyclerHandle.recycle(this);
         }
     }

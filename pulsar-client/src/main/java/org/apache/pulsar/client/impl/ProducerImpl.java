@@ -143,11 +143,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             long initialSequenceId = conf.getInitialSequenceId();
             this.lastSequenceIdPublished = initialSequenceId;
             this.lastSequenceIdPushed = initialSequenceId;
-            this.msgIdGenerator = initialSequenceId + 1;
+            this.msgIdGenerator = initialSequenceId + 1L;
         } else {
-            this.lastSequenceIdPublished = -1;
-            this.lastSequenceIdPushed = -1;
-            this.msgIdGenerator = 0;
+            this.lastSequenceIdPublished = -1L;
+            this.lastSequenceIdPushed = -1L;
+            this.msgIdGenerator = 0L;
         }
 
         if (conf.isEncryptionEnabled()) {
@@ -990,10 +990,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             cmd = null;
             callback = null;
             rePopulate = null;
-            sequenceId = -1;
-            createdAt = -1;
-            lowestSequenceId = -1;
-            highestSequenceId = -1;
+            sequenceId = -1L;
+            createdAt = -1L;
+            lowestSequenceId = -1L;
+            highestSequenceId = -1L;
             recyclerHandle.recycle(this);
         }
 
