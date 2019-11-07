@@ -234,23 +234,22 @@ The Apache Software License, Version 2.0
     - commons-lang3-3.4.jar
  * Netty
     - netty-3.10.6.Final.jar
-    - netty-all-4.1.32.Final.jar
-    - netty-buffer-4.1.31.Final.jar
-    - netty-codec-4.1.31.Final.jar
-    - netty-codec-dns-4.1.33.Final.jar
-    - netty-codec-http-4.1.33.Final.jar
-    - netty-codec-socks-4.1.33.Final.jar
-    - netty-common-4.1.31.Final.jar
-    - netty-handler-4.1.31.Final.jar
-    - netty-handler-proxy-4.1.33.Final.jar
+    - netty-buffer-4.1.43.Final.jar
+    - netty-codec-4.1.43.Final.jar
+    - netty-codec-dns-4.1.43.Final.jar
+    - netty-codec-http-4.1.43.Final.jar
+    - netty-codec-socks-4.1.43.Final.jar
+    - netty-common-4.1.43.Final.jar
+    - netty-handler-4.1.43.Final.jar
+    - netty-handler-proxy-4.1.43.Final.jar
     - netty-reactive-streams-2.0.0.jar
-    - netty-resolver-4.1.31.Final.jar
-    - netty-resolver-dns-4.1.33.Final.jar
-    - netty-tcnative-boringssl-static-2.0.20.Final.jar
-    - netty-transport-4.1.31.Final.jar
-    - netty-transport-native-epoll-4.1.31.Final.jar
+    - netty-resolver-4.1.43.Final.jar
+    - netty-resolver-dns-4.1.43.Final.jar
+    - netty-tcnative-boringssl-static-2.0.26.Final.jar
+    - netty-transport-4.1.43.Final.jar
+    - netty-transport-native-epoll-4.1.43.Final.jar
     - netty-transport-native-epoll-4.1.33.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.31.Final.jar
+    - netty-transport-native-unix-common-4.1.43.Final.jar
  * Joda Time
     - joda-time-2.9.9.jar
     - joda-time-2.10.1.jar
@@ -449,7 +448,8 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
   * Apache Zookeeper
-    - zookeeper-3.5.5.jar
+    - zookeeper-3.5.6.jar
+    - zookeeper-jute-3.5.6.jar 
   * Apache Yetus Audience Annotations
     - audience-annotations-0.5.0.jar
   * Swagger
@@ -473,7 +473,6 @@ BSD License
     - asm-tree-6.0.jar
     - asm-util-6.0.jar
  * JLine
-   - jline-0.9.94.jar
    - jline-2.14.6.jar
  * ParaNamer Core
    - paranamer-2.7.jar
