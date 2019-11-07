@@ -1275,19 +1275,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>**/django/stats/migrations/*.py</exclude>
-            <exclude>site/vendor/**</exclude>
-            <exclude>site/scripts/doxygen/**</exclude>
-            <exclude>site/api/**</exclude>
-            <exclude>site/.sass-cache/**</exclude>
-            <exclude>site/generated/**</exclude>
-            <exclude>site/js/jquery.tocify.min.js</exclude>
-            <exclude>site/js/jquery.scrollTo.min.js</exclude>
-            <exclude>site/Gemfile.lock</exclude>
-            <exclude>site/VERSIONS</exclude>
-            <exclude>site/_sass/bootstrap-sass/**</exclude>
-            <exclude>site/_sass/font-awesome/**</exclude>
-            <exclude>site/fonts/**</exclude>
-            <exclude>site/img/**</exclude>
             <exclude>site2/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
