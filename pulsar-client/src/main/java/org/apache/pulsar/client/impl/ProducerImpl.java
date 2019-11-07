@@ -1307,8 +1307,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (batchMessageContainer.isEmpty()) {
             return;
         }
-        //int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
-        //semaphore.release(numMessagesInBatch);
         batchMessageContainer.discard(ex);
     }
 
