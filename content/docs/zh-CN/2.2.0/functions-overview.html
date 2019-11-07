@@ -80,7 +80,7 @@
 <li>将用户提供的处理逻辑应用于每个消息</li>
 <li>将计算结果发布到另一个主题</li>
 </ul>
-<p>这是一个基于java的例子(使用<a href="/docs/zh-CN/2.2.0/functions-api#java-native-functions">原生接口</a>)</p>
+<p>这是一个基于java的例子(使用<a href="functions-api.md#java-native-functions">原生接口</a>)</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> java.util.Function;
 
 <span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ExclamationFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">String</span>&gt; </span>{
@@ -88,7 +88,7 @@
     <span class="hljs-function"><span class="hljs-keyword">public</span> String <span class="hljs-title">apply</span><span class="hljs-params">(String input)</span> </span>{ <span class="hljs-keyword">return</span> String.format(<span class="hljs-string">"%s!"</span>, input); }
 }
 </code></pre>
-<p>这是一个基于Python实现的类似的函数(也使用了<a href="/docs/zh-CN/2.2.0/functions-api#python-native-functions">原生接口</a>)</p>
+<p>这是一个基于Python实现的类似的函数(也使用了<a href="functions-api.md#python-native-functions">原生接口</a>)</p>
 <pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> <span class="hljs-string">"{0}!"</span>.format(input)
 </code></pre>
@@ -131,7 +131,7 @@
 <h3><a class="anchor" aria-hidden="true" id="word-count-example"></a><a href="#word-count-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Word count example</h3>
 <p>如果你使用Pulsar Functions 执行经典的字词计数示例，那么它可能看起来像这样：</p>
 <p><img src="/docs/assets/pulsar-functions-word-count.png" alt="Pulsar Functions word count example"></p>
-<p>如果你使用基于<a href="/docs/zh-CN/2.2.0/functions-api#functions-for-java">Java</a>的<a href="/docs/zh-CN/2.2.0/functions-api#java-sdk-functions">Pulsar Functions SDK for Java</a>来开发，可以写出下面的函数</p>
+<p>如果你使用基于<a href="functions-api.md#functions-for-java">Java</a>的<a href="functions-api.md#java-sdk-functions">Pulsar Functions SDK for Java</a>来开发，可以写出下面的函数</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">package</span> org.example.functions;
 
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
@@ -223,7 +223,7 @@
 </code></pre>
 <p>您还可以通过命令行工具指定一些函数属性，通过 yaml 配置一些其他的函数属性, 从而同时使用这两种配置方法。</p>
 <h2><a class="anchor" aria-hidden="true" id="supported-languages"></a><a href="#supported-languages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Supported languages</h2>
-<p>Pulsar Functions当前支持<a href="/docs/zh-CN/2.2.0/functions-api#functions-for-java">Java</a> and <a href="/docs/zh-CN/2.2.0/functions-api#functions-for-python">Python</a>两种语言. 对其他语言的支持即将推出。</p>
+<p>Pulsar Functions当前支持<a href="functions-api.md#functions-for-java">Java</a> and <a href="functions-api.md#functions-for-python">Python</a>两种语言. 对其他语言的支持即将推出。</p>
 <h2><a class="anchor" aria-hidden="true" id="the-pulsar-functions-api"></a><a href="#the-pulsar-functions-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Pulsar Functions API</h2>
 <p>使用Pulsar Functions api 您可以创建以下处理逻辑:</p>
 <ul>
@@ -251,7 +251,7 @@
 <p>支持Java和Python的原生函数，即没有依赖的Pulsar Functions</p>
 <p>原生函数的好处是除了Java/Python中现有的“开箱即用”的变量之外，它们无需其他依赖。缺点是它们不提供对函数 <a href="#function-context">上下文</a>的访问，这对于各种功能都是必要的，包括 <a href="#logging">logging</a> <a href="#user-configuration">user configuration</a>等等。</p>
 <h2><a class="anchor" aria-hidden="true" id="the-pulsar-functions-sdk"></a><a href="#the-pulsar-functions-sdk" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>The Pulsar Functions SDK</h2>
-<p>If you'd like a Pulsar Function to have access to a <a href="#function-context">context object</a>, you can use the <strong>Pulsar Functions SDK</strong>, available for both <a href="/docs/zh-CN/2.2.0/functions-api#functions-for-java">Java</a> and <a href="/docs/zh-CN/2.2.0/functions-api#functions-for-python">Pythnon</a>.</p>
+<p>If you'd like a Pulsar Function to have access to a <a href="#function-context">context object</a>, you can use the <strong>Pulsar Functions SDK</strong>, available for both <a href="functions-api.md#functions-for-java">Java</a> and <a href="functions-api.md#functions-for-python">Pythnon</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h3>
 <p>下面是一个使用有关其上下文的信息的 java 函数示例:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
@@ -354,7 +354,7 @@
   --<span class="hljs-built_in">log</span>-topic persistent://public/default/my-func-1-log \
   <span class="hljs-comment"># Other configs</span>
 </code></pre>
-<p>这个<a href="/docs/zh-CN/2.2.0/functions-api#java-logging">Java function</a>的例子记录日志使用了不同的日志级别基于函数的输入:</p>
+<p>这个<a href="functions-api.md#java-logging">Java function</a>的例子记录日志使用了不同的日志级别基于函数的输入:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">LoggerFunction</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">Function</span>&lt;<span class="hljs-title">String</span>, <span class="hljs-title">Void</span>&gt; </span>{
     <span class="hljs-meta">@Override</span>
     <span class="hljs-function"><span class="hljs-keyword">public</span> Void <span class="hljs-title">process</span><span class="hljs-params">(String input, Context context)</span> </span>{
@@ -390,7 +390,7 @@
 <blockquote>
 <p>Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. <a href="/docs/zh-CN/2.2.0/pulsar-admin#trigger"><code>pulsar-admin functions trigger</code></a>本质上是一种非常方便的机制用于向函数发送消息，而不需要使用<a href="/docs/zh-CN/2.2.0/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a>工具或指定语言的客户端库。</p>
 </blockquote>
-<p>让我我们看一个基于Python的函数示例(<a href="/docs/zh-CN/2.2.0/functions-api#python-native-functions">原生接口</a>)，它简单地反转字符串输入:</p>
+<p>让我我们看一个基于Python的函数示例(<a href="functions-api.md#python-native-functions">原生接口</a>)，它简单地反转字符串输入:</p>
 <pre><code class="hljs css language-python"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">process</span><span class="hljs-params">(input)</span>:</span>
     <span class="hljs-keyword">return</span> input[::<span class="hljs-number">-1</span>]
 </code></pre>
