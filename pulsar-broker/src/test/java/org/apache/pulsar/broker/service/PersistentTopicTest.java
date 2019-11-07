@@ -429,7 +429,7 @@ public class PersistentTopicTest {
 
         Assert.assertEquals(topic.getProducers().size(), 1);
 
-        topic.getProducers().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
+        topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
     }
 
     public void testMaxProducers() throws Exception {
