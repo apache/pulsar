@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,8 +40,6 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,10 +138,8 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public ConcurrentOpenHashSet<Producer> getProducers() {
-        ConcurrentOpenHashSet<Producer> result = new ConcurrentOpenHashSet<>(16, 1);
-        producers.values().forEach(result::add);
-        return result;
+    public Map<String, Producer> getProducers() {
+        return producers;
     }
 
 
