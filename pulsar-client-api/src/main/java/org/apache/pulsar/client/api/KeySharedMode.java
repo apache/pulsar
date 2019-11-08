@@ -16,38 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-
-public interface StickyKeyConsumerSelector {
-
-    int DEFAULT_RANGE_SIZE =  2 << 15;
-
-    /**
-     * Add a new consumer
-     * @param consumer new consumer
-     */
-    void addConsumer(Consumer consumer) throws ConsumerAssignException;
+/**
+ * KeyShared mode of KeyShared subscription.
+ */
+public enum KeySharedMode {
 
     /**
-     * Remove the consumer
-     * @param consumer consumer to be removed
+     * Auto split while new consumer connected.
      */
-    void removeConsumer(Consumer consumer);
+    AUTO_SPLIT,
 
     /**
-     * Select a consumer by sticky key
-     *
-     * @param stickyKey sticky key
-     * @return consumer
+     * New consumer with fixed hash range to attach the topic, if new consumer use conflict hash range with
+     * exits consumers, new consumer will be rejected.
      */
-    Consumer select(byte[] stickyKey);
-
-    /**
-     * Select a consumer by hash of the sticky they
-     * @param keyHash hash of sticky key
-     * @return
-     */
-    Consumer select(int keyHash);
+    STICKY
 }
