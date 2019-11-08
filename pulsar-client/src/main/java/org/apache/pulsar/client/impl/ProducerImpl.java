@@ -30,6 +30,7 @@ import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Enabled
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 
 import io.netty.buffer.ByteBuf;
@@ -1538,6 +1539,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     void grabCnx() {
         this.connectionHandler.grabCnx();
+    }
+
+    @VisibleForTesting
+    Semaphore getSemaphore() {
+        return semaphore;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);
