@@ -37,7 +37,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer1 = mock(Consumer.class);
         PulsarApi.KeySharedMeta keySharedMeta1 = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.sticky)
+                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
                 .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(0).setEnd(2).build())
                 .build();
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
@@ -54,7 +54,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
 
         Consumer consumer2 = mock(Consumer.class);
         PulsarApi.KeySharedMeta keySharedMeta2 = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.sticky)
+                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
                 .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(3).setEnd(9).build())
                 .build();
         when(consumer2.getKeySharedMeta()).thenReturn(keySharedMeta2);
@@ -88,7 +88,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer = mock(Consumer.class);
         PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.sticky)
+                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
                 .build();
         when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
         selector.addConsumer(consumer);
@@ -112,7 +112,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer1 = mock(Consumer.class);
         PulsarApi.KeySharedMeta keySharedMeta1 = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.sticky)
+                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
                 .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(2).setEnd(5).build())
                 .build();
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
@@ -134,7 +134,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         for (PulsarApi.IntRange testRange : testRanges) {
             Consumer consumer = mock(Consumer.class);
             PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
-                    .setKeySharedMode(PulsarApi.KeySharedMode.sticky)
+                    .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
                     .addHashRanges(testRange)
                     .build();
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
@@ -153,7 +153,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer1 = mock(Consumer.class);
         PulsarApi.KeySharedMeta keySharedMeta1 = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.sticky)
+                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
                 .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(2).setEnd(5).build())
                 .build();
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
@@ -175,7 +175,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         for (List<PulsarApi.IntRange> testRange : testRanges) {
             Consumer consumer = mock(Consumer.class);
             PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
-                    .setKeySharedMode(PulsarApi.KeySharedMode.sticky)
+                    .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
                     .addAllHashRanges(testRange)
                     .build();
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
