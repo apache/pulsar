@@ -952,7 +952,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             rePopulate = null;
             sequenceId = -1;
             createdAt = -1;
-            numMessagesInBatch = 1;
             recyclerHandle.recycle(this);
         }
 
@@ -1267,7 +1266,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      */
     private void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
         if (cnx == null) {
+            final AtomicInteger releaseCount = new AtomicInteger();
+            final boolean batchMessagingEnabled = isBatchMessagingEnabled();
             pendingMessages.forEach(op -> {
+                releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch: 1);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
                     // application
@@ -1282,12 +1284,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             pendingMessages.clear();
             pendingCallbacks.clear();
-            if (isBatchMessagingEnabled()) {
+            semaphore.release(releaseCount.get());
+            if (batchMessagingEnabled) {
                 failPendingBatchMessages(ex);
             }
 
-            semaphore.drainPermits();
-            semaphore.release(conf.getMaxPendingMessages());
         } else {
             // If we have a connection, we schedule the callback and recycle on the event loop thread to avoid any
             // race condition since we also write the message on the socket from this thread
@@ -1307,7 +1308,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (batchMessageContainer.isEmpty()) {
             return;
         }
+        final int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
         batchMessageContainer.discard(ex);
+        semaphore.release(numMessagesInBatch);
     }
 
     TimerTask batchMessageAndSendTask = new TimerTask() {
