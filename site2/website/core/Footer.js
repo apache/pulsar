@@ -124,7 +124,7 @@ class Footer extends React.Component {
     const teamUrl = this.pageUrl('team', this.props.language)
     const poweredByUrl = this.pageUrl('powered-by', this.props.language)
     const contributingUrl = this.pageUrl('contributing', this.props.language)
-    const codingUrl = this.pageUrl('coding', this.props.language)
+    const codingUrl = this.pageUrl('coding-guide', this.props.language)
 
     const communityMenuJs = `
       const community = document.querySelector("a[href='#community']").parentNode;

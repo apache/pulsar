@@ -11,7 +11,7 @@ const siteConfig = require(`${CWD}/siteConfig.js`);
 
 const codingGuide = require('fs').readFileSync(`${CWD}/coding-guide.md`, 'utf8')
 
-class Contributing extends React.Component {
+class Coding extends React.Component {
   render() {
 
     return (
