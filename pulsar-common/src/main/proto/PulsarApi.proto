@@ -256,8 +256,8 @@ message AuthData {
 }
 
 enum KeySharedMode {
-    autoSplit = 0;
-    sticky = 1;
+    AUTO_SPLIT = 0;
+    STICKY = 1;
 }
 
 message KeySharedMeta {

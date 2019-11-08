@@ -213,11 +213,11 @@ public class PersistentSubscription implements Subscription {
                     previousDispatcher = dispatcher;
                     if (consumer.getKeySharedMeta() != null) {
                         switch (consumer.getKeySharedMeta().getKeySharedMode()) {
-                            case sticky:
+                            case STICKY:
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                         new HashRangeExclusiveStickyKeyConsumerSelector());
                                 break;
-                            case autoSplit:
+                            case AUTO_SPLIT:
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                         new HashRangeAutoSplitStickyKeyConsumerSelector());
                                 break;

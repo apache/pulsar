@@ -282,20 +282,20 @@ public final class PulsarApi {
   
   public enum KeySharedMode
       implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
-    autoSplit(0, 0),
-    sticky(1, 1),
+    AUTO_SPLIT(0, 0),
+    STICKY(1, 1),
     ;
     
-    public static final int autoSplit_VALUE = 0;
-    public static final int sticky_VALUE = 1;
+    public static final int AUTO_SPLIT_VALUE = 0;
+    public static final int STICKY_VALUE = 1;
     
     
     public final int getNumber() { return value; }
     
     public static KeySharedMode valueOf(int value) {
       switch (value) {
-        case 0: return autoSplit;
-        case 1: return sticky;
+        case 0: return AUTO_SPLIT;
+        case 1: return STICKY;
         default: return null;
       }
     }
@@ -9261,7 +9261,7 @@ public final class PulsarApi {
     }
     
     private void initFields() {
-      keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.autoSplit;
+      keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.AUTO_SPLIT;
       hashRanges_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
@@ -9426,7 +9426,7 @@ public final class PulsarApi {
       
       public Builder clear() {
         super.clear();
-        keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.autoSplit;
+        keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.AUTO_SPLIT;
         bitField0_ = (bitField0_ & ~0x00000001);
         hashRanges_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000002);
@@ -9552,7 +9552,7 @@ public final class PulsarApi {
       private int bitField0_;
       
       // required .pulsar.proto.KeySharedMode keySharedMode = 1;
-      private org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.autoSplit;
+      private org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.AUTO_SPLIT;
       public boolean hasKeySharedMode() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
       }
@@ -9570,7 +9570,7 @@ public final class PulsarApi {
       }
       public Builder clearKeySharedMode() {
         bitField0_ = (bitField0_ & ~0x00000001);
-        keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.autoSplit;
+        keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.AUTO_SPLIT;
         
         return this;
       }
