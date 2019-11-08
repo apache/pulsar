@@ -258,16 +258,59 @@ public abstract class AbstractTopic implements Topic {
      @Override
     public void resetPublishCountAndEnableReadIfRequired() {
         if (this.publishRateLimiter.resetPublishCount()) {
-            enableProduerRead();
+            enableProducerRead();
         }
     }
 
      /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
-    protected void enableProduerRead() {
+    protected void enableProducerRead() {
         if (producers != null) {
             producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
+        }
+    }
+
+    protected void checkTopicFenced() throws BrokerServiceException {
+        if (isFenced) {
+            log.warn("[{}] Attempting to add producer to a fenced topic", topic);
+            throw new BrokerServiceException.TopicFencedException("Topic is temporarily unavailable");
+        }
+    }
+
+    protected void internalAddProducer(Producer producer) throws BrokerServiceException {
+        if (isProducersExceeded()) {
+            log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
+            throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
+        }
+
+        Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
+        if (existProducer != null) {
+            tryOverwriteOldProducer(existProducer, producer);
+        }
+    }
+
+    private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
+            throws BrokerServiceException {
+        boolean canOverwrite = false;
+        if (oldProducer.equals(newProducer) && !oldProducer.isUserProvidedProducerName()
+                && !newProducer.isUserProvidedProducerName() && newProducer.getEpoch() > oldProducer.getEpoch()) {
+            oldProducer.close();
+            canOverwrite = true;
+        }
+        if (canOverwrite) {
+            if(!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
+                // Met concurrent update, throw exception here so that client can try reconnect later.
+                throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
+                        + "' replace concurrency error");
+            }
+        } else {
+            throw new BrokerServiceException.NamingException(
+                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
         }
     }
 
@@ -304,7 +347,7 @@ public abstract class AbstractTopic implements Topic {
         } else {
             log.info("Disabling publish throttling for {}", this.topic);
             this.publishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-            enableProduerRead();
+            enableProducerRead();
         }
     }
 

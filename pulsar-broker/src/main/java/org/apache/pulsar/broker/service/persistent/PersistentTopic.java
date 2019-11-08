@@ -405,46 +405,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         try {
             brokerService.checkTopicNsOwnership(getName());
 
-            if (isFenced) {
-                log.warn("[{}] Attempting to add producer to a fenced topic", topic);
-                throw new TopicFencedException("Topic is temporarily unavailable");
-            }
+            checkTopicFenced();
 
             if (ledger.isTerminated()) {
                 log.warn("[{}] Attempting to add producer to a terminated topic", topic);
                 throw new TopicTerminatedException("Topic was already terminated");
             }
 
-            if (isProducersExceeded()) {
-                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
-                throw new ProducerBusyException("Topic reached max producers limit");
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
-            }
-
-            Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
-            if (existProducer != null) {
-                boolean canOverwrite = false;
-                if (existProducer.equals(producer) && !existProducer.isUserProvidedProducerName()
-                        && !producer.isUserProvidedProducerName() && producer.getEpoch() > existProducer.getEpoch()) {
-                    existProducer.close();
-                    canOverwrite = true;
-                }
-                if (canOverwrite) {
-                    producers.put(producer.getProducerName(), producer);
-                } else {
-                    throw new NamingException(
-                            "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
-                }
-            }
+            internalAddProducer(producer);
 
             USAGE_COUNT_UPDATER.incrementAndGet(this);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(), USAGE_COUNT_UPDATER.get(this));
             }
-
             messageDeduplication.producerAdded(producer.getProducerName());
 
             // Start replication producers if not already
