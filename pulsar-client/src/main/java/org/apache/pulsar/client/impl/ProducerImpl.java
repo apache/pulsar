@@ -795,7 +795,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     log.debug("[{}] [{}] Received ack for msg {} ", topic, producerName, sequenceId);
                 }
                 pendingMessages.remove();
-                semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
+                releaseSemaphoreForSendOp(op);
                 callback = true;
                 pendingCallbacks.add(op);
             }
@@ -817,6 +817,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.recycle();
             }
         }
+    }
+
+    private void releaseSemaphoreForSendOp(OpSendMsg op) {
+        semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
     }
 
     /**
@@ -845,7 +849,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 if (corrupted) {
                     // remove message from pendingMessages queue and fail callback
                     pendingMessages.remove();
-                    semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
+                    releaseSemaphoreForSendOp(op);
                     try {
                         op.callback.sendComplete(
                                 new PulsarClientException.ChecksumException("Checksum failed on corrupt message"));
@@ -1413,12 +1417,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
+            releaseSemaphoreForSendOp(op);
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException(ie));
             }
         } catch (Throwable t) {
-            semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
+            releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException(t));
