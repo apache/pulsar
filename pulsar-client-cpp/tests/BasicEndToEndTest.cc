@@ -27,6 +27,7 @@
 #include <mutex>
 #include <lib/TopicName.h>
 #include "PulsarFriend.h"
+#include "lib/TimeUtils.h"
 #include "HttpHelper.h"
 #include <set>
 #include <vector>
@@ -2095,7 +2096,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     std::string topicName2 = "persistent://public/default/patternTopicsAutoConsumerPubSub2";
     std::string topicName3 = "persistent://public/default/patternTopicsAutoConsumerPubSub3";
     // This will not match pattern
-    std::string topicName4 = "persistent://public/default/patternMultiTopicsNotMatchPubSub4";
+    std::string topicName4 = "persistent://public/default/notMatchPatternTopicsAutoConsumerPubSub4";
 
     // call admin api to make topics partitioned
     std::string url1 =
@@ -2105,7 +2106,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     std::string url3 =
         adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub3/partitions";
     std::string url4 =
-        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsNotMatchPubSub4/partitions";
+        adminUrl + "admin/v2/persistent/public/default/notMatchPatternTopicsAutoConsumerPubSub4/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -3045,6 +3046,36 @@ TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
     res = consumer2.receive(msg, 100);
     ASSERT_EQ(ResultTimeout, res);
     client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testDelayedMessages) {
+    std::string topicName = "testDelayedMessages-" + std::to_string(TimeUtils::currentTimeMillis());
+    Client client(lookupUrl);
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+    result = client.subscribe(topicName, "my-sub-name", consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message msg1 =
+        MessageBuilder().setContent("msg-1").setDeliverAfter(std::chrono::milliseconds(5000)).build();
+    ASSERT_EQ(ResultOk, producer.send(msg1));
+
+    // 2nd message without delay
+    Message msg2 = MessageBuilder().setContent("msg-2").build();
+    ASSERT_EQ(ResultOk, producer.send(msg2));
+
+    Message msgReceived;
+    result = consumer.receive(msgReceived);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ("msg-2", msgReceived.getDataAsString());
+
+    ASSERT_EQ(ResultOk, client.close());
 }
 
 TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {

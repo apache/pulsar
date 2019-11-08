@@ -268,7 +268,6 @@ public class SchemaTest extends PulsarTestSuite {
         List<Schema> schemas = new ArrayList<>();
 
         schemas.add(Schema.STRING);
-        schemas.add(Schema.BYTES);
         schemas.add(Schema.INT8);
         schemas.add(Schema.INT16);
         schemas.add(Schema.INT32);
@@ -279,35 +278,19 @@ public class SchemaTest extends PulsarTestSuite {
         schemas.add(Schema.DATE);
         schemas.add(Schema.TIME);
         schemas.add(Schema.TIMESTAMP);
-        schemas.add(null);
 
-
-        schemas.stream().forEach(schemaProducer -> {
-            schemas.stream().forEach(schemaConsumer -> {
+        schemas.forEach(schemaProducer -> {
+            schemas.forEach(schemaConsumer -> {
                 try {
                     String topicName = schemaProducer.getSchemaInfo().getName() + schemaConsumer.getSchemaInfo().getName();
-                    if (schemaProducer == null) {
-                        client.newProducer()
-                                .topic(topicName)
-                                .create().close();
-                    } else {
                         client.newProducer(schemaProducer)
                                 .topic(topicName)
                                 .create().close();
-                    }
 
-                    if (schemaConsumer == null) {
-                        client.newConsumer()
-                                .topic(topicName)
-                                .subscriptionName("test")
-                                .subscribe().close();
-                    } else {
                         client.newConsumer(schemaConsumer)
                                 .topic(topicName)
                                 .subscriptionName("test")
                                 .subscribe().close();
-                    }
-
                     assertEquals(schemaProducer.getSchemaInfo().getType(),
                             schemaConsumer.getSchemaInfo().getType());
 

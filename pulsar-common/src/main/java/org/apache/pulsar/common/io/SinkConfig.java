@@ -29,6 +29,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -51,6 +52,7 @@ public class SinkConfig {
     private String name;
     private String className;
     private String sourceSubscriptionName;
+    private SubscriptionInitialPosition sourceSubscriptionPosition;
 
     private Collection<String> inputs;
 

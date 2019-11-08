@@ -19,30 +19,26 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import com.carrotsearch.hppc.ObjectObjectHashMap;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.function.BiFunction;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -90,7 +86,6 @@ import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
@@ -127,6 +122,15 @@ import org.apache.pulsar.utils.StatsOutputStream;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCallback {
 
@@ -238,8 +242,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             this.isEncryptionRequired = policies.encryption_required;
 
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                    policies.schema_auto_update_compatibility_strategy);
+            setSchemaCompatibilityStrategy(policies);
+            isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
 
             schemaValidationEnforced = policies.schema_validation_enforced;
         } catch (Exception e) {
@@ -1683,11 +1687,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         isEncryptionRequired = data.encryption_required;
 
-        schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                data.schema_auto_update_compatibility_strategy);
+        setSchemaCompatibilityStrategy(data);
+        isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
         schemaValidationEnforced = data.schema_validation_enforced;
-
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
         
@@ -1935,7 +1938,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return OffloadProcessStatus.forSuccess(currentOffload.join());
                 }
             } catch (CancellationException | CompletionException e) {
-                log.warn("Failed to offload: {}", e.getCause());
+                log.warn("Failed to offload", e.getCause());
                 return OffloadProcessStatus.forError(e.getMessage());
             }
         }
@@ -1944,13 +1947,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
-    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
             .thenCompose((hasSchema) -> {
                     if (hasSchema || isActive() || ledger.getTotalSize() != 0) {
-                        return isSchemaCompatible(schema);
+                        return checkSchemaCompatibleForConsumer(schema);
                     } else {
-                        return addSchema(schema).thenApply((ignore) -> true);
+                        return addSchema(schema).thenCompose(schemaVersion ->
+                                CompletableFuture.completedFuture(null));
                     }
                 });
     }

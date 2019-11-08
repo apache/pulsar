@@ -139,14 +139,12 @@ public class FunctionActioner {
             functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
             runtimeSpawner.start();
-            return;
         } catch (Exception ex) {
             FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
                     .getFunctionMetaData().getFunctionDetails();
             log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
                     details.getName(), ex);
             functionRuntimeInfo.setStartupException(ex);
-            return;
         }
     }
 

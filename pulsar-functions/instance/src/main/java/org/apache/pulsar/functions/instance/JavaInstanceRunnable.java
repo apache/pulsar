@@ -48,10 +48,12 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.protocol.schema.LatestVersion;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
@@ -293,7 +295,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (stats != null) {
                 stats.incrSysExceptions(t);
             }
-            return;
         } finally {
             log.info("Closing instance");
             close();
@@ -678,6 +679,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             pulsarSourceConfig.setProcessingGuarantees(
                     FunctionConfig.ProcessingGuarantees.valueOf(
                             this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
+
+            switch (sourceSpec.getSubscriptionPosition()) {
+                case EARLIEST:
+                    pulsarSourceConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+                    break;
+                default:
+                    pulsarSourceConfig.setSubscriptionPosition(SubscriptionInitialPosition.Latest);
+                    break;
+            }
 
             switch (sourceSpec.getSubscriptionType()) {
                 case FAILOVER:

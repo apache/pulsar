@@ -31,9 +31,7 @@ By default, when a Pulsar message arrives at a broker it will be stored until it
 
 Retention policies are particularly useful if you intend to exclusively use the Reader interface. Because the Reader interface does not use acknowledgements, messages will never exist within backlogs. Most realistic Reader-only use cases require that retention be configured.
 
-When you set a size limit of, say, 10 gigabytes, then messages in all topics in the namespace, *even acknowledged messages*, will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then messages for all topics in the namespace will be retained for 24 hours.
-
-TODO: Confirm this behavior?
+When you set a size limit of, say, 10 gigabytes, then acknowledged messages in all topics in the namespace will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then acknowledged messages for all topics in the namespace will be retained for 24 hours. The retention settings apply to all messages on topics that do not have any subscriptions, or if there are subscriptions, to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions -- these are instead controlled by the backlog quota (see below).
 
 When a retention limit is exceeded, the oldest message is marked for deletion until the set of retained messages falls within the specified limits again.
 

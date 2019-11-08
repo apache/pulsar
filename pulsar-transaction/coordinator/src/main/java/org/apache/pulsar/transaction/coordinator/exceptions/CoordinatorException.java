@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.transaction.coordinator.exceptions;
 
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+
 /**
  * The base exception for exceptions thrown from coordinator.
  */
@@ -34,5 +36,27 @@ public abstract class CoordinatorException extends Exception {
 
     public CoordinatorException(Throwable cause) {
         super(cause);
+    }
+
+    /**
+     * Transaction coordinator not found exception.
+     */
+    public static class NotFoundException extends CoordinatorException {
+
+        public NotFoundException(TransactionCoordinatorID tcId) {
+            super(String.format("Transaction coordinator with id %s not found!", tcId.getId()));
+        }
+
+        public NotFoundException(String message) {
+            super(message);
+        }
+
+        public NotFoundException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public NotFoundException(Throwable cause) {
+            super(cause);
+        }
     }
 }

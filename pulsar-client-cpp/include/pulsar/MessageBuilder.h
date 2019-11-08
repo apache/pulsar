@@ -19,6 +19,7 @@
 #ifndef MESSAGE_BUILDER_H
 #define MESSAGE_BUILDER_H
 
+#include <chrono>
 #include <vector>
 #include <pulsar/defines.h>
 #include "Message.h"
@@ -73,6 +74,21 @@ class PULSAR_PUBLIC MessageBuilder {
      * @param the ordering key for the message
      */
     MessageBuilder& setOrderingKey(const std::string& orderingKey);
+
+    /**
+     * Specify a delay for the delivery of the messages.
+     *
+     * @param delay the delay in milliseconds
+     */
+    MessageBuilder& setDeliverAfter(const std::chrono::milliseconds delay);
+
+    /**
+     * Specify the this message should not be delivered earlier than the
+     * specified timestamp.
+     *
+     * @param deliveryTimestamp UTC based timestamp in milliseconds
+     */
+    MessageBuilder& setDeliverAt(uint64_t deliveryTimestamp);
 
     /**
      * Set the event timestamp for the message.

@@ -42,6 +42,7 @@ import org.apache.zookeeper.ZooKeeper;
 
 public class NoopLoadManager implements LoadManager {
 
+    private PulsarService pulsar;
     private String lookupServiceAddress;
     private ResourceUnit localResourceUnit;
     private ZooKeeper zkClient;
@@ -54,6 +55,11 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public void initialize(PulsarService pulsar) {
+        this.pulsar = pulsar;
+    }
+
+    @Override
+    public void start() throws PulsarServerException {
         lookupServiceAddress = pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get();
         localResourceUnit = new SimpleResourceUnit(String.format("http://%s", lookupServiceAddress),
                 new PulsarResourceDescription());
@@ -62,10 +68,6 @@ public class NoopLoadManager implements LoadManager {
         localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         localData.setProtocols(pulsar.getProtocolDataToAdvertise());
-    }
-
-    @Override
-    public void start() throws PulsarServerException {
         String brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
 
         try {

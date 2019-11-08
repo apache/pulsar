@@ -31,8 +31,8 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.apache.pulsar.client.impl.schema.SchemaHash;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
@@ -41,12 +41,12 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected final CompletableFuture<Producer<T>> producerCreatedFuture;
     protected final ProducerConfigurationData conf;
     protected final Schema<T> schema;
-    protected final ProducerInterceptors<T> interceptors;
+    protected final ProducerInterceptors interceptors;
     protected final ConcurrentOpenHashMap<SchemaHash, byte[]> schemaCache;
     protected volatile MultiSchemaMode multiSchemaMode = MultiSchemaMode.Auto;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors<T> interceptors) {
+            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors interceptors) {
         super(client, topic);
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
@@ -72,7 +72,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
+    public CompletableFuture<MessageId> sendAsync(Message<?> message) {
         return internalSendAsync(message);
     }
 
@@ -81,10 +81,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return new TypedMessageBuilderImpl<>(this, schema);
     }
 
-    // TODO: same parameterized type `T` with producer for the moment,
-    //       it should provide a signature with different parameterized type.
-    //       then expose it to `Producer` interface.
-    public TypedMessageBuilder<T> newMessage(Schema<T> schema) {
+    public <V> TypedMessageBuilder<V> newMessage(Schema<V> schema) {
         checkArgument(schema != null);
         return new TypedMessageBuilderImpl<>(this, schema);
     }
@@ -103,9 +100,9 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
     }
 
-    abstract CompletableFuture<MessageId> internalSendAsync(Message<T> message);
+    abstract CompletableFuture<MessageId> internalSendAsync(Message<?> message);
 
-    public MessageId send(Message<T> message) throws PulsarClientException {
+    public MessageId send(Message<?> message) throws PulsarClientException {
         try {
             // enqueue the message to the buffer
             CompletableFuture<MessageId> sendFuture = internalSendAsync(message);
@@ -157,7 +154,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return producerCreatedFuture;
     }
 
-    protected Message<T> beforeSend(Message<T> message) {
+    protected Message<?> beforeSend(Message<?> message) {
         if (interceptors != null) {
             return interceptors.beforeSend(this, message);
         } else {
@@ -165,7 +162,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    protected void onSendAcknowledgement(Message<T> message, MessageId msgId, Throwable exception) {
+    protected void onSendAcknowledgement(Message<?> message, MessageId msgId, Throwable exception) {
         if (interceptors != null) {
             interceptors.onSendAcknowledgement(this, message, msgId, exception);
         }

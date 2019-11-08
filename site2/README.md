@@ -35,6 +35,25 @@ cd pulsar/site2/website
 yarn test
 ```
 
+### Check
+
+Before submitting a pull request, run the following command to make sure no broken links exist.
+
+```
+cd pulsar/site2/website
+yarn build
+```
+
+If warning messages are shown as below, it means broken links exist.
+
+```
+[WARN] unresolved links in file 'version-2.4.1/getting-started-standalone.md' > [ 'security-overview.md' ]
+
+[WARN] unresolved links in file 'version-2.4.0/io-managing.md' > [ 'functions-overview.md' ]
+```
+
+Fix the broken links manually and then send a pull request.
+
 ## Documentation
 Pulsar documents are written in English. Documentation related pages are placed in the `/site2/docs` directory. All documentation pages are versioned. For more details, refer to [versioning](#versioning).
 
