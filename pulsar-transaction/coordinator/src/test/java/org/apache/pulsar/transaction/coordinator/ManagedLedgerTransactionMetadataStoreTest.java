@@ -103,9 +103,8 @@ public class ManagedLedgerTransactionMetadataStoreTest extends BookKeeperCluster
         transactionMetadataStore.addAckedSubscriptionToTxn(txnID1, subscriptions).get();
         transactionMetadataStore.addAckedSubscriptionToTxn(txnID2, subscriptions).get();
         List<TxnSubscription> subscriptions1 = new ArrayList<>();
-        TxnSubscription txnSubscription = new TxnSubscription("topic3", "sub3");
-        subscriptions1.add(txnSubscription);
-        subscriptions1.add(txnSubscription);
+        subscriptions1.add(new TxnSubscription("topic3", "sub3"));
+        subscriptions1.add(new TxnSubscription("topic3", "sub3"));
         transactionMetadataStore.addAckedSubscriptionToTxn(txnID1, subscriptions1).get();
         transactionMetadataStore.addAckedSubscriptionToTxn(txnID2, subscriptions1).get();
 

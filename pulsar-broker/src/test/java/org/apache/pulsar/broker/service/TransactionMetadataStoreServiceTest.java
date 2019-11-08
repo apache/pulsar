@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertEquals;
 
 public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
@@ -54,10 +53,10 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         Assert.assertNotNull(transactionMetadataStoreService);
 
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
-        assertEquals(transactionMetadataStoreService.getStores().size(), 1);
+        Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 1);
 
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0));
-        assertEquals(transactionMetadataStoreService.getStores().size(), 0);
+        Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
 
     @Test
@@ -66,24 +65,24 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(1));
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(2));
-        assertEquals(transactionMetadataStoreService.getStores().size(), 3);
+        Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 3);
         TxnID txnID0 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
         TxnID txnID1 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(1)).get();
         TxnID txnID2 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(2)).get();
-        assertEquals(0, txnID0.getMostSigBits());
-        assertEquals(1, txnID1.getMostSigBits());
-        assertEquals(2, txnID2.getMostSigBits());
+        Assert.assertEquals(0, txnID0.getMostSigBits());
+        Assert.assertEquals(1, txnID1.getMostSigBits());
+        Assert.assertEquals(2, txnID2.getMostSigBits());
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0));
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(1));
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(2));
-        assertEquals(transactionMetadataStoreService.getStores().size(), 0);
+        Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
 
     @Test
     public void testAddProducedPartitionToTxn() throws ExecutionException, InterruptedException {
         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
-        assertEquals(transactionMetadataStoreService.getStores().size(), 1);
+        Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 1);
         TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
         List<String> partitions = new ArrayList<>();
         partitions.add("ptn-0");
@@ -91,16 +90,16 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         partitions.add("ptn-2");
         transactionMetadataStoreService.addProducedPartitionToTxn(txnID, partitions);
         TxnMeta txn = transactionMetadataStoreService.getTxnMeta(txnID).get();
-        assertEquals(txn.status(), TxnStatus.OPEN);
+        Assert.assertEquals(txn.status(), TxnStatus.OPEN);
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0));
-        assertEquals(transactionMetadataStoreService.getStores().size(), 0);
+        Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
 
     @Test
     public void testAddAckedPartitionToTxn() throws ExecutionException, InterruptedException {
         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
-        assertEquals(transactionMetadataStoreService.getStores().size(), 1);
+        Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 1);
         TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
         List<String> partitions = new ArrayList<>();
         partitions.add("ptn-0");
@@ -108,8 +107,8 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         partitions.add("ptn-2");
         transactionMetadataStoreService.addAckedPartitionToTxn(txnID, partitions);
         TxnMeta txn = transactionMetadataStoreService.getTxnMeta(txnID).get();
-        assertEquals(txn.status(), TxnStatus.OPEN);
+        Assert.assertEquals(txn.status(), TxnStatus.OPEN);
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0));
-        assertEquals(transactionMetadataStoreService.getStores().size(), 0);
+        Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
 }
