@@ -271,7 +271,7 @@ func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
 func (gi *goInstance) setupLogHandler() error {
 	if gi.context.instanceConf.funcDetails.GetLogTopic() != "" {
 		gi.context.logAppender = NewLogAppender(
-			gi.client,                                         //pulsar client
+			gi.client, //pulsar client
 			gi.context.instanceConf.funcDetails.GetLogTopic(), //log topic
 			getDefaultSubscriptionName(gi.context.instanceConf.funcDetails.Tenant, //fqn
 				gi.context.instanceConf.funcDetails.Namespace,
@@ -283,6 +283,11 @@ func (gi *goInstance) setupLogHandler() error {
 }
 
 func (gi *goInstance) addLogTopicHandler() {
+	// Clear StrEntry regardless gi.context.logAppender is set or not
+	defer func() {
+		log.StrEntry = nil
+	}()
+
 	if gi.context.logAppender == nil {
 		log.Error("the logAppender is nil, if you want to use it, please specify `--log-topic` at startup.")
 		return
