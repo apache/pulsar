@@ -299,7 +299,7 @@ public abstract class AbstractTopic implements Topic {
         boolean canOverwrite = false;
         if (oldProducer.equals(newProducer) && !oldProducer.isUserProvidedProducerName()
                 && !newProducer.isUserProvidedProducerName() && newProducer.getEpoch() > oldProducer.getEpoch()) {
-            oldProducer.close();
+            oldProducer.close(false);
             canOverwrite = true;
         }
         if (canOverwrite) {
@@ -307,12 +307,16 @@ public abstract class AbstractTopic implements Topic {
                 // Met concurrent update, throw exception here so that client can try reconnect later.
                 throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
                         + "' replace concurrency error");
+            } else {
+                handleProducerRemoved(oldProducer);
             }
         } else {
             throw new BrokerServiceException.NamingException(
                     "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
         }
     }
+
+    protected abstract void handleProducerRemoved(Producer producer);
 
      @Override
     public boolean isPublishRateExceeded() {

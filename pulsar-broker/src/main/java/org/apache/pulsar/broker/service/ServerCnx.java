@@ -183,7 +183,7 @@ public class ServerCnx extends PulsarHandler {
         producers.values().forEach((producerFuture) -> {
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
                 Producer producer = producerFuture.getNow(null);
-                producer.closeNow();
+                producer.closeNow(true);
             }
         });
 
@@ -954,12 +954,12 @@ public class ServerCnx extends PulsarHandler {
                                         } else {
                                             // The producer's future was completed before by
                                             // a close command
-                                            producer.closeNow();
+                                            producer.closeNow(true);
                                             log.info("[{}] Cleared producer created after timeout on client side {}",
                                                 remoteAddress, producer);
                                         }
                                     } else {
-                                        producer.closeNow();
+                                        producer.closeNow(true);
                                         log.info("[{}] Cleared producer created after connection was closed: {}",
                                             remoteAddress, producer);
                                         producerFuture.completeExceptionally(
@@ -1216,7 +1216,7 @@ public class ServerCnx extends PulsarHandler {
         Producer producer = producerFuture.getNow(null);
         log.info("[{}][{}] Closing producer on cnx {}", producer.getTopic(), producer.getProducerName(), remoteAddress);
 
-        producer.close().thenAccept(v -> {
+        producer.close(true).thenAccept(v -> {
             log.info("[{}][{}] Closed producer on cnx {}", producer.getTopic(), producer.getProducerName(),
                     remoteAddress);
             ctx.writeAndFlush(Commands.newSuccess(requestId));

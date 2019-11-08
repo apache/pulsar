@@ -221,7 +221,7 @@ public class Producer {
         if (newPendingPublishAcks == 0 && !closeFuture.isDone()) {
             synchronized (this) {
                 if (isClosed && !closeFuture.isDone()) {
-                    closeNow();
+                    closeNow(true);
                 }
             }
         }
@@ -410,7 +410,7 @@ public class Producer {
      *
      * @return completable future indicate completion of close
      */
-    public synchronized CompletableFuture<Void> close() {
+    public synchronized CompletableFuture<Void> close(boolean removeFromTopic) {
         if (log.isDebugEnabled()) {
             log.debug("Closing producer {} -- isClosed={}", this, isClosed);
         }
@@ -422,14 +422,16 @@ public class Producer {
                         cnx.isActive(), pendingPublishAcks);
             }
             if (!cnx.isActive() || pendingPublishAcks == 0) {
-                closeNow();
+                closeNow(removeFromTopic);
             }
         }
         return closeFuture;
     }
 
-    void closeNow() {
-        topic.removeProducer(this);
+    void closeNow(boolean removeFromTopic) {
+        if (removeFromTopic) {
+            topic.removeProducer(this);
+        }
         cnx.removedProducer(this);
 
         if (log.isDebugEnabled()) {
@@ -449,7 +451,7 @@ public class Producer {
             log.info("Disconnecting producer: {}", this);
             cnx.ctx().executor().execute(() -> {
                 cnx.closeProducer(this);
-                closeNow();
+                closeNow(true);
             });
         }
         return closeFuture;
