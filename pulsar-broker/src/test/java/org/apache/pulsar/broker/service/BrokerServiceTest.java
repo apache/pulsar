@@ -912,8 +912,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Test
     public void testStuckTopicUnloading() throws Exception {
         final String namespace = "prop/ns-abc";
-        final String topicName = "persistent://" + namespace + "/successTopic";
-        final String topicMlName = namespace + "/persistent/successTopic";
+        final String topicName = "persistent://" + namespace + "/unoadTopic";
+        final String topicMlName = namespace + "/persistent/unoadTopic";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
                 .subscribe();
         consumer.close();
