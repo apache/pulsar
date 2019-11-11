@@ -301,6 +301,14 @@ class PULSAR_PUBLIC Consumer {
     Result seek(const MessageId& msgId);
 
     /**
+     * Reset the subscription associated with this consumer to a specific message publish time.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     */
+    Result seek(uint64_t timestamp);
+
+    /**
      * Asynchronously reset the subscription associated with this consumer to a specific message id.
      * The message id can either be a specific message or represent the first or last messages in the topic.
      *
@@ -311,6 +319,14 @@ class PULSAR_PUBLIC Consumer {
      *            the message id where to reposition the subscription
      */
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+
+    /**
+     * Asynchronously reset the subscription associated with this consumer to a specific message publish time.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     */
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
 
    private:
     ConsumerImplBasePtr impl_;

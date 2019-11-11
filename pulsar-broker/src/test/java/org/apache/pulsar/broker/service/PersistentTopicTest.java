@@ -54,6 +54,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -66,6 +67,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -73,6 +75,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -139,10 +142,14 @@ public class PersistentTopicTest {
     final String successSubName3 = "successSub3";
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
+    private OrderedExecutor executor;
+
     @BeforeMethod
     public void setup() throws Exception {
+        executor = OrderedExecutor.newBuilder().numThreads(1).build();
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
+        pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
 
@@ -151,7 +158,7 @@ public class PersistentTopicTest {
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
-        doReturn(createMockBookKeeper(mockZk, pulsar.getOrderedExecutor().chooseThread(0)))
+        doReturn(createMockBookKeeper(mockZk, ForkJoinPool.commonPool()))
             .when(pulsar).getBookKeeperClient();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);
@@ -170,6 +177,7 @@ public class PersistentTopicTest {
         doReturn(zkDataCache).when(zkCache).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
+        doReturn(executor).when(pulsar).getOrderedExecutor();
 
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -197,6 +205,8 @@ public class PersistentTopicTest {
             log.warn("Failed to close pulsar service", e);
             throw e;
         }
+
+        executor.shutdownNow();
     }
 
     @Test
@@ -432,7 +442,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false);
+                0 /*avoid reseting cursor*/, false, null);
         try {
             f1.get();
             fail("should fail with exception");
@@ -452,14 +462,13 @@ public class PersistentTopicTest {
         // 1. simple subscribe
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false);
+                0 /*avoid reseting cursor*/,false, null);
         f1.get();
 
         // 2. duplicate subscribe
         Future<Consumer> f2 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false);
-
+                0 /*avoid reseting cursor*/,false, null);
         try {
             f2.get();
             fail("should fail with exception");
@@ -481,7 +490,7 @@ public class PersistentTopicTest {
         PersistentSubscription sub = new PersistentSubscription(topic, "change-sub-type", cursorMock, false);
 
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
-                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest);
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null);
         sub.addConsumer(consumer);
         consumer.close();
 
@@ -491,7 +500,7 @@ public class PersistentTopicTest {
             Dispatcher previousDispatcher = sub.getDispatcher();
 
             consumer = new Consumer(sub, subType, topic.getName(), 1, 0, "Cons1", 50000, serverCnx, "myrole-1",
-                    Collections.emptyMap(), false, InitialPosition.Latest);
+                    Collections.emptyMap(), false, InitialPosition.Latest, null);
             sub.addConsumer(consumer);
 
             assertTrue(sub.getDispatcher().isConsumerConnected());
@@ -514,7 +523,7 @@ public class PersistentTopicTest {
 
         // 1. simple add consumer
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
-                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest);
+                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
         sub.addConsumer(consumer);
         assertTrue(sub.getDispatcher().isConsumerConnected());
 
@@ -547,7 +556,7 @@ public class PersistentTopicTest {
         PersistentSubscription sub = new PersistentSubscription(topic, "non-durable-sub", cursorMock, false);
 
         Consumer consumer = new Consumer(sub, SubType.Exclusive, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
-                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest);
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, null);
 
         sub.addConsumer(consumer);
         assertFalse(sub.getDispatcher().isClosed());
@@ -579,14 +588,14 @@ public class PersistentTopicTest {
         // 1. add consumer1
         Consumer consumer = new Consumer(sub, SubType.Shared, topic.getName(), 1 /* consumer id */, 0,
                 "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest);
+                false /* read compacted */, InitialPosition.Latest, null);
         sub.addConsumer(consumer);
         assertEquals(sub.getConsumers().size(), 1);
 
         // 2. add consumer2
         Consumer consumer2 = new Consumer(sub, SubType.Shared, topic.getName(), 2 /* consumer id */, 0,
                 "Cons2"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest);
+                false /* read compacted */, InitialPosition.Latest, null);
         sub.addConsumer(consumer2);
         assertEquals(sub.getConsumers().size(), 2);
 
@@ -594,7 +603,7 @@ public class PersistentTopicTest {
         try {
             Consumer consumer3 = new Consumer(sub, SubType.Shared, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                    false /* read compacted */, InitialPosition.Latest);
+                    false /* read compacted */, InitialPosition.Latest, null);
             sub.addConsumer(consumer3);
             fail("should have failed");
         } catch (BrokerServiceException e) {
@@ -607,7 +616,7 @@ public class PersistentTopicTest {
         // 4. add consumer4 to sub2
         Consumer consumer4 = new Consumer(sub2, SubType.Shared, topic.getName(), 4 /* consumer id */, 0,
                 "Cons4"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest);
+                false /* read compacted */, InitialPosition.Latest, null);
         sub2.addConsumer(consumer4);
         assertEquals(sub2.getConsumers().size(), 1);
 
@@ -618,7 +627,7 @@ public class PersistentTopicTest {
         try {
             Consumer consumer5 = new Consumer(sub2, SubType.Shared, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                    false /* read compacted */, InitialPosition.Latest);
+                    false /* read compacted */, InitialPosition.Latest, null);
             sub2.addConsumer(consumer5);
             fail("should have failed");
         } catch (BrokerServiceException e) {
@@ -670,14 +679,14 @@ public class PersistentTopicTest {
         // 1. add consumer1
         Consumer consumer = new Consumer(sub, SubType.Failover, topic.getName(), 1 /* consumer id */, 0,
                 "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest);
+                false /* read compacted */, InitialPosition.Latest, null);
         sub.addConsumer(consumer);
         assertEquals(sub.getConsumers().size(), 1);
 
         // 2. add consumer2
         Consumer consumer2 = new Consumer(sub, SubType.Failover, topic.getName(), 2 /* consumer id */, 0,
                 "Cons2"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest);
+                false /* read compacted */, InitialPosition.Latest, null);
         sub.addConsumer(consumer2);
         assertEquals(sub.getConsumers().size(), 2);
 
@@ -685,7 +694,7 @@ public class PersistentTopicTest {
         try {
             Consumer consumer3 = new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                    false /* read compacted */, InitialPosition.Latest);
+                    false /* read compacted */, InitialPosition.Latest, null);
             sub.addConsumer(consumer3);
             fail("should have failed");
         } catch (BrokerServiceException e) {
@@ -698,7 +707,7 @@ public class PersistentTopicTest {
         // 4. add consumer4 to sub2
         Consumer consumer4 = new Consumer(sub2, SubType.Failover, topic.getName(), 4 /* consumer id */, 0,
                 "Cons4"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                false /* read compacted */, InitialPosition.Latest);
+                false /* read compacted */, InitialPosition.Latest, null);
         sub2.addConsumer(consumer4);
         assertEquals(sub2.getConsumers().size(), 1);
 
@@ -709,7 +718,7 @@ public class PersistentTopicTest {
         try {
             Consumer consumer5 = new Consumer(sub2, SubType.Failover, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
-                    false /* read compacted */, InitialPosition.Latest);
+                    false /* read compacted */, InitialPosition.Latest, null);
             sub2.addConsumer(consumer5);
             fail("should have failed");
         } catch (BrokerServiceException e) {
@@ -749,7 +758,7 @@ public class PersistentTopicTest {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
         Consumer consumer1 = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0, "Cons1"/* consumer name */,
-                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest);
+                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
         sub.addConsumer(consumer1);
 
         doAnswer(new Answer<Object>() {
@@ -771,7 +780,7 @@ public class PersistentTopicTest {
         try {
             Thread.sleep(10); /* delay to ensure that the ubsubscribe gets executed first */
             new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-                    50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest);
+                    50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest, null);
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.SubscriptionFencedException);
         }
@@ -802,7 +811,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), false /* read compacted */, InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */, null);
         f1.get();
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -818,7 +827,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */, null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -873,7 +882,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */, null);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -961,8 +970,7 @@ public class PersistentTopicTest {
 
         Future<Consumer> f = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
                 0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
-
+                0 /*avoid reseting cursor*/,false /* replicated */, null);
         try {
             f.get();
             fail("should have failed");
@@ -1091,7 +1099,7 @@ public class PersistentTopicTest {
         Future<Consumer> f1 = topic1.subscribe(serverCnx, cmd1.getSubscription(), cmd1.getConsumerId(),
                 cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.getDurable(), null, Collections.emptyMap(),
                 cmd1.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/,false /* replicated */, null);
         f1.get();
 
         // 2. Subscribe with partition topic
@@ -1104,7 +1112,7 @@ public class PersistentTopicTest {
         Future<Consumer> f2 = topic2.subscribe(serverCnx, cmd2.getSubscription(), cmd2.getConsumerId(),
                 cmd2.getSubType(), 0, cmd2.getConsumerName(), cmd2.getDurable(), null, Collections.emptyMap(),
                 cmd2.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f2.get();
 
         // 3. Subscribe and create second consumer
@@ -1115,7 +1123,7 @@ public class PersistentTopicTest {
         Future<Consumer> f3 = topic2.subscribe(serverCnx, cmd3.getSubscription(), cmd3.getConsumerId(),
                 cmd3.getSubType(), 0, cmd3.getConsumerName(), cmd3.getDurable(), null, Collections.emptyMap(),
                 cmd3.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f3.get();
 
         assertEquals(
@@ -1137,7 +1145,7 @@ public class PersistentTopicTest {
         Future<Consumer> f4 = topic2.subscribe(serverCnx, cmd4.getSubscription(), cmd4.getConsumerId(),
                 cmd4.getSubType(), 0, cmd4.getConsumerName(), cmd4.getDurable(), null, Collections.emptyMap(),
                 cmd4.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f4.get();
 
         assertEquals(
@@ -1164,8 +1172,7 @@ public class PersistentTopicTest {
         Future<Consumer> f5 = topic2.subscribe(serverCnx, cmd5.getSubscription(), cmd5.getConsumerId(),
                 cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.getDurable(), null, Collections.emptyMap(),
                 cmd5.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
-
+                0 /*avoid reseting cursor*/,false /* replicated */, null);
         try {
             f5.get();
             fail("should fail with exception");
@@ -1182,7 +1189,7 @@ public class PersistentTopicTest {
         Future<Consumer> f6 = topic2.subscribe(serverCnx, cmd6.getSubscription(), cmd6.getConsumerId(),
                 cmd6.getSubType(), 0, cmd6.getConsumerName(), cmd6.getDurable(), null, Collections.emptyMap(),
                 cmd6.getReadCompacted(), InitialPosition.Latest,
-                false /* replicated */);
+                0 /*avoid reseting cursor*/, false /* replicated */, null);
         f6.get();
 
         // 7. unsubscribe exclusive sub

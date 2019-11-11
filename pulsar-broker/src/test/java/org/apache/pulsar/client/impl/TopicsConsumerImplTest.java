@@ -293,6 +293,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
+        executor.shutdownNow();
     }
 
     @Test(timeOut = testTimeout)
@@ -685,16 +686,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-
     /**
      * Test topic partitions auto subscribed.
      *
      * Steps:
      * 1. Create a consumer with 2 topics, and each topic has 2 partitions: xx-partition-0, xx-partition-1.
-     * 2. produce message to xx-partition-2, and verify consumer could not receive message.
-     * 3. update topics to have 3 partitions.
-     * 4. trigger partitionsAutoUpdate. this should be done automatically, this is to save time to manually trigger.
-     * 5. produce message to xx-partition-2 again,  and verify consumer could receive message.
+     * 2. update topics to have 3 partitions.
+     * 3. trigger partitionsAutoUpdate. this should be done automatically, this is to save time to manually trigger.
+     * 4. produce message to xx-partition-2 again,  and verify consumer could receive message.
      *
      */
     @Test(timeOut = 30000)
@@ -714,52 +713,42 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 1. Create a  consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-            .topics(topicNames)
-            .subscriptionName(subscriptionName)
-            .subscriptionType(SubscriptionType.Shared)
-            .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-            .receiverQueueSize(4)
-            .autoUpdatePartitions(true)
-            .subscribe();
+                .topics(topicNames)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(4)
+                .autoUpdatePartitions(true)
+                .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
 
-        // 2. use partition-2 producer,
-        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1 + "-partition-2")
-            .enableBatching(false)
-            .create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2 + "-partition-2")
-            .enableBatching(false)
-            .create();
-        for (int i = 0; i < totalMessages; i++) {
-            producer1.send((messagePredicate + "topic1-partition-2 index:" + i).getBytes());
-            producer2.send((messagePredicate + "topic2-partition-2 index:" + i).getBytes());
-            log.info("produce message to partition-2. message index: {}", i);
-        }
-        // since partition-2 not subscribed,  could not receive any message.
-        Message<byte[]> message = consumer.receive(200, TimeUnit.MILLISECONDS);
-        assertNull(message);
-
-        // 3. update to 3 partitions
+        // 2. update to 3 partitions
         admin.topics().updatePartitionedTopic(topicName1, 3);
         admin.topics().updatePartitionedTopic(topicName2, 3);
 
-        // 4. trigger partitionsAutoUpdate. this should be done automatically in 1 minutes,
+        // 3. trigger partitionsAutoUpdate. this should be done automatically in 1 minutes,
         // this is to save time to manually trigger.
         log.info("trigger partitionsAutoUpdateTimerTask");
         Timeout timeout = topicsConsumer.getPartitionsAutoUpdateTimeout();
         timeout.task().run(timeout);
         Thread.sleep(200);
 
-        // 5. produce message to xx-partition-2 again,  and verify consumer could receive message.
+        // 4. produce message to xx-partition-2,  and verify consumer could receive message.
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1 + "-partition-2")
+                .enableBatching(false)
+                .create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2 + "-partition-2")
+                .enableBatching(false)
+                .create();
         for (int i = 0; i < totalMessages; i++) {
             producer1.send((messagePredicate + "topic1-partition-2 index:" + i).getBytes());
             producer2.send((messagePredicate + "topic2-partition-2 index:" + i).getBytes());
             log.info("produce message to partition-2 again. messageindex: {}", i);
         }
         int messageSet = 0;
-        message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         do {
             messageSet ++;
             consumer.acknowledge(message);

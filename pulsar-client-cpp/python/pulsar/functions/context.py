@@ -147,6 +147,11 @@ class Context(object):
     pass
 
   @abstractmethod
+  def get_input_topics(self):
+    """Returns the input topics of function"""
+    pass
+
+  @abstractmethod
   def get_output_topic(self):
     """Returns the output topic of function"""
     pass

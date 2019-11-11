@@ -34,7 +34,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
-import java.util.List;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -81,6 +82,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
@@ -104,6 +106,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
@@ -137,6 +140,9 @@ public class ServerCnx extends PulsarHandler {
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
+    
+    // Flag to manage throttling-rate by atomically enable/disable read-channel.
+    private volatile boolean autoReadDisabledRateLimiting = false;
 
     enum State {
         Start, Connected, Failed, Connecting
@@ -549,6 +555,7 @@ public class ServerCnx extends PulsarHandler {
                 sslSession);
 
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+            authenticationData = authState.getAuthDataSource();
             doAuthentication(clientData, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             String msg = "Unable to authenticate";
@@ -611,9 +618,13 @@ public class ServerCnx extends PulsarHandler {
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
+        final long startMessageRollbackDurationSec = subscribe.hasStartMessageRollbackDurationSec()
+                ? subscribe.getStartMessageRollbackDurationSec()
+                : -1;
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
         final boolean forceTopicCreation = subscribe.getForceTopicCreation();
+        final PulsarApi.KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta() ? subscribe.getKeySharedMeta() : null;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -693,24 +704,15 @@ public class ServerCnx extends PulsarHandler {
 
                                     if (schema != null) {
                                         return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                            .thenCompose(isCompatible -> {
-                                                    if (isCompatible) {
-                                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                                subType, priorityLevel, consumerName, isDurable,
-                                                                startMessageId, metadata,
-                                                                readCompacted, initialPosition, isReplicated);
-                                                    } else {
-                                                        return FutureUtil.failedFuture(
-                                                                new IncompatibleSchemaException(
-                                                                        "Trying to subscribe with incompatible schema"
-                                                        ));
-                                                    }
-                                                });
+                                            .thenCompose(v -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                    subType, priorityLevel, consumerName, isDurable,
+                                                    startMessageId, metadata,
+                                                    readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated, keySharedMeta));
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
                                             startMessageId, metadata, readCompacted, initialPosition,
-                                            isReplicated);
+                                            startMessageRollbackDurationSec, isReplicated, keySharedMeta);
                                     }
                                 })
                                 .thenAccept(consumer -> {
@@ -924,23 +926,7 @@ public class ServerCnx extends PulsarHandler {
 
                             disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
 
-                            CompletableFuture<SchemaVersion> schemaVersionFuture;
-                            if (schema != null) {
-                                schemaVersionFuture = topic.addSchema(schema);
-                            } else {
-                                schemaVersionFuture = topic.hasSchema().thenCompose((hasSchema) -> {
-                                        log.info("[{}]-{} {} configured with schema {}", remoteAddress, producerId,
-                                                topicName, hasSchema);
-                                        CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-                                        if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
-                                            result.completeExceptionally(new IncompatibleSchemaException(
-                                                "Producers cannot connect without a schema to topics with a schema"));
-                                        } else {
-                                            result.complete(SchemaVersion.Empty);
-                                        }
-                                        return result;
-                                    });
-                            }
+                            CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
 
                             schemaVersionFuture.exceptionally(exception -> {
                                 ctx.writeAndFlush(Commands.newError(requestId,
@@ -1062,7 +1048,9 @@ public class ServerCnx extends PulsarHandler {
             }
         }
 
-        startSendOperation();
+        startSendOperation(producer);
+
+        // Persist the message
         producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
     }
 
@@ -1372,6 +1360,58 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
+    @Override
+    protected void handleGetOrCreateSchema(CommandGetOrCreateSchema commandGetOrCreateSchema) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received CommandGetOrCreateSchema call from {}", remoteAddress);
+        }
+        long requestId = commandGetOrCreateSchema.getRequestId();
+        String topicName = commandGetOrCreateSchema.getTopic();
+        SchemaData schemaData = getSchema(commandGetOrCreateSchema.getSchema());
+        SchemaData schema = schemaData.getType() == SchemaType.NONE ? null : schemaData;
+        service.getTopicIfExists(topicName).thenAccept(topicOpt -> {
+            if (topicOpt.isPresent()) {
+                Topic topic = topicOpt.get();
+                CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
+                schemaVersionFuture.exceptionally(ex -> {
+                    ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
+                    ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
+                            requestId, errorCode, ex.getMessage()));
+                    return null;
+                }).thenAccept(schemaVersion -> {
+                        ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponse(
+                                requestId, schemaVersion));
+                });
+            } else {
+                ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
+                        requestId, ServerError.TopicNotFound, "Topic not found"));
+            }
+        }).exceptionally(ex -> {
+            ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
+            ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
+                    requestId, errorCode, ex.getMessage()));
+            return null;
+        });
+    }
+
+    private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
+        if (schema != null) {
+            return topic.addSchema(schema);
+        } else {
+            return topic.hasSchema().thenCompose((hasSchema) -> {
+                log.info("[{}] {} configured with schema {}",
+                         remoteAddress, topic.getName(), hasSchema);
+                CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
+                if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
+                    result.completeExceptionally(new IncompatibleSchemaException(
+                            "Producers cannot connect or send message without a schema to topics with a schema"));
+                } else {
+                    result.complete(SchemaVersion.Empty);
+                }
+                return result;
+            });
+        }
+    }
 
     @Override
     protected boolean isHandshakeCompleted() {
@@ -1446,11 +1486,13 @@ public class ServerCnx extends PulsarHandler {
         return ctx.channel().isWritable();
     }
 
-    public void startSendOperation() {
-        if (++pendingSendRequest == MaxPendingSendRequests) {
+    public void startSendOperation(Producer producer) {
+        boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        if (++pendingSendRequest == MaxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
+            autoReadDisabledRateLimiting = isPublishRateExceeded;
         }
     }
 
@@ -1458,12 +1500,27 @@ public class ServerCnx extends PulsarHandler {
         if (--pendingSendRequest == ResumeReadsThreshold) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
+            // triggers channel read if autoRead couldn't trigger it
+            ctx.read();
         }
         if (isNonPersistentTopic) {
             nonPersistentPendingMessages--;
         }
     }
 
+    public void enableCnxAutoRead() {
+        // we can add check (&& pendingSendRequest < MaxPendingSendRequests) here but then it requires
+        // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
+        // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
+        if (!ctx.channel().config().isAutoRead() && autoReadDisabledRateLimiting) {
+            // Resume reading from socket if pending-request is not reached to threshold
+            ctx.channel().config().setAutoRead(true);
+            // triggers channel read
+            ctx.read();
+            autoReadDisabledRateLimiting = false;
+        }
+    }
+    
     private <T> ServerError getErrorCode(CompletableFuture<T> future) {
         ServerError error = ServerError.UnknownError;
         try {

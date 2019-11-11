@@ -72,6 +72,10 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     }
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
+
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false);
         if (addCertificates) {
@@ -87,6 +91,11 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+
+        if (admin != null) {
+            admin.close();
+        }
+
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());

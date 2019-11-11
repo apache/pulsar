@@ -54,6 +54,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -209,7 +211,25 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this);
+                    if (consumer.getKeySharedMeta() != null) {
+                        switch (consumer.getKeySharedMeta().getKeySharedMode()) {
+                            case STICKY:
+                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                        new HashRangeExclusiveStickyKeyConsumerSelector());
+                                break;
+                            case AUTO_SPLIT:
+                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
+                                break;
+                            default:
+                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
+                                break;
+                        }
+                    } else {
+                        dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                new HashRangeAutoSplitStickyKeyConsumerSelector());
+                    }
                 }
                 break;
             default:
@@ -971,17 +991,22 @@ public class PersistentSubscription implements Subscription {
                     (PositionImpl) this.pendingCumulativeAckMessage;
 
             positions.forEach(position -> {
-                if ((pendingAckMessages == null || (pendingAckMessages != null &&
-                        !this.pendingAckMessages.contains(position))) &&
-                        (null == cumulativeAckPosition ||
-                                (null != cumulativeAckPosition && position.compareTo(cumulativeAckPosition) > 0))) {
+                if ((pendingAckMessages == null || !this.pendingAckMessages.contains(position))
+                        && (null == cumulativeAckPosition || position.compareTo(cumulativeAckPosition) > 0)) {
                     pendingPositions.add(position);
                 }
             });
+            trimByMarkDeletePosition(pendingPositions);
             dispatcher.redeliverUnacknowledgedMessages(consumer, pendingPositions);
         } else {
+            trimByMarkDeletePosition(positions);
             dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
         }
+    }
+
+    private void trimByMarkDeletePosition(List<PositionImpl> positions) {
+        positions.removeIf(position -> cursor.getMarkDeletedPosition() != null
+                && position.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) <= 0);
     }
 
     @Override
