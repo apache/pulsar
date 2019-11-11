@@ -1,30 +1,36 @@
 ---
 id: admin-api-functions
-title: Managing Functions
+title: Manage Functions
 sidebar_label: Functions
 ---
 
 **Pulsar Functions** are lightweight compute processes that
 
-* consume messages from one or more Pulsar topics,
-* apply a user-supplied processing logic to each message,
-* publish the results of the computation to another topic.
+* consume messages from one or more Pulsar topics
+* apply a user-supplied processing logic to each message
+* publish the results of the computation to another topic
 
-Functions can be managed via:
+Functions can be managed via the following methods.
 
-* The [`functions`](reference-pulsar-admin.md#functions) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
-* The `/admin/v3/functions` endpoint of the admin {@inject: rest:REST:/} API
-* The `functions` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
+Method | Description
+---|---
+**Admin CLI** | The [`functions`](reference-pulsar-admin.md#functions) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool.
+**REST API** |The `/admin/v3/functions` endpoint of the admin {@inject: rest:REST:/} API.
+**Java Admin API**| The `functions` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md).
 
-## Functions resources
+## Function resources
 
-### Create 
+You can perform the following operations on functions.
 
-Create a Pulsar Function in cluster mode (deploy it on a Pulsar cluster) using the admin interface.
+### Create
 
-#### pulsar-admin
+You can create a Pulsar function in cluster mode (deploy it on a Pulsar cluster) using Admin CLI, REST API or Java Admin API.
 
-You can create a new function using the [`create`](reference-pulsar-admin.md#functions-create) subcommand. Here's an example:
+#### Admin CLI
+
+Use the [`create`](reference-pulsar-admin.md#functions-create) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions create \
@@ -41,7 +47,7 @@ $ pulsar-admin functions create \
 
 {@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}
 
-#### Java
+#### Java Admin API
 
 ```java
 FunctionConfig functionConfig = new FunctionConfig();
@@ -51,23 +57,23 @@ functionConfig.setName(functionName);
 functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 functionConfig.setParallelism(1);
 functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
-
 functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 functionConfig.setTopicsPattern(sourceTopicPattern);
 functionConfig.setSubName(subscriptionName);
 functionConfig.setAutoAck(true);
 functionConfig.setOutput(sinkTopic);
-
 admin.functions().createFunction(functionConfig, fileName);
 ```
 
 ### Update
 
-Update a Pulsar Function that has been deployed to a Pulsar cluster using the admin interface.
+You can update a Pulsar function that has been deployed to a Pulsar cluster using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can update a Pulsar Function using the [`update`](reference-pulsar-admin.md#functions-update) subcommand. Here's an example:
+Use the [`update`](reference-pulsar-admin.md#functions-update) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions update \
@@ -78,11 +84,11 @@ $ pulsar-admin functions update \
   # other options
 ```
 
-#### REST API
+#### REST Admin API
 
 {@inject: endpoint|PUT|/admin/v3/functions/{tenant}/{namespace}/{functionName}
 
-#### Java
+#### Java Admin API
 
 ```java
 FunctionConfig functionConfig = new FunctionConfig();
@@ -92,20 +98,18 @@ functionConfig.setName(functionName);
 functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 functionConfig.setParallelism(1);
 functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
-
 UpdateOptions updateOptions = new UpdateOptions();
 updateOptions.setUpdateAuthData(updateAuthData);
-
 admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 ```
 
-### Start function instance
+### Start 1
 
-Starts a stopped function instance using the admin interface.
+You can start a stopped function instance using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can start a stopped function instance  using the [`start`](reference-pulsar-admin.md#functions-start) subcommand. Here's an example:
+Use the [`start`](reference-pulsar-admin.md#functions-start) subcommand. 
 
 ```shell
 $ pulsar-admin functions start \
@@ -119,19 +123,21 @@ $ pulsar-admin functions start \
 
 {@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/start
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().startFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
 ```
 
-### Start all function instances
+### Start 2
 
-Starts all stopped function instances using the admin interface.
+You can start all stopped function instances using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can start all stopped function instances using the [`start`](reference-pulsar-admin.md#functions-start) subcommand. Here's an example:
+Use the [`start`](reference-pulsar-admin.md#functions-start) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions start \
@@ -150,13 +156,15 @@ $ pulsar-admin functions start \
 admin.functions().startFunction(tenant, namespace, functionName);
 ```
 
-### Stop function instance
+### Stop 1
 
-Stops function instance using the admin interface.
+You can stop a function instance with `instance-id` using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+### Admin CLI
 
-You can stops function instance using the [`stop`](reference-pulsar-admin.md#functions-stop) subcommand. Here's an example:
+Use the [`stop`](reference-pulsar-admin.md#functions-stop) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions stop \
@@ -170,19 +178,21 @@ $ pulsar-admin functions stop \
 
 {@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/stop
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().stopFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
 ```
 
-### Stop all function instances
+### Stop 2
 
-Stops all function instances using the admin interface.
+You can stop all function instances using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can stop all function instances using the [`stop`](reference-pulsar-admin.md#functions-stop) subcommand. Here's an example:
+Use the [`stop`](reference-pulsar-admin.md#functions-stop) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions stop \
@@ -195,19 +205,21 @@ $ pulsar-admin functions stop \
 
 {@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/stop
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().stopFunction(tenant, namespace, functionName);
 ```
 
-### Restart function instance
+### Restart 1
 
-Restart function instance using the admin interface.
+Restart a function instance with `instance-id` using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can restart function instance using the [`restart`](reference-pulsar-admin.md#functions-restart) subcommand. Here's an example:
+Use the [`restart`](reference-pulsar-admin.md#functions-restart) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions restart \
@@ -221,19 +233,21 @@ $ pulsar-admin functions restart \
 
 {@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/restart
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
 ```
 
-### Restart all function instances
+### Restart 2
 
-Restart all function instances using the admin interface.
+You can restart all function instances using Admin CLI, REST API or Java admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can restart all function instances using the [`restart`](reference-pulsar-admin.md#functions-restart) subcommand. Here's an example:
+Use the [`restart`](reference-pulsar-admin.md#functions-restart) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions restart \
@@ -246,7 +260,7 @@ $ pulsar-admin functions restart \
 
 {@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/restart
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().restartFunction(tenant, namespace, functionName);
@@ -254,11 +268,13 @@ admin.functions().restartFunction(tenant, namespace, functionName);
 
 ### List
 
-List all Pulsar Functions running under a specific tenant and namespace.
+You can list all Pulsar functions running under a specific tenant and namespace using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can list all Pulsar Functions using the [`list`](reference-pulsar-admin.md#functions-list) subcommand. Here's an example:
+Use the [`list`](reference-pulsar-admin.md#functions-list) subcommand.
+
+**Example**
 
 ```shell
 $ pulsar-admin functions list \
@@ -270,7 +286,7 @@ $ pulsar-admin functions list \
 
 {@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().getFunctions(tenant, namespace);
@@ -278,11 +294,13 @@ admin.functions().getFunctions(tenant, namespace);
 
 ### Delete
 
-Delete a Pulsar Function that is running on a Pulsar cluster.
+You can delete a Pulsar function that is running on a Pulsar cluster using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can delete a Pulsar Function using the [`delete`](reference-pulsar-admin.md#functions-delete) subcommand. Here's an example:
+Use the [`delete`](reference-pulsar-admin.md#functions-delete) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions delete \
@@ -295,7 +313,7 @@ $ pulsar-admin functions delete \
 
 {@inject: endpoint|DELETE|/admin/v3/functions/{tenant}/{namespace}/{functionName}
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().deleteFunction(tenant, namespace, functionName);
@@ -303,11 +321,13 @@ admin.functions().deleteFunction(tenant, namespace, functionName);
 
 ### Get
 
-Get information about a Pulsar Function currently running in cluster mode.
+You can get information about a Pulsar function currently running in cluster mode using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can get information about a Pulsar Function using the [`get`](reference-pulsar-admin.md#functions-get) subcommand. Here's an example:
+Use the [`get`](reference-pulsar-admin.md#functions-get) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions get \
@@ -320,19 +340,21 @@ $ pulsar-admin functions get \
 
 {@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().getFunction(tenant, namespace, functionName);
 ```
 
-### Displays the status of a Pulsar Function instance
+### Status 1
 
-Displays the current status of a Pulsar Function instance.
+You can get the current status of a Pulsar function instance with `instance-id` using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can get the current status of a Pulsar Function instance using the [`status`](reference-pulsar-admin.md#functions-status) subcommand. Here's an example:
+Use the [`status`](reference-pulsar-admin.md#functions-status) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions status \
@@ -346,19 +368,21 @@ $ pulsar-admin functions status \
 
 {@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/status
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId));
 ```
 
-### Displays the status of a Pulsar Function
+### Status 2
 
-Displays the current status of a Pulsar Function.
+You can get the current status of a Pulsar function instance using Admin CLI, REST API or Java Admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can get the current status of a Pulsar Function using the [`status`](reference-pulsar-admin.md#functions-status) subcommand. Here's an example:
+Use the [`status`](reference-pulsar-admin.md#functions-status) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions status \
@@ -371,19 +395,21 @@ $ pulsar-admin functions status \
 
 {@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/status
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().getFunctionStatus(tenant, namespace, functionName);
 ```
 
-### Displays the stats of a Pulsar Function instance
+### Stats 1
 
-Displays the current stats of a Pulsar Function instance.
+You can get the current stats of a Pulsar Function instance with `instance-id` using Admin CLI, REST API or Java admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can get the current stats of a Pulsar Function instance using the [`stats`](reference-pulsar-admin.md#functions-stats) subcommand. Here's an example:
+Use the [`stats`](reference-pulsar-admin.md#functions-stats) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions stats \
@@ -397,19 +423,21 @@ $ pulsar-admin functions stats \
 
 {@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/{instanceId}/stats
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId));
 ```
 
-### Displays the stats of a Pulsar Function
+### Stats 2 
 
-Displays the current stats of a Pulsar Function.
+You can get the current stats of a Pulsar function using Admin CLI, REST API or Java admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can get the current stats of a Pulsar Function using the [`stats`](reference-pulsar-admin.md#functions-stats) subcommand. Here's an example:
+Use the [`stats`](reference-pulsar-admin.md#functions-stats) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions stats \
@@ -422,7 +450,7 @@ $ pulsar-admin functions stats \
 
 {@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/stats
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().getFunctionStats(tenant, namespace, functionName);
@@ -430,11 +458,13 @@ admin.functions().getFunctionStats(tenant, namespace, functionName);
 
 ### Trigger
 
-Trigger the specified Pulsar Function with a supplied value.
+You can trigger a specified Pulsar function with a supplied value using Admin CLI, REST API or Java admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can trigger the Pulsar Function using the [`trigger`](reference-pulsar-admin.md#functions-trigger) subcommand. Here's an example:
+Use the [`trigger`](reference-pulsar-admin.md#functions-trigger) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions trigger \
@@ -450,19 +480,21 @@ $ pulsar-admin functions trigger \
 
 {@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/trigger
 
-#### Java
+#### Java Admin API
 
 ```java
 admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
 ```
 
-### Put state
+### Putstate
 
-Put the state associated with a Pulsar Function.
+You can put the state associated with a Pulsar function using Admin CLI, REST API or Java admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can put the state associated with a Pulsar Function using the [`putstate`](reference-pulsar-admin.md#functions-putstate) subcommand. Here's an example:
+Use the [`putstate`](reference-pulsar-admin.md#functions-putstate) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions putstate \
@@ -476,7 +508,7 @@ $ pulsar-admin functions putstate \
 
 {@inject: endpoint|POST|/admin/v3/functions/{tenant}/{namespace}/{functionName}/state/{key}
 
-#### Java
+#### Java Admin API
 
 ```java
 TypeReference<FunctionState> typeRef = new TypeReference<FunctionState>() {};
@@ -484,13 +516,15 @@ FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, 
 admin.functions().putFunctionState(tenant, namespace, functionName, stateRepr);
 ```
 
-### Query state
+### Querystate
 
-Fetch the current state associated with a Pulsar Function.
+You can fetch the current state associated with a Pulsar function using Admin CLI, REST API or Java admin API.
 
-#### pulsar-admin
+#### Admin CLI
 
-You can fetch the current state associated with a Pulsar Function using the [`querystate`](reference-pulsar-admin.md#functions-querystate) subcommand. Here's an example:
+Use the [`querystate`](reference-pulsar-admin.md#functions-querystate) subcommand. 
+
+**Example**
 
 ```shell
 $ pulsar-admin functions querystate \
@@ -504,7 +538,7 @@ $ pulsar-admin functions querystate \
 
 {@inject: endpoint|GET|/admin/v3/functions/{tenant}/{namespace}/{functionName}/state/{key}
 
-#### Java
+#### Java Admin CLI
 
 ```java
 admin.functions().getFunctionState(tenant, namespace, functionName, key);
