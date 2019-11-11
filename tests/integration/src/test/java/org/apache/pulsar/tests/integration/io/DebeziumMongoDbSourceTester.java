@@ -18,79 +18,67 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
-import java.io.Closeable;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.impl.schema.ByteSchema;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
 
-/**
- * A tester for testing Debezium MySQL source.
- *
- * It reads binlog from MySQL, and store the debezium output into Pulsar.
- * This test verify that the target topic contains wanted number messages.
- *
- * Debezium MySQL Container is "debezium/example-mysql:0.8",
- * which is a MySQL database server preconfigured with an inventory database.
- */
-@Slf4j
-public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContainer> implements Closeable {
+import java.io.Closeable;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-    private static final String NAME = "debezium-mysql";
+@Slf4j
+public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbContainer> implements Closeable {
+
+    private static final String NAME = "debezium-mongodb";
 
     private final String pulsarServiceUrl;
 
     @Getter
-    private DebeziumMySQLContainer debeziumMySqlContainer;
+    private DebeziumMongoDbContainer debeziumMongoDbContainer;
 
     private final PulsarCluster pulsarCluster;
-
-    public DebeziumMySqlSourceTester(PulsarCluster cluster) {
+    public DebeziumMongoDbSourceTester(PulsarCluster cluster) {
         super(NAME);
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
-        sourceConfig.put("database.hostname", DebeziumMySQLContainer.NAME);
-        sourceConfig.put("database.port", "3306");
-        sourceConfig.put("database.user", "debezium");
-        sourceConfig.put("database.password", "dbz");
-        sourceConfig.put("database.server.id", "184054");
-        sourceConfig.put("database.server.name", "dbserver1");
+        sourceConfig.put("mongodb.hosts", DebeziumMongoDbContainer.NAME+":"+DebeziumMongoDbContainer.PORTS);
+        sourceConfig.put("mongodb.name", "dbserver1");
+        sourceConfig.put("mongodb.user", "debezium");
+        sourceConfig.put("mongodb.password", "dbz");
         sourceConfig.put("database.whitelist", "inventory");
         sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
     }
 
     @Override
-    public void setServiceContainer(DebeziumMySQLContainer container) {
-        log.info("start debezium mysql server container.");
-        debeziumMySqlContainer = container;
-        pulsarCluster.startService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
+    public void setServiceContainer(DebeziumMongoDbContainer container) {
+        log.info("start debezium mongodb server container.");
+        debeziumMongoDbContainer = container;
+        pulsarCluster.startService(DebeziumMongoDbContainer.NAME, debeziumMongoDbContainer);
     }
 
     @Override
     public void prepareSource() throws Exception {
-        log.info("debezium mysql server already contains preconfigured data.");
+        log.info("debezium mongodb server already contains preconfigured data.");
     }
 
     @Override
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception {
-        log.info("debezium mysql server already contains preconfigured data.");
+        log.info("debezium mongodb server already contains preconfigured data.");
         return null;
     }
 
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            pulsarCluster.stopService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
+            pulsarCluster.stopService(DebeziumMongoDbContainer.NAME, debeziumMongoDbContainer);
         }
     }
-
 }
