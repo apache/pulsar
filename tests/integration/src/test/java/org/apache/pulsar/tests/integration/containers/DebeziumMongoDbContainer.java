@@ -2,11 +2,6 @@ package org.apache.pulsar.tests.integration.containers;
 
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
-/**
- * @Author hdx
- * @Date 2019/11/11
- * @Version 1.0
- */
 public class DebeziumMongoDbContainer extends ChaosContainer<DebeziumMongoDbContainer> {
 
     public static final String NAME = "debezium-mongodb-example";
