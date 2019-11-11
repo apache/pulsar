@@ -641,15 +641,43 @@ public class PulsarClientImpl implements PulsarClient {
 
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(String topic) {
 
-        CompletableFuture<PartitionedTopicMetadata> metadataFuture;
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
         try {
             TopicName topicName = TopicName.get(topic);
-            metadataFuture = lookup.getPartitionedTopicMetadata(topicName);
+            AtomicLong opTimeoutMs = new AtomicLong(conf.getOperationTimeoutMs());
+            Backoff backoff = new BackoffBuilder()
+                    .setInitialTime(100, TimeUnit.MILLISECONDS)
+                    .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                    .setMax(0, TimeUnit.MILLISECONDS)
+                    .useUserConfiguredIntervals(conf.getDefaultBackoffIntervalNanos(),
+                            conf.getMaxBackoffIntervalNanos())
+                    .create();
+            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }
         return metadataFuture;
+    }
+
+    private void getPartitionedTopicMetadata(TopicName topicName,
+                                             Backoff backoff,
+                                             AtomicLong remainingTime,
+                                             CompletableFuture<PartitionedTopicMetadata> future) {
+        lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
+            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            if (nextDelay <= 0) {
+                future.completeExceptionally(new PulsarClientException
+                        .TimeoutException("Could not getPartitionedTopicMetadata within configured timeout."));
+                return null;
+            }
+
+            timer.newTimeout( task -> {
+                remainingTime.addAndGet(-nextDelay);
+                getPartitionedTopicMetadata(topicName, backoff, remainingTime, future);
+            }, nextDelay, TimeUnit.MILLISECONDS);
+            return null;
+        });
     }
 
     @Override
