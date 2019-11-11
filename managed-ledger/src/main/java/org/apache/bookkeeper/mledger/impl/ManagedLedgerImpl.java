@@ -863,12 +863,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public Iterable<ManagedCursor> getCursors() {
+    public ManagedCursorContainer getCursors() {
         return cursors;
     }
 
     @Override
-    public Iterable<ManagedCursor> getActiveCursors() {
+    public ManagedCursorContainer getActiveCursors() {
         return activeCursors;
     }
 
