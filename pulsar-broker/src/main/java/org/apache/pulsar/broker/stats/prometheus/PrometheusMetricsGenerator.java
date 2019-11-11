@@ -95,10 +95,17 @@ public class PrometheusMetricsGenerator {
                 stream.write(sample.name);
                 stream.write("{cluster=\"").write(cluster).write('"');
                 for (int j = 0; j < sample.labelNames.size(); j++) {
+                    String labelValue = sample.labelValues.get(j);
+                    if(labelValue != null &&
+                            (labelValue.startsWith("\"") ||
+                            labelValue.endsWith("\""))){
+                        labelValue = labelValue.replace("\"", "\\\"");
+                    }
+
                     stream.write(",");
                     stream.write(sample.labelNames.get(j));
                     stream.write("=\"");
-                    stream.write(sample.labelValues.get(j));
+                    stream.write(labelValue);
                     stream.write('"');
                 }
 
