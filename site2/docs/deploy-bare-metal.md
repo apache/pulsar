@@ -268,7 +268,7 @@ Once you appropriately modify the `zkServers` parameter, you can provide any oth
 
 > ##### NOTES
 >
-> Since Pulsar 2.1.0 releases, Pulsar introduces [stateful function](functions-state.md) for Pulsar Functions. If you want to enable that feature,
+> Since Pulsar 2.1.0 releases, Pulsar introduces [stateful function](functions-develop.md#state-storage) for Pulsar Functions. If you want to enable that feature,
 > you need to enable table service on BookKeeper by doing the following setting in `conf/bookkeeper.conf` file.
 >
 > ```conf
@@ -447,7 +447,7 @@ bin/pulsar-admin functions create \
   --name exclamation
 ```
 
-Check if the function runs as expected by [triggering](functions-deploying.md#triggering-pulsar-functions) the function.
+Check if the function runs as expected by [triggering](functions-deploy.md#triggering-pulsar-functions) the function.
 
 ```bash
 bin/pulsar-admin functions trigger --name exclamation --trigger-value "hello world"
