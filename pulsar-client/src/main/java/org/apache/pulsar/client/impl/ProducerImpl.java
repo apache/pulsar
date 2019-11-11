@@ -30,6 +30,7 @@ import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Enabled
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 
 import io.netty.buffer.ByteBuf;
@@ -816,7 +817,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     log.debug("[{}] [{}] Received ack for msg {} ", topic, producerName, sequenceId);
                 }
                 pendingMessages.remove();
-                semaphore.release(op.numMessagesInBatch);
+                releaseSemaphoreForSendOp(op);
                 callback = true;
                 pendingCallbacks.add(op);
             }
@@ -842,6 +843,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private long getHighestSequenceId(OpSendMsg op) {
         return Math.max(op.highestSequenceId, op.sequenceId);
+    }
+    private void releaseSemaphoreForSendOp(OpSendMsg op) {
+        semaphore.release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
     }
 
     /**
@@ -870,7 +874,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 if (corrupted) {
                     // remove message from pendingMessages queue and fail callback
                     pendingMessages.remove();
-                    semaphore.release(op.numMessagesInBatch);
+                    releaseSemaphoreForSendOp(op);
                     try {
                         op.callback.sendComplete(
                                 new PulsarClientException.ChecksumException("Checksum failed on corrupt message"));
@@ -1309,8 +1313,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
         if (cnx == null) {
             final AtomicInteger releaseCount = new AtomicInteger();
+            final boolean batchMessagingEnabled = isBatchMessagingEnabled();
             pendingMessages.forEach(op -> {
-                releaseCount.addAndGet(op.numMessagesInBatch);
+                releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch: 1);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
                     // application
@@ -1322,12 +1327,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 ReferenceCountUtil.safeRelease(op.cmd);
                 op.recycle();
             });
-            semaphore.release(releaseCount.get());
+
             pendingMessages.clear();
             pendingCallbacks.clear();
-            if (isBatchMessagingEnabled()) {
+            semaphore.release(releaseCount.get());
+            if (batchMessagingEnabled) {
                 failPendingBatchMessages(ex);
             }
+
         } else {
             // If we have a connection, we schedule the callback and recycle on the event loop thread to avoid any
             // race condition since we also write the message on the socket from this thread
@@ -1347,9 +1354,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (batchMessageContainer.isEmpty()) {
             return;
         }
-        int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
-        semaphore.release(numMessagesInBatch);
+        final int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
         batchMessageContainer.discard(ex);
+        semaphore.release(numMessagesInBatch);
     }
 
     TimerTask batchMessageAndSendTask = new TimerTask() {
@@ -1455,12 +1462,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            semaphore.release(op.numMessagesInBatch);
+            releaseSemaphoreForSendOp(op);
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException(ie));
             }
         } catch (Throwable t) {
-            semaphore.release(op.numMessagesInBatch);
+            releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
             if (op != null) {
                 op.callback.sendComplete(new PulsarClientException(t));
@@ -1576,6 +1583,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     void grabCnx() {
         this.connectionHandler.grabCnx();
+    }
+
+    @VisibleForTesting
+    Semaphore getSemaphore() {
+        return semaphore;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);
