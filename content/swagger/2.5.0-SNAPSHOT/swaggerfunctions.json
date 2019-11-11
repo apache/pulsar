@@ -1383,6 +1383,12 @@
             "format" : "byte"
           }
         },
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
         "replicated" : {
           "type" : "boolean"
         },
@@ -1395,12 +1401,6 @@
           "format" : "int64"
         },
         "topicName" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
           "type" : "string"
         },
         "data" : {
