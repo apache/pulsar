@@ -107,6 +107,9 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-broker-auth-sasl</module>
     <module>pulsar-client-auth-sasl</module>
 
+    <!-- package management related modules -->
+    <module>pulsar-package-management</module>
+
     <!-- transaction related modules -->
     <module>pulsar-transaction</module>
 
@@ -1328,7 +1331,7 @@ flexible messaging model and an intuitive client API.</description>
           <excludes>
             <!-- Other license files -->
             <exclude>licenses/LICENSE-*.txt</exclude>
-            <exclude>pulsar-client-cpp/pkg/licenses/LICENSE-*.txt</exclude>
+            <exclude>pulsar-client-cpp/pkgName/licenses/LICENSE-*.txt</exclude>
             <exclude>src/assemble/README.bin.txt</exclude>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
