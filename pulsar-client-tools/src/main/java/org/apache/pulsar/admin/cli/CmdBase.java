@@ -45,8 +45,7 @@ public abstract class CmdBase {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
-            String chosenCommand = jcommander.getParsedCommand();
-            jcommander.usage(chosenCommand);
+            jcommander.usage();
             return false;
         }
 
