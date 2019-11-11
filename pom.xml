@@ -1218,7 +1218,7 @@ flexible messaging model and an intuitive client API.</description>
           <excludes>
             <!-- Other license files -->
             <exclude>licenses/LICENSE-*.txt</exclude>
-            <exclude>pulsar-client-cpp/pkgName/licenses/LICENSE-*.txt</exclude>
+            <exclude>pulsar-client-cpp/pkg/licenses/LICENSE-*.txt</exclude>
             <exclude>src/assemble/README.bin.txt</exclude>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
