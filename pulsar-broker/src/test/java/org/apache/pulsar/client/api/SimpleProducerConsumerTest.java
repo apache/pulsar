@@ -53,6 +53,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -106,6 +107,22 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+    }
+
+    @DataProvider
+    public static Object[][] variationsForExpectedPos() {
+        return new Object[][] {
+                // batching / start-inclusive / num-of-messages
+                {true, true, 10 },
+                {true, false, 10 },
+                {false, true, 10 },
+                {false, false, 10 },
+
+                {true, true, 100 },
+                {true, false, 100 },
+                {false, true, 100 },
+                {false, false, 100 },
+        };
     }
 
     @AfterMethod
@@ -435,6 +452,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic4")
                 .subscriptionName("my-subscriber-name")
+                .startMessageIdInclusive()
                 .subscribe();
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic4");
@@ -668,6 +686,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String subName = UUID.randomUUID().toString();
         final Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic7").subscriptionName(subName)
+                .startMessageIdInclusive()
                 .receiverQueueSize(recvQueueSize).subscribe();
         ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -2962,6 +2981,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topic("persistent://my-property/my-ns/test-flush-disabled")
+                .startMessageIdInclusive()
             .subscriptionName("my-subscriber-name").subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
@@ -3197,5 +3217,50 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
+    @Test(dataProvider = "variationsForExpectedPos")
+    public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
+            throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ConsumerStartMessageIdAtExpectedPos";
+        final int resetIndex = new Random().nextInt(numOfMessages); // Choose some random index to reset
+        final int firstMessage = startInclusive ? resetIndex : resetIndex + 1; // First message of reset
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(batching)
+                .create();
+
+        MessageId resetPos = null;
+        for (int i = 0; i < numOfMessages; i++) {
+            MessageId msgId = producer.send(String.format("msg num %d", i).getBytes());
+            if (resetIndex == i) {
+                resetPos = msgId;
+            }
+        }
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+                .topic(topicName);
+
+        if (startInclusive) {
+            consumerBuilder.startMessageIdInclusive();
+        }
+
+        Consumer<byte[]> consumer = consumerBuilder.subscriptionName("my-subscriber-name").subscribe();
+        consumer.seek(resetPos);
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = firstMessage; i < numOfMessages; i++) {
+            Message<byte[]> message = consumer.receive();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+
+        assertEquals(((ConsumerImpl) consumer).numMessagesInQueue(), 0);
+
+        // Processed messages should be the number of messages in the range: [FirstResetMessage..TotalNumOfMessages]
+        assertEquals(messageSet.size(), numOfMessages - firstMessage);
+
+        consumer.close();
+        producer.close();
+    }
 }
