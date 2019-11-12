@@ -237,8 +237,6 @@ In order to use this class in Pulsar Functions, you have two options:
 from pulsar import SerDe
 
 class TweetSerDe(SerDe):
-    def __init__(self):
-        pass
 
     def serialize(self, input):
         return bytes("{0}|{1}".format(input.username, input.tweet_content))
