@@ -67,13 +67,19 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
             final String key = new String(msg.getValue().getKey());
             final String value = new String(msg.getValue().getValue());
             log.info("Received message: key = {}, value = {}.", key, value);
-            Assert.assertTrue(key.contains("dbserver1.inventory.products.Key"));
-            Assert.assertTrue(value.contains("dbserver1.inventory.products.Value"));
+            Assert.assertTrue(key.contains(this.keyContains()));
+            Assert.assertTrue(value.contains(this.valueContains()));
             consumer.acknowledge(msg);
             msg = consumer.receive(1, TimeUnit.SECONDS);
         }
 
         Assert.assertEquals(recordsNumber, number);
         log.info("Stop {} server container. topic: {} has {} records.",getSourceType(), consumer.getTopic(), recordsNumber);
+    }
+    public String keyContains(){
+        return "dbserver1.inventory.products.Key";
+    }
+    public String valueContains(){
+        return "dbserver1.inventory.products.Value";
     }
 }

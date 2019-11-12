@@ -71,6 +71,11 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
     }
 
     @Override
+    public String valueContains() {
+        return "dbserver1.inventory.products.Envelope";
+    }
+
+    @Override
     public void close() {
         if (pulsarCluster != null) {
             pulsarCluster.stopService(DebeziumMongoDbContainer.NAME, debeziumMongoDbContainer);

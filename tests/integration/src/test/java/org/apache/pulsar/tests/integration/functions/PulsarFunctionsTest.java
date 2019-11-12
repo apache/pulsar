@@ -2182,8 +2182,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String sourceName = "test-source-connector-"
                 + functionRuntimeType + "-name-" + randomName(8);
 
-        // This is the binlog count that contained in postgresql container.
-        final int numMessages = 26;
+        // This is the binlog count that contained in mongodb container.
+        final int numMessages = 17;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -2203,7 +2203,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // setup debezium mongodb server
         DebeziumMongoDbContainer mongoDbContainer = new DebeziumMongoDbContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mongoDbContainer);
-
         // prepare the testing environment for source
         prepareSource(sourceTester);
 
