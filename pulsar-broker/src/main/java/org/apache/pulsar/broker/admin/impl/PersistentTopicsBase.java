@@ -394,6 +394,7 @@ public class PersistentTopicsBase extends AdminResource {
             String path = ZkAdminPaths.partitionedTopicPath(topicName);
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
             zkCreateOptimistic(path, data);
+            tryCreatePartitions(numPartitions);
             // we wait for the data to be synced in all quorums and the observers
             Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
@@ -510,6 +511,13 @@ public class PersistentTopicsBase extends AdminResource {
             }
             log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
+        }
+    }
+
+    protected void internalCreateMissedPartitions() {
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, false, false);
+        if (metadata != null) {
+            tryCreatePartitions(metadata.partitions);
         }
     }
 

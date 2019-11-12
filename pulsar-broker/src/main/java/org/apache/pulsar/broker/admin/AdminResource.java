@@ -233,6 +233,23 @@ public abstract class AdminResource extends PulsarWebResource {
         return namespaces;
     }
 
+    protected void tryCreatePartitions(int numPartitions) {
+        if (!topicName.isPersistent()) {
+            return;
+        }
+        for (int i = 0; i < numPartitions; i++) {
+            try {
+                zkCreateOptimistic(ZkAdminPaths.managedLedgerPath(topicName.getPartition(i)), new byte[0]);
+            } catch (KeeperException.NodeExistsException e) {
+                log.warn("[{}] Topic partition is already existing, doing nothing {}", clientAppId(), topicName.getPartition(i));
+            } catch (KeeperException.BadVersionException e) {
+                log.warn("[{}] Fail to create topic partition {}: concurrent modification", clientAppId(), topicName.getPartition(i));
+            } catch (Exception e) {
+                log.error("[{}] Fail to create topic partition {}", clientAppId(), topicName.getPartition(i), e);
+            }
+        }
+    }
+
     protected NamespaceName namespaceName;
 
     protected void validateNamespaceName(String property, String namespace) {
