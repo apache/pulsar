@@ -404,7 +404,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     protected void startInactivityMonitor() {
         if (pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
-            int interval = pulsar().getConfiguration().getBrokerServicePurgeInactiveFrequencyInSeconds();
+            int interval = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
             inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkGC(interval)), interval, interval,
                     TimeUnit.SECONDS);
         }
