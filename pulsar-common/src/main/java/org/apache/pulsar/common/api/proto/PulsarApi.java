@@ -29079,17 +29079,17 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.Subscription getSubscriptions(int index);
     int getSubscriptionsCount();
     
-    // optional uint64 txn_timeout_ms = 8;
-    boolean hasTxnTimeoutMs();
-    long getTxnTimeoutMs();
+    // optional uint64 timeout_ms = 8;
+    boolean hasTimeoutMs();
+    long getTimeoutMs();
     
-    // optional uint64 txn_start_time = 9;
-    boolean hasTxnStartTime();
-    long getTxnStartTime();
+    // optional uint64 start_time = 9;
+    boolean hasStartTime();
+    long getStartTime();
     
-    // optional uint64 txn_last_modification_time = 10;
-    boolean hasTxnLastModificationTime();
-    long getTxnLastModificationTime();
+    // optional uint64 last_modification_time = 10;
+    boolean hasLastModificationTime();
+    long getLastModificationTime();
   }
   public static final class TransactionMetadataEntry extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -29258,34 +29258,34 @@ public final class PulsarApi {
       return subscriptions_.get(index);
     }
     
-    // optional uint64 txn_timeout_ms = 8;
-    public static final int TXN_TIMEOUT_MS_FIELD_NUMBER = 8;
-    private long txnTimeoutMs_;
-    public boolean hasTxnTimeoutMs() {
+    // optional uint64 timeout_ms = 8;
+    public static final int TIMEOUT_MS_FIELD_NUMBER = 8;
+    private long timeoutMs_;
+    public boolean hasTimeoutMs() {
       return ((bitField0_ & 0x00000020) == 0x00000020);
     }
-    public long getTxnTimeoutMs() {
-      return txnTimeoutMs_;
+    public long getTimeoutMs() {
+      return timeoutMs_;
     }
     
-    // optional uint64 txn_start_time = 9;
-    public static final int TXN_START_TIME_FIELD_NUMBER = 9;
-    private long txnStartTime_;
-    public boolean hasTxnStartTime() {
+    // optional uint64 start_time = 9;
+    public static final int START_TIME_FIELD_NUMBER = 9;
+    private long startTime_;
+    public boolean hasStartTime() {
       return ((bitField0_ & 0x00000040) == 0x00000040);
     }
-    public long getTxnStartTime() {
-      return txnStartTime_;
+    public long getStartTime() {
+      return startTime_;
     }
     
-    // optional uint64 txn_last_modification_time = 10;
-    public static final int TXN_LAST_MODIFICATION_TIME_FIELD_NUMBER = 10;
-    private long txnLastModificationTime_;
-    public boolean hasTxnLastModificationTime() {
+    // optional uint64 last_modification_time = 10;
+    public static final int LAST_MODIFICATION_TIME_FIELD_NUMBER = 10;
+    private long lastModificationTime_;
+    public boolean hasLastModificationTime() {
       return ((bitField0_ & 0x00000080) == 0x00000080);
     }
-    public long getTxnLastModificationTime() {
-      return txnLastModificationTime_;
+    public long getLastModificationTime() {
+      return lastModificationTime_;
     }
     
     private void initFields() {
@@ -29296,9 +29296,9 @@ public final class PulsarApi {
       newStatus_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.OPEN;
       partitions_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
       subscriptions_ = java.util.Collections.emptyList();
-      txnTimeoutMs_ = 0L;
-      txnStartTime_ = 0L;
-      txnLastModificationTime_ = 0L;
+      timeoutMs_ = 0L;
+      startTime_ = 0L;
+      lastModificationTime_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -29345,13 +29345,13 @@ public final class PulsarApi {
         output.writeMessage(7, subscriptions_.get(i));
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        output.writeUInt64(8, txnTimeoutMs_);
+        output.writeUInt64(8, timeoutMs_);
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        output.writeUInt64(9, txnStartTime_);
+        output.writeUInt64(9, startTime_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        output.writeUInt64(10, txnLastModificationTime_);
+        output.writeUInt64(10, lastModificationTime_);
       }
     }
     
@@ -29396,15 +29396,15 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(8, txnTimeoutMs_);
+          .computeUInt64Size(8, timeoutMs_);
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(9, txnStartTime_);
+          .computeUInt64Size(9, startTime_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(10, txnLastModificationTime_);
+          .computeUInt64Size(10, lastModificationTime_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -29533,11 +29533,11 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000020);
         subscriptions_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000040);
-        txnTimeoutMs_ = 0L;
+        timeoutMs_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000080);
-        txnStartTime_ = 0L;
+        startTime_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000100);
-        txnLastModificationTime_ = 0L;
+        lastModificationTime_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000200);
         return this;
       }
@@ -29606,15 +29606,15 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000080) == 0x00000080)) {
           to_bitField0_ |= 0x00000020;
         }
-        result.txnTimeoutMs_ = txnTimeoutMs_;
+        result.timeoutMs_ = timeoutMs_;
         if (((from_bitField0_ & 0x00000100) == 0x00000100)) {
           to_bitField0_ |= 0x00000040;
         }
-        result.txnStartTime_ = txnStartTime_;
+        result.startTime_ = startTime_;
         if (((from_bitField0_ & 0x00000200) == 0x00000200)) {
           to_bitField0_ |= 0x00000080;
         }
-        result.txnLastModificationTime_ = txnLastModificationTime_;
+        result.lastModificationTime_ = lastModificationTime_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -29656,14 +29656,14 @@ public final class PulsarApi {
           }
           
         }
-        if (other.hasTxnTimeoutMs()) {
-          setTxnTimeoutMs(other.getTxnTimeoutMs());
+        if (other.hasTimeoutMs()) {
+          setTimeoutMs(other.getTimeoutMs());
         }
-        if (other.hasTxnStartTime()) {
-          setTxnStartTime(other.getTxnStartTime());
+        if (other.hasStartTime()) {
+          setStartTime(other.getStartTime());
         }
-        if (other.hasTxnLastModificationTime()) {
-          setTxnLastModificationTime(other.getTxnLastModificationTime());
+        if (other.hasLastModificationTime()) {
+          setLastModificationTime(other.getLastModificationTime());
         }
         return this;
       }
@@ -29750,17 +29750,17 @@ public final class PulsarApi {
             }
             case 64: {
               bitField0_ |= 0x00000080;
-              txnTimeoutMs_ = input.readUInt64();
+              timeoutMs_ = input.readUInt64();
               break;
             }
             case 72: {
               bitField0_ |= 0x00000100;
-              txnStartTime_ = input.readUInt64();
+              startTime_ = input.readUInt64();
               break;
             }
             case 80: {
               bitField0_ |= 0x00000200;
-              txnLastModificationTime_ = input.readUInt64();
+              lastModificationTime_ = input.readUInt64();
               break;
             }
           }
@@ -30028,65 +30028,65 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional uint64 txn_timeout_ms = 8;
-      private long txnTimeoutMs_ ;
-      public boolean hasTxnTimeoutMs() {
+      // optional uint64 timeout_ms = 8;
+      private long timeoutMs_ ;
+      public boolean hasTimeoutMs() {
         return ((bitField0_ & 0x00000080) == 0x00000080);
       }
-      public long getTxnTimeoutMs() {
-        return txnTimeoutMs_;
+      public long getTimeoutMs() {
+        return timeoutMs_;
       }
-      public Builder setTxnTimeoutMs(long value) {
+      public Builder setTimeoutMs(long value) {
         bitField0_ |= 0x00000080;
-        txnTimeoutMs_ = value;
+        timeoutMs_ = value;
         
         return this;
       }
-      public Builder clearTxnTimeoutMs() {
+      public Builder clearTimeoutMs() {
         bitField0_ = (bitField0_ & ~0x00000080);
-        txnTimeoutMs_ = 0L;
+        timeoutMs_ = 0L;
         
         return this;
       }
       
-      // optional uint64 txn_start_time = 9;
-      private long txnStartTime_ ;
-      public boolean hasTxnStartTime() {
+      // optional uint64 start_time = 9;
+      private long startTime_ ;
+      public boolean hasStartTime() {
         return ((bitField0_ & 0x00000100) == 0x00000100);
       }
-      public long getTxnStartTime() {
-        return txnStartTime_;
+      public long getStartTime() {
+        return startTime_;
       }
-      public Builder setTxnStartTime(long value) {
+      public Builder setStartTime(long value) {
         bitField0_ |= 0x00000100;
-        txnStartTime_ = value;
+        startTime_ = value;
         
         return this;
       }
-      public Builder clearTxnStartTime() {
+      public Builder clearStartTime() {
         bitField0_ = (bitField0_ & ~0x00000100);
-        txnStartTime_ = 0L;
+        startTime_ = 0L;
         
         return this;
       }
       
-      // optional uint64 txn_last_modification_time = 10;
-      private long txnLastModificationTime_ ;
-      public boolean hasTxnLastModificationTime() {
+      // optional uint64 last_modification_time = 10;
+      private long lastModificationTime_ ;
+      public boolean hasLastModificationTime() {
         return ((bitField0_ & 0x00000200) == 0x00000200);
       }
-      public long getTxnLastModificationTime() {
-        return txnLastModificationTime_;
+      public long getLastModificationTime() {
+        return lastModificationTime_;
       }
-      public Builder setTxnLastModificationTime(long value) {
+      public Builder setLastModificationTime(long value) {
         bitField0_ |= 0x00000200;
-        txnLastModificationTime_ = value;
+        lastModificationTime_ = value;
         
         return this;
       }
-      public Builder clearTxnLastModificationTime() {
+      public Builder clearLastModificationTime() {
         bitField0_ = (bitField0_ & ~0x00000200);
-        txnLastModificationTime_ = 0L;
+        lastModificationTime_ = 0L;
         
         return this;
       }

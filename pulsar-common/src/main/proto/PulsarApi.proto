@@ -669,9 +669,9 @@ message TransactionMetadataEntry {
     optional TxnStatus new_status       = 5;
     repeated string partitions          = 6;
     repeated Subscription subscriptions = 7;
-    optional uint64 txn_timeout_ms      = 8;
-    optional uint64 txn_start_time      = 9;
-    optional uint64 txn_last_modification_time = 10;
+    optional uint64 timeout_ms      = 8;
+    optional uint64 start_time      = 9;
+    optional uint64 last_modification_time = 10;
 }
 
 message CommandNewTxn {

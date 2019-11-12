@@ -45,40 +45,40 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * The provider that offers topic-base-memory implementation of {@link TransactionMetadataStore}.
+ * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
  */
 public class ManagedLedgerTransactionMetadataStore implements TransactionMetadataStore {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ManagedLedgerTransactionReaderImpl.class);
 
     private final TransactionCoordinatorID tcID;
-    private final AtomicLong sequenceId;
+    private AtomicLong sequenceId;
     private final ManagedLedgerTransactionReader reader;
     private final ManagedLedgerTransactionWriter writer;
     protected static final long TC_ID_NOT_USED = -1L;
+    private volatile State state;
+
+    public State getState() {
+        return state;
+    }
 
     public ManagedLedgerTransactionMetadataStore(TransactionCoordinatorID tcID,
                                                  ManagedLedgerFactory managedLedgerFactory) throws Exception {
         this.tcID = tcID;
+        this.state = State.NONE;
         this.writer = new ManagedLedgerTransactionWriterImpl(tcID.toString(), managedLedgerFactory);
         this.reader = new ManagedLedgerTransactionReaderImpl(tcID.toString(), managedLedgerFactory);
-        if (reader.readSequenceId() == TC_ID_NOT_USED) {
-            this.sequenceId = new AtomicLong(0L);
-        } else {
-            this.sequenceId = new AtomicLong(reader.readSequenceId() + 1L);
-        }
+        this.reader.init(this);
     }
 
     @Override
-    public CompletableFuture<TxnStatus> getTxnStatus(TxnID txnid) {
-
-        return CompletableFuture.completedFuture(reader.getTxnStatus(txnid));
+    public CompletableFuture<TxnStatus> getTxnStatus(TxnID txnID) {
+        return CompletableFuture.completedFuture(reader.getTxnStatus(txnID));
     }
 
     @Override
-    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid) {
-
-        return CompletableFuture.completedFuture(reader.getTxnMeta(txnid));
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID) {
+        return CompletableFuture.completedFuture(reader.getTxnMeta(txnID));
     }
 
     @Override
@@ -88,6 +88,8 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
 
     @Override
     public CompletableFuture<TxnID> newTransaction(long timeOut) {
+        checkArgument(state == State.READY, "Transaction metadata store " + state.name());
+        checkArgument(state == State.READY);
         long mostSigBits = tcID.getId();
         long leastSigBits = sequenceId.getAndIncrement();
 
@@ -100,10 +102,10 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
                 .newBuilder()
                 .setTxnidMostBits(mostSigBits)
                 .setTxnidLeastBits(leastSigBits)
-                .setTxnStartTime(currentTimeMillis)
-                .setTxnTimeoutMs(timeOut)
+                .setStartTime(currentTimeMillis)
+                .setTimeoutMs(timeOut)
                 .setMetadataOp(TransactionMetadataOp.NEW)
-                .setTxnLastModificationTime(currentTimeMillis)
+                .setLastModificationTime(currentTimeMillis)
                 .build();
         CompletableFuture completableFuture = new CompletableFuture();
         writer.write(transactionMetadataEntry)
@@ -121,16 +123,17 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
     }
 
     @Override
-    public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnid, List<String> partitions) {
-        return getTxnMeta(txnid).thenCompose(txn -> {
+    public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnID, List<String> partitions) {
+        checkArgument(state == State.READY, "Transaction metadata store " + state.name());
+        return getTxnMeta(txnID).thenCompose(txn -> {
             checkArgument(txn != null);
             TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                     .newBuilder()
-                    .setTxnidMostBits(txnid.getMostSigBits())
-                    .setTxnidLeastBits(txnid.getLeastSigBits())
+                    .setTxnidMostBits(txnID.getMostSigBits())
+                    .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
                     .addAllPartitions(partitions)
-                    .setTxnLastModificationTime(System.currentTimeMillis())
+                    .setLastModificationTime(System.currentTimeMillis())
                     .build();
 
             return writer.write(transactionMetadataEntry)
@@ -153,16 +156,17 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
     }
 
     @Override
-    public CompletableFuture<Void> addAckedSubscriptionToTxn(TxnID txnid, List<TxnSubscription> txnSubscriptions) {
-        return getTxnMeta(txnid).thenCompose(txn -> {
+    public CompletableFuture<Void> addAckedSubscriptionToTxn(TxnID txnID, List<TxnSubscription> txnSubscriptions) {
+        checkArgument(state == State.READY, "Transaction metadata store " + state.name());
+        return getTxnMeta(txnID).thenCompose(txn -> {
             checkArgument(txn != null);
             TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                     .newBuilder()
-                    .setTxnidMostBits(txnid.getMostSigBits())
-                    .setTxnidLeastBits(txnid.getLeastSigBits())
+                    .setTxnidMostBits(txnID.getMostSigBits())
+                    .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
                     .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
-                    .setTxnLastModificationTime(System.currentTimeMillis())
+                    .setLastModificationTime(System.currentTimeMillis())
                     .build();
 
             return writer.write(transactionMetadataEntry)
@@ -185,22 +189,23 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
     }
 
     @Override
-    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnid, List<String> partitions) {
+    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnID, List<String> partitions) {
         return FutureUtil.failedFuture(new UnsupportedOperationException());
 
     }
 
     @Override
-    public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus) {
-        return getTxnMeta(txnid).thenCompose(txn -> {
+    public CompletableFuture<Void> updateTxnStatus(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
+        checkArgument(state == State.READY, "Transaction metadata store " + state.name());
+        return getTxnMeta(txnID).thenCompose(txn -> {
             checkArgument(txn != null);
             TransactionMetadataEntry transactionMetadataEntry = TransactionMetadataEntry
                     .newBuilder()
-                    .setTxnidMostBits(txnid.getMostSigBits())
-                    .setTxnidLeastBits(txnid.getLeastSigBits())
+                    .setTxnidMostBits(txnID.getMostSigBits())
+                    .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setExpectedStatus(expectedStatus)
                     .setMetadataOp(TransactionMetadataOp.UPDATE)
-                    .setTxnLastModificationTime(System.currentTimeMillis())
+                    .setLastModificationTime(System.currentTimeMillis())
                     .setNewStatus(newStatus)
                     .build();
             return writer.write(transactionMetadataEntry)
@@ -222,6 +227,8 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
         });
     }
 
+
+
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture completableFuture = new CompletableFuture();
@@ -232,7 +239,24 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
             completableFuture.completeExceptionally(e);
         }
         completableFuture.complete(null);
+        this.updateMetadataStoreState(State.CLOSE);
         return completableFuture;
+    }
+
+    @Override
+    public CompletableFuture<Void> updateMetadataStoreState(State state) {
+        this.state = state;
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> setTxnSequenceId(long sequenceId) {
+        if (reader.readSequenceId() == TC_ID_NOT_USED) {
+            this.sequenceId = new AtomicLong(0L);
+        } else {
+            this.sequenceId = new AtomicLong(reader.readSequenceId() + 1L);
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     protected static List<Subscription> txnSubscriptionToSubscription(List<TxnSubscription> tnxSubscriptions) {
@@ -252,33 +276,43 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
     protected interface ManagedLedgerTransactionReader {
 
         /**
-         * Query the {@link TxnMeta} of a given transaction <tt>txnid</tt>.
+         * Query the {@link TxnMeta} of a given transaction <tt>txnID</tt>.
          *
-         * @param txnid transaction id
-         * @return a future represents the result of this operation.
-         *         it returns {@link TxnMeta} of the given transaction.
+         * @param txnID transaction id
+         * @return {@link TxnMeta}
          */
-        TxnMeta getTxnMeta(TxnID txnid);
+        TxnMeta getTxnMeta(TxnID txnID);
 
         /**
          * Get the last sequenceId for new {@link TxnID}.
          *
-         * @return {@link Long} for lst sequenceId.
+         * @return {@link Long} for last sequenceId.
          */
         Long readSequenceId();
 
         /**
          * Add the new {@link TxnMeta} to the cache.
+         *
+         * @param txnMeta transaction metadata
          */
         void addNewTxn(TxnMeta txnMeta);
 
         /**
-         * Get the transaction status from the {@link TxnID}.
+         * Get the transaction status from the {@link txnID}.
          *
-         * @return the {@link TxnID} corresponding transaction status.
+         * @param txnID {@link TxnID}
+         * @return the {@link TxnStatus} corresponding transaction status.
          */
         TxnStatus getTxnStatus(TxnID txnID);
 
+        /**
+         * Init the managedLedger reader.
+         *
+         * @param transactionMetadataStore {@link TransactionMetadataStore}
+         *
+         * @return a future represents the result of this operation
+         */
+        CompletableFuture<Void> init(TransactionMetadataStore transactionMetadataStore);
         /**
          * Close the reader.
          */
@@ -294,7 +328,7 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
         /**
          * Write the transaction operation to the transaction log.
          *
-         * @param transactionMetadataEntry transaction metadata entry
+         * @param transactionMetadataEntry {@link TransactionMetadataEntry} transaction metadata entry
          * @return a future represents the result of this operation
          */
         CompletableFuture<Void> write(TransactionMetadataEntry transactionMetadataEntry);

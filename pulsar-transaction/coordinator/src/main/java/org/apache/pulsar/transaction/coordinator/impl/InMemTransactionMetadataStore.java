@@ -130,4 +130,14 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
         transactions.clear();
         return CompletableFuture.completedFuture(null);
     }
+
+    @Override
+    public CompletableFuture<Void> updateMetadataStoreState(State state) {
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
+    }
+
+    @Override
+    public CompletableFuture<Void> setTxnSequenceId(long sequenceId) {
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
+    }
 }

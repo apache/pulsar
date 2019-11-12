@@ -25,8 +25,8 @@ import lombok.Data;
  */
 @Data
 public class TxnSubscription {
-    private String topic;
-    private String subscription;
+    private final String topic;
+    private final String subscription;
 
     public TxnSubscription(String topic, String subscription) {
         this.topic = topic;

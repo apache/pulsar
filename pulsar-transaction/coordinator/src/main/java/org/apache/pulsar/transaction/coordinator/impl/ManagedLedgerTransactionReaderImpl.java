@@ -22,11 +22,13 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -37,6 +39,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
@@ -47,7 +50,7 @@ import org.slf4j.LoggerFactory;
 class ManagedLedgerTransactionReaderImpl implements
         ManagedLedgerTransactionMetadataStore.ManagedLedgerTransactionReader {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ManagedLedgerTransactionReaderImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTransactionReaderImpl.class);
 
     private ConcurrentMap<TxnID, TxnMeta> txnMetaMap = new ConcurrentHashMap<>();
 
@@ -55,30 +58,10 @@ class ManagedLedgerTransactionReaderImpl implements
 
     private final ReadOnlyCursor readOnlyCursor;
 
-    private Exception initCacheException;
-
     public ManagedLedgerTransactionReaderImpl(String tcId, ManagedLedgerFactory managedLedgerFactory) throws Exception {
         this.readOnlyCursor = managedLedgerFactory
-                    .openReadOnlyCursor(tcId,
-                            PositionImpl.earliest, new ManagedLedgerConfig());
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        countDownLatch.countDown();
-        while (readOnlyCursor.hasMoreEntries()) {
-            if (initCacheException != null) {
-                throw initCacheException;
-            }
-            List<Entry> entries = readOnlyCursor.readEntries(2);
-            countDownLatch.await();
-            countDownLatch = new CountDownLatch(1);
-            new Thread(new ReadOnce(countDownLatch,
-                    txnMetaMap, sequenceId, this, entries)).start();
-        }
-
-        countDownLatch.await();
-
-        if (initCacheException != null) {
-            throw initCacheException;
-        }
+                .openReadOnlyCursor(tcId,
+                        PositionImpl.earliest, new ManagedLedgerConfig());
     }
 
     private static List<TxnSubscription> subscriptionToTxnSubscription(List<Subscription> subscriptions) {
@@ -92,8 +75,8 @@ class ManagedLedgerTransactionReaderImpl implements
 
 
     @Override
-    public TxnMeta getTxnMeta(TxnID txnid) {
-        return txnMetaMap.get(txnid);
+    public TxnMeta getTxnMeta(TxnID txnID) {
+        return txnMetaMap.get(txnID);
     }
 
     @Override
@@ -112,32 +95,54 @@ class ManagedLedgerTransactionReaderImpl implements
     }
 
     @Override
+    public CompletableFuture<Void> init(TransactionMetadataStore transactionMetadataStore) {
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        countDownLatch.countDown();
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        transactionMetadataStore.updateMetadataStoreState(TransactionMetadataStore.State.INITIALIZING);
+        readOnlyCursor
+                .asyncReadEntries(100,
+                        new ReaderReadEntriesCallback(countDownLatch, txnMetaMap, sequenceId,
+                                transactionMetadataStore, completableFuture), System.nanoTime());
+        return completableFuture;
+    }
+
+    @Override
     public void close() throws ManagedLedgerException, InterruptedException {
         txnMetaMap.clear();
         readOnlyCursor.close();
     }
 
-    class ReadOnce implements Runnable{
-        private final CountDownLatch countDownLatch;
+    class ReaderReadEntriesCallback implements ReadEntriesCallback {
+
+        private final CountDownLatch originalCountDownLatch;
+        private final CountDownLatch currentCountDownLatch = new CountDownLatch(1);
         private final ConcurrentMap<TxnID, TxnMeta> txnMetaMap;
         private AtomicLong sequenceId;
-        private List<Entry> entries;
-        private ManagedLedgerTransactionReaderImpl managedLedgerTransactionReader;
-        ReadOnce(CountDownLatch countDownLatch,
-                 ConcurrentMap<TxnID, TxnMeta> txnMetaMap,
-                 AtomicLong sequenceId,
-                 ManagedLedgerTransactionReaderImpl managedLedgerTransactionReader,
-                 List<Entry> entries) {
-            this.countDownLatch = countDownLatch;
+        private TransactionMetadataStore transactionMetadataStore;
+        private CompletableFuture<Void> completableFuture;
+
+        ReaderReadEntriesCallback(CountDownLatch originalCountDownLatch,
+                                  ConcurrentMap<TxnID, TxnMeta> txnMetaMap,
+                                  AtomicLong sequenceId,
+                                  TransactionMetadataStore transactionMetadataStore,
+                                  CompletableFuture<Void> completableFuture) {
+            this.originalCountDownLatch = originalCountDownLatch;
             this.txnMetaMap = txnMetaMap;
             this.sequenceId = sequenceId;
-            this.entries = entries;
-            this.managedLedgerTransactionReader = managedLedgerTransactionReader;
+            this.transactionMetadataStore = transactionMetadataStore;
+            this.completableFuture = completableFuture;
         }
 
         @Override
-        public void run() {
+        public void readEntriesComplete(List<Entry> entries, Object ctx) {
             try {
+                if (readOnlyCursor.hasMoreEntries()) {
+                    readOnlyCursor.asyncReadEntries(100,
+                            new ReaderReadEntriesCallback(currentCountDownLatch, txnMetaMap,
+                                    sequenceId, transactionMetadataStore, completableFuture), System.nanoTime());
+                }
+                originalCountDownLatch.await();
                 for (int i = 0; i < entries.size(); i++) {
                     ByteBuf buffer = entries.get(i).getDataBuffer();
                     ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
@@ -157,7 +162,8 @@ class ManagedLedgerTransactionReaderImpl implements
                             stream.recycle();
                             break;
                         case ADD_PARTITION:
-                            txnMetaMap.get(txnID).addProducedPartitions(transactionMetadataEntry.getPartitionsList());
+                            txnMetaMap.get(txnID)
+                                    .addProducedPartitions(transactionMetadataEntry.getPartitionsList());
                             transactionMetadataEntryBuilder.recycle();
                             stream.recycle();
                             break;
@@ -182,14 +188,25 @@ class ManagedLedgerTransactionReaderImpl implements
                     }
                     entries.get(i).release();
                 }
-                countDownLatch.countDown();
+                currentCountDownLatch.countDown();
+                if (!readOnlyCursor.hasMoreEntries()) {
+                    originalCountDownLatch.await();
+                    log.info("ManagedLedgerTransactionReaderImpl init txnMetaMap success");
+                    transactionMetadataStore
+                            .updateMetadataStoreState(TransactionMetadataStore.State.READY);
+                    transactionMetadataStore.setTxnSequenceId(sequenceId.get());
+                    completableFuture.complete(null);
+                }
             } catch (Exception e) {
-                managedLedgerTransactionReader.setInitCacheException(e);
+                log.error("ManagedLedgerTransactionReaderImpl init txnMetaMap error");
+                completableFuture.completeExceptionally(e);
             }
         }
-    }
 
-    public void setInitCacheException(Exception e) {
-        this.initCacheException = e;
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            log.error("ManagedLedgerTransactionReaderImpl init txnMetaMap read entries failed");
+            completableFuture.completeExceptionally(exception);
+        }
     }
 }

@@ -22,6 +22,7 @@ import com.google.common.annotations.Beta;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 
@@ -32,24 +33,34 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 public interface TransactionMetadataStore {
 
     /**
-     * Query the {@link TxnStatus} of a given transaction <tt>txnid</tt>.
+     * The state of the transactionMetadataStore {@link TransactionMetadataStore}.
+     */
+    enum State {
+        NONE,
+        INITIALIZING,
+        READY,
+        CLOSE
+    }
+
+    /**
+     * Query the {@link TxnStatus} of a given transaction <tt>txnId</tt>.
      *
-     * @param txnid transaction id
+     * @param txnID {@link TxnID} for get transaction status
      * @return a future represents the result of this operation.
      *         it returns {@link TxnStatus} of the given transaction.
      */
-    default CompletableFuture<TxnStatus> getTxnStatus(TxnID txnid) {
-        return getTxnMeta(txnid).thenApply(txnMeta -> txnMeta.status());
+    default CompletableFuture<TxnStatus> getTxnStatus(TxnID txnID) {
+        return getTxnMeta(txnID).thenApply(txnMeta -> txnMeta.status());
     }
 
     /**
      * Query the {@link TxnMeta} of a given transaction <tt>txnid</tt>.
      *
-     * @param txnid transaction id
+     * @param txnID {@link TxnID} for get transaction metadata
      * @return a future represents the result of this operation.
      *         it returns {@link TxnMeta} of the given transaction.
      */
-    CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid);
+    CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID);
 
     /**
      * Create a new transaction in the transaction metadata store.
@@ -71,34 +82,34 @@ public interface TransactionMetadataStore {
     CompletableFuture<TxnID> newTransaction(long timeOut);
 
     /**
-     * Add the produced partitions to transaction identified by <tt>txnid</tt>.
+     * Add the produced partitions to transaction identified by <tt>txnId</tt>.
      *
-     * @param txnid transaction id
+     * @param txnID {@link TxnID} for add produced partition to transaction
      * @param partitions the list of partitions that a transaction produces to
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> addProducedPartitionToTxn(
-        TxnID txnid, List<String> partitions);
+        TxnID txnID, List<String> partitions);
 
     /**
-     * Add the acked subscriptions to transaction identified by <tt>txnid</tt>.
+     * Add the acked subscriptions to transaction identified by <tt>txnId</tt>.
      *
-     * @param txnid transaction id
+     * @param txnID {@link TxnID} for add acked subscription
      * @param txnSubscriptions the list of subscriptions that a transaction ack to
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> addAckedSubscriptionToTxn(
-            TxnID txnid, List<TxnSubscription> txnSubscriptions);
+            TxnID txnID, List<TxnSubscription> txnSubscriptions);
 
     /**
-     * Add the acked partitions to transaction identified by <tt>txnid</tt>.
+     * Add the acked partitions to transaction identified by <tt>txnId</tt>.
      *
-     * @param txnid transaction id
+     * @param txnID {@link TxnID} for add acked partition
      * @param partitions the list of partitions that a transaction acknowledge to
      * @return a future represents the result of the operation
      */
     CompletableFuture<Void> addAckedPartitionToTxn(
-        TxnID txnid, List<String> partitions);
+        TxnID txnID, List<String> partitions);
 
     /**
      * Update the transaction from <tt>expectedStatus</tt> to <tt>newStatus</tt>.
@@ -106,16 +117,35 @@ public interface TransactionMetadataStore {
      * <p>If the current transaction status is not <tt>expectedStatus</tt>, the
      * update will be failed.
      *
+     * @param txnID {@link TxnID} for update txn status
      * @param newStatus the new txn status that the transaction should be updated to
      * @param expectedStatus the expected status that the transaction should be
      * @return a future represents the result of the operation
      */
     CompletableFuture<Void> updateTxnStatus(
-        TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus);
+        TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus);
 
     /**
      * Close the transaction metadata store.
+     *
+     * @return a future represents the result of this operation
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * Update the {@link State}.
+     *
+     * @param state the transaction metadata store state {@link State}
+     * @return a future represents the result of this operation
+     */
+    CompletableFuture<Void> updateMetadataStoreState(State state);
+
+    /**
+     * Set the txn sequenceId.
+     *
+     * @param sequenceId the transaction sequenceId for new transaction Id
+     * @return a future represents the result of this operation
+     */
+    CompletableFuture<Void> setTxnSequenceId(long sequenceId);
 
 }
