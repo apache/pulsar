@@ -81,7 +81,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
         ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.earliest);
-        assertTrue(Iterables.isEmpty(ledger.getCursors()));
+        assertFalse(Iterables.isEmpty(ledger.getCursors()));
 
         c1.close();
         ledger.close();
