@@ -383,7 +383,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // handle boundary cases where message being added would exceed
                     // batch size and/or max message size
                     if (canAddToCurrentBatch(msg)) {
-                        batchMessageContainer.add(msg, callback);
+                        boolean isBatchFull = batchMessageContainer.add(msg, callback);
                         lastSendFuture = callback.getFuture();
                         payload.release();
                         if (isBatchFull) {
