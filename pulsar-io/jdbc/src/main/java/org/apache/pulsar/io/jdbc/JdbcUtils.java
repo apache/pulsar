@@ -39,6 +39,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Jdbc Utils
@@ -108,25 +109,28 @@ public class JdbcUtils {
      * Given a driver type(such as mysql), return its jdbc driver class name.
      * TODO: test and support more types, also add Driver in pom file.
      */
-    public static String getDriverClassName(String driver) throws Exception {
-        if (driver.equals("mysql")) {
-            return "com.mysql.jdbc.Driver";
-        } if (driver.equals("sqlite")) {
-            return "org.sqlite.JDBC";
-        } else {
-            throw new Exception("Not tested jdbc driver type: " + driver);
+    public static String getDriverClassName(JdbcSinkConfig jdbcSinkConfig) throws Exception {
+        String driverClass = jdbcSinkConfig.getDriverClass();
+        if(StringUtils.isNotEmpty(driverClass)){
+            return driverClass;
+        }
+        String jdbcUrl = jdbcSinkConfig.getJdbcUrl();
+        String type = jdbcUrl.split(":")[1];
+        driverClass = JdbcDriverMapping.getDriverClass(type);
+        if (StringUtils.isNotEmpty(driverClass)) {
+            return driverClass;
+        }  else {
+            throw new Exception("Not tested jdbc driver type: " + type);
         }
     }
 
     /**
      * Get the {@link Connection} for the given jdbcUrl.
      */
-    public static Connection getConnection(String jdbcUrl, Properties properties) throws Exception {
-        String driver = jdbcUrl.split(":")[1];
-        String driverClassName = getDriverClassName(driver);
+    public static Connection getConnection(JdbcSinkConfig jdbcSinkConfig, Properties properties) throws Exception {
+        String driverClassName = getDriverClassName(jdbcSinkConfig);
         Class.forName(driverClassName);
-
-        return DriverManager.getConnection(jdbcUrl, properties);
+        return DriverManager.getConnection(jdbcSinkConfig.getJdbcUrl(), properties);
     }
 
     /**

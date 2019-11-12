@@ -89,7 +89,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             properties.setProperty("password", password);
         }
 
-        connection = JdbcUtils.getConnection(jdbcUrl, properties);
+        connection = JdbcUtils.getConnection(jdbcSinkConfig, properties);
         connection.setAutoCommit(false);
         log.info("Opened jdbc connection: {}, autoCommit: {}", jdbcUrl, connection.getAutoCommit());
 

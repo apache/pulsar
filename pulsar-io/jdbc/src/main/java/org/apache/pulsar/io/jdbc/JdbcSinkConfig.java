@@ -63,6 +63,12 @@ public class JdbcSinkConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
+        help = "The driverClass of the database this connector connects to"
+    )
+    private String driverClass;
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
         help = "The name of the table this connector writes messages to"
     )
     private String tableName;
