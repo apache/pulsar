@@ -54,9 +54,9 @@ public interface TxnMeta {
     List<String> producedPartitions();
 
     /**
-     * Return the the list of partitions that this transaction produces to.
+     * Return the the list of subscriptions that this transaction send to.
      *
-     * @return the list of partitions that this transaction produced to.
+     * @return the list of subscriptions that this transaction produced to.
      *         the returned list is sorted by partition name.
      */
     List<TxnSubscription> txnSubscription();
@@ -80,8 +80,9 @@ public interface TxnMeta {
         throws InvalidTxnStatusException;
 
     /**
-     * Add the list of produced partitions to the transaction.
+     * Add the list of subscriptions to the transaction.
      *
+     * @param subscriptions
      * @return transaction meta
      * @throws InvalidTxnStatusException if the transaction is not in
      *         {@link TxnStatus#OPEN}

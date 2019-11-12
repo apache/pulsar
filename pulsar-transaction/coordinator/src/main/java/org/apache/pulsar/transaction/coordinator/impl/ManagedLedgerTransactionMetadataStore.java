@@ -89,7 +89,6 @@ public class ManagedLedgerTransactionMetadataStore implements TransactionMetadat
     @Override
     public CompletableFuture<TxnID> newTransaction(long timeOut) {
         checkArgument(state == State.READY, "Transaction metadata store " + state.name());
-        checkArgument(state == State.READY);
         long mostSigBits = tcID.getId();
         long leastSigBits = sequenceId.getAndIncrement();
 
