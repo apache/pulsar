@@ -19,34 +19,24 @@
 
 package org.apache.pulsar.io.mongodb;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import com.mongodb.MongoBulkWriteException;
-import com.mongodb.async.SingleResultCallback;
-import com.mongodb.async.client.MongoClient;
-import com.mongodb.async.client.MongoCollection;
-import com.mongodb.async.client.MongoDatabase;
-import com.mongodb.bulk.BulkWriteError;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
-import org.bson.BsonDocument;
 import org.mockito.Mock;
+import org.reactivestreams.Subscriber;
 import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
+
+import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 public class MongoSinkTest {
 
@@ -69,6 +59,7 @@ public class MongoSinkTest {
 
     private Map<String, Object> map;
 
+    private Subscriber subscriber;
 
     @ObjectFactory
     public IObjectFactory getObjectFactory() {
@@ -96,28 +87,19 @@ public class MongoSinkTest {
         when(mockRecord.getValue()).thenReturn("{\"hello\":\"pulsar\"}".getBytes());
 
         doAnswer((invocation) -> {
-            SingleResultCallback cb = invocation.getArgument(1, SingleResultCallback.class);
-            MongoBulkWriteException exc = null;
-
-            if (throwBulkError) {
-                List<BulkWriteError > writeErrors = Arrays.asList(
-                        new BulkWriteError(0, "error", new BsonDocument(), 1));
-                exc = new MongoBulkWriteException(null, writeErrors, null, null);
-            }
-
-            cb.onResult(null, exc);
+            subscriber = invocation.getArgument(1, Subscriber.class);
             return null;
-        }).when(mockMongoColl).insertMany(any(), any());
+        }).when(mockMongoColl).insertMany(any());
     }
 
     private void initFailContext(String msg) {
         when(mockRecord.getValue()).thenReturn(msg.getBytes());
 
         doAnswer((invocation) -> {
-            SingleResultCallback cb = invocation.getArgument(1, SingleResultCallback.class);
-            cb.onResult(null, new Exception("Oops"));
+            subscriber = invocation.getArgument(1, Subscriber.class);
+            subscriber.onNext(new Exception("0ops"));
             return null;
-        }).when(mockMongoColl).insertMany(any(), any());
+        }).when(mockMongoColl).insertMany(any());
     }
 
     @AfterMethod
