@@ -67,7 +67,7 @@ public class Reflections {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         if (!xface.isAssignableFrom(theCls)) {
-            throw new RuntimeException(userClassName + " not " + xface.getName());
+            throw new RuntimeException(userClassName + " does not implement " + xface.getName());
         }
         Class<T> tCls = (Class<T>) theCls.asSubclass(xface);
         T result;

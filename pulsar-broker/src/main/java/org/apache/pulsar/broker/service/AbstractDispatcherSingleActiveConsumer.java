@@ -135,7 +135,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer ", this.topicName, consumer);
+            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", this.topicName, consumer);
             consumer.disconnect();
         }
 
@@ -207,6 +207,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     public CompletableFuture<Void> close() {
         IS_CLOSED_UPDATER.set(this, TRUE);
         return disconnectAllConsumers();
+    }
+
+    public boolean isClosed() {
+        return isClosed == TRUE;
     }
 
     /**

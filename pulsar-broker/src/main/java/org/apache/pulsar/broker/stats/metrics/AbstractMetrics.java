@@ -141,8 +141,7 @@ abstract class AbstractMetrics {
      * Creates a dimension key for metrics
      *
      * @param namespace
-     * @param fromClusterName
-     * @param toClusterName
+     *          Namespace of metric
      * @return
      */
     protected Metrics createMetricsByDimension(String namespace) {
@@ -223,8 +222,8 @@ abstract class AbstractMetrics {
      * Helper to manage populating topics map
      *
      * @param ledgersByDimensionMap
-     * @param dimensionKey
-     * @param destStats
+     * @param metrics
+     * @param ledger
      */
     protected void populateDimensionMap(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap, Metrics metrics,
             ManagedLedgerImpl ledger) {

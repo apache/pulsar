@@ -19,14 +19,15 @@
 package org.apache.pulsar.io.kinesis;
 
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 import org.apache.pulsar.functions.api.Record;
-import org.inferred.freebuilder.shaded.org.apache.commons.lang3.StringUtils;
+import software.amazon.awssdk.services.kinesis.model.EncryptionType;
+import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 public class KinesisRecord implements Record<byte[]> {
     
@@ -35,26 +36,35 @@ public class KinesisRecord implements Record<byte[]> {
     public static final String PARTITION_KEY = "";
     public static final String SEQUENCE_NUMBER = "";
 
-    private static final CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder();
+    private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
     private final Optional<String> key;
     private final byte[] value;
     private final HashMap<String, String> userProperties = new HashMap<String, String> ();
     
-    public KinesisRecord(com.amazonaws.services.kinesis.model.Record record) {
-        this.key = Optional.of(record.getPartitionKey());
-        setProperty(ARRIVAL_TIMESTAMP, record.getApproximateArrivalTimestamp().toString());
-        setProperty(ENCRYPTION_TYPE, record.getEncryptionType());
-        setProperty(PARTITION_KEY, record.getPartitionKey());
-        setProperty(SEQUENCE_NUMBER, record.getSequenceNumber());
-        
-        if (StringUtils.isBlank(record.getEncryptionType())) {
+    public KinesisRecord(KinesisClientRecord record) {
+        this.key = Optional.of(record.partitionKey());
+        // encryption type can (annoyingly) be null, so we default to NONE
+        EncryptionType encType = EncryptionType.NONE;
+        if (record.encryptionType() != null) {
+            encType = record.encryptionType();
+        }
+        setProperty(ARRIVAL_TIMESTAMP, record.approximateArrivalTimestamp().toString());
+        setProperty(ENCRYPTION_TYPE, encType.toString());
+        setProperty(PARTITION_KEY, record.partitionKey());
+        setProperty(SEQUENCE_NUMBER, record.sequenceNumber());
+
+        if (encType == EncryptionType.NONE) {
             String s = null;
             try {
-                s = decoder.decode(record.getData()).toString();
+                s = decoder.decode(record.data()).toString();
             } catch (CharacterCodingException e) {
                // Ignore 
             }
             this.value = (s != null) ? s.getBytes() : null;
+        } else if (encType == EncryptionType.KMS) {
+            // use the raw encrypted value, let them handle it downstream
+            // TODO: support decoding KMS data here... should be fairly simple
+            this.value = record.data().array();
         } else {
             // Who knows?
             this.value = null;

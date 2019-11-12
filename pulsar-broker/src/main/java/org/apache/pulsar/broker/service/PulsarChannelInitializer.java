@@ -27,6 +27,7 @@ import org.apache.pulsar.common.util.NettySslContextBuilder;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.flow.FlowControlHandler;
 
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -38,8 +39,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final ServiceConfiguration brokerConf;
 
     /**
-     *
-     * @param brokerService
+     * @param pulsar
+     *              An instance of {@link PulsarService}
+     * @param enableTLS
+     *              Enable tls or not
      */
     public PulsarChannelInitializer(PulsarService pulsar, boolean enableTLS) throws Exception {
         super();
@@ -69,6 +72,12 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
             brokerConf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+        // https://stackoverflow.com/questions/37535482/netty-disabling-auto-read-doesnt-work-for-bytetomessagedecoder
+        // Classes such as {@link ByteToMessageDecoder} or {@link MessageToByteEncoder} are free to emit as many events
+        // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
+        // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
+        // auto-read.
+        ch.pipeline().addLast("flowController", new FlowControlHandler());
         ch.pipeline().addLast("handler", new ServerCnx(pulsar));
     }
 }

@@ -21,12 +21,14 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -82,18 +84,16 @@ public interface Topic {
     void addProducer(Producer producer) throws BrokerServiceException;
 
     void removeProducer(Producer producer);
-    
+
     /**
-     * record add-latency in micro-seconds.
-     * 
-     * @param latencyUSec
+     * record add-latency
      */
-    void recordAddLatency(long latencyUSec);
+    void recordAddLatency(long latency, TimeUnit unit);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            boolean replicateSubscriptionState);
+            long startMessageRollbackDurationSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);
@@ -119,6 +119,14 @@ public interface Topic {
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
+
+    void checkPublishThrottlingRate();
+    
+    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
+    
+    void resetPublishCountAndEnableReadIfRequired();
+    
+    boolean isPublishRateExceeded();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
@@ -165,14 +173,14 @@ public interface Topic {
     /**
      * Check if schema is compatible with current topic schema.
      */
-    CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);
+    CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema);
 
     /**
      * If the topic is idle (no producers, no entries, no subscribers and no existing schema),
      * add the passed schema to the topic. Otherwise, check that the passed schema is compatible
      * with what the topic already has.
      */
-    CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
+    CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
 
     CompletableFuture<Void> deleteForcefully();
 

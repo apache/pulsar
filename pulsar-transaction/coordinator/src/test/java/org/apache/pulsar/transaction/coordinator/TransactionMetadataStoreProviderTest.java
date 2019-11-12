@@ -61,7 +61,7 @@ public class TransactionMetadataStoreProviderTest {
     @BeforeMethod
     public void setup() throws Exception {
         this.tcId = new TransactionCoordinatorID(1L);
-        this.store = this.provider.openStore(tcId).get();
+        this.store = this.provider.openStore(tcId, null).get();
     }
 
     @Test

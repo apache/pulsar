@@ -62,8 +62,13 @@ message KeyValue {
 }
 
 message KeyLongValue {
-        required string key = 1;
-        required uint64 value = 2;
+    required string key = 1;
+    required uint64 value = 2;
+}
+
+message IntRange {
+    required int32 start = 1;
+    required int32 end = 2;
 }
 
 message EncryptionKeys {
@@ -199,6 +204,7 @@ enum ProtocolVersion {
     v13 = 13; // Schema-registry : added avro schema format for json
     v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
               // Added Key_Shared subscription
+    v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
 }
 
 message CommandConnect {
@@ -249,6 +255,16 @@ message AuthData {
     optional bytes auth_data = 2;
 }
 
+enum KeySharedMode {
+    AUTO_SPLIT = 0;
+    STICKY = 1;
+}
+
+message KeySharedMeta {
+    required KeySharedMode keySharedMode = 1;
+    repeated IntRange hashRanges = 3;
+}
+
 message CommandSubscribe {
     enum SubType {
         Exclusive = 0;
@@ -268,7 +284,7 @@ message CommandSubscribe {
     // Signal wether the subscription should be backed by a
     // durable cursor or not
     optional bool durable = 8 [default = true];
-
+    
     // If specified, the subscription will position the cursor
     // markd-delete position  on the particular message id and
     // will send messages from that point
@@ -284,7 +300,7 @@ message CommandSubscribe {
         Latest   = 0;
         Earliest = 1;
     }
-    // Signal wthether the subscription will initialize on latest
+    // Signal whether the subscription will initialize on latest
     // or not -- earliest
     optional InitialPosition initialPosition = 13 [default = Latest];
 
@@ -292,6 +308,19 @@ message CommandSubscribe {
     // to periodically sync the state of replicated subscriptions
     // across different clusters (when using geo-replication).
     optional bool replicate_subscription_state = 14;
+    
+    // If true, the subscribe operation will cause a topic to be 
+    // created if it does not exist already (and if topic auto-creation
+    // is allowed by broker.
+    // If false, the subscribe operation will fail if the topic 
+    // does not exist.
+    optional bool force_topic_creation = 15 [default = true];
+
+    // If specified, the subscription will reset cursor's position back 
+    // to specified seconds and  will send messages from that point
+    optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
+
+    optional KeySharedMeta keySharedMeta = 17;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -612,6 +641,20 @@ message CommandGetSchemaResponse {
     optional bytes schema_version   = 5;
 }
 
+message CommandGetOrCreateSchema {
+    required uint64 request_id = 1;
+    required string topic      = 2;
+    required Schema schema     = 3;
+}
+
+message CommandGetOrCreateSchemaResponse {
+    required uint64 request_id      = 1;
+    optional ServerError error_code = 2;
+    optional string error_message   = 3;
+
+    optional bytes schema_version   = 4;
+}
+
 /// --- transaction related ---
 
 enum TxnAction {
@@ -774,6 +817,9 @@ message BaseCommand {
 
         ACK_RESPONSE = 38;
 
+        GET_OR_CREATE_SCHEMA = 39;
+        GET_OR_CREATE_SCHEMA_RESPONSE = 40;
+
         // transaction related
         NEW_TXN = 50;
         NEW_TXN_RESPONSE = 51;
@@ -850,6 +896,9 @@ message BaseCommand {
     optional CommandAuthResponse authResponse = 37;
 
     optional CommandAckResponse ackResponse = 38;
+
+    optional CommandGetOrCreateSchema getOrCreateSchema = 39;
+    optional CommandGetOrCreateSchemaResponse getOrCreateSchemaResponse = 40;
 
     // transaction related
     optional CommandNewTxn newTxn = 50;

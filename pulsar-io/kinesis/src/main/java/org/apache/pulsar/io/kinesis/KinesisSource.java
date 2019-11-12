@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.net.InetAddress;
@@ -27,21 +26,23 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.pulsar.functions.api.Record;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorFactory;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.kinesis.common.ConfigsBuilder;
+import software.amazon.kinesis.common.InitialPositionInStream;
+import software.amazon.kinesis.coordinator.Scheduler;
+import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
+import software.amazon.kinesis.retrieval.RetrievalConfig;
+import software.amazon.kinesis.retrieval.polling.PollingConfig;
 
 /**
  * 
- * @see KinesisClientLibConfiguration 
+ * @see ConfigsBuilder
  */
 @Connector(
         name = "kinesis",
@@ -49,18 +50,22 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
         help = "A source connector that copies messages from Kinesis to Pulsar",
         configClass = KinesisSourceConfig.class
     )
+@Slf4j
 public class KinesisSource extends AbstractKinesisConnector implements Source<byte[]> {
 
     private LinkedBlockingQueue<KinesisRecord> queue;
     private KinesisSourceConfig kinesisSourceConfig;
-    private KinesisClientLibConfiguration kinesisClientLibConfig;
-    private IRecordProcessorFactory recordProcessorFactory;
+    private ConfigsBuilder configsBuilder;
+    private ShardRecordProcessorFactory recordProcessorFactory;
     private String workerId;
-    private Worker worker;
+    private Scheduler scheduler;
+    private Thread schedulerThread;
+    private Throwable threadEx;
+
 
     @Override
     public void close() throws Exception {
-        worker.shutdown();
+        scheduler.shutdown();
     }
 
     @Override
@@ -80,31 +85,58 @@ public class KinesisSource extends AbstractKinesisConnector implements Source<by
         queue = new LinkedBlockingQueue<KinesisRecord> (kinesisSourceConfig.getReceiveQueueSize());
         workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
         
-        AWSCredentialsProvider credentialsProvider = createCredentialProvider(
+        AwsCredentialProviderPlugin credentialsProvider = createCredentialProvider(
                 kinesisSourceConfig.getAwsCredentialPluginName(), 
                 kinesisSourceConfig.getAwsCredentialPluginParam());
-        
-        kinesisClientLibConfig = 
-                new KinesisClientLibConfiguration(kinesisSourceConfig.getApplicationName(),
-                        kinesisSourceConfig.getAwsKinesisStreamName(),
-                        credentialsProvider,
-                        workerId)
-                .withRegionName(kinesisSourceConfig.getAwsRegion())
-                .withInitialPositionInStream(kinesisSourceConfig.getInitialPositionInStream());
-        
-        if (kinesisSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {
-           kinesisClientLibConfig.withTimestampAtInitialPositionInStream(kinesisSourceConfig.getStartAtTime());
-        }
-        
+
+        KinesisAsyncClient kClient = kinesisSourceConfig.buildKinesisAsyncClient(credentialsProvider);
         recordProcessorFactory = new KinesisRecordProcessorFactory(queue, kinesisSourceConfig);
-        
-        worker = new Worker(recordProcessorFactory, kinesisClientLibConfig);
-        worker.run();
+        configsBuilder = new ConfigsBuilder(kinesisSourceConfig.getAwsKinesisStreamName(),
+                                            kinesisSourceConfig.getApplicationName(),
+                                            kClient,
+                                            kinesisSourceConfig.buildDynamoAsyncClient(credentialsProvider),
+                                            kinesisSourceConfig.buildCloudwatchAsyncClient(credentialsProvider),
+                                            workerId,
+                                            recordProcessorFactory);
+
+        RetrievalConfig retrievalConfig = configsBuilder.retrievalConfig();
+        if (!kinesisSourceConfig.isUseEnhancedFanOut()) {
+            retrievalConfig.retrievalSpecificConfig(
+                    new PollingConfig(kinesisSourceConfig.getAwsKinesisStreamName(),
+                                      kClient));
+        }
+
+        retrievalConfig.initialPositionInStreamExtended(kinesisSourceConfig.getStreamStartPosition());
+
+        scheduler = new Scheduler(
+                configsBuilder.checkpointConfig(),
+                configsBuilder.coordinatorConfig(),
+                configsBuilder.leaseManagementConfig(),
+                configsBuilder.lifecycleConfig(),
+                configsBuilder.metricsConfig(),
+                configsBuilder.processorConfig(),
+                retrievalConfig
+        );
+        schedulerThread = new Thread(scheduler);
+        schedulerThread.setDaemon(true);
+        threadEx = null;
+        schedulerThread.setUncaughtExceptionHandler((t, ex) -> {
+            threadEx = ex;
+        });
+        schedulerThread.start();
     }
 
     @Override
     public KinesisRecord read() throws Exception {
-        return queue.take();
+        try {
+            return queue.take();
+        } catch (InterruptedException ex) {
+            log.warn("Got interrupted when trying to fetch out of the queue");
+            if (threadEx != null) {
+                log.error("error from scheduler", threadEx);
+            }
+            throw ex;
+        }
     }
 
 }

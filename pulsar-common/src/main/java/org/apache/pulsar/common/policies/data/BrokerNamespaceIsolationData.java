@@ -39,6 +39,18 @@ public class BrokerNamespaceIsolationData {
     )
     public String brokerName;
     @ApiModelProperty(
+            name = "policyName",
+            value = "Policy name",
+            example = "my-policy"
+        )
+    public String policyName;
+    @ApiModelProperty(
+            name = "isPrimary",
+            value = "Is Primary broker",
+            example = "true/false"
+        )
+    public boolean isPrimary;
+    @ApiModelProperty(
         name = "namespaceRegex",
         value = "The namespace-isolation policies attached to this broker"
     )

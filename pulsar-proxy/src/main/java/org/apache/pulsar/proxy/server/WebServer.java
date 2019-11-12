@@ -24,7 +24,6 @@ import io.prometheus.client.jetty.JettyStatisticsCollector;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -78,6 +77,9 @@ public class WebServer {
     protected int externalServicePort;
     private URI serviceURI = null;
 
+    private ServerConnector connector;
+    private ServerConnector connectorTls;
+
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
         this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
         this.server = new Server(webServiceExecutor);
@@ -91,7 +93,7 @@ public class WebServer {
 
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
-            ServerConnector connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
             connector.setPort(externalServicePort);
             connectors.add(connector);
         }
@@ -105,9 +107,9 @@ public class WebServer {
                         config.isTlsRequireTrustedClientCertOnConnect(),
                         true,
                         config.getTlsCertRefreshCheckDurationSec());
-                ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls().get());
-                connectors.add(tlsConnector);
+                connectorTls = new ServerConnector(server, 1, 1, sslCtxFactory);
+                connectorTls.setPort(config.getWebServicePortTls().get());
+                connectors.add(connectorTls);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -233,6 +235,22 @@ public class WebServer {
 
     public boolean isStarted() {
         return server.isStarted();
+    }
+
+    public Optional<Integer> getListenPortHTTP() {
+        if (connector != null) {
+            return Optional.of(connector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        if (connectorTls != null) {
+            return Optional.of(connectorTls.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebServer.class);

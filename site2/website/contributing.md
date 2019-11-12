@@ -77,7 +77,7 @@ list of all PIPs is maintained in the Pulsar wiki at https://github.com/apache/p
 ## Code
 
 To contribute code to Apache Pulsar, you’ll have to do a few administrative steps once, and then
-follow the [Coding Guide](../coding_guide).
+follow the [Coding Guide](../coding-guide).
 
 ### One-time Setup
 
