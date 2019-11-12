@@ -344,11 +344,20 @@ consumer.acknowledge(messages)
 > Consumer consumer = client.newConsumer()
 >         .topic("my-topic")
 >         .subscriptionName("my-subscription")
->   			.batchReceivePolicy(BatchReceivePolicy.builder()
->                         .maxNumberOfMessages(100)
->                         .timeout(200, TimeUnit.MILLISECONDS)
->                         .build())
+>         .batchReceivePolicy(BatchReceivePolicy.builder()
+>              .maxNumMessages(100)
+>              .maxNumBytes(1024 * 1024)
+>              .timeout(200, TimeUnit.MILLISECONDS)
+>              .build())
 >         .subscribe();
+> ```
+> And the default batch receive policy is:
+> ```java
+> BatchReceivePolicy.builder()
+>     .maxNumMessage(-1)
+>     .maxNumBytes(10 * 1024 * 1024)
+>     .timeout(100, TimeUnit.MILLISECONDS)
+>     .build();
 > ```
 
 ### Multi-topic subscriptions
