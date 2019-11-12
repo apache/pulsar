@@ -421,14 +421,14 @@ public class PerformanceProducer {
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMsgs == 0) {
+            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMessages == 0) {
                 producerBuilder.enableBatching(false);
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
                 producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS).enableBatching(true);
             }
-            if (arguments.batchMaxMsgs > 0) {
-                producerBuilder.batchingMaxMessages(arguments.batchMaxMsgs);
+            if (arguments.batchMaxMessages > 0) {
+                producerBuilder.batchingMaxMessages(arguments.batchMaxMessages);
             }
             if (arguments.batchMaxBytes > 0) {
                 producerBuilder.batchingMaxBytes(arguments.batchMaxBytes);
