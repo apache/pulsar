@@ -716,7 +716,7 @@ Since Pulsar 2.1.0 release, Pulsar integrates with Apache BookKeeper [table serv
 
 States are key-value pairs, where the key is a string and the value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function, and shared between instances of that function.
 
-You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](pulsar-admin.md#querystate) and [putstate](pulsar-admin.md#putstate) options to `pulsar-admin functions`.
+You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
 
 ### API
 
