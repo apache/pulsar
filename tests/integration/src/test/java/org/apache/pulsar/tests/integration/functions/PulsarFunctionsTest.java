@@ -2200,7 +2200,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         @Cleanup
         DebeziumMongoDbSourceTester sourceTester = new DebeziumMongoDbSourceTester(pulsarCluster);
 
-        // setup debezium postgresql server
+        // setup debezium mongodb server
         DebeziumMongoDbContainer mongoDbContainer = new DebeziumMongoDbContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(mongoDbContainer);
 
