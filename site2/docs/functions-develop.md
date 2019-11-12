@@ -40,8 +40,7 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 > 
 > If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
 > start the functions. In this case, you can create a symlink. Your system will fail if
-> you subsequently install any other package that depends on Python 2.x. A solution is under development in
-> [Issue 5518](https://github.com/apache/pulsar/issues/5518).
+> you subsequently install any other package that depends on Python 2.x. A solution is under development in [Issue 5518](https://github.com/apache/pulsar/issues/5518).
 > 
 > ```bash
 > sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
@@ -235,20 +234,20 @@ In order to use this class in Pulsar Functions, you have two options:
 2. You can create your own SerDe class. The following is an example.
 
   ```python
-  from pulsar import SerDe
+from pulsar import SerDe
 
-  class TweetSerDe(SerDe):
-      def __init__(self, tweet):
-          self.tweet = tweet
+class TweetSerDe(SerDe):
+    def __init__(self):
+        pass
 
-      def serialize(self, input):
-          return bytes("{0}|{1}".format(self.tweet.username, self.tweet.tweet_content))
+    def serialize(self, input):
+        return bytes("{0}|{1}".format(input.username, input.tweet_content))
 
-      def deserialize(self, input_bytes):
-          tweet_components = str(input_bytes).split('|')
-          return Tweet(tweet_components[0], tweet_componentsp[1])
+    def deserialize(self, input_bytes):
+        tweet_components = str(input_bytes).split('|')
+        return Tweet(tweet_components[0], tweet_componentsp[1])
   ```
-
+For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/custom_object_function.py).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
