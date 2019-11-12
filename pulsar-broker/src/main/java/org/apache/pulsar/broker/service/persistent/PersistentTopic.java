@@ -683,8 +683,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             long ledgerId = msgId.getLedgerId();
             long entryId = msgId.getEntryId();
             if (ledgerId >= 0
-                && msgId instanceof BatchMessageIdImpl
-                && ((BatchMessageIdImpl) msgId).getBatchIndex() >= 0) {
+                && msgId instanceof BatchMessageIdImpl) {
                 // When the start message is relative to a batch, we need to take one step back on the previous message,
                 // because the "batch" might not have been consumed in its entirety.
                 // The client will then be able to discard the first messages if needed.
