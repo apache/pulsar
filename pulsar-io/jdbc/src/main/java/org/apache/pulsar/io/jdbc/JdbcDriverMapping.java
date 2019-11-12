@@ -23,7 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class JdbcDriverMapping {
-    private static Map<String,String> DRIVER_MAPPING = new HashMap<>();
+    private static Map<String,String> DRIVER_MAPPING = new HashMap<>(32);
     static{
         DRIVER_MAPPING.put("db2","com.ibm.db2.jcc.DB2Driver");
         DRIVER_MAPPING.put("postgresql","org.postgresql.Driver");
@@ -53,8 +53,6 @@ public class JdbcDriverMapping {
         DRIVER_MAPPING.put("presto","com.facebook.presto.jdbc.PrestoDriver");
         DRIVER_MAPPING.put("elastic_search","com.alibaba.xdriver.elastic.jdbc.ElasticDriver");
         DRIVER_MAPPING.put("clickhouse","ru.yandex.clickhouse.ClickHouseDriver");
-        DRIVER_MAPPING.put("presto","com.facebook.presto.jdbc.PrestoDriver");
-        DRIVER_MAPPING.put("presto","com.facebook.presto.jdbc.PrestoDriver");
         DRIVER_MAPPING.put("presto","com.facebook.presto.jdbc.PrestoDriver");
     }
     public static String getDriverClass(String type){
