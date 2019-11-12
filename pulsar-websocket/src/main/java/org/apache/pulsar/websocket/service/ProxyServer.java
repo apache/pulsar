@@ -64,7 +64,8 @@ public class ProxyServer {
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
-        executorService = new WebExecutorThreadPool(config.getNumHttpServerThreads(), "pulsar-websocket-web");
+        executorService = new WebExecutorThreadPool(
+            Math.max(6, config.getNumHttpServerThreads()), "pulsar-websocket-web");
         this.server = new Server(executorService);
         List<ServerConnector> connectors = new ArrayList<>();
 

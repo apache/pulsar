@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI
+name: Integration Tests
 on: [pull_request]
 
 jobs:

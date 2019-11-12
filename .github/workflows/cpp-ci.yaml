@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI
+name: C++/Python Tests
 on: [pull_request]
 
 jobs:

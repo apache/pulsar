@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI
+name: Java Tests
 on: [pull_request]
 
 jobs:
