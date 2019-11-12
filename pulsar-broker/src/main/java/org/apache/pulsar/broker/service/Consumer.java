@@ -45,6 +45,7 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -103,10 +104,13 @@ public class Consumer {
 
     private final Map<String, String> metadata;
 
+    private final PulsarApi.KeySharedMeta keySharedMeta;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, ServerCnx cnx, String appId,
-                    Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition) throws BrokerServiceException {
+                    Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
+                    PulsarApi.KeySharedMeta keySharedMeta) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -118,6 +122,7 @@ public class Consumer {
         this.consumerName = consumerName;
         this.maxUnackedMessages = maxUnackedMessages;
         this.subscriptionInitialPosition = subscriptionInitialPosition;
+        this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
         this.msgOut = new Rate();
         this.msgRedeliver = new Rate();
@@ -442,6 +447,10 @@ public class Consumer {
 
     public int getUnackedMessages() {
         return unackedMessages;
+    }
+
+    public PulsarApi.KeySharedMeta getKeySharedMeta() {
+        return keySharedMeta;
     }
 
     @Override

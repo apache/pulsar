@@ -1069,7 +1069,7 @@ class Consumer:
 
     def seek(self, messageid):
         """
-        Reset the subscription associated with this consumer to a specific message id.
+        Reset the subscription associated with this consumer to a specific message id or publish timestamp.
         The message id can either be a specific message or represent the first or last messages in the topic.
         Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
         seek() on the individual partitions.
@@ -1077,7 +1077,7 @@ class Consumer:
         **Args**
 
         * `message`:
-          The message id for seek.
+          The message id for seek, OR an integer event time to seek to
         """
         self._consumer.seek(messageid)
 
@@ -1129,6 +1129,20 @@ class Reader:
         Check if there is any message available to read from the current position.
         """
         return self._reader.has_message_available();
+
+    def seek(self, messageid):
+        """
+        Reset this reader to a specific message id or publish timestamp.
+        The message id can either be a specific message or represent the first or last messages in the topic.
+        Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+        seek() on the individual partitions.
+
+        **Args**
+
+        * `message`:
+          The message id for seek, OR an integer event time to seek to
+        """
+        self._reader.seek(messageid)
 
     def close(self):
         """

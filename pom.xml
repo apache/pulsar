@@ -195,7 +195,7 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <debezium.version>0.9.5.Final</debezium.version>
+    <debezium.version>0.10.0.Final</debezium.version>
     <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <zstd.version>1.3.7-3</zstd.version>
@@ -1275,19 +1275,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
             <exclude>**/CMakeFiles/**</exclude>
             <exclude>**/django/stats/migrations/*.py</exclude>
-            <exclude>site/vendor/**</exclude>
-            <exclude>site/scripts/doxygen/**</exclude>
-            <exclude>site/api/**</exclude>
-            <exclude>site/.sass-cache/**</exclude>
-            <exclude>site/generated/**</exclude>
-            <exclude>site/js/jquery.tocify.min.js</exclude>
-            <exclude>site/js/jquery.scrollTo.min.js</exclude>
-            <exclude>site/Gemfile.lock</exclude>
-            <exclude>site/VERSIONS</exclude>
-            <exclude>site/_sass/bootstrap-sass/**</exclude>
-            <exclude>site/_sass/font-awesome/**</exclude>
-            <exclude>site/fonts/**</exclude>
-            <exclude>site/img/**</exclude>
             <exclude>site2/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
