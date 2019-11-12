@@ -161,14 +161,10 @@ public class PerformanceProducer {
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
         
-        @Parameter(names = { "-bn",
-                "--batch-max-msgs" }, description = "Number of max messages in batch.")
-        public int batchMaxMsgs = DEFAULT_BATCHING_MAX_MESSAGES;
-
         @Parameter(names = {
             "-bm", "--batch-max-messages"
         }, description = "Maximum number of messages per batch")
-        public int batchMaxMessages = 0;
+        public int batchMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
 
         @Parameter(names = {
             "-bb", "--batch-max-bytes"
