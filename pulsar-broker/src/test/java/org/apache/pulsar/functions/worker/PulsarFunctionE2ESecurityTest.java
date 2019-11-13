@@ -46,6 +46,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -76,6 +77,7 @@ import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 public class PulsarFunctionE2ESecurityTest {
@@ -324,16 +326,15 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            retryStrategically((test) -> {
+            assertTrue(retryStrategically((test) -> {
                 try {
                     return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 1
                             && admin1.topics().getStats(sourceTopic).subscriptions.size() == 1;
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150);
+            }, 5, 150));
             // validate pulsar sink consumer has started on the topic
-            assertEquals(admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning(), 1);
             assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
             // create a producer that creates a topic at broker
@@ -378,15 +379,13 @@ public class PulsarFunctionE2ESecurityTest {
 
                 admin1.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-                retryStrategically((test) -> {
+                assertTrue(retryStrategically((test) -> {
                     try {
                         return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 2;
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150);
-
-                assertEquals(admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning(), 2);
+                }, 5, 150));
 
                 // test getFunctionInfo
                 try {
@@ -515,16 +514,18 @@ public class PulsarFunctionE2ESecurityTest {
 
                 admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
 
-                retryStrategically((test) -> {
+                assertTrue(retryStrategically((test) -> {
                     try {
-                        return admin1.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                        TopicStats stats = admin1.topics().getStats(sourceTopic);
+                        boolean done = stats.subscriptions.size() == 0;
+                        if (!done) {
+                            log.info("Topic subscription is not cleaned up yet : {}", stats);
+                        }
+                        return done;
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 100, 150);
-
-                // make sure subscriptions are cleanup
-                assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 0);
+                }, 100, 150));
             }
         }
     }
@@ -596,16 +597,15 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            retryStrategically((test) -> {
+            assertTrue(retryStrategically((test) -> {
                 try {
                     return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 1
                             && admin1.topics().getStats(sourceTopic).subscriptions.size() == 1;
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150);
+            }, 5, 150));
             // validate pulsar sink consumer has started on the topic
-            assertEquals(admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning(), 1);
             assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
             // create a producer that creates a topic at broker
@@ -650,15 +650,13 @@ public class PulsarFunctionE2ESecurityTest {
 
             admin1.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-            retryStrategically((test) -> {
+            assertTrue(retryStrategically((test) -> {
                 try {
                     return admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning() == 2;
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150);
-
-            assertEquals(admin1.functions().getFunctionStatus(TENANT, NAMESPACE, functionName).getNumRunning(), 2);
+            }, 5, 150));
 
             // test getFunctionInfo
             try {
@@ -788,16 +786,18 @@ public class PulsarFunctionE2ESecurityTest {
 
             admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
 
-            retryStrategically((test) -> {
+            assertTrue(retryStrategically((test) -> {
                 try {
-                    return admin1.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                    TopicStats stats = admin1.topics().getStats(sourceTopic);
+                    boolean done = stats.subscriptions.size() == 0;
+                    if (!done) {
+                        log.info("Topic subscription is not cleaned up yet : {}", stats);
+                    }
+                    return done;
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150);
-
-            // make sure subscriptions are cleanup
-            assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 0);
+            }, 5, 150));
         }
     }
 }
