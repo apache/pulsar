@@ -460,7 +460,7 @@ public class MockZooKeeper extends ZooKeeper {
             List<String> children = Lists.newArrayList();
             for (String item : tree.tailMap(path).keySet()) {
                 log.debug("Checking path {}", item);
-                if (!item.startsWith(path)) {
+                if (!item.startsWith(path) || !item.replace(path, "").contains("/")) {
                     break;
                 } else if (item.equals(path)) {
                     continue;

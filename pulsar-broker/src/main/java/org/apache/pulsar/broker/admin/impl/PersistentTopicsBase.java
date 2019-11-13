@@ -1827,24 +1827,28 @@ public class PersistentTopicsBase extends AdminResource {
             }
 
             admin.topics().getStatsAsync(topicName.getPartition(0).toString()).thenAccept(stats -> {
-                stats.subscriptions.keySet().forEach(subscription -> {
-                    List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
-                    for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
-                        final String topicNamePartition = topicName.getPartition(i).toString();
+                if (stats.subscriptions.size() == 0) {
+                    result.complete(null);
+                } else {
+                    stats.subscriptions.keySet().forEach(subscription -> {
+                        List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
+                        for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
+                            final String topicNamePartition = topicName.getPartition(i).toString();
 
-                        subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
-                                subscription, MessageId.latest));
-                    }
+                            subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
+                                    subscription, MessageId.latest));
+                        }
 
-                    FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
-                        log.info("[{}] Successfully created new partitions {}", clientAppId(), topicName);
-                        result.complete(null);
-                    }).exceptionally(ex -> {
-                        log.warn("[{}] Failed to create subscriptions on new partitions for {}", clientAppId(), topicName, ex);
-                        result.completeExceptionally(ex);
-                        return null;
+                        FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
+                            log.info("[{}] Successfully created new partitions {}", clientAppId(), topicName);
+                            result.complete(null);
+                        }).exceptionally(ex -> {
+                            log.warn("[{}] Failed to create subscriptions on new partitions for {}", clientAppId(), topicName, ex);
+                            result.completeExceptionally(ex);
+                            return null;
+                        });
                     });
-                });
+                }
             }).exceptionally(ex -> {
                 if (ex.getCause() instanceof PulsarAdminException.NotFoundException) {
                     // The first partition doesn't exist, so there are currently to subscriptions to recreate
