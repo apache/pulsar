@@ -20,7 +20,11 @@ package org.apache.pulsar.io.mongodb;
 
 import com.google.common.collect.Lists;
 import com.mongodb.MongoBulkWriteException;
-import com.mongodb.reactivestreams.client.*;
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.Success;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
