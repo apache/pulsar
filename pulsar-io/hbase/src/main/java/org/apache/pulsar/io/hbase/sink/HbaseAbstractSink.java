@@ -101,6 +101,10 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() throws Exception {
+        if (null != table) {
+            table.close();
+        }
+
         if (null != admin) {
             admin.close();
         }
