@@ -1153,10 +1153,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * Unload all the topic served by the broker service under the given service unit
      *
      * @param serviceUnit
-     * @param force don't wait for clients to disconnect and forcefully close managed-ledger
+     * @param closeWithoutWaitingClientDisconnect don't wait for clients to disconnect and forcefully close managed-ledger
      * @return
      */
-    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit, boolean force) {
+    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit, boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Integer> result = new CompletableFuture<Integer>();
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         topics.forEach((name, topicFuture) -> {
@@ -1165,7 +1165,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 // Topic needs to be unloaded
                 log.info("[{}] Unloading topic", topicName);
                 closeFutures.add(topicFuture
-                        .thenCompose(t -> t.isPresent() ? t.get().close(force) : CompletableFuture.completedFuture(null)));
+                        .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect) : CompletableFuture.completedFuture(null)));
             }
         });
         CompletableFuture<Void> aggregator = FutureUtil.waitForAll(closeFutures);

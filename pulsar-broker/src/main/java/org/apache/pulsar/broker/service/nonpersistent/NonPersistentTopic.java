@@ -432,17 +432,17 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     /**
      * Close this topic - close all producers and subscriptions associated with this topic
      * 
-     * @param force
+     * @param closeWithoutWaitingClientDisconnect
      *            don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
-    public CompletableFuture<Void> close(boolean force) {
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
         try {
-            if (!isFenced || force) {
+            if (!isFenced || closeWithoutWaitingClientDisconnect) {
                 isFenced = true;
             } else {
                 log.warn("[{}] Topic is already being closed or deleted", topic);
@@ -459,7 +459,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         producers.forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
 
-        CompletableFuture<Void> clientCloseFuture = force ? CompletableFuture.completedFuture(null)
+        CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect ? CompletableFuture.completedFuture(null)
                 : FutureUtil.waitForAll(futures);
 
         clientCloseFuture.thenRun(() -> {

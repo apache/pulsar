@@ -110,7 +110,7 @@ public interface Topic {
 
     CompletableFuture<Void> checkReplication();
 
-    CompletableFuture<Void> close(boolean force);
+    CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
     void checkGC(int gcInterval);
 
