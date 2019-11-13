@@ -25,10 +25,13 @@ import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
 import java.util.function.Function;
 
+import com.beust.jcommander.ParameterDescription;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -62,6 +65,9 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
+
+    @Parameter(names = { "--generate-doc", }, description = "Generate document to markdown file", hidden = true)
+    String generateDoc;
 
     PulsarAdminTool(Properties properties) throws Exception {
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
@@ -166,13 +172,69 @@ public class PulsarAdminTool {
         });
     }
 
+    void generateDocument(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory, String module) {
+        PulsarAdminTool tool;
+        try {
+            tool = new PulsarAdminTool(new Properties());
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            setupCommands(adminFactory);
+            jcommander.usage();
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        tool.commandMap.get(module);
+        sb.append("------------\n\n");
+        sb.append("# " + module).append("\n\n");
+        sb.append("### Usage\n\n");
+        sb.append("`$" + module + "`\n\n");
+        sb.append("------------\n\n");
+        setupCommands(adminFactory);
+        JCommander obj = jcommander.getCommands().get(module);
+        sb.append(jcommander.getCommandDescription(module)).append("\n");
+        sb.append("\n\n```bdocs-tab:example_shell\n")
+                .append("$ pulsar-admin " + module + " subcommand")
+                .append("\n```");
+        sb.append("\n\n");
+        CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
+        for (String s : cmdObj.jcommander.getCommands().keySet()) {
+            sb.append("* `" + s + "`\n");
+        }
+        cmdObj.jcommander.getCommands().forEach((subK, subV) -> {
+            sb.append("\n\n## " + subK + "\n\n");
+            sb.append(cmdObj.jcommander.getCommandDescription(subK)).append("\n\n");
+            sb.append("### Usage\n\n");
+            sb.append("------------\n\n\n");
+            sb.append("```bdocs-tab:example_shell\n$ pulsar-admin ").append(module).append(" ")
+                    .append(subK).append(" options").append("\n```\n\n");
+            List<ParameterDescription> options = cmdObj.jcommander.getCommands().get(subK).getParameters();
+            if (options.size() > 0) {
+                sb.append("Options\n\n\n");
+                sb.append("|Flag|Description|Default|\n");
+                sb.append("|---|---|---|\n");
+            }
+            options.forEach((option) -> {
+                sb.append("| `").append(option.getNames())
+                        .append("` | ").append(option.getDescription().replace("\n", " "))
+                        .append("|").append(option.getDefault()).append("|\n");
+            });
+        });
+        System.out.println(sb.toString());
+    }
+
     boolean run(String[] args, Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
         if (args.length == 0) {
             setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
-
+        if (args.length == 2) {
+            if (args[0].equals("--generate-doc") && commandMap.containsKey(args[1])) {
+                generateDocument(adminFactory, args[1]);
+                return true;
+            }
+        }
         int cmdPos;
         for (cmdPos = 0; cmdPos < args.length; cmdPos++) {
             if (commandMap.containsKey(args[cmdPos])) {
@@ -214,7 +276,6 @@ public class PulsarAdminTool {
 
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
-
             return cmdObj.run(Arrays.copyOfRange(args, cmdPos + 1, args.length));
         }
     }
