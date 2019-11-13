@@ -43,6 +43,8 @@ PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_athenz_create(const
 
 PULSAR_PUBLIC void pulsar_authentication_free(pulsar_authentication_t *authentication);
 
+PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_tuya_create(const char *accessId, const char *accessKey);
+
 #ifdef __cplusplus
 }
 #endif

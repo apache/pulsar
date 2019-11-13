@@ -32,6 +32,7 @@ pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath
     return authentication;
 }
 
+
 void pulsar_authentication_free(pulsar_authentication_t *authentication) { delete authentication; }
 
 pulsar_authentication_t *pulsar_authentication_tls_create(const char *certificatePath,
@@ -50,6 +51,13 @@ pulsar_authentication_t *pulsar_authentication_athenz_create(const char *authPar
 pulsar_authentication_t *pulsar_authentication_token_create(const char *token) {
     pulsar_authentication_t *authentication = new pulsar_authentication_t;
     authentication->auth = pulsar::AuthToken::createWithToken(token);
+    return authentication;
+}
+
+pulsar_authentication_t *pulsar_authentication_tuya_create(const char *accessId, const char *accessKey) {
+    pulsar_authentication_t *authentication = new pulsar_authentication_t;
+    // Tem que retornar AuthenticationPtr
+    authentication->auth = pulsar::AuthTuya::create(accessId, accessKey);
     return authentication;
 }
 
