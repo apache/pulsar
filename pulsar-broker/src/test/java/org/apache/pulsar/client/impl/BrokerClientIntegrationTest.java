@@ -415,6 +415,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         admin.namespaces().setRetention(topicName.getNamespace(), policy);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName.toString())
+                .startMessageIdInclusive()
                 .subscriptionName(subsId).subscriptionType(subType).messageListener((consumer, msg) -> {
                     try {
                         synchronized (received) {

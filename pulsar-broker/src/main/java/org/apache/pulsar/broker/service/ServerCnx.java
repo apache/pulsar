@@ -1051,7 +1051,12 @@ public class ServerCnx extends PulsarHandler {
         startSendOperation(producer);
 
         // Persist the message
-        producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
+                    headersAndPayload, send.getNumMessages());
+        } else {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        }
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {
