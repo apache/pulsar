@@ -188,6 +188,10 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.1.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <postgresql.version>42.2.8</postgresql.version>
+    <clickhouse-jdbc.version>0.2</clickhouse-jdbc.version>
+    <mssql-jdbc.version>7.4.1.jre8</mssql-jdbc.version>
+    <mariadb.version>2.5.1</mariadb.version>
     <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
