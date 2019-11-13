@@ -423,6 +423,7 @@ message CommandSendReceipt {
     required uint64 producer_id = 1;
     required uint64 sequence_id = 2;
     optional MessageIdData message_id = 3;
+    optional uint64 highest_sequence_id = 4 [default = 0];
 }
 
 message CommandSendError {

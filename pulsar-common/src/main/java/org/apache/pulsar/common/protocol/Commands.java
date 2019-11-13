@@ -336,10 +336,12 @@ public class Commands {
 
     }
 
-    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long ledgerId, long entryId) {
+    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long highestId, long ledgerId,
+             long entryId) {
         CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
         sendReceiptBuilder.setProducerId(producerId);
         sendReceiptBuilder.setSequenceId(sequenceId);
+        sendReceiptBuilder.setHighestSequenceId(highestId);
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
