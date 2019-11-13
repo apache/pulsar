@@ -551,8 +551,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>Example:
      * <pre>
      * client.newConsumer().batchReceivePolicy(BatchReceivePolicy.builder()
-     *              .maxNumberOfMessages(100)
-     *              .maxSizeOfMessages(5 * 1024 * 1024)
+     *              .maxNumMessages(100)
+     *              .maxNumBytes(5 * 1024 * 1024)
      *              .timeout(100, TimeUnit.MILLISECONDS)
      *              .build()).subscribe();
      * </pre>
