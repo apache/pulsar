@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
@@ -104,6 +105,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("Subscription name must be set on the consumer builder"));
         }
+
+        if (conf.getKeySharedPolicy() != null && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+            return FutureUtil.failedFuture(
+                    new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
+        }
+
         return interceptorList == null || interceptorList.size() == 0 ?
                 client.subscribeAsync(conf, schema, null) :
                 client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
@@ -316,6 +323,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ConsumerBuilder<T> startMessageIdInclusive() {
+        conf.setResetIncludeHead(true);
+        return this;
+    }
+
     public ConsumerConfigurationData<T> getConf() {
         return conf;
     }
@@ -323,5 +336,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public String toString() {
         return conf != null ? conf.toString() : null;
+    }
+
+    @Override
+    public ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy) {
+        keySharedPolicy.validate();
+        conf.setKeySharedPolicy(keySharedPolicy);
+        return this;
     }
 }

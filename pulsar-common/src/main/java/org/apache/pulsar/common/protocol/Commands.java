@@ -36,6 +36,8 @@ import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -441,12 +443,43 @@ public class Commands {
         return newSend(producerId, sequenceId, numMessaegs, 0, 0, checksumType, messageMetadata, payload);
     }
 
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
+              ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
+        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs, 0, 0,
+                checksumType, messageMetadata, payload);
+    }
+
     public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages,
                                       long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
             MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
         sendBuilder.setSequenceId(sequenceId);
+        if (numMessages > 1) {
+            sendBuilder.setNumMessages(numMessages);
+        }
+        if (txnIdLeastBits > 0) {
+            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
+        }
+        if (txnIdMostBits > 0) {
+            sendBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        CommandSend send = sendBuilder.build();
+
+        ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
+                checksumType, messageData, payload);
+        send.recycle();
+        sendBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
+          long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
+          MessageMetadata messageData, ByteBuf payload) {
+        CommandSend.Builder sendBuilder = CommandSend.newBuilder();
+        sendBuilder.setProducerId(producerId);
+        sendBuilder.setSequenceId(lowestSequenceId);
+        sendBuilder.setHighestSequenceId(highestSequenceId);
         if (numMessages > 1) {
             sendBuilder.setNumMessages(numMessages);
         }
@@ -478,6 +511,16 @@ public class Commands {
             Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
             InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
             boolean createTopicIfDoesNotExist) {
+                return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
+                        isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
+                        startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null);
+    }
+
+    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
+               SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
+               Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+               InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
+               SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -491,6 +534,27 @@ public class Commands {
         subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
         subscribeBuilder.setReplicateSubscriptionState(isReplicated);
         subscribeBuilder.setForceTopicCreation(createTopicIfDoesNotExist);
+
+        if (keySharedPolicy != null) {
+            switch (keySharedPolicy.getKeySharedMode()) {
+                case AUTO_SPLIT:
+                    subscribeBuilder.setKeySharedMeta(PulsarApi.KeySharedMeta.newBuilder()
+                            .setKeySharedMode(PulsarApi.KeySharedMode.AUTO_SPLIT));
+                    break;
+                case STICKY:
+                    PulsarApi.KeySharedMeta.Builder builder = PulsarApi.KeySharedMeta.newBuilder()
+                            .setKeySharedMode(PulsarApi.KeySharedMode.STICKY);
+                    List<Range> ranges = ((KeySharedPolicy.KeySharedPolicySticky) keySharedPolicy)
+                            .getRanges();
+                    for (Range range : ranges) {
+                        builder.addHashRanges(PulsarApi.IntRange.newBuilder()
+                                .setStart(range.getStart())
+                                .setEnd(range.getEnd()));
+                    }
+                    subscribeBuilder.setKeySharedMeta(builder);
+                    break;
+            }
+        }
 
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);

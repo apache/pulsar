@@ -64,6 +64,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -246,7 +247,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            long resetStartMessageBackInSec, boolean replicateSubscriptionState) {
+            long resetStartMessageBackInSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -297,7 +298,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0, cnx,
-                                             cnx.getRole(), metadata, readCompacted, initialPosition);
+                                             cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
             subscription.addConsumer(consumer);
             if (!cnx.isActive()) {
                 consumer.close();

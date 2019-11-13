@@ -624,6 +624,7 @@ public class ServerCnx extends PulsarHandler {
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
         final boolean forceTopicCreation = subscribe.getForceTopicCreation();
+        final PulsarApi.KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta() ? subscribe.getKeySharedMeta() : null;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -706,13 +707,12 @@ public class ServerCnx extends PulsarHandler {
                                             .thenCompose(v -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                     subType, priorityLevel, consumerName, isDurable,
                                                     startMessageId, metadata,
-                                                    readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated));
-
+                                                    readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated, keySharedMeta));
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
                                             startMessageId, metadata, readCompacted, initialPosition,
-                                            startMessageRollbackDurationSec, isReplicated);
+                                            startMessageRollbackDurationSec, isReplicated, keySharedMeta);
                                     }
                                 })
                                 .thenAccept(consumer -> {
@@ -1051,7 +1051,12 @@ public class ServerCnx extends PulsarHandler {
         startSendOperation(producer);
 
         // Persist the message
-        producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
+                    headersAndPayload, send.getNumMessages());
+        } else {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        }
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {

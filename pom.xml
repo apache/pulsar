@@ -1422,6 +1422,29 @@ flexible messaging model and an intuitive client API.</description>
           </gitDescribe>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.0.0-M2</version>
+        <executions>
+            <execution>
+                <id>enforce-maven</id>
+                <goals>
+                    <goal>enforce</goal>
+                </goals>
+                <configuration>
+                    <rules>
+                        <requireJavaVersion>
+                            <version>[1.8.0,)</version>
+                        </requireJavaVersion>
+                        <requireMavenVersion>
+                            <version>[3.3.9,)</version>
+                        </requireMavenVersion>
+                    </rules>
+                </configuration>
+            </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -1492,7 +1515,7 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.0.0</version>
-      </plugin>
+        </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
