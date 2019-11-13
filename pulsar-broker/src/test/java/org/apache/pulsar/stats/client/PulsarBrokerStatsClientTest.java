@@ -163,29 +163,33 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             fail();
         }
 
-        try {
+        log.info("-- Exiting {} test --", methodName);
+    }
 
-            String url = "http://localhost:51000,localhost:51001";
-            if (isTcpLookup) {
-                url = "pulsar://localhost:51000,localhost:51001";
-            }
-//            PulsarClient client = newPulsarClient(url, 0);
-            PulsarClient client = PulsarClient.builder()
+    @Test (timeOut = 4000)
+    public void testGetPartitionedTopicDataTimeout() {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
+
+        String url = "http://localhost:51000,localhost:51001";
+        if (isTcpLookup) {
+            url = "pulsar://localhost:51000,localhost:51001";
+        }
+
+        PulsarClient client;
+        try {
+            client = PulsarClient.builder()
                     .serviceUrl(url)
                     .statsInterval(0, TimeUnit.SECONDS)
                     .operationTimeout(3, TimeUnit.SECONDS)
                     .build();
 
-            Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             Producer<byte[]> producer = client.newProducer().topic(topicName).create();
 
-            consumer.close();
-            producer.close();
-            client.close();
+            fail();
         } catch (PulsarClientException pce) {
-            log.error("create producer or consumer error: ", pce);
-
+            log.error("create producer error: ", pce);
         }
 
         log.info("-- Exiting {} test --", methodName);
