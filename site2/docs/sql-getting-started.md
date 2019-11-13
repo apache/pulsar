@@ -4,11 +4,11 @@ title: Query data with Pulsar SQL
 sidebar_label: Query data
 ---
 
-Before querying data in Pulsar, you need to install Pulsar and Pulsar built-in connectors. 
+Before querying data in Pulsar, you need to install Pulsar and built-in connectors. 
 
 ## Requirements
-1. Install [Pulsar](io-quickstart.md#installing-pulsar).
-2. Install Pulsar [built-in connectors](io-quickstart.md#installing-builtin-connectors).
+1. Install [Pulsar](getting-started-standalone.md#install-pulsar-standalone).
+2. Install Pulsar [built-in connectors](getting-started-standalone.md#install-builtin-connectors-optional).
 
 ## Query data in Pulsar
 To query data in Pulsar with Pulsar SQL, complete the following steps.
@@ -114,7 +114,7 @@ presto> select * from pulsar."public/default".generator_test;
 You can query the mock data.
 
 ## Query your own data
-If you want to query your own data, you need to ingest your own data first. You can write a simple producer to write custom defined data to Pulsar. The following is an example. 
+If you want to query your own data, you need to ingest your own data first. You can write a simple producer and write custom defined data to Pulsar. The following is an example. 
 
 ```java
 public class Test {
