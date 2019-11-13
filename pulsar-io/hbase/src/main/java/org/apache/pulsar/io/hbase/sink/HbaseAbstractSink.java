@@ -154,8 +154,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
 
         try {
             if (CollectionUtils.isNotEmpty(puts)) {
-                table.put(puts);
-                admin.flush(tableName);
+                table.batch(puts, new Object[puts.size()]);
             }
 
             toFlushList.forEach(tRecord -> tRecord.ack());
