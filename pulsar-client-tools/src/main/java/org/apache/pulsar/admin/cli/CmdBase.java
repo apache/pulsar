@@ -45,7 +45,7 @@ public abstract class CmdBase {
             jcommander.usage(chosenCommand);
         } catch (Exception e) {
             // it is caused by an invalid command, the invalid command can not be parsed
-            System.err.println("Invalid command, please use pulsar-admin to check out how to use");
+            System.err.println("Invalid command, please use `pulsar-admin --help` to check out how to use");
         }
     }
 
