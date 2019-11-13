@@ -108,7 +108,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-auth-sasl</module>
 
     <!-- package management related modules -->
-    <module>pulsar-package-management</module>
+    <module>pulsar-package-manager</module>
 
     <!-- transaction related modules -->
     <module>pulsar-transaction</module>
