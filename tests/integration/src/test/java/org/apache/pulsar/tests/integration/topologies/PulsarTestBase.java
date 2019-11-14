@@ -100,16 +100,18 @@ public class PulsarTestBase {
 
         final int numMessages = 10000;
         try (PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
-                .build()) {
+            .serviceUrl(serviceUrl)
+            .build()) {
+
             try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                    .topic(topicName)
-                    .subscriptionName("my-sub")
-                    .subscribe()) {
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe()) {
 
                 try (Producer<String> producer = client.newProducer(Schema.STRING)
-                        .topic(topicName)
-                        .create()) {
+                    .topic(topicName)
+                    .blockIfQueueFull(true)
+                    .create()) {
 
                     List<CompletableFuture<MessageId>> futures = new ArrayList<>();
                     for (int i = 0; i < numMessages; i++) {
