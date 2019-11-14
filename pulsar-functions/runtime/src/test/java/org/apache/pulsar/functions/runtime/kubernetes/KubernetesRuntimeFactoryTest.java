@@ -35,6 +35,7 @@ import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
@@ -138,12 +139,13 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, Resources minResources) throws Exception {
-        return createKubernetesRuntimeFactory(extraDepsDir, minResources, Optional.empty());
+        return createKubernetesRuntimeFactory(extraDepsDir, minResources, Optional.empty(), Optional.empty());
     }
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir,
                                                             Resources minResources,
-                                                            Optional<FunctionAuthProvider> functionAuthProvider) throws Exception {
+                                                            Optional<FunctionAuthProvider> functionAuthProvider,
+                                                            Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -175,7 +177,7 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setStateStorageServiceUrl(null);
         workerConfig.setAuthenticationEnabled(false);
 
-        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), functionAuthProvider);
+        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), functionAuthProvider, manifestCustomizer);
         doNothing().when(factory).setupClient();
         return factory;
     }
@@ -212,8 +214,8 @@ public class KubernetesRuntimeFactoryTest {
 
         testMinResource(0.2, 2048L, false, null);
         testMinResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
-        testMinResource(0.2,512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
-        testMinResource(0.05,512L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(0.2, 512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
+        testMinResource(0.05, 512L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
         testMinResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
         testMinResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
 
@@ -223,7 +225,7 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     public void testAuthProvider(Optional<FunctionAuthProvider> authProvider) throws Exception {
-        factory = createKubernetesRuntimeFactory(null, null, authProvider);
+        factory = createKubernetesRuntimeFactory(null, null, authProvider, Optional.empty());
     }
 
 
@@ -242,20 +244,20 @@ public class KubernetesRuntimeFactoryTest {
             }
 
             @Override
-            public Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name,
+            public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
                                                             AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public Optional<FunctionAuthData> updateAuthData(String tenant, String namespace, String name,
+            public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
                                                              Optional<FunctionAuthData> existingFunctionAuthData,
                                                              AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public void cleanUpAuthData(String tenant, String namespace, String name, Optional<FunctionAuthData> functionAuthData) throws Exception {
+            public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData) throws Exception {
 
             }
         }));
@@ -266,31 +268,31 @@ public class KubernetesRuntimeFactoryTest {
         testAuthProvider(Optional.of(new KubernetesFunctionAuthProvider() {
 
             @Override
+            public void initialize(CoreV1Api coreClient) {
+
+            }
+
+            @Override
             public void configureAuthenticationConfig(AuthenticationConfig authConfig,
                                                       Optional<FunctionAuthData> functionAuthData) {
 
             }
 
             @Override
-            public Optional<FunctionAuthData> cacheAuthData(String tenant, String namespace, String name, AuthenticationDataSource authenticationDataSource) throws Exception {
+            public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+                                                            AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public Optional<FunctionAuthData> updateAuthData(String tenant, String namespace, String name,
+            public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
                                                              Optional<FunctionAuthData> existingFunctionAuthData,
                                                              AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public void cleanUpAuthData(String tenant, String namespace, String name,
-                                        Optional<FunctionAuthData> functionAuthData) throws Exception {
-
-            }
-
-            @Override
-            public void initialize(CoreV1Api coreClient, String kubeNamespace, byte[] caBytes) {
+            public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData) throws Exception {
 
             }
 
@@ -298,6 +300,7 @@ public class KubernetesRuntimeFactoryTest {
             public void configureAuthDataStatefulSet(V1StatefulSet statefulSet, Optional<FunctionAuthData> functionAuthData) {
 
             }
+
         }));
 
         testAuthProvider(Optional.of(new KubernetesSecretsTokenAuthProvider()));
@@ -371,7 +374,7 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setFunctionRuntimeFactoryConfigs(
                 ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
-        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Optional.empty());
+        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Optional.empty(), Optional.empty());
         return kubernetesRuntimeFactory;
     }
 }

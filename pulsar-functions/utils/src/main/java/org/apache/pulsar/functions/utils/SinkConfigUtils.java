@@ -216,6 +216,10 @@ public class SinkConfigUtils {
 
         functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.SINK);
 
+        if (!StringUtils.isEmpty(sinkConfig.getCustomRuntimeOptions())) {
+            functionDetailsBuilder.setCustomRuntimeOptions(sinkConfig.getCustomRuntimeOptions());
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -288,6 +292,10 @@ public class SinkConfigUtils {
 
         if (isNotBlank(functionDetails.getRuntimeFlags())) {
             sinkConfig.setRuntimeFlags(functionDetails.getRuntimeFlags());
+        }
+
+        if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
+            sinkConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
         }
 
         return sinkConfig;
@@ -566,6 +574,9 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getRuntimeFlags())) {
             mergedConfig.setRuntimeFlags(newConfig.getRuntimeFlags());
+        }
+        if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
+            mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         return mergedConfig;
     }
