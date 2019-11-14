@@ -19,17 +19,19 @@
 
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.apis.AppsV1Api;
 import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1Container;
-import io.kubernetes.client.models.V1PodSpec;
+import io.kubernetes.client.models.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -72,6 +74,21 @@ public class KubernetesRuntimeTest {
         topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
         topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
+    }
+
+    public class TestKubernetesCustomManifestCustomizer implements KubernetesManifestCustomizer {
+
+        @Override
+        public V1StatefulSet customizeStatefulSet(Function.FunctionDetails funcDetails, V1StatefulSet statefulSet) {
+            assertEquals(funcDetails.getCustomRuntimeOptions(), "custom-service-account");
+            statefulSet.getSpec().getTemplate().getSpec().serviceAccountName("my-service-account");
+            return statefulSet;
+        }
+
+        @Override
+        public void initialize(Map<String, Object> config) {
+
+        }
     }
 
     class TestSecretProviderConfigurator implements SecretsProviderConfigurator {
@@ -156,7 +173,8 @@ public class KubernetesRuntimeTest {
     }
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
-                                                            double cpuOverCommitRatio, double memoryOverCommitRatio) throws Exception {
+                                                            double cpuOverCommitRatio, double memoryOverCommitRatio,
+                                                            Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -186,12 +204,22 @@ public class KubernetesRuntimeTest {
         workerConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
         workerConfig.setAuthenticationEnabled(false);
 
-        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), Optional.empty());
+        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), Optional.empty(), manifestCustomizer);
         doNothing().when(factory).setupClient();
         return factory;
+
+    }
+
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
+                                                            double cpuOverCommitRatio, double memoryOverCommitRatio) throws Exception {
+        return createKubernetesRuntimeFactory(extraDepsDir, percentMemoryPadding, cpuOverCommitRatio, memoryOverCommitRatio, Optional.empty());
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime, boolean addSecrets) {
+        return createFunctionDetails(runtime, addSecrets, (fb) -> fb);
+    }
+
+    FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime, boolean addSecrets, java.util.function.Function<FunctionDetails.Builder, FunctionDetails.Builder> customize) {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setRuntime(runtime);
         functionDetailsBuilder.setTenant(TEST_TENANT);
@@ -214,7 +242,7 @@ public class KubernetesRuntimeTest {
             functionDetailsBuilder.setSecretsMap("SomeMap");
         }
         functionDetailsBuilder.setResources(RESOURCES);
-        return functionDetailsBuilder.build();
+        return customize.apply(functionDetailsBuilder).build();
     }
 
     InstanceConfig createJavaInstanceConfig(FunctionDetails.Runtime runtime, boolean addSecrets) {
@@ -283,14 +311,14 @@ public class KubernetesRuntimeTest {
     public void testResources() throws Exception {
 
         // test overcommit
-        testResouces(1, 1000,1.0, 1.0);
-        testResouces(1, 1000,2.0, 1.0);
-        testResouces(1, 1000,1.0, 2.0);
-        testResouces(1, 1000,1.5, 1.5);
-        testResouces(1, 1000,1.3, 1.0);
+        testResouces(1, 1000, 1.0, 1.0);
+        testResouces(1, 1000, 2.0, 1.0);
+        testResouces(1, 1000, 1.0, 2.0);
+        testResouces(1, 1000, 1.5, 1.5);
+        testResouces(1, 1000, 1.3, 1.0);
 
         // test cpu rounding
-        testResouces(1.0 / 1.5, 1000,1.3, 1.0);
+        testResouces(1.0 / 1.5, 1000, 1.3, 1.0);
     }
 
     public void testResouces(double userCpuRequest, long userMemoryRequest, double cpuOverCommitRatio, double memoryOverCommitRatio) throws Exception {
@@ -340,7 +368,7 @@ public class KubernetesRuntimeTest {
         }
 
         assertEquals(args.size(), totalArgs,
-            "Actual args : " + StringUtils.join(args, " "));
+                "Actual args : " + StringUtils.join(args, " "));
 
         String expectedArgs = "exec java -cp " + classpath
                 + extraDepsEnv
@@ -424,7 +452,7 @@ public class KubernetesRuntimeTest {
         }
 
         assertEquals(args.size(), totalArgs,
-            "Actual args : " + StringUtils.join(args, " "));
+                "Actual args : " + StringUtils.join(args, " "));
         String expectedArgs = pythonPath + "exec python " + pythonInstanceFile
                 + " --py " + pulsarRootDir + "/" + userJarFile
                 + " --logging_directory " + logDirectory
@@ -554,4 +582,89 @@ public class KubernetesRuntimeTest {
         KubernetesRuntime.doChecks(functionDetail2);
     }
 
+    @Test
+    public void testNoOpKubernetesManifestCustomizer() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
+            JsonObject configObj = new JsonObject();
+            configObj.addProperty("jobNamespace", "custom-ns");
+
+            return fb.setCustomRuntimeOptions(configObj.toString());
+        }));
+
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+
+        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+
+        V1Service serviceSpec = container.createService();
+        assertEquals(serviceSpec.getMetadata().getNamespace(), "default");
+    }
+
+    @Test
+    public void testBasicKubernetesManifestCustomizer() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
+            JsonObject configObj = new JsonObject();
+            configObj.addProperty("jobNamespace", "custom-ns");
+
+            JsonObject extraAnn = new JsonObject();
+            extraAnn.addProperty("annotation", "test");
+            configObj.add("extraAnnotations", extraAnn);
+
+            JsonObject extraLabel = new JsonObject();
+            extraLabel.addProperty("label", "test");
+            configObj.add("extraLabels", extraLabel);
+
+            JsonObject nodeLabels = new JsonObject();
+            nodeLabels.addProperty("selector", "test");
+            configObj.add("nodeSelectorLabels", nodeLabels);
+
+            JsonArray tolerations = new JsonArray();
+            JsonObject toleration = new JsonObject();
+            toleration.addProperty("key", "test");
+            toleration.addProperty("value", "test");
+            toleration.addProperty("effect", "test");
+            tolerations.add(toleration);
+            configObj.add("tolerations", tolerations);
+
+            return fb.setCustomRuntimeOptions(configObj.toString());
+        }));
+
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.of(new BasicKubernetesManifestCustomizer()));
+
+        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+        assertEquals(spec.getMetadata().getAnnotations().get("annotation"), "test");
+        assertEquals(spec.getMetadata().getLabels().get("label"), "test");
+        assertEquals(spec.getSpec().getTemplate().getSpec().getNodeSelector().get("selector"), "test");
+        List<V1Toleration> tols = spec.getSpec().getTemplate().getSpec().getTolerations();
+        // we add three by default, plus our custom
+        assertEquals(tols.size(), 4);
+        assertEquals(tols.get(3).getKey(), "test");
+        assertEquals(tols.get(3).getValue(), "test");
+        assertEquals(tols.get(3).getEffect(), "test");
+
+        V1Service serviceSpec = container.createService();
+        assertEquals(serviceSpec.getMetadata().getNamespace(), "custom-ns");
+        assertEquals(serviceSpec.getMetadata().getAnnotations().get("annotation"), "test");
+        assertEquals(serviceSpec.getMetadata().getLabels().get("label"), "test");
+
+    }
+
+    @Test
+    public void testCustomKubernetesManifestCustomizer() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
+            return fb.setCustomRuntimeOptions("custom-service-account");
+        }));
+
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.of(new TestKubernetesCustomManifestCustomizer()));
+
+        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+        assertEquals(spec.getSpec().getTemplate().getSpec().getServiceAccountName(), "my-service-account");
+    }
 }

@@ -125,4 +125,5 @@ public class KubernetesRuntimeFactoryConfig {
                     "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
     )
     protected double memoryOverCommitRatio = 1.0;
+
 }

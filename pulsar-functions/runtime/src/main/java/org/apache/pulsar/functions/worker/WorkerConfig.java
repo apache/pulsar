@@ -30,6 +30,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -371,6 +372,20 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     " authentication information to individual functions e.g. user tokens"
     )
     private String functionAuthProviderClassName;
+
+    @FieldContext(
+            doc = "The full class-name of an instance of RuntimeCustomizer." +
+                    " This class receives the 'customRuntimeOptions string and can customize" +
+                    " details of how the runtime operates"
+    )
+    protected String runtimeCustomizerClassName;
+
+    @FieldContext(
+            doc = "A map of config passed to the RuntimeCustomizer." +
+                    " This config is distinct from the `customRuntimeOptions` provided by functions" +
+                    " as this config is the the same across all functions"
+    )
+    private Map<String, Object> runtimeCustomizerConfig = Collections.emptyMap();
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

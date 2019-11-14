@@ -188,6 +188,7 @@ public class SinksImpl extends ComponentImpl {
 
             // cache auth if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                Function.FunctionDetails finalFunctionDetails = functionDetails;
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
@@ -195,7 +196,7 @@ public class SinksImpl extends ComponentImpl {
 
                         try {
                             Optional<FunctionAuthData> functionAuthData = functionAuthProvider
-                                    .cacheAuthData(tenant, namespace, sinkName, clientAuthenticationDataHttps);
+                                    .cacheAuthData(finalFunctionDetails, clientAuthenticationDataHttps);
 
                             if (functionAuthData.isPresent()) {
                                 functionMetaDataBuilder.setFunctionAuthSpec(
@@ -372,6 +373,7 @@ public class SinksImpl extends ComponentImpl {
 
             // update auth data if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                Function.FunctionDetails finalFunctionDetails = functionDetails;
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
@@ -384,9 +386,7 @@ public class SinksImpl extends ComponentImpl {
 
                         try {
                             Optional<FunctionAuthData> newFunctionAuthData = functionAuthProvider
-                                    .updateAuthData(
-                                            tenant, namespace,
-                                            sinkName, existingFunctionAuthData,
+                                    .updateAuthData(finalFunctionDetails, existingFunctionAuthData,
                                             clientAuthenticationDataHttps);
 
                             if (newFunctionAuthData.isPresent()) {
