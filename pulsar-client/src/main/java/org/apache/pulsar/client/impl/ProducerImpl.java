@@ -812,8 +812,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId);
                 }
             } else {
-                boolean persistentSuccess = sequenceId >= highestSequenceId || highestSequenceId == op.highestSequenceId;
-                if (persistentSuccess) {
+                // Add check `sequenceId >= highestSequenceId` for backward compatibility.
+                if (sequenceId >= highestSequenceId || highestSequenceId == op.highestSequenceId) {
                     // Message was persisted correctly
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] Received ack for msg {} ", topic, producerName, sequenceId);

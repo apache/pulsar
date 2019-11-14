@@ -19,7 +19,7 @@
 
 -->
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
-<suite name="Pulsar (Messaging) Integration Tests" verbose="2" annotations="JDK">
+<suite name="Pulsar Messaging Backwards Compatibility Tests" verbose="2" annotations="JDK">
     <test name="messaging-backwards-compatibility-suite" preserve-order="true">
         <classes>
             <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_2" />
