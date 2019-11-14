@@ -105,6 +105,7 @@ public class PulsarTestBase {
 
             try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
+                .receiverQueueSize(10000)
                 .subscriptionName("my-sub")
                 .subscribe()) {
 
@@ -123,6 +124,7 @@ public class PulsarTestBase {
 
                 for (int i = 0; i < numMessages; i++) {
                     Message<String> m = consumer.receive();
+                    System.out.println(i);
                     assertEquals("smoke-message-" + i, m.getValue());
                 }
             }
