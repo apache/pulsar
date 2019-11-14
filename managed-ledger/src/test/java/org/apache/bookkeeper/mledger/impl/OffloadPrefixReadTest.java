@@ -269,6 +269,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         public int getMetadataFormatVersion() { return metadataFormatVersion; }
 
         @Override
+        public long getCToken() {
+            return 0;
+        }
+
+        @Override
         public int getEnsembleSize() { return ensembleSize; }
 
         @Override
