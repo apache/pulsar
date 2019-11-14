@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.7.2" />
+<title>pulsar.schema.schema API documentation</title>
+<meta name="description" content="" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>pulsar.schema.schema</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# &#34;License&#34;); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# &#34;AS IS&#34; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+
+from abc import abstractmethod
+import json
+import fastavro
+import _pulsar
+import io
+
+
+class Schema(object):
+    def __init__(self, record_cls, schema_type, schema_definition, schema_name):
+        self._record_cls = record_cls
+        self._schema_info = _pulsar.SchemaInfo(schema_type, schema_name,
+                                               json.dumps(schema_definition, indent=True))
+
+    @abstractmethod
+    def encode(self, obj):
+        pass
+
+    @abstractmethod
+    def decode(self, data):
+        pass
+
+    def schema_info(self):
+        return self._schema_info
+
+    def _validate_object_type(self, obj):
+        if not isinstance(obj, self._record_cls):
+            raise TypeError(&#39;Invalid record obj of type &#39; + str(type(obj))
+                            + &#39; - expected type is &#39; + str(self._record_cls))
+
+
+class BytesSchema(Schema):
+    def __init__(self):
+        super(BytesSchema, self).__init__(bytes, _pulsar.SchemaType.BYTES, None, &#39;BYTES&#39;)
+
+    def encode(self, data):
+        self._validate_object_type(data)
+        return data
+
+    def decode(self, data):
+        return data
+
+
+class StringSchema(Schema):
+    def __init__(self):
+        super(StringSchema, self).__init__(str, _pulsar.SchemaType.STRING, None, &#39;STRING&#39;)
+
+    def encode(self, obj):
+        self._validate_object_type(obj)
+        return obj.encode(&#39;utf-8&#39;)
+
+    def decode(self, data):
+        return data.decode(&#39;utf-8&#39;)
+
+
+class JsonSchema(Schema):
+
+    def __init__(self, record_cls):
+        super(JsonSchema, self).__init__(record_cls, _pulsar.SchemaType.JSON,
+                                         record_cls.schema(), &#39;JSON&#39;)
+
+    def encode(self, obj):
+        self._validate_object_type(obj)
+        return json.dumps(obj.__dict__, default=lambda o: o.__dict__, indent=True).encode(&#39;utf-8&#39;)
+
+    def decode(self, data):
+        return self._record_cls(**json.loads(data))
+
+
+class AvroSchema(Schema):
+    def __init__(self, record_cls):
+        super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
+                                         record_cls.schema(), &#39;AVRO&#39;)
+        self._schema = record_cls.schema()
+
+    def encode(self, obj):
+        self._validate_object_type(obj)
+        buffer = io.BytesIO()
+        fastavro.schemaless_writer(buffer, self._schema, obj.__dict__)
+        return buffer.getvalue()
+
+    def decode(self, data):
+        buffer = io.BytesIO(data)
+        d = fastavro.schemaless_reader(buffer, self._schema)
+        return self._record_cls(**d)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="pulsar.schema.schema.AvroSchema"><code class="flex name class">
+<span>class <span class="ident">AvroSchema</span></span>
+<span>(</span><span>record_cls)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AvroSchema(Schema):
+    def __init__(self, record_cls):
+        super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
+                                         record_cls.schema(), &#39;AVRO&#39;)
+        self._schema = record_cls.schema()
+
+    def encode(self, obj):
+        self._validate_object_type(obj)
+        buffer = io.BytesIO()
+        fastavro.schemaless_writer(buffer, self._schema, obj.__dict__)
+        return buffer.getvalue()
+
+    def decode(self, data):
+        buffer = io.BytesIO(data)
+        d = fastavro.schemaless_reader(buffer, self._schema)
+        return self._record_cls(**d)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pulsar.schema.schema.Schema" href="#pulsar.schema.schema.Schema">Schema</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pulsar.schema.schema.AvroSchema.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>self, data)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def decode(self, data):
+    buffer = io.BytesIO(data)
+    d = fastavro.schemaless_reader(buffer, self._schema)
+    return self._record_cls(**d)</code></pre>
+</details>
+</dd>
+<dt id="pulsar.schema.schema.AvroSchema.encode"><code class="name flex">
+<span>def <span class="ident">encode</span></span>(<span>self, obj)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def encode(self, obj):
+    self._validate_object_type(obj)
+    buffer = io.BytesIO()
+    fastavro.schemaless_writer(buffer, self._schema, obj.__dict__)
+    return buffer.getvalue()</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pulsar.schema.schema.BytesSchema"><code class="flex name class">
+<span>class <span class="ident">BytesSchema</span></span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BytesSchema(Schema):
+    def __init__(self):
+        super(BytesSchema, self).__init__(bytes, _pulsar.SchemaType.BYTES, None, &#39;BYTES&#39;)
+
+    def encode(self, data):
+        self._validate_object_type(data)
+        return data
+
+    def decode(self, data):
+        return data</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pulsar.schema.schema.Schema" href="#pulsar.schema.schema.Schema">Schema</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pulsar.schema.schema.BytesSchema.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>self, data)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def decode(self, data):
+    return data</code></pre>
+</details>
+</dd>
+<dt id="pulsar.schema.schema.BytesSchema.encode"><code class="name flex">
+<span>def <span class="ident">encode</span></span>(<span>self, data)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def encode(self, data):
+    self._validate_object_type(data)
+    return data</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pulsar.schema.schema.JsonSchema"><code class="flex name class">
+<span>class <span class="ident">JsonSchema</span></span>
+<span>(</span><span>record_cls)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JsonSchema(Schema):
+
+    def __init__(self, record_cls):
+        super(JsonSchema, self).__init__(record_cls, _pulsar.SchemaType.JSON,
+                                         record_cls.schema(), &#39;JSON&#39;)
+
+    def encode(self, obj):
+        self._validate_object_type(obj)
+        return json.dumps(obj.__dict__, default=lambda o: o.__dict__, indent=True).encode(&#39;utf-8&#39;)
+
+    def decode(self, data):
+        return self._record_cls(**json.loads(data))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pulsar.schema.schema.Schema" href="#pulsar.schema.schema.Schema">Schema</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pulsar.schema.schema.JsonSchema.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>self, data)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def decode(self, data):
+    return self._record_cls(**json.loads(data))</code></pre>
+</details>
+</dd>
+<dt id="pulsar.schema.schema.JsonSchema.encode"><code class="name flex">
+<span>def <span class="ident">encode</span></span>(<span>self, obj)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def encode(self, obj):
+    self._validate_object_type(obj)
+    return json.dumps(obj.__dict__, default=lambda o: o.__dict__, indent=True).encode(&#39;utf-8&#39;)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pulsar.schema.schema.Schema"><code class="flex name class">
+<span>class <span class="ident">Schema</span></span>
+<span>(</span><span>record_cls, schema_type, schema_definition, schema_name)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Schema(object):
+    def __init__(self, record_cls, schema_type, schema_definition, schema_name):
+        self._record_cls = record_cls
+        self._schema_info = _pulsar.SchemaInfo(schema_type, schema_name,
+                                               json.dumps(schema_definition, indent=True))
+
+    @abstractmethod
+    def encode(self, obj):
+        pass
+
+    @abstractmethod
+    def decode(self, data):
+        pass
+
+    def schema_info(self):
+        return self._schema_info
+
+    def _validate_object_type(self, obj):
+        if not isinstance(obj, self._record_cls):
+            raise TypeError(&#39;Invalid record obj of type &#39; + str(type(obj))
+                            + &#39; - expected type is &#39; + str(self._record_cls))</code></pre>
+</details>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="pulsar.schema.schema.BytesSchema" href="#pulsar.schema.schema.BytesSchema">BytesSchema</a></li>
+<li><a title="pulsar.schema.schema.StringSchema" href="#pulsar.schema.schema.StringSchema">StringSchema</a></li>
+<li><a title="pulsar.schema.schema.JsonSchema" href="#pulsar.schema.schema.JsonSchema">JsonSchema</a></li>
+<li><a title="pulsar.schema.schema.AvroSchema" href="#pulsar.schema.schema.AvroSchema">AvroSchema</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pulsar.schema.schema.Schema.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>self, data)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def decode(self, data):
+    pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.schema.schema.Schema.encode"><code class="name flex">
+<span>def <span class="ident">encode</span></span>(<span>self, obj)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+def encode(self, obj):
+    pass</code></pre>
+</details>
+</dd>
+<dt id="pulsar.schema.schema.Schema.schema_info"><code class="name flex">
+<span>def <span class="ident">schema_info</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def schema_info(self):
+    return self._schema_info</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="pulsar.schema.schema.StringSchema"><code class="flex name class">
+<span>class <span class="ident">StringSchema</span></span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class StringSchema(Schema):
+    def __init__(self):
+        super(StringSchema, self).__init__(str, _pulsar.SchemaType.STRING, None, &#39;STRING&#39;)
+
+    def encode(self, obj):
+        self._validate_object_type(obj)
+        return obj.encode(&#39;utf-8&#39;)
+
+    def decode(self, data):
+        return data.decode(&#39;utf-8&#39;)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="pulsar.schema.schema.Schema" href="#pulsar.schema.schema.Schema">Schema</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pulsar.schema.schema.StringSchema.decode"><code class="name flex">
+<span>def <span class="ident">decode</span></span>(<span>self, data)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def decode(self, data):
+    return data.decode(&#39;utf-8&#39;)</code></pre>
+</details>
+</dd>
+<dt id="pulsar.schema.schema.StringSchema.encode"><code class="name flex">
+<span>def <span class="ident">encode</span></span>(<span>self, obj)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def encode(self, obj):
+    self._validate_object_type(obj)
+    return obj.encode(&#39;utf-8&#39;)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="pulsar.schema" href="index.html">pulsar.schema</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="pulsar.schema.schema.AvroSchema" href="#pulsar.schema.schema.AvroSchema">AvroSchema</a></code></h4>
+<ul class="">
+<li><code><a title="pulsar.schema.schema.AvroSchema.decode" href="#pulsar.schema.schema.AvroSchema.decode">decode</a></code></li>
+<li><code><a title="pulsar.schema.schema.AvroSchema.encode" href="#pulsar.schema.schema.AvroSchema.encode">encode</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pulsar.schema.schema.BytesSchema" href="#pulsar.schema.schema.BytesSchema">BytesSchema</a></code></h4>
+<ul class="">
+<li><code><a title="pulsar.schema.schema.BytesSchema.decode" href="#pulsar.schema.schema.BytesSchema.decode">decode</a></code></li>
+<li><code><a title="pulsar.schema.schema.BytesSchema.encode" href="#pulsar.schema.schema.BytesSchema.encode">encode</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pulsar.schema.schema.JsonSchema" href="#pulsar.schema.schema.JsonSchema">JsonSchema</a></code></h4>
+<ul class="">
+<li><code><a title="pulsar.schema.schema.JsonSchema.decode" href="#pulsar.schema.schema.JsonSchema.decode">decode</a></code></li>
+<li><code><a title="pulsar.schema.schema.JsonSchema.encode" href="#pulsar.schema.schema.JsonSchema.encode">encode</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pulsar.schema.schema.Schema" href="#pulsar.schema.schema.Schema">Schema</a></code></h4>
+<ul class="">
+<li><code><a title="pulsar.schema.schema.Schema.decode" href="#pulsar.schema.schema.Schema.decode">decode</a></code></li>
+<li><code><a title="pulsar.schema.schema.Schema.encode" href="#pulsar.schema.schema.Schema.encode">encode</a></code></li>
+<li><code><a title="pulsar.schema.schema.Schema.schema_info" href="#pulsar.schema.schema.Schema.schema_info">schema_info</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pulsar.schema.schema.StringSchema" href="#pulsar.schema.schema.StringSchema">StringSchema</a></code></h4>
+<ul class="">
+<li><code><a title="pulsar.schema.schema.StringSchema.decode" href="#pulsar.schema.schema.StringSchema.decode">decode</a></code></li>
+<li><code><a title="pulsar.schema.schema.StringSchema.encode" href="#pulsar.schema.schema.StringSchema.encode">encode</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.7.2</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>
