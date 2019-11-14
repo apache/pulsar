@@ -61,6 +61,7 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
 
     @Override
     public void prepareSource() throws Exception {
+        this.debeziumMongoDbContainer.execCmd("bash","-c","/usr/local/bin/init-inventory.sh");
         log.info("debezium mongodb server already contains preconfigured data.");
     }
 
