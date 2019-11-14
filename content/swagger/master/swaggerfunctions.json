@@ -1348,13 +1348,6 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
@@ -1402,6 +1395,13 @@
         },
         "replicatedFrom" : {
           "type" : "string"
+        },
+        "keyBytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "data" : {
           "type" : "array",
