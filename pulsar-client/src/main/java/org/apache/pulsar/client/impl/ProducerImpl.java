@@ -95,7 +95,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private volatile Timeout sendTimeout = null;
     private volatile Timeout batchMessageAndSendTimeout = null;
     private long createProducerTimeout;
-    private final int maxNumMessagesInBatch;
     private final BatchMessageContainerBase batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
 
@@ -175,7 +174,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         if (conf.isBatchingEnabled()) {
-            this.maxNumMessagesInBatch = conf.getBatchingMaxMessages();
             BatcherBuilder containerBuilder = conf.getBatcherBuilder();
             if (containerBuilder == null) {
                 containerBuilder = BatcherBuilder.DEFAULT;
@@ -183,7 +181,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this.batchMessageContainer = (BatchMessageContainerBase)containerBuilder.build();
             this.batchMessageContainer.setProducer(this);
         } else {
-            this.maxNumMessagesInBatch = 1;
             this.batchMessageContainer = null;
         }
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
@@ -401,11 +398,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         } else {
                             // handle boundary cases where message being added would exceed
                             // batch size and/or max message size
-                            batchMessageContainer.add(msg, callback);
+                            boolean isBatchFull = batchMessageContainer.add(msg, callback);
                             lastSendFuture = callback.getFuture();
                             payload.release();
-                            if (batchMessageContainer.getNumMessagesInBatch() == maxNumMessagesInBatch
-                                    || batchMessageContainer.getCurrentBatchSize() >= BatchMessageContainerImpl.MAX_MESSAGE_BATCH_SIZE_BYTES) {
+                            if (isBatchFull) {
                                 batchMessageAndSend();
                             }
                         }
