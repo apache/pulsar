@@ -14,7 +14,11 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 ### Canal
 
-Description|||
+| One    | Two | Three | Four    | Five  | Six
+|-|-|-|-|-|-
+| Span <td colspan=3>triple  <td colspan=2>double
+
+|<td colspan=3>Description    
 |---|---|---
 [Configuration](io-canal-source.md#property)|[Example](io-canal-source.md#usage)|[Java Class](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/java/org/apache/pulsar/io/canal/CanalStringSource.java)
 
