@@ -801,6 +801,9 @@
         },
         "runtimeFlags" : {
           "type" : "string"
+        },
+        "customRuntimeOptions" : {
+          "type" : "string"
         }
       }
     },

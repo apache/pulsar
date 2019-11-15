@@ -1114,6 +1114,9 @@
         },
         "cleanupSubscription" : {
           "type" : "boolean"
+        },
+        "customRuntimeOptions" : {
+          "type" : "string"
         }
       }
     },
@@ -1348,15 +1351,29 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "sequenceId" : {
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "redeliveryCount" : {
           "type" : "integer",
-          "format" : "int64"
+          "format" : "int32"
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
         "messageId" : {
           "$ref" : "#/definitions/MessageId"
         },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1365,16 +1382,8 @@
             "format" : "byte"
           }
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "producerName" : {
+          "type" : "string"
         },
         "replicated" : {
           "type" : "boolean"
@@ -1388,12 +1397,6 @@
           "format" : "int64"
         },
         "topicName" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
           "type" : "string"
         },
         "keyBytes" : {
