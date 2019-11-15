@@ -59,7 +59,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionMetaStoreRequestHandler;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
@@ -733,7 +735,7 @@ public class ClientCnx extends PulsarHandler {
         return ctx.newPromise();
     }
 
-    ChannelHandlerContext ctx() {
+    public ChannelHandlerContext ctx() {
         return ctx;
     }
 
@@ -839,6 +841,11 @@ public class ClientCnx extends PulsarHandler {
                 return CompletableFuture.completedFuture(response.getSchemaVersion().toByteArray());
             }
         });
+    }
+
+    @Override
+    protected void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse commandNewTxnResponse) {
+        transactionMetaStoreRequestHandler.handleNewTxnResponse(commandNewTxnResponse);
     }
 
     /**
@@ -986,6 +993,10 @@ public class ClientCnx extends PulsarHandler {
                 // request is already completed successfully.
             }
         }
+    }
+
+    public void setTransactionMetaStoreRequestHandler(TransactionMetaStoreRequestHandler transactionMetaStoreRequestHandler) {
+        this.transactionMetaStoreRequestHandler = transactionMetaStoreRequestHandler;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);

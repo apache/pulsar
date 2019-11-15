@@ -19,6 +19,10 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -50,6 +54,51 @@ public class TransactionMetadataStoreService {
         this.transactionMetadataStoreProvider = transactionMetadataStoreProvider;
     }
 
+    public void start() {
+        pulsarService.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
+            @Override
+            public void onLoad(NamespaceBundle bundle) {
+                pulsarService.getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle)
+                    .whenComplete((topics, ex) -> {
+                        if (ex == null) {
+                            for (String topic : topics) {
+                                TopicName name = TopicName.get(topic);
+                                if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
+                                        .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
+                                        && name.isPartitioned()) {
+                                    addTransactionMetadataStore(TransactionCoordinatorID.get(name.getPartitionIndex()));
+                                }
+                            }
+                        } else {
+                            LOG.error("Get owned topic list error when trigger bundle {} onload.", bundle, ex);
+                        }
+                    });
+            }
+            @Override
+            public void unLoad(NamespaceBundle bundle) {
+                pulsarService.getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle)
+                    .whenComplete((topics, ex) -> {
+                        if (ex == null) {
+                            for (String topic : topics) {
+                                TopicName name = TopicName.get(topic);
+                                if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
+                                        .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
+                                        && name.isPartitioned()) {
+                                    removeTransactionMetadataStore(TransactionCoordinatorID.get(name.getPartitionIndex()));
+                                }
+                            }
+                        } else {
+                            LOG.error("Get owned topic list error when trigger bundle {} unLoad.", bundle, ex);
+                        }
+                     });
+            }
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE);
+            }
+        });
+    }
+
     public void addTransactionMetadataStore(TransactionCoordinatorID tcId) {
         transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory())
             .whenComplete((store, ex) -> {
@@ -57,16 +106,22 @@ public class TransactionMetadataStoreService {
                     LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
                 } else {
                     stores.put(tcId, store);
+                    LOG.info("Added new transaction meta store {}", tcId);
                 }
             });
     }
 
     public void removeTransactionMetadataStore(TransactionCoordinatorID tcId) {
-        stores.remove(tcId).closeAsync().whenComplete((v, ex) -> {
-           if (ex != null) {
-               LOG.error("Close transaction metadata store with id {} error", ex);
-           }
-        });
+        TransactionMetadataStore metadataStore = stores.remove(tcId);
+        if (metadataStore != null) {
+            metadataStore.closeAsync().whenComplete((v, ex) -> {
+                if (ex != null) {
+                    LOG.error("Close transaction metadata store with id {} error", ex);
+                } else {
+                    LOG.info("Removed and closed transaction meta store {}", tcId);
+                }
+            });
+        }
     }
 
     public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId) {
