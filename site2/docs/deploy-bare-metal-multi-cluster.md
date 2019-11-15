@@ -376,7 +376,7 @@ If a new tenant wants to use the system, you need to create a new one. You can c
 
 
 ```shell
-$ bin/pulsar-admin tenants create test-tentant \
+$ bin/pulsar-admin tenants create test-tenant \
   --allowed-clusters us-west \
   --admin-roles test-admin-role
 ```
