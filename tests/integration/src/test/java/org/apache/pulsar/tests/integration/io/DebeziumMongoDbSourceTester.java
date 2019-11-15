@@ -43,7 +43,7 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
-        sourceConfig.put("mongodb.hosts", "rs0/" + DebeziumMongoDbContainer.NAME + ":27107");
+        sourceConfig.put("mongodb.hosts", "rs0/" + DebeziumMongoDbContainer.NAME + ":27017");
         sourceConfig.put("mongodb.name", "dbserver1");
         sourceConfig.put("mongodb.user", "debezium");
         sourceConfig.put("mongodb.password", "dbz");
@@ -61,7 +61,7 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
 
     @Override
     public void prepareSource() throws Exception {
-        this.debeziumMongoDbContainer.execCmd("bash","-c","/usr/local/bin/init-inventory.sh");
+        this.debeziumMongoDbContainer.execCmd( "bash", "-c", "/usr/local/bin/init-inventory.sh");
         log.info("debezium mongodb server already contains preconfigured data.");
     }
 

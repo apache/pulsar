@@ -74,7 +74,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
         }
 
         Assert.assertEquals(recordsNumber, number);
-        log.info("Stop {} server container. topic: {} has {} records.",getSourceType(), consumer.getTopic(), recordsNumber);
+        log.info("Stop {} server container. topic: {} has {} records.", getSourceType(), consumer.getTopic(), recordsNumber);
     }
     public String keyContains(){
         return "dbserver1.inventory.products.Key";
