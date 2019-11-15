@@ -12,10 +12,22 @@ Using any of these connectors is as easy as writing a simple connector and runni
 
 Pulsar has various source connectors, which are sorted alphabetically as below.
 
+### Canal
+
+Description|||
+|---|---|---
+[Configuration](io-canal-source.md#property)|[Example](io-canal-source.md#usage)|[Java Class](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/java/org/apache/pulsar/io/canal/CanalStringSource.java)
+
+
+### Debezium MySQL
+
+Configuration|Example|Java Class
+|---|---|---
+
 Name|Java class
 |---|---
-[Canal](io-canal-source.md) |[org.apache.pulsar.io.canal.CanalStringSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/canal/src/main/java/org/apache/pulsar/io/canal/CanalStringSource.java)
-[Debezium MySQL](io-debezium-source.md#example-of-mysql)|[org.apache.pulsar.io.debezium.mysql.DebeziumMysqlSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/java/org/apache/pulsar/io/debezium/mysql/DebeziumMysqlSource.java)
+
+[](io-debezium-source.md#example-of-mysql)|[org.apache.pulsar.io.debezium.mysql.DebeziumMysqlSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/java/org/apache/pulsar/io/debezium/mysql/DebeziumMysqlSource.java)
 [Debezium PostgreSQL](io-debezium-source.md#example-of-postgresql)|[org.apache.pulsar.io.debezium.postgres.DebeziumPostgresSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/java/org/apache/pulsar/io/debezium/postgres/DebeziumPostgresSource.java)
 [File](io-file-source.md)|[org.apache.pulsar.io.file.FileSource.java](https://github.com/apache/pulsar/blob/master/pulsar-io/file/src/main/java/org/apache/pulsar/io/file/FileSource.java)
 [Flume](io-flume-source.md)|[org.apache.pulsar.io.flume.FlumeConnector.java](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/java/org/apache/pulsar/io/flume/FlumeConnector.java)
