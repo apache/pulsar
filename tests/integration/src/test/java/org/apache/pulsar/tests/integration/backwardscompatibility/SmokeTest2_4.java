@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.backwardscompatibility;
 
 import org.testng.annotations.Test;
 
-public class SmokeTest2_2 extends PulsarStandaloneTestSuite2_2 {
+public class SmokeTest2_4 extends PulsarStandaloneTestSuite2_4 {
 
     @Test(dataProvider = "StandaloneServiceUrlAndTopics")
     public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
