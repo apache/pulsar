@@ -197,6 +197,8 @@ public class KubernetesRuntimeTest {
         kubernetesRuntimeFactoryConfig.setPulsarAdminUrl(pulsarAdminUrl);
         kubernetesRuntimeFactoryConfig.setChangeConfigMapNamespace(null);
         kubernetesRuntimeFactoryConfig.setChangeConfigMap(null);
+        kubernetesRuntimeFactoryConfig.setGrpcPort(4332);
+        kubernetesRuntimeFactoryConfig.setMetricsPort(4331);
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
                 ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
