@@ -158,7 +158,7 @@ public class ProcessRuntimeTest {
         workerConfig.setFunctionRuntimeFactoryClassName(ProcessRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
                 ObjectMapperFactory.getThreadLocal().convertValue(processRuntimeFactoryConfig, Map.class));
-        processRuntimeFactory.initialize(workerConfig, null, new TestSecretsProviderConfigurator(), Optional.empty());
+        processRuntimeFactory.initialize(workerConfig, null, new TestSecretsProviderConfigurator(), Optional.empty(), Optional.empty());
 
         return processRuntimeFactory;
     }

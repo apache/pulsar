@@ -31,8 +31,9 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      *
      * @param msg message will add to the batch message container
      * @param callback message send callback
+     * @return true if the batch is full, otherwise false
      */
-    void add(MessageImpl<?> msg, SendCallback callback);
+    boolean add(MessageImpl<?> msg, SendCallback callback);
 
     /**
      * Check the batch message container have enough space for the message want to add.

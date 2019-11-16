@@ -336,10 +336,12 @@ public class Commands {
 
     }
 
-    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long ledgerId, long entryId) {
+    public static ByteBuf newSendReceipt(long producerId, long sequenceId, long highestId, long ledgerId,
+             long entryId) {
         CommandSendReceipt.Builder sendReceiptBuilder = CommandSendReceipt.newBuilder();
         sendReceiptBuilder.setProducerId(producerId);
         sendReceiptBuilder.setSequenceId(sequenceId);
+        sendReceiptBuilder.setHighestSequenceId(highestId);
         MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
         messageIdBuilder.setLedgerId(ledgerId);
         messageIdBuilder.setEntryId(entryId);
@@ -443,12 +445,43 @@ public class Commands {
         return newSend(producerId, sequenceId, numMessaegs, 0, 0, checksumType, messageMetadata, payload);
     }
 
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
+              ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
+        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs, 0, 0,
+                checksumType, messageMetadata, payload);
+    }
+
     public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages,
                                       long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
             MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
         sendBuilder.setSequenceId(sequenceId);
+        if (numMessages > 1) {
+            sendBuilder.setNumMessages(numMessages);
+        }
+        if (txnIdLeastBits > 0) {
+            sendBuilder.setTxnidLeastBits(txnIdLeastBits);
+        }
+        if (txnIdMostBits > 0) {
+            sendBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        CommandSend send = sendBuilder.build();
+
+        ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
+                checksumType, messageData, payload);
+        send.recycle();
+        sendBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
+          long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
+          MessageMetadata messageData, ByteBuf payload) {
+        CommandSend.Builder sendBuilder = CommandSend.newBuilder();
+        sendBuilder.setProducerId(producerId);
+        sendBuilder.setSequenceId(lowestSequenceId);
+        sendBuilder.setHighestSequenceId(highestSequenceId);
         if (numMessages > 1) {
             sendBuilder.setNumMessages(numMessages);
         }

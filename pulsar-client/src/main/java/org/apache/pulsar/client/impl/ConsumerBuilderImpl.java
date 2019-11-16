@@ -323,6 +323,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ConsumerBuilder<T> startMessageIdInclusive() {
+        conf.setResetIncludeHead(true);
+        return this;
+    }
+
     public ConsumerConfigurationData<T> getConf() {
         return conf;
     }

@@ -301,14 +301,15 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     };
 
-    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+    public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
         for (int i = 0; i < retryCount; i++) {
             if (predicate.test(null) || i == (retryCount - 1)) {
-                break;
+                return true;
             }
             Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
         }
+        return false;
     }
 
     public static void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
