@@ -123,6 +123,6 @@ const char *pulsar_message_get_topic_name(pulsar_message_t *message) {
     return message->message.getTopicName().c_str();
 }
 
-const int *pulsar_message_get_redelivery_count(pulsar_message_t *message) {
+int pulsar_message_get_redelivery_count(pulsar_message_t *message) {
     return message->message.getRedeliveryCount();
 }
