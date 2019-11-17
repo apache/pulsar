@@ -260,6 +260,46 @@ TEST(BasicEndToEndTest, testProduceConsume) {
     ASSERT_EQ(ResultOk, client.close());
 }
 
+TEST(BasicEndToEndTest, testRedeliveryCount) {
+
+    ClientConfiguration config;
+    Client client(lookupUrl, config);
+    std::string topicName = "persistent://public/default/test-redelivery-count";
+
+    Producer producer;
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingEnabled(true);
+    Result result = client.createProducer(topicName, producerConf, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    std::string content = "msg-content";
+    Message msg = MessageBuilder().setContent(content).build();
+    producer.send(msg);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+    result = client.subscribe(topicName, "sub", consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    do
+    {
+        Message msgReceived;
+        consumer.receive(msgReceived);
+        LOG_INFO("Received message " << msgReceived.getDataAsString());
+        consumer.negativeAcknowledge(msgReceived);
+        int redeliveryCount = msgReceived.getRedeliveryCount();
+        if (redeliveryCount > 2) {
+            consumer.acknowledge(msgReceived);
+            ASSERT_EQ(3, redeliveryCount);
+            break;
+        }
+    } while (true);
+
+    consumer.close();
+    producer.close();
+}
+
 TEST(BasicEndToEndTest, testLookupThrottling) {
     std::string topicName = "testLookupThrottling";
     ClientConfiguration config;
