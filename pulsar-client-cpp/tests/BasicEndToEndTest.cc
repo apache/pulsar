@@ -278,6 +278,7 @@ TEST(BasicEndToEndTest, testRedeliveryCount) {
 
     Consumer consumer;
     ConsumerConfiguration consumerConf;
+    consumerConf.setNegativeAckRedeliveryDelayMs(500);
     consumerConf.setConsumerType(ConsumerShared);
     result = client.subscribe(topicName, "sub", consumerConf, consumer);
     ASSERT_EQ(ResultOk, result);
