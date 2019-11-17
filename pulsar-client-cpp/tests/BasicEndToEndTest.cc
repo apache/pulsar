@@ -261,7 +261,6 @@ TEST(BasicEndToEndTest, testProduceConsume) {
 }
 
 TEST(BasicEndToEndTest, testRedeliveryCount) {
-
     ClientConfiguration config;
     Client client(lookupUrl, config);
     std::string topicName = "persistent://public/default/test-redelivery-count";
@@ -283,8 +282,7 @@ TEST(BasicEndToEndTest, testRedeliveryCount) {
     result = client.subscribe(topicName, "sub", consumerConf, consumer);
     ASSERT_EQ(ResultOk, result);
 
-    do
-    {
+    do {
         Message msgReceived;
         consumer.receive(msgReceived);
         LOG_INFO("Received message " << msgReceived.getDataAsString());

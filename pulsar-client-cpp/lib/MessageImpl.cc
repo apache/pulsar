@@ -94,8 +94,6 @@ const std::string& MessageImpl::getTopicName() { return *topicName_; }
 
 int MessageImpl::getRedeliveryCount() { return redeliveryCount_; }
 
-void MessageImpl::setRedeliveryCount(int count) {
-    redeliveryCount_ = count;
-}
+void MessageImpl::setRedeliveryCount(int count) { redeliveryCount_ = count; }
 
 }  // namespace pulsar
