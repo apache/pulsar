@@ -1404,11 +1404,20 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleNewTxn(CommandNewTxn command) {
+        if (log.isDebugEnabled()) {
+            log.debug("Receive new txn request {} to transaction meta store {} from {}.", command.getRequestId(), command.getTcId(), remoteAddress);
+        }
         service.pulsar().getTransactionMetadataStoreService().newTransaction(TransactionCoordinatorID.get(command.getTcId()))
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response {} for new txn request {}", command.getTcId(),  command.getRequestId());
+                    }
                     ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
                 } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response error for new txn request {}", command.getRequestId(), ex);
+                    }
                     ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                 }
             }));
@@ -1416,13 +1425,22 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleAddPartitionToTxn(PulsarApi.CommandAddPartitionToTxn command) {
-        service.pulsar().getTransactionMetadataStoreService().addProducedPartitionToTxn(new TxnID(command.getTxnidMostBits(),
-            command.getTxnidLeastBits()), command.getPartitionsList())
+        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        if (log.isDebugEnabled()) {
+            log.debug("Receive add published partition to txn request {} from {} with txnId {}", command.getRequestId(), remoteAddress, txnID);
+        }
+        service.pulsar().getTransactionMetadataStoreService().addProducedPartitionToTxn(txnID, command.getPartitionsList())
             .whenComplete(((v, ex) -> {
                 if (ex == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response success for add published partition to txn request {}",  command.getRequestId());
+                    }
                     ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(),
                             command.getTxnidLeastBits(), command.getTxnidMostBits()));
                 } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response error for add published partition to txn request {}",  command.getRequestId(), ex);
+                    }
                     ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(), command.getTxnidMostBits(),
                             BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                 }
@@ -1440,13 +1458,22 @@ public class ServerCnx extends PulsarHandler {
                 newStatus = TxnStatus.ABORTING;
                 break;
         }
-        service.pulsar().getTransactionMetadataStoreService().updateTxnStatus(new TxnID(command.getTxnidMostBits(),
-            command.getTxnidLeastBits()), newStatus, TxnStatus.OPEN)
+        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        if (log.isDebugEnabled()) {
+            log.debug("Receive end txn by {} request {} from {} with txnId {}", newStatus, command.getRequestId(), remoteAddress, txnID);
+        }
+        service.pulsar().getTransactionMetadataStoreService().updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
             .whenComplete((v, ex) -> {
                 if (ex == null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response success for end txn request {}", command.getRequestId());
+                    }
                     ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(),
                             command.getTxnidLeastBits(), command.getTxnidMostBits()));
                 } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Send response error for end txn request {}", command.getRequestId());
+                    }
                     ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), command.getTxnidMostBits(),
                             BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                 }

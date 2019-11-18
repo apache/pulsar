@@ -97,6 +97,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("New transaction with timeout in ms {}", unit.toMillis(timeout));
+        }
         CompletableFuture<TxnID> callback = new CompletableFuture<>();
 
         if (!canSendRequest(callback)) {
@@ -122,9 +125,13 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return;
         }
         if (!response.hasError()) {
-            op.callback.complete(new TxnID(response.getTxnidMostBits(),
-                response.getTxnidLeastBits()));
+            TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Got new txn response {} for request {}", txnID, response.getRequestId());
+            }
+            op.callback.complete(txnID);
         } else {
+            LOG.error("Got new txn for request {} error {}", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
 
@@ -132,6 +139,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Add publish partition to txn request with txnId, with partitions", txnID, partitions);
+        }
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
         if (!canSendRequest(callback)) {
@@ -157,8 +167,12 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return;
         }
         if (!response.hasError()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Add publish partition for request {} success.", response.getRequestId());
+            }
             op.callback.complete(null);
         } else {
+            LOG.error("Add publish partition for request {} error {}.", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
 
@@ -166,6 +180,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     public CompletableFuture<Void> commitAsync(TxnID txnID) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Commit txn {}", txnID);
+        }
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
         if (!canSendRequest(callback)) {
@@ -182,6 +199,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     public CompletableFuture<Void> abortAsync(TxnID txnID) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Abort txn {}", txnID);
+        }
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
         if (!canSendRequest(callback)) {
@@ -207,8 +227,12 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return;
         }
         if (!response.hasError()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Got end txn response success for request {}", response.getRequestId());
+            }
             op.callback.complete(null);
         } else {
+            LOG.error("Got end txn response for request {} error {}", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
 
@@ -366,6 +390,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 if (!op.callback.isDone()) {
                     op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                             "Could not get response from transaction meta store within given timeout."));
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Transaction coordinator request {} is timeout.", lastPolled.requestId);
+                    }
                     onResponse(op);
                 }
             } else {
