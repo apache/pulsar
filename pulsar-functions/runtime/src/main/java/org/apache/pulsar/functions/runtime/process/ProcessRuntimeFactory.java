@@ -29,8 +29,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -64,6 +66,9 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Optional<FunctionAuthProvider> authProvider;
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Optional<RuntimeCustomizer> runtimeCustomizer;
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
@@ -75,17 +80,19 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  String extraDependenciesDir,
                                  SecretsProviderConfigurator secretsProviderConfigurator,
                                  boolean authenticationEnabled,
-                                 Optional<FunctionAuthProvider> functionAuthProvider) {
+                                 Optional<FunctionAuthProvider> functionAuthProvider,
+                                 Optional<RuntimeCustomizer> runtimeCustomizer) {
 
         initialize(pulsarServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
                 pythonInstanceFile, logDirectory, extraDependenciesDir,
-                secretsProviderConfigurator, authenticationEnabled, functionAuthProvider);
+                secretsProviderConfigurator, authenticationEnabled, functionAuthProvider, runtimeCustomizer);
     }
 
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
-                           Optional<FunctionAuthProvider> functionAuthProvider) {
+                           Optional<FunctionAuthProvider> authProvider,
+                           Optional<RuntimeCustomizer> runtimeCustomizer) {
         ProcessRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ProcessRuntimeFactoryConfig.class);
 
@@ -98,7 +105,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                 factoryConfig.getExtraFunctionDependenciesDir(),
                 secretsProviderConfigurator,
                 workerConfig.isAuthenticationEnabled(),
-                functionAuthProvider);
+                authProvider,
+                runtimeCustomizer);
     }
 
     private void initialize(String pulsarServiceUrl,
@@ -110,7 +118,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                             String extraDependenciesDir,
                             SecretsProviderConfigurator secretsProviderConfigurator,
                             boolean authenticationEnabled,
-                            Optional<FunctionAuthProvider> functionAuthProvider) {
+                            Optional<FunctionAuthProvider> functionAuthProvider,
+                            Optional<RuntimeCustomizer> runtimeCustomizer) {
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
@@ -169,6 +178,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         }
 
         authProvider = functionAuthProvider;
+        this.runtimeCustomizer = runtimeCustomizer;
     }
 
     @Override
@@ -211,6 +221,11 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     @Override
     public Optional<FunctionAuthProvider> getAuthProvider() {
         return authProvider;
+    }
+
+    @Override
+    public Optional<RuntimeCustomizer> getRuntimeCustomizer() {
+        return runtimeCustomizer;
     }
 
     @Override

@@ -381,32 +381,32 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-web-2.10.0.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.9.2.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.9.2.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.9.2.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.9.2.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.9.2.jar
-    - org.apache.bookkeeper-circe-checksum-4.9.2.jar
-    - org.apache.bookkeeper-cpu-affinity-4.9.2.jar
-    - org.apache.bookkeeper-statelib-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-api-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-common-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-server-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.9.2.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.9.2.jar
-    - org.apache.bookkeeper.http-http-server-4.9.2.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.9.2.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.9.2.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.9.2.jar
-    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.9.2.jar
-    - org.apache.distributedlog-distributedlog-common-4.9.2.jar
-    - org.apache.distributedlog-distributedlog-core-4.9.2-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.9.2.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.9.2.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.9.2.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.10.0.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.10.0.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.10.0.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.10.0.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.10.0.jar
+    - org.apache.bookkeeper-circe-checksum-4.10.0.jar
+    - org.apache.bookkeeper-cpu-affinity-4.10.0.jar
+    - org.apache.bookkeeper-statelib-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-api-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-common-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-server-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.10.0.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.10.0.jar
+    - org.apache.bookkeeper.http-http-server-4.10.0.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.10.0.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.10.0.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.10.0.jar
+    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.10.0.jar
+    - org.apache.distributedlog-distributedlog-common-4.10.0.jar
+    - org.apache.distributedlog-distributedlog-core-4.10.0-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.10.0.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.10.0.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.10.0.jar
  * LZ4 -- org.lz4-lz4-java-1.5.0.jar
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-2.7.0.jar
@@ -449,7 +449,7 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-protobuf-lite-1.18.0.jar
     - io.grpc-grpc-protobuf-nano-1.18.0.jar
     - io.grpc-grpc-stub-1.18.0.jar
-    - io.grpc-grpc-testing-1.12.0.jar
+    - io.grpc-grpc-testing-1.18.0.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.18.0.jar
     - io.opencensus-opencensus-contrib-grpc-metrics-0.18.0.jar

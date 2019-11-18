@@ -1038,8 +1038,9 @@ public class ServerCnx extends PulsarHandler {
             if (nonPersistentPendingMessages > MaxNonPersistentPendingMessages) {
                 final long producerId = send.getProducerId();
                 final long sequenceId = send.getSequenceId();
+                final long highestSequenceId = send.getHighestSequenceId();
                 service.getTopicOrderedExecutor().executeOrdered(producer.getTopic().getName(), SafeRun.safeRun(() -> {
-                    ctx.writeAndFlush(Commands.newSendReceipt(producerId, sequenceId, -1, -1), ctx.voidPromise());
+                    ctx.writeAndFlush(Commands.newSendReceipt(producerId, sequenceId, highestSequenceId, -1, -1), ctx.voidPromise());
                 }));
                 producer.recordMessageDrop(send.getNumMessages());
                 return;
@@ -1051,7 +1052,12 @@ public class ServerCnx extends PulsarHandler {
         startSendOperation(producer);
 
         // Persist the message
-        producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
+                    headersAndPayload, send.getNumMessages());
+        } else {
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+        }
     }
 
     private void printSendCommandDebug(CommandSend send, ByteBuf headersAndPayload) {

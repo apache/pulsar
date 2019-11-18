@@ -27,12 +27,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
-import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
+import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.net.NetworkTopology;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -53,7 +53,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
 
     private ZooKeeperDataCache<BookiesRackConfiguration> bookieMappingCache = null;
-    private RackawareEnsemblePlacementPolicyImpl rackawarePolicy = null;
+    private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
 
     private static final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
@@ -188,6 +188,11 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     @Override
+    public boolean useHostName() {
+        return false;
+    }
+
+    @Override
     public void onUpdate(String path, BookiesRackConfiguration data, Stat stat) {
         if (rackawarePolicy != null) {
             LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", data.toString());
@@ -206,8 +211,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     @Override
-    public void registerRackChangeListener(RackawareEnsemblePlacementPolicyImpl rackawarePolicy) {
+    public void registerRackChangeListener(ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy) {
         this.rackawarePolicy = rackawarePolicy;
-
     }
 }
