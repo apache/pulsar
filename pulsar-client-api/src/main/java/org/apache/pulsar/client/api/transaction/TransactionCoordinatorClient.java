@@ -25,9 +25,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Transaction meta store client.
+ * Transaction coordinator client.
  */
-public interface TransactionMetaStoreClient extends Closeable {
+public interface TransactionCoordinatorClient extends Closeable {
 
     /**
      * Default transaction ttl in mills.

@@ -21,9 +21,9 @@ package org.apache.pulsar.client.impl.transaction;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The transaction coordinator client to commit and abort transactions on topics.
+ * The transaction buffer client to commit and abort transactions on topics.
  */
-public interface TransactionCoordinatorClient {
+public interface TransactionBufferClient {
 
     /**
      * Commit the transaction associated with the topic.

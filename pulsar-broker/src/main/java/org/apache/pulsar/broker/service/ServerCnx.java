@@ -68,6 +68,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -1397,6 +1398,12 @@ public class ServerCnx extends PulsarHandler {
                     requestId, errorCode, ex.getMessage()));
             return null;
         });
+    }
+
+    @Override
+    protected void handleNewTxn(CommandNewTxn commandNewTxn) {
+//        service.pulsar().getTransactionMetadataStoreService().newTransaction()
+        ctx.writeAndFlush(Commands.newTxnResponse(1L, 1, 1));
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
