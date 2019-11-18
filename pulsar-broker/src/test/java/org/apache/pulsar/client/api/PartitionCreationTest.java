@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
 
-public class ConsumerCreationTest extends ProducerConsumerBase {
+public class PartitionCreationTest extends ProducerConsumerBase {
 
     @DataProvider(name = "topicDomainProvider")
     public Object[][] topicDomainProvider() {
