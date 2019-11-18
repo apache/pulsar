@@ -845,9 +845,36 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse commandNewTxnResponse) {
-        long transactionCoordinatorId = commandNewTxnResponse.getTxnidMostBits();
-        transactionMetaStoreHandlers.get(transactionCoordinatorId).handleNewTxnResponse(commandNewTxnResponse);
+    protected void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleNewTxnResponse(command);
+        }
+    }
+
+    @Override
+    protected void handleAddPartitionToTxnResponse(PulsarApi.CommandAddPartitionToTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleAddPublishPartitionToTxnResponse(command);
+        }
+    }
+
+    @Override
+    protected void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse command) {
+        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
+        if (handler != null) {
+            handler.handleEndTxnResponse(command);
+        }
+    }
+
+    private TransactionMetaStoreHandler checkAndGetTransactionMetaStoreHandler(long tcId) {
+        TransactionMetaStoreHandler handler = transactionMetaStoreHandlers.get(tcId);
+        if (handler == null) {
+            channel().close();
+            log.warn("Close the channel since can't get the transaction meta store handler, will reconnect later.");
+        }
+        return handler;
     }
 
     /**
@@ -969,7 +996,6 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.IncompatibleSchemaException(errorMsg);
         case TopicNotFound:
             return new PulsarClientException.TopicDoesNotExistException(errorMsg);
-            case
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);

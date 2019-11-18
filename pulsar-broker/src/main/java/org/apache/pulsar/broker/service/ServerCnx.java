@@ -61,7 +61,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
-import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -111,6 +110,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1401,9 +1403,54 @@ public class ServerCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleNewTxn(CommandNewTxn commandNewTxn) {
-//        service.pulsar().getTransactionMetadataStoreService().newTransaction()
-        ctx.writeAndFlush(Commands.newTxnResponse(1L, 1, 1));
+    protected void handleNewTxn(CommandNewTxn command) {
+        service.pulsar().getTransactionMetadataStoreService().newTransaction(TransactionCoordinatorID.get(command.getTcId()))
+            .whenComplete(((txnID, ex) -> {
+                if (ex == null) {
+                    ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                } else {
+                    ctx.writeAndFlush(Commands.newTxnResponse(command.getRequestId(), txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                }
+            }));
+    }
+
+    @Override
+    protected void handleAddPartitionToTxn(PulsarApi.CommandAddPartitionToTxn command) {
+        service.pulsar().getTransactionMetadataStoreService().addProducedPartitionToTxn(new TxnID(command.getTxnidMostBits(),
+            command.getTxnidLeastBits()), command.getPartitionsList())
+            .whenComplete(((v, ex) -> {
+                if (ex == null) {
+                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(),
+                            command.getTxnidLeastBits(), command.getTxnidMostBits()));
+                } else {
+                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(), command.getTxnidMostBits(),
+                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                }
+            }));
+    }
+
+    @Override
+    protected void handleEndTxn(PulsarApi.CommandEndTxn command) {
+        TxnStatus newStatus = null;
+        switch (command.getTxnAction()) {
+            case COMMIT:
+                newStatus = TxnStatus.COMMITTING;
+                break;
+            case ABORT:
+                newStatus = TxnStatus.ABORTING;
+                break;
+        }
+        service.pulsar().getTransactionMetadataStoreService().updateTxnStatus(new TxnID(command.getTxnidMostBits(),
+            command.getTxnidLeastBits()), newStatus, TxnStatus.OPEN)
+            .whenComplete((v, ex) -> {
+                if (ex == null) {
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(),
+                            command.getTxnidLeastBits(), command.getTxnidMostBits()));
+                } else {
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), command.getTxnidMostBits(),
+                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                }
+            });
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {

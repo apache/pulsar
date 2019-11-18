@@ -1177,9 +1177,10 @@ public class Commands {
 
     // ---- transaction related ----
 
-    public static ByteBuf newTxn(long requestId, long ttlSeconds) {
-        CommandNewTxn commandNewTxn = CommandNewTxn.newBuilder().setRequestId(requestId).setTxnTtlSeconds(ttlSeconds)
-                                                   .build();
+    public static ByteBuf newTxn(long tcId, long requestId, long ttlSeconds) {
+        CommandNewTxn commandNewTxn = CommandNewTxn.newBuilder().setTcId(tcId).setRequestId(requestId)
+                .setTxnTtlSeconds(ttlSeconds)
+                .build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.NEW_TXN).setNewTxn(commandNewTxn));
         commandNewTxn.recycle();
         return res;
@@ -1196,9 +1197,10 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
         CommandNewTxnResponse.Builder builder = CommandNewTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1236,9 +1238,11 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAddPartitionToTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
+           String errorMsg) {
         CommandAddPartitionToTxnResponse.Builder builder = CommandAddPartitionToTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1265,9 +1269,23 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits) {
+        CommandAddSubscriptionToTxnResponse command = CommandAddSubscriptionToTxnResponse
+                .newBuilder().setRequestId(requestId)
+                .setTxnidLeastBits(txnIdLeastBits)
+                .setTxnidMostBits(txnIdMostBits)
+                .build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE)
+                .setAddSubscriptionToTxnResponse(command));
+        command.recycle();
+        return res;
+    }
+
+    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
+          String errorMsg) {
         CommandAddSubscriptionToTxnResponse.Builder builder = CommandAddSubscriptionToTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1299,9 +1317,10 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxnResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newEndTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
         CommandEndTxnResponse.Builder builder = CommandEndTxnResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);

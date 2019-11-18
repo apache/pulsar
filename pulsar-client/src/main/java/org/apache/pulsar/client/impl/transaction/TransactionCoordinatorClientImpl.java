@@ -18,22 +18,22 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import io.netty.util.Timeout;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.apache.pulsar.client.api.transaction.TransactionMetaStoreClientException;
-import org.apache.pulsar.client.api.transaction.TransactionMetaStoreClientException.TransactionMetaStoreClientStateException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
 import org.apache.pulsar.client.util.MathUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -47,11 +47,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     private static final Logger LOG = LoggerFactory.getLogger(TransactionCoordinatorClientImpl.class);
 
     private final PulsarClientImpl pulsarClient;
-    private Producer<byte[]> producerForAssignTopic = null;
     private TransactionMetaStoreHandler[] handlers;
+    private ConcurrentLongHashMap<TransactionMetaStoreHandler> handlerMap = new ConcurrentLongHashMap<>(16, 1);
     private final AtomicLong epoch = new AtomicLong(0);
-    private volatile Timeout requestTimeout = null;
-
 
     private static final AtomicReferenceFieldUpdater<TransactionCoordinatorClientImpl, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(TransactionCoordinatorClientImpl.class, State.class, "state");
@@ -62,11 +60,11 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     @Override
-    public void start() throws TransactionMetaStoreClientException {
+    public void start() throws TransactionCoordinatorClientException {
         try {
             startAsync().get();
         } catch (Exception e) {
-            throw TransactionMetaStoreClientException.unwrap(e);
+            throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
@@ -81,29 +79,33 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                     if (partitionMeta.partitions > 0) {
                         handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
                         for (int i = 0; i < partitionMeta.partitions; i++) {
-                            handlers[i] = new TransactionMetaStoreHandler(i, pulsarClient,
-                                TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + i);
+                            TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(i, pulsarClient,
+                                    TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + i);
+                            handlers[i] = handler;
+                            handlerMap.put(i, handler);
                         }
                     } else {
                         handlers = new TransactionMetaStoreHandler[1];
-                        handlers[0] = new TransactionMetaStoreHandler(0, pulsarClient,
-                            TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+                        TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(0, pulsarClient,
+                                TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+                        handlers[0] = handler;
+                        handlerMap.put(0, handler);
                     }
 
                     STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
 
                 });
         } else {
-            return FutureUtil.failedFuture(new TransactionMetaStoreClientStateException("Can not start while current state is " + state));
+            return FutureUtil.failedFuture(new CoordinatorClientStateException("Can not start while current state is " + state));
         }
     }
 
     @Override
-    public void close() throws TransactionMetaStoreClientException {
+    public void close() throws TransactionCoordinatorClientException {
         try {
             closeAsync().get();
         } catch (Exception e) {
-            throw TransactionMetaStoreClientException.unwrap(e);
+            throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
@@ -128,11 +130,11 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     @Override
-    public TxnID newTransaction() throws TransactionMetaStoreClientException {
+    public TxnID newTransaction() throws TransactionCoordinatorClientException {
         try {
             return newTransactionAsync().get();
         } catch (Exception e) {
-            throw TransactionMetaStoreClientException.unwrap(e);
+            throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
@@ -142,17 +144,74 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     }
 
     @Override
-    public TxnID newTransaction(long timeout, TimeUnit unit) throws TransactionMetaStoreClientException {
+    public TxnID newTransaction(long timeout, TimeUnit unit) throws TransactionCoordinatorClientException {
         try {
             return newTransactionAsync(timeout, unit).get();
         } catch (Exception e) {
-            throw TransactionMetaStoreClientException.unwrap(e);
+            throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
     @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
         return nextHandler().newTransactionAsync(timeout, unit);
+    }
+
+    @Override
+    public void addPublishPartitionToTxn(TxnID txnID, List<String> partitions) throws TransactionCoordinatorClientException {
+        try {
+            addPublishPartitionToTxnAsync(txnID, partitions).get();
+        } catch (Exception e) {
+            throw TransactionCoordinatorClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
+        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        if (handler == null) {
+            return FutureUtil.failedFuture(
+                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
+        }
+        return handler.addPublishPartitionToTxnAsync(txnID, partitions);
+    }
+
+    @Override
+    public void commit(TxnID txnID) throws TransactionCoordinatorClientException {
+        try {
+            commitAsync(txnID).get();
+        } catch (Exception e) {
+            throw TransactionCoordinatorClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> commitAsync(TxnID txnID) {
+        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        if (handler == null) {
+            return FutureUtil.failedFuture(
+                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
+        }
+        return handler.commitAsync(txnID);
+    }
+
+    @Override
+    public void abort(TxnID txnID) throws TransactionCoordinatorClientException {
+        try {
+            abortAsync(txnID).get();
+        } catch (Exception e) {
+            throw TransactionCoordinatorClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> abortAsync(TxnID txnID) {
+        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        if (handler == null) {
+            return FutureUtil.failedFuture(
+                    new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(txnID.getMostSigBits()));
+        }
+        return handler.abortAsync(txnID);
     }
 
     @Override

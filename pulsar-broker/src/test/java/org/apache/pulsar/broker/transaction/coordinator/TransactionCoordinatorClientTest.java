@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import com.google.common.collect.Lists;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient.State;
-import org.apache.pulsar.client.api.transaction.TransactionMetaStoreClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -28,11 +29,11 @@ import org.testng.annotations.Test;
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
 
     @Test
-    public void testClientStart() throws PulsarClientException, TransactionMetaStoreClientException, InterruptedException {
+    public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {
         try {
             transactionCoordinatorClient.start();
             Assert.fail("should failed here because the transaction metas store already started!");
-        } catch (TransactionMetaStoreClientException e) {
+        } catch (TransactionCoordinatorClientException e) {
             // ok here
         }
 
@@ -41,8 +42,22 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     }
 
     @Test
-    public void testNewTxn() throws TransactionMetaStoreClientException {
+    public void testNewTxn() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
-        System.out.println(txnID);
+        Assert.assertNotNull(txnID);
+        Assert.assertEquals(txnID.getLeastSigBits(), 0L);
+    }
+
+    @Test
+    public void testCommitAndAbort() throws TransactionCoordinatorClientException {
+        TxnID txnID = transactionCoordinatorClient.newTransaction();
+        transactionCoordinatorClient.addPublishPartitionToTxn(txnID, Lists.newArrayList("persistent://public/default/testCommitAndAbort"));
+        transactionCoordinatorClient.commit(txnID);
+        try {
+            transactionCoordinatorClient.abort(txnID);
+            Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
+        } catch (TransactionCoordinatorClientException.InvalidTxnStatusException ignore) {
+           // Ok here
+        }
     }
 }

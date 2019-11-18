@@ -21,20 +21,22 @@ package org.apache.pulsar.client.impl;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.transaction.TransactionMetaStoreClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+
 import org.apache.pulsar.client.impl.ClientCnx.RequestTime;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
@@ -43,7 +45,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Handler for transaction meta store.
  */
-public class TransactionMetaStoreHandler extends HandlerState implements ConnectionHandler.Connection, Closeable {
+public class TransactionMetaStoreHandler extends HandlerState implements ConnectionHandler.Connection, Closeable, TimerTask {
 
     private static final Logger LOG = LoggerFactory.getLogger(TransactionMetaStoreHandler.class);
 
@@ -56,6 +58,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private final boolean blockIfReachMaxPendingOps;
     private final Semaphore semaphore;
 
+    private Timeout requestTimeout;
 
     public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic) {
         super(pulsarClient, topic);
@@ -63,6 +66,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
         this.blockIfReachMaxPendingOps = true;
         this.semaphore = new Semaphore(1000);
+        this.requestTimeout = pulsarClient.timer().newTimeout(this, pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
         this.connectionHandler = new ConnectionHandler(
             this,
             new BackoffBuilder()
@@ -87,8 +91,10 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             transactionCoordinatorId);
         connectionHandler.setClientCnx(cnx);
         cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
+        if (!changeToReadyState()) {
+            cnx.channel().close();
+        }
     }
-
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
         CompletableFuture<TxnID> callback = new CompletableFuture<>();
@@ -97,8 +103,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newTxn(requestId, unit.toMillis(timeout));
-        OpNewTransaction op = OpNewTransaction.create(cmd, callback);
+        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
+        OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
         cmd.retain();
@@ -107,7 +113,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     void handleNewTxnResponse(PulsarApi.CommandNewTxnResponse response) {
-        OpNewTransaction op = (OpNewTransaction) pendingRequests.remove(response.getRequestId());
+        OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(response.getRequestId());
         if (op == null) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Got new txn response for timeout {} - {}", response.getTxnidMostBits(),
@@ -119,61 +125,266 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             op.callback.complete(new TxnID(response.getTxnidMostBits(),
                 response.getTxnidLeastBits()));
         } else {
-            PulsarClientException
+            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
 
-        ReferenceCountUtil.safeRelease(op.cmd);
-        op.recycle();
-        semaphore.release();
+        onResponse(op);
+    }
+
+    public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
+        CompletableFuture<Void> callback = new CompletableFuture<>();
+
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
+        long requestId = client.newRequestId();
+        ByteBuf cmd = Commands.newAddPartitionToTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits());
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        pendingRequests.put(requestId, op);
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+        cmd.retain();
+        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        return callback;
+    }
+
+    void handleAddPublishPartitionToTxnResponse(PulsarApi.CommandAddPartitionToTxnResponse response) {
+        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
+        if (op == null) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Got add publish partition to txn response for timeout {} - {}", response.getTxnidMostBits(),
+                        response.getTxnidLeastBits());
+            }
+            return;
+        }
+        if (!response.hasError()) {
+            op.callback.complete(null);
+        } else {
+            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+        }
+
+        onResponse(op);
+    }
+
+    public CompletableFuture<Void> commitAsync(TxnID txnID) {
+        CompletableFuture<Void> callback = new CompletableFuture<>();
+
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
+        long requestId = client.newRequestId();
+        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), PulsarApi.TxnAction.COMMIT);
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        pendingRequests.put(requestId, op);
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+        cmd.retain();
+        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        return callback;
+    }
+
+    public CompletableFuture<Void> abortAsync(TxnID txnID) {
+        CompletableFuture<Void> callback = new CompletableFuture<>();
+
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
+        long requestId = client.newRequestId();
+        ByteBuf cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), PulsarApi.TxnAction.ABORT);
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        pendingRequests.put(requestId, op);
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+        cmd.retain();
+        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        return callback;
+    }
+
+    void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse response) {
+        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
+        if (op == null) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Got end txn response for timeout {} - {}", response.getTxnidMostBits(),
+                        response.getTxnidLeastBits());
+            }
+            return;
+        }
+        if (!response.hasError()) {
+            op.callback.complete(null);
+        } else {
+            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+        }
+
+        onResponse(op);
     }
 
     private static abstract class OpBase<T> {
         protected ByteBuf cmd;
         protected CompletableFuture<T> callback;
+
+        abstract void recycle();
     }
 
-    private static class OpNewTransaction extends OpBase<TxnID> {
+    private static class OpForTxnIdCallBack extends OpBase<TxnID> {
 
-        static OpNewTransaction create(ByteBuf cmd, CompletableFuture<TxnID> callback) {
-            OpNewTransaction op = RECYCLER.get();
+        static OpForTxnIdCallBack create(ByteBuf cmd, CompletableFuture<TxnID> callback) {
+            OpForTxnIdCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
             return op;
         }
 
-        private OpNewTransaction(Recycler.Handle<OpNewTransaction> recyclerHandle) {
+        private OpForTxnIdCallBack(Recycler.Handle<OpForTxnIdCallBack> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
+        @Override
         void recycle() {
             recyclerHandle.recycle(this);
         }
 
-        private final Recycler.Handle<OpNewTransaction> recyclerHandle;
-        private static final Recycler<OpNewTransaction> RECYCLER = new Recycler<OpNewTransaction>() {
+        private final Recycler.Handle<OpForTxnIdCallBack> recyclerHandle;
+        private static final Recycler<OpForTxnIdCallBack> RECYCLER = new Recycler<OpForTxnIdCallBack>() {
             @Override
-            protected OpNewTransaction newObject(Handle<OpNewTransaction> handle) {
-                return new OpNewTransaction(handle);
+            protected OpForTxnIdCallBack newObject(Handle<OpForTxnIdCallBack> handle) {
+                return new OpForTxnIdCallBack(handle);
             }
         };
     }
 
+    private static class OpForVoidCallBack extends OpBase<Void> {
+
+        static OpForVoidCallBack create(ByteBuf cmd, CompletableFuture<Void> callback) {
+            OpForVoidCallBack op = RECYCLER.get();
+            op.callback = callback;
+            op.cmd = cmd;
+            return op;
+        }
+        private OpForVoidCallBack(Recycler.Handle<OpForVoidCallBack> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+
+        @Override
+        void recycle() {
+            recyclerHandle.recycle(this);
+        }
+
+        private final Recycler.Handle<OpForVoidCallBack> recyclerHandle;
+        private static final Recycler<OpForVoidCallBack> RECYCLER = new Recycler<OpForVoidCallBack>() {
+            @Override
+            protected OpForVoidCallBack newObject(Handle<OpForVoidCallBack> handle) {
+                return new OpForVoidCallBack(handle);
+            }
+        };
+    }
+
+    private TransactionCoordinatorClientException getExceptionByServerError(PulsarApi.ServerError serverError, String msg) {
+        switch (serverError) {
+            case TransactionCoordinatorNotFound:
+                return new TransactionCoordinatorClientException.CoordinatorNotFoundException(msg);
+            case InvalidTxnStatus:
+                return new TransactionCoordinatorClientException.InvalidTxnStatusException(msg);
+            default:
+                return new TransactionCoordinatorClientException(msg);
+        }
+    }
+
+    private void onResponse(OpBase<?> op) {
+        ReferenceCountUtil.safeRelease(op.cmd);
+        op.recycle();
+        semaphore.release();
+    }
+
     private boolean canSendRequest(CompletableFuture<?> callback) {
+        if (!isValidHandlerState(callback)) {
+            return false;
+        }
         try {
             if (blockIfReachMaxPendingOps) {
                 semaphore.acquire();
             } else {
                 if (!semaphore.tryAcquire()) {
-                    callback.completeExceptionally(new TransactionMetaStoreClientException("Reach max pending ops."));
+                    callback.completeExceptionally(new TransactionCoordinatorClientException("Reach max pending ops."));
                     return false;
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            callback.completeExceptionally(TransactionMetaStoreClientException.unwrap(e));
+            callback.completeExceptionally(TransactionCoordinatorClientException.unwrap(e));
             return false;
         }
         return true;
+    }
+
+    private boolean isValidHandlerState(CompletableFuture<?> callback) {
+        switch (getState()) {
+            case Ready:
+                return true;
+            case Connecting:
+                callback.completeExceptionally(
+                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
+                                "Transaction meta store handler for tcId "
+                                + transactionCoordinatorId
+                                + " is connecting now, please try later."));
+                return false;
+            case Closing:
+            case Closed:
+                callback.completeExceptionally(
+                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
+                                "Transaction meta store handler for tcId "
+                                        + transactionCoordinatorId
+                                        + " is closing or closed."));
+                return false;
+            case Failed:
+            case Uninitialized:
+                callback.completeExceptionally(
+                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
+                                "Transaction meta store handler for tcId "
+                                        + transactionCoordinatorId
+                                        + " not connected."));
+                return false;
+            default:
+                callback.completeExceptionally(
+                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
+                                transactionCoordinatorId));
+                return false;
+        }
+    }
+
+    @Override
+    public void run(Timeout timeout) throws Exception {
+        if (timeout.isCancelled()) {
+            return;
+        }
+        long timeToWaitMs;
+        if (getState() == State.Closing || getState() == State.Closed) {
+            return;
+        }
+        RequestTime peeked = timeoutQueue.peek();
+        while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
+                - System.currentTimeMillis() <= 0) {
+            RequestTime lastPolled = timeoutQueue.poll();
+            if (lastPolled != null) {
+                OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
+                if (!op.callback.isDone()) {
+                    op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
+                            "Could not get response from transaction meta store within given timeout."));
+                    onResponse(op);
+                }
+            } else {
+                break;
+            }
+            peeked = timeoutQueue.peek();
+        }
+
+        if (peeked == null) {
+            timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
+        } else {
+            long diff = (peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()) - System.currentTimeMillis();
+            if (diff <= 0) {
+                timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
+            } else {
+                timeToWaitMs = diff;
+            }
+        }
+        requestTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
     }
 
     private ClientCnx cnx() {

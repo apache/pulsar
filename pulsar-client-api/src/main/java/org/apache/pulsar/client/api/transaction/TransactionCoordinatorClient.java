@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.client.api.transaction;
 
-import org.apache.pulsar.transaction.impl.common.TxnID;
-
 import java.io.Closeable;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * Transaction coordinator client.
@@ -35,15 +36,8 @@ public interface TransactionCoordinatorClient extends Closeable {
     long DEFAULT_TXN_TTL_MS = 60000L;
 
     /**
-     * Default pending ops.
+     * State of the transaction coordinator client.
      */
-    int DEFAULT_MAX_PADDING_OPS = 1000;
-
-    /**
-     * Block if reach max padding ops, default is true.
-     */
-    boolean BLOCK_IF_REACH_MAX_PADDING_OPS = true;
-
     enum State {
         NONE,
         STARTING,
@@ -54,14 +48,16 @@ public interface TransactionCoordinatorClient extends Closeable {
 
     /**
      * Start transaction meta store client.
+     *
      * <p>This will create connections to transaction meta store service.
      *
-     * @throws TransactionMetaStoreClientException exception occur while start
+     * @throws TransactionCoordinatorClientException exception occur while start
      */
-    void start() throws TransactionMetaStoreClientException;
+    void start() throws TransactionCoordinatorClientException;
 
     /**
      * Start transaction meta store client asynchronous.
+     *
      * <p>This will create connections to transaction meta store service.
      *
      * @return a future represents the result of start transaction meta store
@@ -80,7 +76,7 @@ public interface TransactionCoordinatorClient extends Closeable {
      *
      * @return {@link TxnID} as the identifier for identifying the transaction.
      */
-    TxnID newTransaction() throws TransactionMetaStoreClientException;
+    TxnID newTransaction() throws TransactionCoordinatorClientException;
 
     /**
      * Create a new transaction asynchronously.
@@ -99,7 +95,7 @@ public interface TransactionCoordinatorClient extends Closeable {
      *
      * @return {@link TxnID} as the identifier for identifying the transaction.
      */
-    TxnID newTransaction(long timeout, TimeUnit unit) throws TransactionMetaStoreClientException;
+    TxnID newTransaction(long timeout, TimeUnit unit) throws TransactionCoordinatorClientException;
 
     /**
      * Create a new transaction asynchronously.
@@ -112,6 +108,50 @@ public interface TransactionCoordinatorClient extends Closeable {
      *         transaction.
      */
     CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit);
+
+    /**
+     * Add publish partition to txn.
+     *
+     * @param txnID txn id which add partitions to.
+     * @param partitions partitions add to the txn.
+     */
+    void addPublishPartitionToTxn(TxnID txnID, List<String> partitions) throws TransactionCoordinatorClientException;
+
+    /**
+     * Add publish partition to txn asynchronously.
+     *
+     * @param txnID txn id which add partitions to.
+     * @param partitions partitions add to the txn.
+     *
+     * @return a future represents the result of add publish partition to txn.
+     */
+    CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions);
+
+    /**
+     * Commit txn.
+     * @param txnID txn id to commit.
+     */
+    void commit(TxnID txnID) throws TransactionCoordinatorClientException;
+
+    /**
+     * Commit txn asynchronously.
+     * @param txnID txn id to commit.
+     * @return a future represents the result of commit txn.
+     */
+    CompletableFuture<Void> commitAsync(TxnID txnID);
+
+    /**
+     * Abort txn.
+     * @param txnID txn id to abort.
+     */
+    void abort(TxnID txnID) throws TransactionCoordinatorClientException;
+
+    /**
+     * Abort txn asynchronously.
+     * @param txnID txn id to abort.
+     * @return a future represents the result of abort txn.
+     */
+    CompletableFuture<Void> abortAsync(TxnID txnID);
 
     /**
      * Get current state of the transaction meta store.
