@@ -44,7 +44,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
         this.conf.setClusterName("test");
-        this.conf.setPublisherThrottlingTickTimeMillis(1);
+        this.conf.setTopicPublisherThrottlingTickTimeMillis(1);
     }
 
     @AfterMethod
@@ -56,7 +56,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
     /**
      * Verifies publish rate limiting by setting rate-limiting on number of published messages.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -78,13 +78,13 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
                 .maxPendingMessages(30000).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
         // (1) verify message-rate is -1 initially
-        Assert.assertEquals(topic.getPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+        Assert.assertEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         // enable throttling
         admin.namespaces().setPublishRate(namespace, publishMsgRate);
-        retryStrategically((test) -> !topic.getPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER), 5,
+        retryStrategically((test) -> !topic.getTopicPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER), 5,
                 200);
-        Assert.assertNotEquals(topic.getPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+        Assert.assertNotEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
@@ -101,9 +101,9 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         // disable throttling
         publishMsgRate.publishThrottlingRateInMsg = -1;
         admin.namespaces().setPublishRate(namespace, publishMsgRate);
-        retryStrategically((test) -> topic.getPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER), 5,
+        retryStrategically((test) -> topic.getTopicPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER), 5,
                 200);
-        Assert.assertEquals(topic.getPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+        Assert.assertEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         // reset counter
         prod.updateRates();
@@ -121,7 +121,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
     /**
      * Verifies publish rate limiting by setting rate-limiting on number of publish bytes.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -142,13 +142,13 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         // (1) verify message-rate is -1 initially
-        Assert.assertEquals(topic.getPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+        Assert.assertEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         // enable throttling
         admin.namespaces().setPublishRate(namespace, publishMsgRate);
-        retryStrategically((test) -> !topic.getPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER), 5,
+        retryStrategically((test) -> !topic.getTopicPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER), 5,
                 200);
-        Assert.assertNotEquals(topic.getPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+        Assert.assertNotEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
@@ -165,9 +165,9 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         // disable throttling
         publishMsgRate.publishThrottlingRateInByte = -1;
         admin.namespaces().setPublishRate(namespace, publishMsgRate);
-        retryStrategically((test) -> topic.getPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER), 5,
+        retryStrategically((test) -> topic.getTopicPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER), 5,
                 200);
-        Assert.assertEquals(topic.getPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+        Assert.assertEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         // reset counter
         prod.updateRates();
