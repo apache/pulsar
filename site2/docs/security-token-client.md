@@ -75,7 +75,7 @@ PulsarClient client = PulsarClient.builder()
 ```python
 from pulsar import Client, AuthenticationToken
 
-client = Client('pulsar://broker.example.com:6650/'
+client = Client('pulsar://broker.example.com:6650/',
                 authentication=AuthenticationToken('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY'))
 ```
 
@@ -87,7 +87,7 @@ def read_token():
     with open('/path/to/token.txt') as tf:
         return tf.read().strip()
 
-client = Client('pulsar://broker.example.com:6650/'
+client = Client('pulsar://broker.example.com:6650/',
                 authentication=AuthenticationToken(read_token))
 ```
 
