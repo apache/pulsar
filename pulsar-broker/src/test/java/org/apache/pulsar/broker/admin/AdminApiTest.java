@@ -415,7 +415,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(parts.length, 2);
         Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test",
                 String.format("%s:%d", parts[0], BROKER_WEBSERVICE_PORT_TLS));
-        Assert.assertEquals(nsMap2.size(), 2);
+        Assert.assertEquals(nsMap2.size(), 1);
 
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.clusters().deleteCluster("test");
