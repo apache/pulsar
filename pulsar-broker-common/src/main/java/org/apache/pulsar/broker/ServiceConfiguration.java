@@ -1195,12 +1195,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How often to check pulsar connection is still alive"
     )
     private int keepAliveIntervalSeconds = 30;
+    @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
+        deprecated = true,
         doc = "How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)"
+            + "Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`"
     )
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
-    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "A comma-separated list of namespaces to bootstrap"
