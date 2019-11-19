@@ -403,7 +403,7 @@ In order to better describe their differences, assuming you have a topic named "
 ```java
 Producer<String> producer = client.newProducer(Schema.STRING)
         .topic("my-topic")
-        .enableBatch(false)
+        .enableBatching(false)
         .create();
 // 3 messages with "key-1", 3 messages with "key-2", 2 messages with "key-3" and 2 messages with "key-4"
 producer.newMessage().key("key-1").value("message-1-1").send();
