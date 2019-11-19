@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -420,6 +421,16 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public Messages<byte[]> batchReceive() throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Messages<byte[]>> batchReceiveAsync() {
+            return null;
+        }
+
+        @Override
         public void acknowledge(Message<?> message) throws PulsarClientException {
 
         }
@@ -430,11 +441,21 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public void acknowledge(Messages<?> messages) throws PulsarClientException {
+
+        }
+
+        @Override
         public void negativeAcknowledge(Message<?> message) {
         }
 
         @Override
         public void negativeAcknowledge(MessageId messageId) {
+        }
+
+        @Override
+        public void negativeAcknowledge(Messages<?> messages) {
+
         }
 
         @Override
@@ -456,6 +477,11 @@ public class PulsarConsumerSourceTests {
         public CompletableFuture<Void> acknowledgeAsync(MessageId messageId) {
             acknowledgedIds.put(messageId, messageId);
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages) {
+            return null;
         }
 
         @Override
