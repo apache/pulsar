@@ -180,6 +180,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
+        this.lastDequeuedMessage = startMessageId == null ? MessageId.earliest : startMessageId;
         this.initialStartMessageId = this.startMessageId;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
@@ -1450,6 +1451,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     public boolean hasMessageAvailable() throws PulsarClientException {
+        // we need to seek to the last position then the last message can be received when the resetIncludeHead
+        // specified.
+        if (lastDequeuedMessage == MessageId.latest && resetIncludeHead) {
+            lastDequeuedMessage = getLastMessageId();
+            seek(lastDequeuedMessage);
+        }
         try {
             if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessage)) {
                 return true;
