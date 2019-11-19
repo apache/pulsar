@@ -430,6 +430,30 @@ public class PersistentTopicTest {
         Assert.assertEquals(topic.getProducers().size(), 1);
 
         topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
+
+        topic.removeProducer(producer4);
+        Assert.assertEquals(topic.getProducers().size(), 0);
+
+        Producer producer5= new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
+                role, false, null, SchemaVersion.Latest, 1, false);
+
+        topic.addProducer(producer5);
+        Assert.assertEquals(topic.getProducers().size(), 1);
+
+        Producer producer6= new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
+                role, false, null, SchemaVersion.Latest, 2, false);
+
+        topic.addProducer(producer6);
+        Assert.assertEquals(topic.getProducers().size(), 1);
+
+        topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
+
+        Producer producer7= new Producer(topic, serverCnx, 2 /* producer id */, "pulsar.repl.cluster1",
+                role, false, null, SchemaVersion.Latest, 3, true);
+
+        topic.addProducer(producer7);
+        Assert.assertEquals(topic.getProducers().size(), 1);
+        topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 3));
     }
 
     public void testMaxProducers() throws Exception {
