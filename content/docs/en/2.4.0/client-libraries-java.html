@@ -320,7 +320,7 @@ consumerBuilder
 <p>In order to better describe their differences, assuming you have a topic named &quot;my-topic&quot;, and the producer has published 10 messages.</p>
 <pre><code class="hljs css language-java">Producer&lt;String&gt; producer = client.newProducer(Schema.STRING)
         .topic(<span class="hljs-string">"my-topic"</span>)
-        .enableBatch(<span class="hljs-keyword">false</span>)
+        .enableBatching(<span class="hljs-keyword">false</span>)
         .create();
 <span class="hljs-comment">// 3 messages with "key-1", 3 messages with "key-2", 2 messages with "key-3" and 2 messages with "key-4"</span>
 producer.newMessage().key(<span class="hljs-string">"key-1"</span>).value(<span class="hljs-string">"message-1-1"</span>).send();

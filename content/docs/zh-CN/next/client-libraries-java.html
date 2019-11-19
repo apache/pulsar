@@ -451,6 +451,48 @@ producer.closeAsync()
   
   Async receive operations return a {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
   
+  ### Batch receive
+  
+  Use `batchReceive` can receive multiple messages for each calls.
+  
+  下面是一个示例：
+  
+  ```java
+  Messages messages = consumer.batchReceive();
+  for (message in messages) {
+    // do something
+  }
+  consumer.acknowledge(messages)
+  ```
+  
+  &gt; Note:
+  &gt; 
+  &gt; Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a timeout for waiting for enough messages.
+  &gt; 
+  &gt; The batch receive will be completed as long as any one of the conditions(has enough number of messages, has enough of bytes of messages, wait timeout) is met.
+  &gt; 
+  &gt; ```java
+  &gt; Consumer consumer = client.newConsumer()
+  &gt;         .topic(&quot;my-topic&quot;)
+  &gt;         .subscriptionName(&quot;my-subscription&quot;)
+  &gt;         .batchReceivePolicy(BatchReceivePolicy.builder()
+  &gt;              .maxNumMessages(100)
+  &gt;              .maxNumBytes(1024 * 1024)
+  &gt;              .timeout(200, TimeUnit.MILLISECONDS)
+  &gt;              .build())
+  &gt;         .subscribe();
+  &gt; ```
+  &gt; 
+  &gt; And the default batch receive policy is:
+  &gt; 
+  &gt; ```java
+  &gt; BatchReceivePolicy.builder()
+  &gt;     .maxNumMessage(-1)
+  &gt;     .maxNumBytes(10 * 1024 * 1024)
+  &gt;     .timeout(100, TimeUnit.MILLISECONDS)
+  &gt;     .build();
+  &gt; ```
+  
   ### 多主题订阅
   
   消费者除了订阅单个Pulsar主题外，你还可以使用[多主题订阅](concepts-messaging.md#multi-topic-subscriptions)订阅多个主题。 若要使用多主题订阅, 可以提供一个topic正则表达式 (regex) 或 主题`List` 。 如果通过 regex 选择主题, 则所有主题都必须位于同一Pulsar命名空间中。
@@ -534,7 +576,7 @@ producer.closeAsync()
   ```java
   Producer&lt;String&gt; producer = client.newProducer(Schema.STRING)
           .topic(&quot;my-topic&quot;)
-          .enableBatch(false)
+          .enableBatching(false)
           .create();
   // 3 messages with &quot;key-1&quot;, 3 messages with &quot;key-2&quot;, 2 messages with &quot;key-3&quot; and 2 messages with &quot;key-4&quot;
   producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-1&quot;).send();

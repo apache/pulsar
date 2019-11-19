@@ -449,6 +449,48 @@ Pour utiliser une configuration différente de celle par défaut, il existe une 
   
   Les opérations de réception asynchrone retournent un {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} enveloppé dans un [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
   
+  ### Batch receive
+  
+  Use `batchReceive` can receive multiple messages for each calls.
+  
+  Here's an example:
+  
+  ```java
+  Messages messages = consumer.batchReceive();
+  for (message in messages) {
+    // do something
+  }
+  consumer.acknowledge(messages)
+  ```
+  
+  &gt; Note:
+  &gt; 
+  &gt; Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a timeout for waiting for enough messages.
+  &gt; 
+  &gt; The batch receive will be completed as long as any one of the conditions(has enough number of messages, has enough of bytes of messages, wait timeout) is met.
+  &gt; 
+  &gt; ```java
+  &gt; Consumer consumer = client.newConsumer()
+  &gt;         .topic(&quot;my-topic&quot;)
+  &gt;         .subscriptionName(&quot;my-subscription&quot;)
+  &gt;         .batchReceivePolicy(BatchReceivePolicy.builder()
+  &gt;              .maxNumMessages(100)
+  &gt;              .maxNumBytes(1024 * 1024)
+  &gt;              .timeout(200, TimeUnit.MILLISECONDS)
+  &gt;              .build())
+  &gt;         .subscribe();
+  &gt; ```
+  &gt; 
+  &gt; And the default batch receive policy is:
+  &gt; 
+  &gt; ```java
+  &gt; BatchReceivePolicy.builder()
+  &gt;     .maxNumMessage(-1)
+  &gt;     .maxNumBytes(10 * 1024 * 1024)
+  &gt;     .timeout(100, TimeUnit.MILLISECONDS)
+  &gt;     .build();
+  &gt; ```
+  
   ### Abonnements multi-topics
   
   En plus d'abonner un consommateur à un unique topic Pulsar, vous pouvez également vous abonner à plusieurs topic simultanément en utilisant [les abonnements multi-topics](concepts-messaging.md#multi-topic-subscriptions). Pour utiliser les abonnements multi-topics, vous pouvez fournir une expression régulière (regex) ou une `List` de topics. Si vous sélectionnez des topics via des regex, tous les topics doivent être dans le même espace de nommage Pulsar.
@@ -532,7 +574,7 @@ Pour utiliser une configuration différente de celle par défaut, il existe une 
   ```java
   Producer&lt;String&gt; producer = client.newProducer(Schema.STRING)
           .topic(&quot;my-topic&quot;)
-          .enableBatch(false)
+          .enableBatching(false)
           .create();
   // 3 messages with &quot;key-1&quot;, 3 messages with &quot;key-2&quot;, 2 messages with &quot;key-3&quot; and 2 messages with &quot;key-4&quot;
   producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-1&quot;).send();
