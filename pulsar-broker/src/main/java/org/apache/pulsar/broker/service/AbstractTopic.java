@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -38,8 +40,6 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ public abstract class AbstractTopic implements Topic {
     protected final String topic;
 
     // Producers currently connected to this topic
-    protected final ConcurrentOpenHashSet<Producer> producers;
+    protected final ConcurrentHashMap<String, Producer> producers;
 
     protected final BrokerService brokerService;
 
@@ -86,7 +86,7 @@ public abstract class AbstractTopic implements Topic {
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
-        this.producers = new ConcurrentOpenHashSet<>(16, 1);
+        this.producers = new ConcurrentHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         this.lastActive = System.nanoTime();
@@ -123,7 +123,7 @@ public abstract class AbstractTopic implements Topic {
 
     protected boolean hasLocalProducers() {
         AtomicBoolean foundLocal = new AtomicBoolean(false);
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             if (!producer.isRemote()) {
                 foundLocal.set(true);
             }
@@ -138,7 +138,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     @Override
-    public ConcurrentOpenHashSet<Producer> getProducers() {
+    public Map<String, Producer> getProducers() {
         return producers;
     }
 
@@ -258,18 +258,65 @@ public abstract class AbstractTopic implements Topic {
      @Override
     public void resetPublishCountAndEnableReadIfRequired() {
         if (this.publishRateLimiter.resetPublishCount()) {
-            enableProduerRead();
+            enableProducerRead();
         }
     }
 
      /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
-    protected void enableProduerRead() {
+    protected void enableProducerRead() {
         if (producers != null) {
-            producers.forEach(producer -> producer.getCnx().enableCnxAutoRead());
+            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
         }
     }
+
+    protected void checkTopicFenced() throws BrokerServiceException {
+        if (isFenced) {
+            log.warn("[{}] Attempting to add producer to a fenced topic", topic);
+            throw new BrokerServiceException.TopicFencedException("Topic is temporarily unavailable");
+        }
+    }
+
+    protected void internalAddProducer(Producer producer) throws BrokerServiceException {
+        if (isProducersExceeded()) {
+            log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
+            throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
+        }
+
+        Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
+        if (existProducer != null) {
+            tryOverwriteOldProducer(existProducer, producer);
+        }
+    }
+
+    private void tryOverwriteOldProducer(Producer oldProducer, Producer newProducer)
+            throws BrokerServiceException {
+        boolean canOverwrite = false;
+        if (oldProducer.equals(newProducer) && !oldProducer.isUserProvidedProducerName()
+                && !newProducer.isUserProvidedProducerName() && newProducer.getEpoch() > oldProducer.getEpoch()) {
+            oldProducer.close(false);
+            canOverwrite = true;
+        }
+        if (canOverwrite) {
+            if(!producers.replace(newProducer.getProducerName(), oldProducer, newProducer)) {
+                // Met concurrent update, throw exception here so that client can try reconnect later.
+                throw new BrokerServiceException.NamingException("Producer with name '" + newProducer.getProducerName()
+                        + "' replace concurrency error");
+            } else {
+                handleProducerRemoved(oldProducer);
+            }
+        } else {
+            throw new BrokerServiceException.NamingException(
+                    "Producer with name '" + newProducer.getProducerName() + "' is already connected to topic");
+        }
+    }
+
+    protected abstract void handleProducerRemoved(Producer producer);
 
      @Override
     public boolean isPublishRateExceeded() {
@@ -304,7 +351,7 @@ public abstract class AbstractTopic implements Topic {
         } else {
             log.info("Disabling publish throttling for {}", this.topic);
             this.publishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-            enableProduerRead();
+            enableProducerRead();
         }
     }
 

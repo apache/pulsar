@@ -113,6 +113,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -355,7 +356,7 @@ public class PersistentTopicTest {
         String role = "appid1";
         // 1. simple add producer
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest);
+                role, false, null, SchemaVersion.Latest, 0, false);
         topic.addProducer(producer);
         assertEquals(topic.getProducers().size(), 1);
 
@@ -371,7 +372,7 @@ public class PersistentTopicTest {
         // 3. add producer for a different topic
         PersistentTopic failTopic = new PersistentTopic(failTopicName, ledgerMock, brokerService);
         Producer failProducer = new Producer(failTopic, serverCnx, 2 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest);
+                role, false, null, SchemaVersion.Latest,0, false);
         try {
             topic.addProducer(failProducer);
             fail("should have failed");
@@ -387,22 +388,69 @@ public class PersistentTopicTest {
         topic.removeProducer(producer); /* noop */
     }
 
+    @Test
+    public void testProducerOverwrite() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        String role = "appid1";
+        Producer producer1 = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
+                role, false, null, SchemaVersion.Latest, 0, true);
+        Producer producer2= new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
+                role, false, null, SchemaVersion.Latest, 0, true);
+        try {
+            topic.addProducer(producer1);
+            topic.addProducer(producer2);
+            fail("should have failed");
+        } catch (BrokerServiceException.NamingException e) {
+            // OK
+        }
+
+        Assert.assertEquals(topic.getProducers().size(), 1);
+
+        Producer producer3= new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
+                role, false, null, SchemaVersion.Latest, 1, false);
+
+        try {
+            topic.addProducer(producer3);
+            fail("should have failed");
+        } catch (BrokerServiceException.NamingException e) {
+            // OK
+        }
+
+        Assert.assertEquals(topic.getProducers().size(), 1);
+
+        topic.removeProducer(producer1);
+        Assert.assertEquals(topic.getProducers().size(), 0);
+
+        Producer producer4= new Producer(topic, serverCnx, 2 /* producer id */, "prod-name",
+                role, false, null, SchemaVersion.Latest, 2, false);
+
+        topic.addProducer(producer3);
+        topic.addProducer(producer4);
+
+        Assert.assertEquals(topic.getProducers().size(), 1);
+
+        topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 2));
+    }
+
     public void testMaxProducers() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         String role = "appid1";
         // 1. add producer1
-        Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role, false, null, SchemaVersion.Latest);
+        Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role,
+                false, null, SchemaVersion.Latest,0, false);
         topic.addProducer(producer);
         assertEquals(topic.getProducers().size(), 1);
 
         // 2. add producer2
-        Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name2", role, false, null, SchemaVersion.Latest);
+        Producer producer2 = new Producer(topic, serverCnx, 2 /* producer id */, "prod-name2", role,
+                false, null, SchemaVersion.Latest,0, false);
         topic.addProducer(producer2);
         assertEquals(topic.getProducers().size(), 2);
 
         // 3. add producer3 but reached maxProducersPerTopic
         try {
-            Producer producer3 = new Producer(topic, serverCnx, 3 /* producer id */, "prod-name3", role, false, null, SchemaVersion.Latest);
+            Producer producer3 = new Producer(topic, serverCnx, 3 /* producer id */, "prod-name3", role,
+                    false, null, SchemaVersion.Latest,0, false);
             topic.addProducer(producer3);
             fail("should have failed");
         } catch (BrokerServiceException e) {
@@ -799,7 +847,7 @@ public class PersistentTopicTest {
         // 2. delete topic with producer
         topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                role, false, null, SchemaVersion.Latest);
+                role, false, null, SchemaVersion.Latest, 0, false);
         topic.addProducer(producer);
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -958,7 +1006,7 @@ public class PersistentTopicTest {
             String role = "appid1";
             Thread.sleep(10); /* delay to ensure that the delete gets executed first */
             Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
-                    role, false, null, SchemaVersion.Latest);
+                    role, false, null, SchemaVersion.Latest, 0, false);
             topic.addProducer(producer);
             fail("Should have failed");
         } catch (BrokerServiceException e) {

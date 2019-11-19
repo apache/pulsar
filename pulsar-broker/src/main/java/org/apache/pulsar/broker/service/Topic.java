@@ -38,7 +38,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 
@@ -116,7 +115,7 @@ public interface Topic {
 
     CompletableFuture<Void> delete();
 
-    ConcurrentOpenHashSet<Producer> getProducers();
+    Map<String, Producer> getProducers();
 
     String getName();
 

@@ -105,7 +105,7 @@ public class NamespaceStatsAggregator {
         }
 
         stats.producersCount = 0;
-        topic.getProducers().forEach(producer -> {
+        topic.getProducers().values().forEach(producer -> {
             if (producer.isRemote()) {
                 AggregatedReplicationStats replStats = stats.replicationStats
                         .computeIfAbsent(producer.getRemoteCluster(), k -> new AggregatedReplicationStats());
