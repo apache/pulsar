@@ -320,6 +320,46 @@ CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 
 Async receive operations return a {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
+### Batch receive
+
+Use `batchReceive` can receive multiple messages for each calls. 
+
+Here's an example:
+
+```java
+Messages messages = consumer.batchReceive();
+for (message in messages) {
+  // do something
+}
+consumer.acknowledge(messages)
+```
+
+> Note:
+>
+> Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a timeout for waiting for enough messages.
+>
+> The batch receive will be completed as long as any one of the conditions(has enough number of messages, has enough of bytes of messages, wait timeout) is met.
+>
+> ```java
+> Consumer consumer = client.newConsumer()
+>         .topic("my-topic")
+>         .subscriptionName("my-subscription")
+>         .batchReceivePolicy(BatchReceivePolicy.builder()
+>              .maxNumMessages(100)
+>              .maxNumBytes(1024 * 1024)
+>              .timeout(200, TimeUnit.MILLISECONDS)
+>              .build())
+>         .subscribe();
+> ```
+> And the default batch receive policy is:
+> ```java
+> BatchReceivePolicy.builder()
+>     .maxNumMessage(-1)
+>     .maxNumBytes(10 * 1024 * 1024)
+>     .timeout(100, TimeUnit.MILLISECONDS)
+>     .build();
+> ```
+
 ### Multi-topic subscriptions
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](concepts-messaging.md#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.

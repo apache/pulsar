@@ -16,29 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.client.api;
 
-import java.util.Optional;
+/**
+ * A container that holds the list {@link Message} for a topic.
+ * @param <T>
+ */
+public interface Messages<T> extends Iterable<Message<T>> {
 
-import org.apache.pulsar.client.api.ConsumerStats;
-import org.apache.pulsar.client.api.Message;
-
-import io.netty.util.Timeout;
-
-public interface ConsumerStatsRecorder extends ConsumerStats {
-    void updateNumMsgsReceived(Message<?> message);
-
-    void incrementNumAcksSent(long numAcks);
-
-    void incrementNumAcksFailed();
-
-    void incrementNumReceiveFailed();
-
-    void incrementNumBatchReceiveFailed();
-
-    Optional<Timeout> getStatTimeout();
-
-    void reset();
-
-    void updateCumulativeStats(ConsumerStats stats);
+    /**
+     * Get number of messages.
+     */
+    int size();
 }
