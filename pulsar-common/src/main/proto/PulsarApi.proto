@@ -406,6 +406,13 @@ message CommandProducer {
     repeated KeyValue metadata    = 6;
 
     optional Schema schema = 7;
+
+    // If producer reconnect to broker, the epoch of this producer will +1
+    optional uint64 epoch = 8 [default = 0];
+
+    // Indicate the name of the producer is generated or user provided
+    // Use default true here is in order to be forward compatible with the client
+    optional bool user_provided_producer_name = 9 [default = true];
 }
 
 message CommandSend {
