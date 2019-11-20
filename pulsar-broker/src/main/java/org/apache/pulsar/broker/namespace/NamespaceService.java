@@ -344,7 +344,36 @@ public class NamespaceService {
         }
 
         return targetMap.computeIfAbsent(bundle, (k) -> {
-            CompletableFuture<Optional<LookupResult>> future = findBrokerServiceUrlInternal(bundle, authoritative, readOnly);
+            CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
+
+            // First check if we or someone else already owns the bundle
+            ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
+                if (!nsData.isPresent()) {
+                    // No one owns this bundle
+
+                    if (readOnly) {
+                        // Do not attempt to acquire ownership
+                        future.complete(Optional.empty());
+                    } else {
+                        // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
+                        pulsar.getExecutor().execute(() -> {
+                            searchForCandidateBroker(bundle, future, authoritative);
+                        });
+                    }
+                } else if (nsData.get().isDisabled()) {
+                    future.completeExceptionally(
+                            new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
+                } else {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
+                    }
+                    future.complete(Optional.of(new LookupResult(nsData.get())));
+                }
+            }).exceptionally(exception -> {
+                LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
+                future.completeExceptionally(exception);
+                return null;
+            });
 
             future.whenComplete((r, t) -> pulsar.getExecutor().execute(
                 () -> targetMap.remove(bundle)
@@ -352,42 +381,6 @@ public class NamespaceService {
 
             return future;
         });
-    }
-
-    private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrlInternal(NamespaceBundle bundle, boolean authoritative,
-                                                                           boolean readOnly) {
-        CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
-
-        // First check if we or someone else already owns the bundle
-        ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
-            if (!nsData.isPresent()) {
-                // No one owns this bundle
-
-                if (readOnly) {
-                    // Do not attempt to acquire ownership
-                    future.complete(Optional.empty());
-                } else {
-                    // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
-                    pulsar.getExecutor().execute(() -> {
-                        searchForCandidateBroker(bundle, future, authoritative);
-                    });
-                }
-            } else if (nsData.get().isDisabled()) {
-                future.completeExceptionally(
-                        new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
-            } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
-                }
-                future.complete(Optional.of(new LookupResult(nsData.get())));
-            }
-        }).exceptionally(exception -> {
-            LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
-            future.completeExceptionally(exception);
-            return null;
-        });
-
-        return future;
     }
 
     private void searchForCandidateBroker(NamespaceBundle bundle,
@@ -1167,10 +1160,6 @@ public class NamespaceService {
         adminClient = pulsar.getAdminClient();
         adminClient.namespaces().unload(namespaceName);
         LOG.info("Namespace {} unloaded successfully", namespaceName);
-    }
-
-    public String getHeartbeatNamespace() {
-        return getHeartbeatNamespace(host, config);
     }
 
     public static String getHeartbeatNamespace(String host, ServiceConfiguration config) {

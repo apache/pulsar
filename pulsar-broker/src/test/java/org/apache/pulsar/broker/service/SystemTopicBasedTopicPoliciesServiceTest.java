@@ -20,10 +20,9 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -66,7 +65,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test
-    public void testGetPolicy() throws ExecutionException, InterruptedException, PulsarClientException, TopicPoliciesCacheNotInitException {
+    public void testGetPolicy() throws ExecutionException, InterruptedException, TopicPoliciesCacheNotInitException {
 
         // Init topic policies
         TopicPolicies initPolicy = TopicPolicies.builder()
