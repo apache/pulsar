@@ -1491,11 +1491,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         long currentMaxByteRate = pulsar.getConfiguration().getBrokerPublisherThrottlingMaxByteRate();
         int brokerTickMs = pulsar.getConfiguration().getBrokerPublisherThrottlingTickTimeMillis();
 
-        // not enabled
+        // not enable
         if (brokerTickMs <= 0 || (currentMaxByteRate <= 0 && currentMaxMessageRate <= 0)) {
             if (brokerPublishRateLimiter != PublishRateLimiter.DISABLED_RATE_LIMITER) {
-                brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
                 refreshBrokerPublishRate();
+                brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             }
             return;
         }
@@ -1503,7 +1503,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         final PublishRate publishRate = new PublishRate(currentMaxMessageRate, currentMaxByteRate);
 
         log.info("Update broker publish rate limiting {}", publishRate);
-        // lazy init Publish-rateLimiting monitoring if not initialized yet
+        // lazy init broker Publish-rateLimiting monitoring if not initialized yet
+        this.setupBrokerPublishRateLimiterMonitor();
         if (brokerPublishRateLimiter == null
             || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
             // create new rateLimiter if rate-limiter is disabled

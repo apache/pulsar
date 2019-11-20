@@ -383,19 +383,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Reducing to lower value can give more accuracy while throttling publish but "
             + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
     )
-    private int brokerPublisherThrottlingTickTimeMillis = 500;
+    private int brokerPublisherThrottlingTickTimeMillis = 50;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a broker"
+        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a broker "
+            + "when broker publish rate limiting enabled"
     )
     private int brokerPublisherThrottlingMaxMessageRate = -1;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a broker"
+        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a broker "
+            + "when broker publish rate limiting enabled"
     )
-    private int brokerPublisherThrottlingMaxByteRate = -1;
+    private long brokerPublisherThrottlingMaxByteRate = -1;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
