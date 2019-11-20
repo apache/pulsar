@@ -86,9 +86,9 @@ You can start the worker as daemon process.
 $ ./bin sql-worker start
 ```
 
-### Deploy on a multi-node cluster
+### Deploy a cluster on multiple nodes 
 
-You can deploy a Pulsar SQL/Presto cluster on multiple nodes. The following example shows how to deploy on three-node cluster. 
+You can deploy a Pulsar SQL cluster or Presto cluster on multiple nodes. The following example shows how to deploy a cluster on three-node cluster. 
 
 1. Copy the Pulsar binary distribution to three nodes.
 
@@ -119,11 +119,15 @@ discovery.uri=<coordinator-url>
 
 3. Start the coordinator node.
 
-```$ ./bin/pulsar sql-worker run```
+```
+$ ./bin/pulsar sql-worker run
+```
 
 4. Start worker nodes.
 
-```$ ./bin/pulsar sql-worker run```
+```
+$ ./bin/pulsar sql-worker run
+```
 
 5. Start the SQL CLI and check the status of your cluster.
 
